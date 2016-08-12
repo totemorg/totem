@@ -1,0 +1,22 @@
+{
+  "name": "totem",
+  "version": "1.0.1",
+  "description": "Provides a configurable http-https web service",
+  "main": "totem.js",
+  "scripts": {
+    "test": ". setup.sh CONFIG"
+  },
+  "repository": {
+    "type": "git",
+    "url": " git@git.geointapps.org:acme/totem.git"
+  },
+  "keywords": [
+  ],
+  "author": "ACME Software Disposal Service",
+  "license": "ISC",
+  "dependencies": {
+    "mysql": "^2.10.2",
+    "xml2js": "^0.4.16"
+  },
+  "devDependencies": {}
+}
