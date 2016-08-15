@@ -22,43 +22,14 @@ apply.)  # apply CMD to all projects
 	done
 	;;
 	
-geodebe.)
 
-	cd $BASE/geo/geodebe
-	$SETUP $2 $3 $4 $5
-	;;
-	
-geonode.)
-
-	cd $BASE/geo/geonode
-	$SETUP $2 $3 $4 $5
-	;;
-
-geoengine.)
-
-	cd $BASE/geo/geoengine
-	$SETUP $2 $3 $4 $5
-	;;
-
-geochip.)
-
-	cd $BASE/geo/geochip
-	$SETUP $2 $3 $4 $5
-	;;
-	
 #
 # repo cases
 #		
 
 clone.)	# clone a project
 	echo "Cloning project $2"
-	rm -RIf $2
-	git clone $REPO/$2
-	if test -d "$2"; then
-		cd $2
-			ln -s ../setup.sh setup.sh
-		cd ..
-	fi
+	git clone $REPO/$2.git
 	;;	
 
 baseline.)
@@ -111,36 +82,36 @@ help.)		# some help
 	echo "	\$SETUP all CMD OPTIONS"
 	echo "	\$SETUP apply CMD OPTIONS"
 	echo "	\$SETUP docker N FILE.js OPTIONS"
-	echo "	\$SETUP TEST OPTIONS"
+	echo "	\$SETUP CONFIG OPTIONS"
 	echo "	\$SETUP FILE.js OPTIONS"
 	echo ""
 	echo "Repo CMDs:"
-	echo "	clone project OPTION from repo"
-	echo "	push commited changes to repo with 'gitCOMMENT npmVERSION' OPTIONS"
-	echo "	pull latest changes from repo"
-	echo "	baseline project (git init+push) to the repo"
+	echo "	$SETUP clone PROJECT # from repo"
+	echo "	$SETUP push COMMENT VERSION # current project"
+	echo "	$SETUP pull # latest version into current project"
+	echo "	$SETUP baseline # current project to the repo"
 	echo "Enumerator CMDs"
-	echo " 	apply CMD to all projects [${PROJECTS[@]}]"
+	echo " 	$SETUP apply CMD to all projects [${PROJECTS[@]}]"
 	echo "Testing CMDs:"
-	echo "	list available geoclient.js applications"
-	echo "	docker FILE.js.js in N docker containers with OPTIONS"
-	echo "	TEST case in client.sh with 'app1 TEST OPTIONS'"
-	echo "	FILE.js to run in its geoclient.sh env with OPTIONS"
+	echo "	$SETUP list available totem.js applications"
+	echo "	$SETUP docker FILE.js.js in N docker containers with OPTIONS"
+	echo "	$SETUP CONFIG case to run from test.js"
+	echo "	$SETUP FILE.js to run in its geoclient.sh env with OPTIONS"
 	echo "Maintenance CMDs:"
-	echo "	startup dependent services (mysql, cesium, nodered, ...)"
-	echo "	reset all allocated docker threads"
-	echo "	config app parameters via mysql"
-	echo "	help with $BASH_SOURCE"
-	echo " 	notes on installation"
-	echo "	proxy email via ssh"
+	echo "	$SETUP startup dependent services (mysql, cesium, nodered, ...)"
+	echo "	$SETUP reset all allocated docker threads"
+	echo "	$SETUP config app parameters via mysql"
+	echo "	$SETUP help with $BASH_SOURCE"
+	echo " 	$SETUP notes on installation"
+	echo "	$SETUP proxy email via ssh"
 	echo "Data Syncing CMDs:"
-	echo "	checkpoint the mysql database"
-	echo "	archive project to hosting machine"
-	echo "	sync code changes with other machines"
+	echo "	$SETUP checkpoint the mysql database"
+	echo "	$SETUP archive project to hosting machine"
+	echo "	$SETUP sync code changes with other machines"
 	echo "Special CMDs:"
-	echo "	bind known c-modules to geonode"
-	echo "	redoc geoclient.js using doxygen compiler"
-	echo "	restyle css styles using css compass complier"
+	echo "	$SETUP bind known c-modules to geonode"
+	echo "	$SETUP redoc geoclient.js using doxygen compiler"
+	echo "	$SETUP restyle css styles using css compass complier"
 	;;
 	
 #
@@ -289,7 +260,7 @@ docker.)
 	;;
 
 .)
-	echo "See 'setup help'"
+	echo "See 'setup help' for command options"
 	;;
 	
 *)  	# start specified geonode client

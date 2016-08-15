@@ -8,7 +8,7 @@ export HERE=`pwd`
 export BASE=/usr/local
 export PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin	
 export LD_LIBRARY_PATH=
-export REPO=git@git.geointapps.org:acme
+export REPO=git@git.geointapps.org:acmesds
 export PROJECTS=(totem engine chipper debe app sql enum base graceful-lwip reader)
 export SETUP=". setup.sh"
 

@@ -16,91 +16,160 @@
  * @requires socket.io
  * @requires socket.io-clusterhub
  * 
- * TOTEM -- a replacement for the god-awful Express middleware -- provides
- * an HTTP-HTTPS service configured with/without the following options:
+ * TOTEM provides an HTTP-HTTPS service configured with/without the 
+ * following options:
  * 
- * 	+ Routing parameters | returns to client
- * 
- * 		++ sender 	| raw files
- * 		++ reader 	| parsed, indexed, fetched files
- * 		++ emulator | data from virtual tables
- * 		++ worker	| computed results from stateful engines
- * 
- *	+ Denial-of-Service and anti-bot protection
+ * 	+ routing methods for table, engine, and file objects
+ *	+ Denial-of-Service protection
  * 	+ web sockets for inter-client communications
  * 	+ client profiles (banning, journalling, hawking, challenge tags and polling)
- * 	+ user account management (for hawks and non-hawks)
- * 	+ hyper-threading in master-worker or master-only relationship
+ * 	+ account management by priviledged hawks and normal users
+ * 	+ hyper-threading in a master-worker or master-only relationship
  * 	+ PKI channel encryption and authentication
- * 	+ protected run state
+ * 	+ no faults run state
  *  + transfer, indexing, saving and selective cacheing of static mime files
- * 	+ challenge tags: (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
+ * 	+ anti-bot challenges: (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
  * 	+ full crude syncronized data operations with mutiple endpoints
  * 
- * Crude | HTTP request format:
+ * TOTEM thus replaces god-awful middleware like Express.
+ * 
+ * To synchronize multiple data nodes, TOTEM uses the following 
+ * Crude | HTTP requests:
  * 
  * 		select	| GET 	 /NODE $ NODE ...
  * 		update	| PUT 	 /NODE $ NODE ...
  * 		insert	| POST 	 /NODE $ NODE ...
  * 		delete	| DELETE /NODE $ NODE ...
  * 
- * where NODE = AREA?PARMS, TABLE.TYPE?PARMS, TYPE?PARMS, and where
- * AREA is a paths.mime file path redirection.  The request is 
- * synchronized on all NODEs. TABLEs can reference mysql, emulated,
- * or engine sources.  TYPEs = db|txt|xml|csv|jade|etc specify
- * how the returned data is formatted.  Engines include jade skins,
- * js, py, matlab, emulated matlab, r, opencv, etc.
+ * where a data NODE can reference a mysql or emulated table:
  * 
- * Catagorized configuration options to config(opts) follow:
+ * 		NODE = TABLE.TYPE?PARMS
  * 
- * 	+ Router = { index: cb(req,res), ...} | indexed by | attached to route
+ * or reference a language agnostic (e.g. jade skin, js, py, matlab, 
+ * emulated matlab, r, opencv, etc) engine:
  * 
- * 		select 	| table			| /table.type
- * 		update	| table			| /table.type
- * 		delete	| table			| /table.type
- * 		insert	| table			| /table.type
- * 		worker	| crude			| /table.type
- * 		emulator| crude,table	| /table.type (crude=select,insert,delete,update,execute)
- * 		sender	| area			| /area/file.type
- * 		reader	| type			| /area/file.type
+ * 		NODE = ENGINE.TYPE?PARMS
+ * 
+ * or reference a file:
+ * 
+ * 		NODE = FILE.TYPE?PARMS
+ * 
+ * where FILE = AREA/PATH provides redirection of the requested PATH
+ * to a service defined AREA, and where 
  *
- * 	+ This server
+ * 		TYPE = db | txt | xml | csv | jade | exe | ...
  * 
- * 		port 	| number of this http/https (0 disables listening)
- *  	host 	| name of http/https service
- * 		encrypt | passphrase for a https server ("" for http)
- * 		name 	| key to derive config options and site parms, and default group for guests
- * 		trace 	| prefix to log console messages ("" forces quite)
- * 		busy 	| millisecs interval to check business (0 disables)
- * 		cores 	| to service master-worker requests (0 for master only)
- * 		protected 	| switch to enable/disabled server fault protection
- * 		paths{...} 	| useful paths //this needs more doc//
- * 		guest{...}	| user profile for guests
- * 		pretty(err)	| format an error message
- * 		confg(opts) | configure
- * 		start(opts) | configure and start 
- * 		stop() 		| terminate listening
- *		thread(cb) 	| provide sql connection to cb(sql)
- * 		map{X:[J,...]...}		| maps digit X challenge to jpg J file
- *		create(owner,pass,cb) 	| makes a cert with callback cb
- * 		emitter(socket) 		| to manage web sockets
- * 		validator(req,res) 		| validate and extend request 
+ * returns NODE data in the specified format. An exe TYPE will schedule 
+ * (one-time or periodic) jobs matched by table, engine or file.
  * 
- * 	+ Fetching server
+ * To starts TOTEM with options use:
  * 
- * 		retries	| count for failed fetches (0 no retries)
- * 		notify	| switch to trace every fetch
+ * 		var TOTEM = require("totem").start({
+ * 			// options
+ * 		});
+ * 
+ * where the startup options include:
+ * 
+ * 		// CRUDE routing methods
+ * 
+ * 		select: cb(req,res),
+ * 		update: cb(req,res),
+ * 		delete: cb(req,res),
+ * 		insert: cb(req,res),
+ * 		execute: cb(req,res),
+ * 
+ * 		// Object routing methods
+ * 
+ * 		worker: {		// return computed results from stateful engines
+ * 			select: cb(req,res),
+ * 			update: cb(req,res),
+ * 			... 	},
+ * 
+ * 		emulator: {		// emulate virtual tables
+ * 			select: {
+ * 				TABLE: cb(req,res),
+ * 				TABLE: cb(req,res),
+ * 				...		},
+ *			...		},
+ * 
+ * 		sender: {		// return raw files
+ * 			AREA: cb(req,res),
+ * 			AREA: cb(req,res),
+ * 			...		},
+ * 
+ * 		reader: {		// readers
+ * 			user: cb(req,res),	// manage users
+ * 
+ * 			wget: cb(req,res),	// fetch from other services
+ * 			curl: cb(req,res),
+ * 			http: cb(req,res),
+ * 
+ * 			TYPE: cb(req,res),	// index (scan, parse etc) files
+ * 			TYPE: cb(req,res),
+ * 			...		},
+ *		
+ * 		// server specific
+ * 		
+ * 		port	: number of this http/https (0 disables listening),
+ * 		host	: "name" of http/https service,
+ * 		encrypt	: "passphrase" for a https server ("" for http),
+ * 		trace	: "prefix" to log console messages ("" forces quite),
+ * 		cores	: number of cores in master-worker relationship (0 for master only),
+ * 
+ * 		// server protection
+ * 
+ * 		nofaults: switch to enable/disabled server fault protection,
+ * 		busy	: number of millisecs to check busyness (0 disables),
+ * 
+ * 		riddles	: number of riddles to create for anti-bot protection (0 disables)
+ * 		map		: {	 // map riddle DIGIT to JPEG files
+ *			DIGIT:["JPEG1","JPEG2", ...],
+ *			DIGIT:["JPEG1","JPEG2", ...],
+ * 			...	},
+ * 
+ * 		guest	: {	 // default guest profile 
+ * 			},
+ * 
+ * 		paths	: {  // paths to various things
+ * 			},
+ * 
+ * 		// Service methods
+ * 
+ * 		pretty(err)	: format an error message,
+ * 		stop() 		: stop the service,
+ *		thread(cb) 	: provide sql connection to cb(sql),
+ * 
+ * 		// User management methods
+ * 
+ *		create(owner,pass,cb) 	: makes a cert with callback cb,
+ * 		validator(req,res) 		: validate cert during each request,
+ * 		emitter(socket) 		: communicate with users over web sockets,
+ *  
+ * 		// Data fetching services
+ * 
+ * 		retries	: count for failed fetches (0 no retries)
+ * 		notify	: switch to trace every fetch
  *
- * 	+ MySQL server
+ * 		// MySQL db service
  * 
- * 		mysql{host,user,pass,...} | parameters (null for none)
+ * 		mysql	: {host,user,pass,...} db connection parameters (null for no db),
  * 
- * 	+ Derived
+ * 		// Derived parameters
  * 
- * 		site{...} 	| parameters loaded for specified name 
- * 		url{master,worker}		| urls for specified cores 
- * 
+ * 		name	: "service" identifier
+ * 			// set from "node service.js NAME"
+ * 			// derive site parms from mysql openv.apps by name
+ *			// default mysql db name for guest clients,
+ *			// identify server cert file name.
+ *
+ * 		site: {db parameters} loaded for specified opts.name,
+ * 		url : {master,worker} urls for specified opts.cores,
  * 		copy,clone,extend,each,config,test,initialize enumerators
+ *
+ * 
+ * Any startup option can be a {"merge":{key:value,...}} to merge
+ * the desired key:value pairs into the default option.
+ * 
  * */
 
 var												// NodeJS modules
@@ -137,11 +206,21 @@ var
 	//ENGINE: null,		//< reserved for engine plugin
 	IO: null, 			//< reserved for socket.io
 	
+	/**
+	 * @method start
+	 * Configure and start the service
+	 * */
 	start: startServer,	
+	
+	/**
+	 * @method stop
+	 * Stop the service
+	 * */
 	stop: stopServer,			
 	
 	/**
-	 * @param jsons Site parms that require json conversion and defaults
+	 * @param jsons
+	 * Site parms requiring json conversion when loaded
 	 * */
 	jsons: {  
 		Hawks: {}
@@ -151,15 +230,14 @@ var
 	
 	/**
 	 * @method thread
-	 * 
-	 * Thread a new sql connection to the callback.
+	 * Thread a new sql connection to a callback.
 	 * */
 	thread: sqlThread,
 	
 	/**
-	 * @param TO Time-outs
+	 * @param TO
+	 * Time-Out values
 	 * */
-
 	TO : {							//< Time-outs in msecs
 		COOKIE : 900000, 			//< Browser cookie 
 		SESSION : 54000000,			//< Session  (legacy)
@@ -170,7 +248,8 @@ var
 	},
 	
 	/**
-	 * @param CRUD translation
+	 * @param crud 
+	 * REST-to-CRUD translations
 	 * */
 	crud: {
 		GET: "select",
@@ -179,14 +258,10 @@ var
 		PUT: "update"
 	},
 	
-	crude: {
-		GET: "select",
-		DELETE: "delete",
-		POST: "update",
-		PUT: "insert",
-		NADA: "execute"
-	},
-	
+	/**
+	 * @param reqflags
+	 * Options to parse request _flags
+	 * */
 	reqflags: {						//< Properties for request flags
 		strip:	 					//< Flags to strip from request
 			{"":1, "_":1, leaf:1, _dc:1, id:1, "=":1, "?":1, "request":1}, 		
@@ -212,17 +287,16 @@ var
 	},
 			
 	/**
-	 * @method fetch
-	 * 
-	 * Data TOTEM.fetcher[X] is used when TOTEM.select[X] is
+	 * @param fetchers
+	 * Data fetcher X is used when a GET on X is
 	 * requested.  These fetchers feed data pulled from the
-	 * TOTEM.paths.url.fetch URL to its callback.
+	 * TOTEM.paths.url[req.table] URL to its callback.
 	 * */
-	fetchers: {		
+	fetchers: {
 		curl: curlFetch,
 		wget: wgetFetch,
 		http: httpFetch,
-		plugin: {		//< fetch url plugins
+		plugin: {		//< example fetch url plugins
 			ex1: function (req) {
 				return req.profile.QoS + req.profile.Credit;
 			},
@@ -233,13 +307,15 @@ var
 
 	/**
 	 * @method parse
-	 * 
-	 * Parse the given URL and return a options hash
-	 * also containing the server key and crt paths.
+	 * Parse a url.
 	 * */
 	parse: parseURL,
 
-	url: {				//< default urls for this service
+	/**
+	 * @param url
+	 * Derived urls for this service
+	 * */
+	url: {					//< default urls for this service
 		master: "nourl",
 		worker: "nourl"
 	},
@@ -251,15 +327,16 @@ var
 	host: "localhost", 		//< service host name
 	proxy: false,			//< enable if https server being proxied
 
-	name: process.argv[2] || "undefined",		
-		//< name key to:
-		// derive site parms from mysql, 
-		// set default mysql db for guest clients,
+	name: process.argv[2] || "undefined",	
+		//< service name:
+		// set from "node service.js NAME"
+		// derive site parms from mysql openv.apps by name
+		// default mysql db name for guest clients,
 		// identify server cert file name.
 
-	site: {}, 				//< mysql derived site parameters
-	trust: [],				//< https service trust store buitl from all *.crt files
-	server: null,			//< default service
+	site: {}, 				//< parameters to derive from mysql openv.apps
+	trust: [],				//< https service trust store built from all *.crt files
+	server: null,			//< defined when service started
 	
 	// CRUDE interface
 	select: dataSelect,		//< endpoints(request hash, response callback)
@@ -271,8 +348,8 @@ var
 	retries: 5,				//< max number of fetch retries
 	notify: true, 			//< notify every fetch
 	
-	protected: false,		//< service protection mode
-	protect: {				//< service protections when in protected mode
+	nofaults: false,		//< service protection mode
+	protect: {				//< service protections when in nofaults mode
 		SIGUSR1:1,
 		SIGTERM:1,
 		SIGINT:1,
@@ -284,16 +361,16 @@ var
 		SIGSTOP:1
 	},	
 	
-	validator: null,		//< secondary req-req validator
+	validator: null,		//< cert validator to use on each request
 	
 	trace: "N>", 			//< trace progress to console
 	
-	admit: null, 			//< null admits all by default 	
+	admit: null, 			//< null to admit all clients
 		/*{ "u.s. government": "required",
-		 * 	"us": "optional"
-		 * }*/
+		  	"us": "optional"
+		  }*/
 
-	guest: {				//< guest profile in no mysql.guest defined
+	guest: {				//< default guest profile 
 		Banned: false,
 		QoS: 1,
 		Credit: 100,
@@ -306,7 +383,7 @@ var
 		Message: "Welcome guest - what is (riddle)?"
 	},
 
-	map: { 					//< null to disable anti-robot protection
+	map: { 					//< riddle digit-to-jpeg map (null to disable riddles)
 		0: ["10","210"],
 		1: ["30","60"],
 		2: ["50","160"],
@@ -319,7 +396,7 @@ var
 		9: ["40","190"]
 	},
 
-	riddles: 4, 			//< number of riddles to protect site
+	riddles: 0, 			//< number of riddles to protect site (0 to disable anti-bot)
 	
 	paths: { 				//< default paths to service files
 		render: "public/jade/",
@@ -327,17 +404,22 @@ var
 			//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 			//default: "/home",
 			//resetpass: "/resetpass",
-			socketio: "" //"/socket.io/socket.io.js"
+			/*==*/
+			wget: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
+			curl: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
+			http: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
+			socketio: "/socket.io/socket.io.js"
 		},
 			
 		busy: "Too busy - try again later.",
 		
 		mysql: {
+			/*==*/
 			derive: "SELECT * FROM openv.apps WHERE ?",
 			record: "INSERT INTO dblogs SET ?",
 			engine: "SELECT *,count(ID) as Count FROM engines WHERE least(?,1)",
 			search: "SELECT * FROM files HAVING Score > 0.1",
-			credit: "SELECT * FROM files LEFT JOIN profiles ON profiles.Client = files.Client WHERE least(?) LIMIT 0,1",
+			credit: "SELECT * FROM files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 0,1",
 			socket: "REPLACE sockets SET ?",
 			session: "INSERT INTO sessions SET ?",
 			guest: "SELECT * FROM openv.profiles WHERE Client='guest' LIMIT 0,1"
@@ -682,7 +764,7 @@ function initServer(server,cb) {
 			else
 			if (cb) cb();
 			
-			if (TOTEM.protected) {
+			if (TOTEM.nofaults) {
 				process.on("uncaughtException", function (err) {
 					console.warn(`SERVICE FAULTED ${err}`);
 				});
@@ -691,7 +773,7 @@ function initServer(server,cb) {
 					console.warn(`SERVICE EXITED ${code}`);
 				});
 
-				for (var n in TOTEM.protected)
+				for (var n in TOTEM.nofaults)
 					process.on(n, function () {
 						console.warn(`SERVICE SIGNALED ${n}`);
 					});
@@ -721,7 +803,7 @@ function initServer(server,cb) {
 			else
 			if (cb) cb(TOTEM);
 			
-			if (TOTEM.protected)
+			if (TOTEM.nofaults)
 				CLUSTER.worker.process.on("uncaughtException", function (err) {
 					console.warn(`CORE${CLUSTER.worker.id} FAULTED ${err}`);
 				});	
@@ -993,7 +1075,7 @@ function Responder(Req,Res) {
 							sql.query( paths.mysql.credit, {Name:req.node,Area:req.area} )
 							.on("result", function (file) {
 								if (file.Client != req.client)
-									sql.query("UPDATE profiles SET Credit=Credit+1 WHERE ?",{Client: file.Client});
+									sql.query("UPDATE openv.profiles SET Credit=Credit+1 WHERE ?",{Client: file.Client});
 							});
 
 						sendCache( ack(), req.file, req.type, req.area );
@@ -1247,7 +1329,8 @@ function Responder(Req,Res) {
 			// prime session request hash
 			req = Req.req = {
 				action: TOTEM.crud[Req.method],
-				socketio: TOTEM.paths.url.socketio,
+				/*==*/
+				socketio: TOTEM.encrypt ? TOTEM.paths.url.socketio : "",
 				query: {},
 				body: body,
 				flags: {},
@@ -1727,7 +1810,7 @@ function validateCert(con,req,res) {
 	if (TOTEM.mysql)	
 		sql.query("SELECT *,count(ID) as Count FROM openv.profiles WHERE ? LIMIT 0,1", {client: client})
 		.on("error", function (err) {
-			res(err);
+			res("validate cert - "+err);
 		})
 		.on("result", function (profile) {
 
@@ -1906,21 +1989,22 @@ function Uploader(sql, files, area, cb) {
 //============================================
 // Fetcher routes
 
+/*==*/
 function fetchWget(req,res) {	//< wget endpoint
 	if (req.out) 
 		TOTEM.fetchers.wgetout = req.out;
 		
-	if ( url = req.url || TOTEM.paths.url.fetch )
+	if ( url = TOTEM.paths.url[req.table] )
 		wgetFetch(url.format(req, TOTEM.fetchers.plugin),res);
 }
 
 function fetchCurl(req,res) {	//< curl endpoint
-	if( url = req.url || TOTEM.paths.url.fetch )
+	if( url = TOTEM.paths.url[req.table] )
 		curlFetch(url.format(req, TOTEM.fetchers.plugin),res);
 }
 
 function fetchHttp(req,res) {	//< http endpoint
-	if ( url = req.url || TOTEM.paths.url.fetch )
+	if ( url = TOTEM.paths.url[req.table] )
 		httpFetch(url.format(req, TOTEM.fetchers.plugin),res);
 }
 
@@ -2164,7 +2248,7 @@ function challengeClient(client, Prof) {
 	else {
 		var 
 			rid = [],
-			reply = TOTEM.map
+			reply = (TOTEM.map && TOTEM.riddles)
 					? getChallenge( Prof.Message, rid, (Prof.IDs||"").parse({}) )
 					: Prof.Message;
 	
@@ -2211,11 +2295,6 @@ Array.prototype.each = function (cb) {
 		
 }
 
-String.prototype.format = function (req,plugin) {
-	req.plugin = req.F = plugin || {};
-	return Format(req,this);
-}
-
 String.prototype.each = function (pat, rtn, cb) {
 	
 	var msg = this;
@@ -2248,17 +2327,23 @@ String.prototype.tag = function (tag,attrs) {
 	}
 }
 
+String.prototype.format = function (req,plugin) {
+	req.plugin = req.F = plugin || {};
+	return Format(req,this);
+}
+
 /**
  * @method Format
  * 
- * Format a string str containing ${X.key} tags.  The String wrapper for this
- * method will optionaly provide plugins like X.F = {fn: function (X){}, ...}.
+ * Format a string S containing ${X.key} tags.  The String wrapper for this
+ * method extends X with optional plugins like X.F = {fn: function (X){}, ...}.
  * */
 
-function Format(X,str) {
+/*==*/
+function Format(X,S) {
 
 	try {
-		var rtn = eval("`" + str + "`");
+		var rtn = eval("`" + S + "`");
 		return rtn;
 	}
 	catch (err) {
@@ -2267,11 +2352,12 @@ function Format(X,str) {
 
 }
 		
+/*==*/
 function parseURL(url) {
 		
 	var 
 		name = TOTEM.name || "guest",
-		opts = (URL||"").parse(url);
+		opts = URL.parse(url);
 	
 	opts.crt = `${name}.crt`;
 	opts.key = `${name}.key`;
