@@ -404,7 +404,6 @@ var
 			//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 			//default: "/home",
 			//resetpass: "/resetpass",
-			/*==*/
 			wget: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 			curl: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 			http: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
@@ -414,7 +413,6 @@ var
 		busy: "Too busy - try again later.",
 		
 		mysql: {
-			/*==*/
 			derive: "SELECT * FROM openv.apps WHERE ?",
 			record: "INSERT INTO dblogs SET ?",
 			engine: "SELECT *,count(ID) as Count FROM engines WHERE least(?,1)",
@@ -481,6 +479,7 @@ var
 			"/clients/grids.js": 1,
 			"/clients/guides.js": 1,
 			"/clients/jquery.js":1,
+			"/clients/models.js":1,
 			"jade": 1,
 			"view": 1
 		},
@@ -1248,7 +1247,6 @@ function Responder(Req,Res) {
 		
 		Req
 		.on("data", function (chunk) {
-			console.log("chunk="+chunk.length);
 			body += chunk.toString();
 		})
 		.on("end", function () {
@@ -1329,7 +1327,6 @@ function Responder(Req,Res) {
 			// prime session request hash
 			req = Req.req = {
 				action: TOTEM.crud[Req.method],
-				/*==*/
 				socketio: TOTEM.encrypt ? TOTEM.paths.url.socketio : "",
 				query: {},
 				body: body,
@@ -1353,7 +1350,7 @@ function Responder(Req,Res) {
 			if (nodes.length == 1) {	// respond with only this node
 				node = req.node = nodes.pop();	
 				routeNode(req, function (ack) {	
-					
+//console.log({ack:ack});					
 					Res.setHeader("Content-Type", MIME[req.type] || MIME.html || "text/plain");
 					res(ack);
 				});
@@ -1820,6 +1817,9 @@ function validateCert(con,req,res) {
 			else 
 				sql.query("show session status like 'Thread%'", function (err,stats) {
 
+					if (err)
+						stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
+						
 					Copy({
 						log: {  								// TOTEM monitored
 							Cores: site.Cores, 					// number of safety core hyperthreads
@@ -1989,7 +1989,6 @@ function Uploader(sql, files, area, cb) {
 //============================================
 // Fetcher routes
 
-/*==*/
 function fetchWget(req,res) {	//< wget endpoint
 	if (req.out) 
 		TOTEM.fetchers.wgetout = req.out;
@@ -2309,6 +2308,7 @@ String.prototype.each = function (pat, rtn, cb) {
 	
 }
 
+/*  //>>>> added to enum  removed from base
 String.prototype.tag = function (tag,attrs) {
 	var rtn = "<"+tag+" ";
 	
@@ -2325,7 +2325,7 @@ String.prototype.tag = function (tag,attrs) {
 		default:
 			return rtn+">" + this + "</"+tag+">";
 	}
-}
+}*/
 
 String.prototype.format = function (req,plugin) {
 	req.plugin = req.F = plugin || {};
@@ -2339,7 +2339,6 @@ String.prototype.format = function (req,plugin) {
  * method extends X with optional plugins like X.F = {fn: function (X){}, ...}.
  * */
 
-/*==*/
 function Format(X,S) {
 
 	try {
@@ -2352,7 +2351,6 @@ function Format(X,S) {
 
 }
 		
-/*==*/
 function parseURL(url) {
 		
 	var 
@@ -2461,6 +2459,7 @@ function parseNode(req) {
 	
 //console.log([file,areas,req.area,req.path,req.table,req.type]);
 
+	//>>>> may be bug here that causes hang
 	(parms ? parms.split("&") : []).each(function (n,parm) {  // parse the query parms
 		var parts = parm.split("=");
 		query[parts[0]] = parts[1] || "";
@@ -2613,7 +2612,7 @@ function routeNode(req, res) {
 			var route;
 
 			if (eng.Count) 			// route to located engine
-				if ( route = TOTEM.worker[action] )						
+				if ( route = TOTEM.worker[action] )	
 					followRoute(route,req,res);
 
 				else
