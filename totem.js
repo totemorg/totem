@@ -278,7 +278,8 @@ var
 			file: 1,
 			tree: 1,
 			jade: 1,
-			json: 1
+			json: 1,
+			mark: 1
 		},
 		
 		id: "ID", 					//< SQL record id
@@ -2474,7 +2475,7 @@ function parseNode(req) {
 		lists = reqflags.lists,
 		jsons = reqflags.jsons,
 		id = reqflags.id,
-		trace = query[reqflags.trace] ? true : false,
+		trace = false, //query[reqflags.trace] ? true : false,
 	
 		body = req.body,
 		flags = req.flags,

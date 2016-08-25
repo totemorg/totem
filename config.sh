@@ -19,8 +19,10 @@ export PATH=$PATH:$NODE/bin
 # MYSQL
 export MYSQL=$BASE/mysql
 export PATH=$PATH:$MYSQL/bin
-export DB_PASS=NGA
-export DB_USER=root
+export MYSQL_PASS=NGA
+export MYSQL_USER=root
+export MYSQL_NAME=app1
+export MYSQL_HOST=localhost
 
 # tools
 export PATH=/opt/cmake:$PATH 			# latest cmake
@@ -34,8 +36,15 @@ export RUN="run -it $GPU $VOL $NET"
 export RUND="$RUN -d"
 
 # machines and geo shortcuts
-export SWAG01=$USER@swag-gpu-01
-export SWAG02=$USER@swag-ws-02
+# AWS
+export USER=jamesdb
+export GPU_HOST=$USER@swag-gpu-01
+export CPU_HOST=$USER@swag-ws-02
+
+# ILE
+export USER=jamesbd
+export GPU_HOST=$USER@giatstlgpu01
+export CPU_HOST=$USER@giatstltbd
 
 #export GEO=". $BASH_SOURCE"
 export GYPOPTS=--nodedir=$NODE/install	# use "node-gyp $GYPTOPS" to override distro ref to inet
