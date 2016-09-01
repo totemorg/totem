@@ -216,7 +216,7 @@ var
 	 * @method stop
 	 * Stop the service
 	 * */
-	stop: stopServer,			
+	stop: stopServer,
 	
 	/**
 	 * @param jsons
@@ -263,30 +263,121 @@ var
 	 * Options to parse request _flags
 	 * */
 	reqflags: {						//< Properties for request flags
-		strip:	 					//< Flags to strip from request
+		strips:	 					//< Flags to strips from request
 			{"":1, "_":1, leaf:1, _dc:1, id:1, "=":1, "?":1, "request":1}, 		
 		
 		jsons: {
-			sort: 1,
-			build: 1
+			sort: 0,
+			build: 0
 		},
 		
-		lists: { 					//< Array list flags
-			pivot: 1,
-			browse: 1,
-			index: 1,
-			file: 1,
-			tree: 1,
-			jade: 1,
-			json: 1,
-			mark: 1
+		lists: { 					//< Array list flags			
+			encap: function encap(idx,recs) {
+				var encap = {};
+				encap[idx] = recs;
+				return encap;
+			},
+			
+			json: function json(idx,recs) {
+				recs.each( function (n,rec) {
+					idx.each( function (i,n) {
+						try {
+							rec[n] = JSON.parse(rec[n]);
+						}
+						catch (err) {
+						}
+					});
+				});
+				return recs;
+			},
+			
+			index: function index(idx,recs) {
+				var group = idx[2],
+					x = idx[0],
+					y = idx[1];
+				
+				if (group) {
+					var rtn = {};
+					recs.each( function (n,rec) {
+						var xy = rtn[rec[group]];
+						if (!xy) xy = rtn[rec[group]] = [];
+						xy.push([rec[x], rec[y]]);
+					});
+				}
+				else {
+					var rtn = {group: []}, xy = rtn.group;
+					recs.each( function (n,rec) {
+						if (!xy) xy = rtn[rec[group]] = [];
+						xy.push([rec[x], rec[y]]);
+					});
+				}
+				
+				return [rtn];
+			},
+				
+			tree: function tree(idx,recs) {
+				return recs.treeify(idx);
+			}
 		},
 		
 		id: "ID", 					//< SQL record id
 		prefix: "_",				//< Prefix that indicates a field is a flag
-		trace: "trace" 				//< Echo flags before and after parse
+		trace: "" 					//< Echo flags before and after parse		
 	},
+
+	Array: [
+		function treeify(idx,kids,level,piv,wt) {
 			
+			if (!wt) 
+				return this.treeify(0,recs.length,0,idx,"size");
+
+			var recs = this;
+			var key = piv[level];
+			var levels = piv.length-1;
+			var ref = recs[idx][key];
+			var len = 0;
+			var pos = idx, end = idx+kids;
+			var tar = [];
+			
+			if (level<levels)
+				while (pos<end) {
+					var rec = recs[idx];
+					var stop = (idx==end) ? true : (rec[key] != ref);
+					
+					if ( stop ) {
+						//console.log([pos,idx,end,key,ref,recs.length]);
+						//console.log(rec);
+						
+						var node = {
+							name: key+":"+ref, 
+							weight: len, //wt ? parseInt(rec[wt] || "0") : 0,
+							children: recs.treeify(pos,len,level+1,piv,wt)
+						};
+
+						tar.push( node );
+						pos = idx;
+						len = 0;
+						ref = (idx==end) ? null : recs[idx][key];
+					}
+					else {
+						idx++;
+						len++;
+					}
+				}
+			else
+				while (pos < end) {
+					var rec = recs[pos++];
+					tar.push({
+						name: key+":"+rec[key], 
+						weight: wt ? parseInt(rec[wt] || "1") : 1,
+						doc: rec
+					});
+				}
+				
+			return tar;
+		}
+	],
+	
 	/**
 	 * @param fetchers
 	 * Data fetcher X is used when a GET on X is
@@ -364,7 +455,7 @@ var
 	
 	validator: null,		//< cert validator to use on each request
 	
-	trace: "N>", 			//< trace progress to console
+	trace: "T>", 			//< trace progress to console
 	
 	admit: null, 			//< null to admit all clients
 		/*{ "u.s. government": "required",
@@ -578,9 +669,9 @@ function startServer(opts) {
 			host     : mysql.host,				// host name
 			user     : mysql.user,				// login
 			password : mysql.pass,				// passphrase
-			connectionLimit : mysql.sessions || 10000, 		// max simultaneous connections
-			acquireTimeout : 10000, 			// connection acquire timer
-			queueLimit: 100,  					// max conection requests to queue
+			connectionLimit : mysql.sessions || 100, 		// max simultaneous connections
+			//acquireTimeout : 10000, 			// connection acquire timer
+			queueLimit: 0,  					// max concections to queue (0=unlimited)
 			waitForConnections: true			// allow connection requests to be queued
 		};
 
@@ -599,7 +690,7 @@ function startServer(opts) {
 						Each(opts, function (key,val) {
 							key = key.toLowerCase();
 							if (key in TOTEM) {
-								Trace(`${key}=${val}`);
+								//Trace(`${key}=${val}`);
 								TOTEM[key] = val;
 							}
 						});
@@ -933,7 +1024,7 @@ function stopServer() {
 function Responder(Req,Res) {	
 	
 	/** 
-	 * Terminal response functions to respond with a string, file, or error message.
+	 * Terminal response functions to respond with a string, file, db structure, or error message.
 	 * */
 	function sendString( data ) {
 		//Trace("sql closed");
@@ -1007,6 +1098,26 @@ function Responder(Req,Res) {
 		Res.end( TOTEM.pretty(msg) );
 		Req.req.sql.release();
 	}
+
+	function sendDb( msg, cnt, data) {
+	
+		sendString( data
+			? JSON.stringify({ 
+				success: true,
+				msg: msg,
+				count: cnt,
+				data: data
+			})
+			
+			: JSON.stringify({ 
+				success: false,
+				msg: msg,
+				count: cnt,
+				data: []
+			}) 
+		);
+		
+	}
 	
 	/**
 	 * Session response callback
@@ -1017,22 +1128,18 @@ function Responder(Req,Res) {
 			sql = req.sql,
 			paths = TOTEM.paths;
 		
-		try {	
+		try {
 			switch (ack.constructor) {
 				case Error:
 					
 					switch (req.type) {
 						case "db":
 
-							sendString( JSON.stringify({ 
-								success: false,
-								msg: ack+"",
-								count: 0,
-								data: []
-							}) );
+							sendDb(ack+"",0,null);
 							break;
 							
 						default:
+						
 							sendError( ack );
 					}
 					break;
@@ -1041,12 +1148,7 @@ function Responder(Req,Res) {
 				
 					switch (req.type) {
 						case "db": 
-							sendString( JSON.stringify({ 
-								success: false,
-								msg: ack,
-								count: 0,
-								data: []
-							}) );
+							sendDb(ack,0,null);
 							break;
 							
 						default:
@@ -1085,6 +1187,14 @@ function Responder(Req,Res) {
 					
 				case Array:
 
+					var flags = req.flags;
+
+					Each( TOTEM.reqflags.lists, function (n, conv) {
+						if (flag = flags[n])
+							if (conv)
+								ack = conv(flag,ack,req);
+					});
+					
 					switch (req.type) {
 						case "db": 
 						
@@ -1094,20 +1204,13 @@ function Responder(Req,Res) {
 									sql.query("select found_rows()")
 									.on('result', function (stat) {		// ack from sql				
 
-										sendString( JSON.stringify({ 
-											success: true,
-											msg: "data",
-											count: stat["found_rows()"] || 0,
-											data: ack
-										}) );
+										sendDb("data", stat["found_rows()"] || 0, ack);
+										
 									})
 									.on("error", function () {  		// ack from virtual table
-										sendString( JSON.stringify({ 
-											success: true,
-											msg: "data",
-											count: ack.length,
-											data: ack
-										}) );
+										
+										sendDb("data", ack.length, ack);
+										
 									});
 									
 									break;
@@ -1116,21 +1219,18 @@ function Responder(Req,Res) {
 								case "delete":
 								case "insert":
 								case "execute":
-									sendString( JSON.stringify({ 
-										success: true,
-										msg: "info",
-										count: 0,
-										data: ack
-									}) );
+									
+									sendDb("info", 0, ack);
 									break;
 								
 								default:
 									sendError(new Error("Bad action:"+req.action));
 							}
 							break;
-							
+						
 						case "txt":
 						case "csv":
+							
 							JS2CSV({ 
 								data: ack, 
 								fields: Object.keys( ack[0]||{} )
@@ -1153,6 +1253,7 @@ function Responder(Req,Res) {
 							
 						case "json":
 						default:
+							
 							sendString( JSON.stringify(ack) );
 					}
 					break;
@@ -1161,18 +1262,14 @@ function Responder(Req,Res) {
 				
 					switch (req.type) {
 						case "db": 
-							sendString( JSON.stringify({ 
-								success: true,
-								msg: "info",
-								count: 0,
-								data: ack
-							}) );
+							
+							sendDb( "info", 0, ack );
 							break;
 							
 						case "txt":
 						case "csv":
+							
 							JS2CSV(ack , function (err,csv) {
-								
 								if (err)
 									sendError("Bad conversion");
 								else 
@@ -1185,8 +1282,9 @@ function Responder(Req,Res) {
 							sendString( JS2XML(req.table, ack) );
 							break;
 							
-						case "json":							
+						case "json":
 						default:
+							
 							sendString( JSON.stringify(ack) );
 					}
 					break;
@@ -1195,8 +1293,7 @@ function Responder(Req,Res) {
 
 		}
 		catch (err) {
-			console.log(err);
-			sendError("Bad results");
+			sendError("Bad result - "+err);
 		}
 	}
 
@@ -2403,7 +2500,7 @@ function retryExecute(cmd,opts,cb) {
 // TOTEM initalization
 
 function Initialize () {
-	Trace(`##TOTEM initialized with ${TOTEM.riddles} riddles`);
+	Trace(`INITIALIZED WITH ${TOTEM.riddles} RIDDLES`);
 	
 	initChallenger();
 	
@@ -2412,12 +2509,10 @@ function Initialize () {
 //============================================
 // Execution tracing
 
-var
-	Trace = TOTEM.trace 
-		? function (msg) {
-			console.info(`${TOTEM.trace}${msg}`);
-		}
-		: function () {};
+function Trace(msg,arg) {
+	console.info("T>"+msg);
+	if (arg) console.log(arg);
+}
 
 function traceExecute(cmd,cb) {
 	
@@ -2458,9 +2553,9 @@ function parseNode(req) {
 	else
 		req.area = "";
 	
-//console.log([file,areas,req.area,req.path,req.table,req.type]);
+//Trace(">parse node",[file,areas,req.area,req.path,req.table,req.type]);
 
-	//>>>> may be bug here that causes hang
+	//>>>> may be bug here that causes hang if no ?query provided
 	(parms ? parms.split("&") : []).each(function (n,parm) {  // parse the query parms
 		var parts = parm.split("=");
 		query[parts[0]] = parts[1] || "";
@@ -2470,12 +2565,12 @@ function parseNode(req) {
 	
 	var 
 		reqflags = TOTEM.reqflags,
-		strip = reqflags.strip,
+		strips = reqflags.strips,
 		prefix = reqflags.prefix,
 		lists = reqflags.lists,
 		jsons = reqflags.jsons,
 		id = reqflags.id,
-		trace = false, //query[reqflags.trace] ? true : false,
+		trace = query[reqflags.trace],
 	
 		body = req.body,
 		flags = req.flags,
@@ -2491,7 +2586,7 @@ function parseNode(req) {
 		});
 
 	for (var n in query) 		// remove bogus query parameters and remap query flags and joins
-		if ( n in strip ) 				// remove bogus
+		if ( n in strips ) 				// remove bogus
 			delete query[n];
 		else
 		if (n.charAt(0) == prefix) {  	// remap flag
@@ -2529,7 +2624,7 @@ function parseNode(req) {
 		var parm = unescape(flags[n]);
 		
 		if (n in lists) 
-			flags[n] = parm ? parm.split(",") : "";
+			flags[n] = parm ? parm.split(",") : null;
 		else
 		if (n in jsons)
 			try { flags[n] = JSON.parse(parm); } 
@@ -2653,8 +2748,8 @@ function routeNode(req, res) {
 
 function followRoute(route,req,res) {
 	Trace( 
-		`[${req.log.ThreadsConnected}/${req.log.ThreadsRunning}] ` 
-		+ (route?route.name:null) 
+		//`[${req.log.ThreadsConnected}/${req.log.ThreadsRunning}] ` 
+		(route?route.name:"null").toUpperCase() 
 		+ ` ${req.path||req.table} FOR ${req.client} IN ${req.group}`);
 	
 	route(req, res);
