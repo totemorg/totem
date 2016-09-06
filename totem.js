@@ -223,7 +223,17 @@ var
 	 * Site parms requiring json conversion when loaded
 	 * */
 	jsons: {  
-		Hawks: {}
+		Hawks: {},
+		ASP: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
+		ISP: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
+		PM: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
+		ISSO: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
+		DTO: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
+		DAO: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
+		ATP: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
+		IATT: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
+		Info: {}
+		
 		//Classif: { Level: "(U)" },
 		//Parms: null
 	},
@@ -326,6 +336,18 @@ var
 	},
 
 	Array: [
+		
+		//>>>>
+		function joinify(item,list,cb) {
+			
+			var rtn = [];
+
+			for (var n=0, N=this.length; n<N; n++) 
+				rtn.push( cb ? cb(this[n][item]) : this[n][item] );
+				
+			return rtn.join(list || ",");
+		},
+							
 		function treeify(idx,kids,level,piv,wt) {
 			
 			if (!wt) 
@@ -437,6 +459,8 @@ var
 	insert: null,
 	execute: null,
 	
+	//>>>>
+	started: new Date(), 	//< totem start time
 	retries: 5,				//< max number of fetch retries
 	notify: true, 			//< notify every fetch
 	
@@ -505,6 +529,8 @@ var
 		busy: "Too busy - try again later.",
 		
 		mysql: {
+			//>>>>
+			users: "SELECT client FROM ??.dblogs GROUP BY client",
 			derive: "SELECT * FROM openv.apps WHERE ?",
 			record: "INSERT INTO dblogs SET ?",
 			engine: "SELECT *,count(ID) as Count FROM engines WHERE least(?,1)",
@@ -689,19 +715,25 @@ function startServer(opts) {
 						
 						Each(opts, function (key,val) {
 							key = key.toLowerCase();
+							//>>>>
+							site[key] = val;
 							if (key in TOTEM) {
 								//Trace(`${key}=${val}`);
 								TOTEM[key] = val;
 							}
 						});
 						
-						Copy(opts, site);
-						
+						//>>>>
+						//Copy(opts, site);
+
 						if (TOTEM.jsons)
 							Each( TOTEM.jsons, function (n,def) {
-								site[n] = (site[n]||"").parse("");
+								//Trace(`${n}=${site[n]}`)
+								//>>>>
+								site[n.toLowerCase()] = (opts[n]||"").parse(def);
 							});
-						
+
+console.log(site);
 						setupServer(cb);
 					})
 					.on("error", function (err) {
@@ -712,6 +744,14 @@ function startServer(opts) {
 					sql.query(guest)
 					.on("result", function (rec) {
 						TOTEM.guest = Copy(rec,{});
+					});
+					
+				//>>>>
+				if (users = paths.mysql.users) 
+					sql.query(users, [name], function (err,users) {
+						site.users = users.joinify("client", ";", function (user) {
+							return "emailto:"+user;
+						});
 					});
 					
 				sql.release();
@@ -1885,7 +1925,7 @@ function validateCert(con,req,res) {
 		email	: client, 			// email address from pki
 		//source	: req.table, 		// db target
 		hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
-	}, Copy(TOTEM.STATICS, req));
+	}, Copy(TOTEM.site, req));  //>>>> STATICS->site
 
 	if (TOTEM.encrypt) {
 
