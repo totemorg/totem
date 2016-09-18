@@ -265,7 +265,8 @@ docker.)
 	
 *)  	# start specified geonode client
 
-	node test.js app1 $1 $2 $3 $4 $5 
+	node test.js Totem $1 $2 $3 $4 $5 
+	#forever start test.js Totem $1 $2 $3 $4 $5
 	;;
 
 esac

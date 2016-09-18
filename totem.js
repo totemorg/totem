@@ -210,22 +210,19 @@ var 											// shortcuts
 
 var
 	TOTEM = module.exports = ENUM.extend({
-	/**
-	 * Reserved plugins
-	 * */
-	//ENGINE: null,		//< reserved for engine plugin
+
 	IO: null, 			//< reserved for socket.io
 
 	//$$$$
 	Array: [
-		function joinify(item,list,cb) {
+		function joinify(cb) {  //$$$$
 			
 			var rtn = [];
 
 			for (var n=0, N=this.length; n<N; n++) 
-				rtn.push( cb ? cb(this[n][item]) : this[n][item] );
+				rtn.push( cb ? cb(this[n]) : this[n] );
 				
-			return rtn.join(list || ",");
+			return rtn.join(",");
 		},
 							
 		function treeify(idx,kids,level,piv,wt) {
@@ -277,11 +274,8 @@ var
 				}
 				
 			return tar;
-		},
-	
-		function each(cb) {
-			for (var n=0,N=this.length; n<N; n++) cb(n,this[n]);
 		}
+	
 	],
 
 	//$$$$
@@ -316,12 +310,19 @@ var
 			}
 		},
 		
+		function xmlParse(def, cb) {
+			XML2JS.parseString(this, function (err,json) {				
+				cb( err ? def : json );
+			});
+		},
+						
 		function tag(el,at) {
 		
 			if (el.constructor == String) {
 				var rtn = "<"+el+" ";
 				
-				for (var n in at) rtn += n + "='" + at[n] + "' ";
+				if (at)  //$$$$
+					for (var n in at) rtn += n + "='" + at[n] + "' ";
 				
 				switch (el) {
 					case "embed":
@@ -359,17 +360,18 @@ var
 	 * @param jsons
 	 * Site parms requiring json conversion when loaded
 	 * */
+	 //$$$$
 	jsons: {  
-		Hawks: {},
-		ASP: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
+		//Hawks: {},
+		/*ASP: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
 		ISP: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
 		PM: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
 		ISSO: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
 		DTO: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
 		DAO: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
 		ATP: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
-		IATT: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},
-		Info: {}
+		IATT: {name:"TBD",addr:"TBD",org:"TBD",title:"TBD",phone: "TBD", email: "TBD", addr: "TBD"},*/
+		info: {classif:{level:"(U)",purpose:"TBD"}}
 		
 		//Classif: { Level: "(U)" },
 		//Parms: null
@@ -492,12 +494,6 @@ var
 	},
 
 	/**
-	 * @method parse
-	 * Parse a url.
-	 * */
-	parse: parseURL,
-
-	/**
 	 * @param url
 	 * Derived urls for this service
 	 * */
@@ -597,6 +593,12 @@ var
 			
 		busy: "Too busy - try again later.",
 		
+		certs: {
+			truststore: "certs/truststore/",
+			server: "certs/",
+			fetch: "certs/fetch_"
+		},
+		
 		mysql: {
 			users: "SELECT client FROM ??.dblogs GROUP BY client",
 			derive: "SELECT * FROM openv.apps WHERE ?",
@@ -658,6 +660,84 @@ var
 	
 	sendFile: sendFile,
 	
+	//$$$$
+	refresh: function (sql,cb) {
+		var site = TOTEM.site,
+			mysql = TOTEM.paths.mysql;
+		
+		site.pocs = [];
+		site.distro = {};
+
+		if (derive = mysql.derive)
+
+			sql.query(derive, {Nick:TOTEM.name})
+			.on("result", function (opts) {
+				
+				Each(opts, function (key,val) {
+					key = key.toLowerCase();
+
+					if (key in TOTEM.jsons)
+						site[key] = (val+"").parse(TOTEM.jsons[key]);
+					else
+						site[key] = val;
+
+					if (key in TOTEM) 
+						TOTEM[key] = val;
+				});
+				
+				if (cb) cb();
+
+				if (users = mysql.users) 
+					sql.query(users, [site.db], function (err,users) {
+						site.distro.user = users.joinify( function (user) {
+							return user.client.tag("a",{href:"emailto:"+user.client});
+						});
+					});
+
+			})
+			.on("error", function (err) {
+				Trace(`FAILED CONFIG FROM DB - ${err}`);
+			});
+
+		else 
+		if (cb) cb();
+		
+		/*
+		if (TOTEM.jsons)
+			sql.query("SELECT * FROM openv.apps WHERE ?",{Name:TOTEM.name})
+			.on("result", function (opts) {
+				Each( TOTEM.jsons, function (n,def) {
+					//Trace(`${n}=${site[n]}`)
+					site[n.toLowerCase()] = (opts[n]||"").parse(def);
+				});
+			});*/
+
+		sql.query("SELECT * FROM openv.POCs WHERE ?",{Site:TOTEM.name})
+		.on("result", function (poc) {
+			site.pocs.push(poc);
+		});
+			
+		sql.query("SELECT Role,group_concat(DISTINCT openv.linkdistro(Email)) AS Distro FROM openv.POCs WHERE ? GROUP BY Role",{Site:TOTEM.name})
+		.on("result", function (poc) {
+			site.distro[poc.Role] = poc.Distro;
+			
+			if (site.get)
+				site.get[poc.Role] = function (where,idx) {
+					return site.get(site.pocs,where,idx);
+				};
+				
+//console.log([poc.Role,site.distro[poc.Role]]);
+		});
+		
+//console.log(site);
+		if (guest = mysql.guest)
+			sql.query(guest)
+			.on("result", function (rec) {
+				TOTEM.guest = Copy(rec,{});
+			});
+			
+	},
+
 	cache: { 	// cache by area-type 
 		
 		never: {	//< useful while debugging client side stuff
@@ -774,48 +854,14 @@ function startServer(opts) {
 		
 		mysql.pool = MYSQL.createPool(mysql.opts);
 		
+		//$$$$
 		if (name && mysql)	// derive server and site parameters
-			sqlThread( function (sql) { 		
+			sqlThread( function (sql) {
 				
-				if (derive = paths.mysql.derive)
-					sql.query(derive, {Name:name})
-					.on("result", function (opts) {
-						
-						Each(opts, function (key,val) {
-							key = key.toLowerCase();
-							site[key] = val;
-							if (key in TOTEM) {
-								//Trace(`${key}=${val}`);
-								TOTEM[key] = val;
-							}
-						});
-						
-						if (TOTEM.jsons)
-							Each( TOTEM.jsons, function (n,def) {
-								//Trace(`${n}=${site[n]}`)
-								site[n.toLowerCase()] = (opts[n]||"").parse(def);
-							});
+				TOTEM.refresh(sql, function () {
+					setupServer(cb);
+				});
 
-console.log(site);
-						setupServer(cb);
-					})
-					.on("error", function (err) {
-						Trace(`FAILED CONFIG FROM DB - ${err}`);
-					});
-					
-				if (guest = paths.mysql.guest)
-					sql.query(guest)
-					.on("result", function (rec) {
-						TOTEM.guest = Copy(rec,{});
-					});
-					
-				if (users = paths.mysql.users) 
-					sql.query(users, [name], function (err,users) {
-						site.users = users.joinify("client", ";", function (user) {
-							return "emailto:"+user;
-						});
-					});
-					
 				sql.release();
 			});	
 		else
@@ -1024,16 +1070,17 @@ function connectServer(cb) {
 	
 	var 
 		port = TOTEM.port,
-		name = TOTEM.name;
+		name = TOTEM.name,
+		certs = TOTEM.paths.certs;
 	
 	Trace(`CONNECTING ${name} TO PORT ${port}`);
 	
 	if (TOTEM.encrypt) {
 		try {
-			Each( FS.readdirSync("."), function (n,file) {
-				if (file.indexOf(".crt") >= 0) {
+			Each( FS.readdirSync(certs.truststore), function (n,file) {
+				if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
 					Trace("TRUSTING "+file);
-					TOTEM.trust.push( FS.readFileSync(file,"utf-8") );
+					TOTEM.trust.push( FS.readFileSync(`${certs.truststore}${file}`,"utf-8") );
 				}
 			});
 		}
@@ -1042,13 +1089,13 @@ function connectServer(cb) {
 
 		if (port)
 			initServer( HTTPS.createServer({
-				passphrase: TOTEM.encrypt,	// passphrase for pfx
-				pfx: FS.readFileSync(`${name}.pfx`),			// TOTEM.paths's pfx/p12 encoded crt+key TOTEM.paths
+				passphrase: TOTEM.encrypt,		// passphrase for pfx
+				pfx: FS.readFileSync(`${certs.server}${name}.pfx`),			// TOTEM.paths's pfx/p12 encoded crt+key TOTEM.paths
 				ca: TOTEM.trust,				// list of TOTEM.paths authorities (trusted serrver.trust)
 				crl: [],						// pki revocation list
 				requestCert: true,
-				rejectUnauthorized: true,
-				secureOptions: CONS.SSL_OP_NO_TLSv1_2
+				rejectUnauthorized: true
+				//secureProtocol: CONS.SSL_OP_NO_TLSv1_2
 			}) , cb );
 
 		else 
@@ -1074,14 +1121,15 @@ function setupServer(cb) {
 	
 	var 
 		encrypt = TOTEM.encrypt,
-		name = TOTEM.name;
+		name = TOTEM.name,
+		certs = TOTEM.paths.certs;
 
 	Trace(`SETTINGUP ${name}`);
 	
 	// derive a pfx cert if this is an encrypted service
 	
 	if (encrypt) 
-		FS.access(`${name}.pfx`, FS.F_OK, function (err) {
+		FS.access(`${certs.server}${name}.pfx`, FS.F_OK, function (err) {
 
 			if (err) {
 				var owner = TOTEM.name;
@@ -1469,7 +1517,7 @@ function Responder(Req,Res) {
 	 * a validated Req.req.cert certificate, and appropriate Res headers. 
 	 * 
 	 * in req = {action, socketio, query, body, flags, joins}
-	 * out req =  adds {log, cert, client, org, locagio, group, profile, journal, 
+	 * out req =  adds {log, cert, client, org, location, group, profile, journal, 
 	 * joined, email, hawk and STATICS}
 	 * */
 	function conThread(req, res) {
@@ -1873,14 +1921,21 @@ function fetchUser(req,res) {
  * */
 function createCert(owner,pass,cb) {
 
-	traceExecute(`echo -e "\n\n\n\n\n\n\n" | openssl req -x509 -nodes -days 5000 -newkey rsa:2048 -keyout ${owner}.key -out ${owner}.crt`, function () {  
+	var certs = TOTEM.paths.certs,
+		pfx = `${certs.server}${owner}.pfx`,
+		key = `${certs.server}${owner}.key`,
+		crt = `${certs.server}${owner}.crt`,
+		ppk = `${certs.server}${owner}.ppk`;
+		
+	
+	traceExecute(`echo -e "\n\n\n\n\n\n\n" | openssl req -x509 -nodes -days 5000 -newkey rsa:2048 -keyout ${key} -out ${crt}`, function () { 
 		
 	traceExecute(
-		`export PASS="${pass}";openssl pkcs12 -export -in ${owner}.crt -inkey ${owner}.key -out ${owner}.pfx -passout env:PASS`, 
+		`export PASS="${pass}";openssl pkcs12 -export -in ${crt} -inkey ${key} -out ${pfx} -passout env:PASS`, 
 		function () {
 		
 	traceExecute(
-		`puttygen ${owner}.key -N ${pass} -o ${owner}.ppk`, 	
+		`puttygen ${owner}.key -N ${pass} -o ${ppk}`, 	
 		function () {
 				
 		cb();
@@ -1958,8 +2013,7 @@ function validateCert(con,req,res) {
 		site = TOTEM.site,
 		cert = getCert(),
 		cache = TOTEM.cache.certs,
-		subj = cert.subject,
-		client = subj.emailAddress || subj.CN || "selfsigned";
+		client = (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || "selfsigned").replace("email:","");
 		
 		if ( !cache[client] ) cache[client] = cert;
 		
@@ -1972,7 +2026,7 @@ function validateCert(con,req,res) {
 			Action: req.action, 	// db action
 			Client: client, 		// client id
 			Table: req.table, 		// db target
-			Stamp: TOTEM.name,	// group name
+			Stamp: TOTEM.name,		// site name
 			Fault: "isp"			// fault codes
 		},
 
@@ -1980,13 +2034,13 @@ function validateCert(con,req,res) {
 		client	: client,
 		org		: cert.subject.O || "noorg",
 		location: con.address().address,
-		group	: TOTEM.name,
+		group	: TOTEM.site.db,		//$$$$
 		profile	: TOTEM.guest,
 		journal : true,				// db actions journaled
 		joined	: now, 				// time joined
-		email	: client, 			// email address from pki
+		email	: client 			// email address from pki
 		//source	: req.table, 		// db target
-		hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
+		//hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
 	}, Copy(TOTEM.site, req)); 
 
 	if (TOTEM.encrypt) {
@@ -2031,7 +2085,7 @@ function validateCert(con,req,res) {
 							ThreadsRunning: stats[3].Value,		// sql threads running
 							ThreadsConnected: stats[1].Value,	// sql threads connected
 							RecID: req.query.ID || 0,			// sql recID
-							Stamp: TOTEM.name,					// group name
+							Stamp: TOTEM.name,					// site name
 							Fault: "isp"						// fault codes
 						},
 
@@ -2039,15 +2093,15 @@ function validateCert(con,req,res) {
 						client	: client,
 						org		: cert.subject.O || "noorg",
 						location: con.address().address,
-						group	: profile.Group || TOTEM.name,
+						group	: profile.Group || TOTEM.site.db,  //$$$$
 						profile	: profile.Count 
 							? Copy(profile,{})
 							: TOTEM.guest,
 						journal : true,				// db actions journaled
 						joined	: now, 				// time joined
 						email	: client, 			// email address from pki
-						source	: req.table, 		// db target
-						hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
+						source	: req.table 		// db target
+						//hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
 					}, req);
 						
 					res(null);
@@ -2243,32 +2297,24 @@ console.log(rid);
 
 function curlFetch(url,cb) {
 
-	var opts = TOTEM.parse(url);
+	var opts = parseURL(url);
 	
 	retryExecute(
-		opts.https
-			? `curl -k --cert ${opts.crt} --key ${opts.key} "${url}"`
-			: `curl "${url}"` ,
-		
+		opts.curl+url,
 		opts, 
 		
 		function (err,out) {
-			
 			cb( err || (out||"").parse(new Error("Bad curl")) );
-
 	});
 
 }
 
 function wgetFetch(url,cb) {
 		
-	var opts = TOTEM.parse(url);
+	var opts = parseURL(url);
 	
 	retryExecute(
-		opts.https
-			? `wget -O ${TOTEM.fetchers.wgetout} --no_check-certificate --certificate ${opts.crt} --private-key ${opts.key} "${url}"`
-			: `wget -O ${TOTEM.fetchers.wgetout} ${opts.key} "${url}"` ,
-	
+		opts.wget+url,
 		opts, 
 
 		function (err) {
@@ -2280,54 +2326,44 @@ function wgetFetch(url,cb) {
 function httpFetch(url,cb) {
 			
 	var 
-		name = TOTEM.name || "guest",
-		opts = TOTEM.parse(url);
+		opts = parseURL(url), 
+		name = TOTEM.name || "guest";
 	
-	if (opts.soap) {
+	/*if (opts.soap) {
 		opts.headers = {
-			"Content-Type": "appliocation/soap+xml; charset=utf-8",
+			"Content-Type": "application/soap+xml; charset=utf-8",
 			"Content-Length": opts.soap.length
 		};
 		opts.method = "POST";
-	}
+	}*/
 	
-	opts.pfx = `${name}.pfx`;
-	opts.passphrase = TOTEM.encrypt;
-
-	var req = (opts.https?HTTPS:HTTP).request(opts, function(res) {
-		Trace('STATUS: ' + res.statusCode);
-		Trace('HEADERS: ' + JSON.stringify(res.headers));
-		
+	var req = opts.transport.request(opts, function(res) {
 		res.setEncoding('utf-8');
 		
-		var json = "";
+		var text = "";
 		res.on('data', function (chunk) {
-			json += chunk;
+			text += chunk;
 		});
 
 		res.on("end", function () {
-			if (opts.soap)
-				XML2JS.stringParse(json, function (err,json) {
-					if( err )
-						Trace(`BAD RESPONSE - ${err}`);
-					else
-						cb( json );
-				});
-			else
-				cb( json.parse( new Error("BAD RESPONSE") ) );
+
+			Trace("fetch", {
+				status: res.statusCode,
+				text: text,
+				header: res.headers});
+		
+			cb( text );
 		});
 		
 	});
 
 	req.on('error', function(err) {
 		Trace(`RETRYING(${opts.retry} ${err}`);
-		if (opts.retry) {
-			opts.retry--;
-		}
+		if (opts.retry) opts.retry--;
 	});
 
-	if (opts.soap)
-		req.write(opts.soap);
+	/*if (opts.soap)
+		req.write(opts.soap);*/
 		
 	req.end();
 }
@@ -2518,12 +2554,28 @@ function parseURL(url) {
 		
 	var 
 		name = TOTEM.name || "guest",
-		opts = URL.parse(url);
+		opts = URL.parse(url),
+		certs = TOTEM.paths.certs;
 	
-	opts.crt = `${name}.crt`;
-	opts.key = `${name}.key`;
+	opts.pfx = `${certs.fetch}${name}.pfx`;
+	opts.crt = `${certs.fetch}${name}.crt`;
+	opts.key = `${certs.fetch}${name}.key`;
+	opts.passphrase = TOTEM.encrypt;
 	opts.retry = TOTEM.retries;
-	opts.https = opts.protocol == "https:";
+	opts.rejectUnauthorized = false;
+	opts.ca = TOTEM.trust;
+	opts.agent = false;
+
+	if (opts.protocol == "https:") {
+		opts.transport = HTTPS;
+		opts.wget = `wget -O ${TOTEM.fetchers.wgetout} --no_check-certificate --certificate ${opts.crt} --private-key ${opts.key} `;
+		opts.curl = `curl -k --cert ${opts.crt} --key ${opts.key} `;
+	}
+	else {
+		opts.transport = HTTP;
+		opts.wget = `wget -O ${TOTEM.fetchers.wgetout} ${opts.key} `;
+		opts.curl = `curl `;
+	}
 	
 	return opts;
 }
@@ -2634,7 +2686,7 @@ function parseNode(req) {
 		lists = reqflags.lists,
 		jsons = reqflags.jsons,
 		id = reqflags.id,
-		trace = query[reqflags.trace],
+		trace = false, //query[reqflags.trace],
 	
 		body = req.body,
 		flags = req.flags,

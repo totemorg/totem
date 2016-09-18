@@ -173,11 +173,9 @@ I have anti-bot protection`, {
 		
 		var TOTEM = require("../totem").start({
 
-			reader: {
-				merge: {
-					chipper: function Chipper(req,res) {				
-						res( 123 );
-					}
+			"reader.": {
+				chipper: function Chipper(req,res) {				
+					res( 123 );
 				}
 			},
 			
@@ -204,8 +202,20 @@ I have anti-bot protection`, {
 		var TOTEM = require("../totem").start({
 			trace: "C>",
 
-			reader: {
-				merge: CHIPPER.chippers
+			"reader.": {
+				chip: CHIPPER.chippers,
+
+				wfs: function (req,res) {
+					res("here i go again");
+					
+					TOTEM.fetchers.http(ENV.WFS_TEST, function (ack) {
+						ack.xmlParse({}, function (data) {
+								console.log(data);
+						});
+					});
+					
+				}
+
 			},				
 			
 			mysql: {
@@ -253,5 +263,6 @@ I have anti-bot protection`, {
 	
 });	
 
+			
 	
 // UNCLASSIFIED
