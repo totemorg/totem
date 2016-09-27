@@ -70,7 +70,7 @@ I do have mysql database from which I've derived my site parms`, {
 	N4: function () {
 		
 		var TOTEM = require("../totem").start({
-			encrypt: "test",
+			encrypt: ENV.SERVICE_PASS,
 			mysql: {
 				host: ENV.MYSQL_HOST,
 				user: ENV.MYSQL_USER,
@@ -127,8 +127,8 @@ create the client.pfx and associated pems (public client.crt and private client.
 			init: function () {
 				
 				Trace(
-`I am Totem client, with no cores but I do have mysql database and\n
-I have anti-bot protection`, {
+`I am Totem client, with no cores but I do have mysql database and
+I have anti-bot protection!!`, {
 					mysql_derived_parms: TOTEM.site
 				});
 			}
@@ -200,18 +200,14 @@ I have anti-bot protection`, {
 		var CHIPPER = require("../chipper");
 		
 		var TOTEM = require("../totem").start({
-			trace: "C>",
-
 			"reader.": {
 				chip: CHIPPER.chippers,
 
 				wfs: function (req,res) {
 					res("here i go again");
 					
-					TOTEM.fetchers.http(ENV.WFS_TEST, function (ack) {
-						ack.xmlParse({}, function (data) {
-								console.log(data);
-						});
+					TOTEM.fetchers.http(ENV.WFS_TEST, function (data) {
+						console.log(data);
 					});
 					
 				}
@@ -241,7 +237,7 @@ I have anti-bot protection`, {
 	D1: function () {
 		
 		var TOTEM = require("../debe").start({
-			//encrypt: "test",
+			//encrypt: ENV.SERVICE_PASS,
 			
 			mysql: {
 				host: ENV.MYSQL_HOST,
@@ -259,10 +255,42 @@ I have anti-bot protection`, {
 			
 		});
 			
+	},
+	
+	D2: function () {
+		
+		var TOTEM = require("../debe").start({
+			encrypt: ENV.SERVICE_PASS,
+			riddles: 10,
+			
+			mysql: {
+				host: ENV.MYSQL_HOST,
+				user: ENV.MYSQL_USER,
+				pass: ENV.MYSQL_PASS
+			},
+
+			"reader.": {
+				wfs: function (req,res) {
+					res("here i go again");
+					
+					TOTEM.fetchers.http(ENV.WFS_TEST, function (data) {
+						console.log(data);
+					});
+				}
+
+			},				
+			
+			init: function () {
+
+				Trace( "Unencrypted dev-Totem client with a database and wfs endpoint" );
+				
+			}
+			
+		});
+			
 	}
+	
 	
 });	
 
-			
-	
 // UNCLASSIFIED

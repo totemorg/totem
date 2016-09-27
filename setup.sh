@@ -94,9 +94,8 @@ help.)		# some help
 	echo " 	$SETUP apply CMD to all projects [${PROJECTS[@]}]"
 	echo "Testing CMDs:"
 	echo "	$SETUP list available totem.js applications"
-	echo "	$SETUP docker FILE.js.js in N docker containers with OPTIONS"
-	echo "	$SETUP CONFIG case to run from test.js"
-	echo "	$SETUP FILE.js to run in its geoclient.sh env with OPTIONS"
+	echo "	$SETUP docker FILE.js in N docker containers with OPTIONS"
+	echo "	$SETUP CONFIG to run the test.js CONFIGuration"
 	echo "Maintenance CMDs:"
 	echo "	$SETUP startup dependent services (mysql, cesium, nodered, ...)"
 	echo "	$SETUP reset all allocated docker threads"
@@ -265,8 +264,8 @@ docker.)
 	
 *)  	# start specified geonode client
 
-	node test.js Totem $1 $2 $3 $4 $5 
-	#forever start test.js Totem $1 $2 $3 $4 $5
+	node test.js $1 $2 $3 $4 $5 
+	#forever start test.js $1 $2 $3 $4 $5
 	;;
 
 esac

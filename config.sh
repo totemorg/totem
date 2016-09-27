@@ -21,6 +21,9 @@ export MYSQL_USER=root
 export MYSQL_NAME=app1
 export MYSQL_HOST=localhost
 
+# service
+export SERVICE_PASS=test
+
 # tools
 export PATH=/opt/cmake:$PATH 			# latest cmake
 export PATH=$BASE/oxygen/bin:$PATH    	# doxygen code documenter
