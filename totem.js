@@ -399,9 +399,7 @@ var
 		strips:	 					//< Flags to strips from request
 			{"":1, "_":1, leaf:1, _dc:1, id:1, "=":1, "?":1, "request":1}, 		
 		
-		jsons: {
-			sort: 0,
-			build: 0
+		jsons: { 	//$$$$
 		},
 		
 		lists: { 					//< Array list flags			
@@ -576,10 +574,9 @@ var
 			
 		busy: "Too busy - try again later.",
 		
-		certs: {
+		certs: {  //$$$$
 			truststore: "certs/truststore/",
-			server: "certs/",
-			fetch: "certs/fetch"
+			server: "certs/"
 		},
 		
 		mysql: {
@@ -1055,17 +1052,10 @@ function connectServer(cb) {
 	
 	var 
 		port = TOTEM.port,
-		name = TOTEM.name,
-		certs = TOTEM.paths.certs;
+		name = TOTEM.name;
 	
 	Trace((TOTEM.encrypt?"ENCRYPTED":"UNENCRYPTED")+` CONNECTION ${name} ON PORT ${port}`);
 
-	TOTEM.cache.certs = {
-		pfx: FS.readFileSync(`${certs.fetch}.pfx`),
-		crt: `${certs.fetch}.crt`,
-		key: `${certs.fetch}.key`
-	};
-	
 	if (TOTEM.encrypt) {
 		try {
 			Each( FS.readdirSync(certs.truststore), function (n,file) {
@@ -1117,9 +1107,13 @@ function setupServer(cb) {
 
 	Trace(`SETTINGUP ${name}`);
 	
-	// derive a pfx cert if this is an encrypted service
+	TOTEM.cache.certs = {		// cache data fetching certs  //$$$$
+		pfx: FS.readFileSync(`${certs.server}fetch.pfx`),
+		crt: `${certs.server}fetch.crt`,
+		key: `${certs.server}fetch.key`
+	};
 	
-	if (encrypt) 
+	if (encrypt)   // derive a pfx cert if this is an encrypted service
 		FS.access(`${certs.server}${name}.pfx`, FS.F_OK, function (err) {
 
 			if (err) {
@@ -1271,7 +1265,7 @@ function Responder(Req,Res) {
 		
 		try {
 			switch (ack.constructor) {
-				case Error:
+				case Error: 			// send error message
 					
 					switch (req.type) {
 						case "db":
@@ -1285,19 +1279,21 @@ function Responder(Req,Res) {
 					}
 					break;
 				
-				case String:
+				case String: 			// send raw string
 				
 					switch (req.type) {
 						case "db": 
 							sendDb(ack,0,null);
 							break;
 							
+						case "html": //$$$$
+						case "txt":
 						default:
 							sendString( ack );
 					}
 					break;
 					
-				case Function:
+				case Function: 			// send file via search or direct
 				
 					if (search = req.query.search && paths.mysql.search) 		// search for file via nlp/etc
 						sql.query(paths.mysql.search, {FullSearch:search}, function (err, files) {
@@ -1326,7 +1322,7 @@ function Responder(Req,Res) {
 				
 					break;
 					
-				case Array:
+				case Array: 			// send records
 
 					var flags = req.flags;
 
@@ -1392,6 +1388,15 @@ function Responder(Req,Res) {
 							}) );
 							break;
 							
+						case "html": //$$$$
+							
+							var rtn = "";
+							ack.each(function (n,html) {
+								rtn += html;
+							});
+							sendString(rtn);
+							break;
+							
 						case "json":
 						default:
 							
@@ -1421,6 +1426,11 @@ function Responder(Req,Res) {
 						case "xml":
 						
 							sendString( JS2XML(req.table, ack) );
+							break;
+							
+						case "html":  //$$$$
+							
+							sendString( ack );
 							break;
 							
 						case "json":
@@ -2326,7 +2336,7 @@ function wgetFetch(url,cb) { //$$$$
 		certs = TOTEM.cache.certs,
 		transport = {
 			"http:": `wget -O ${TOTEM.fetchers.wgetout} ${url}`,
-			"https:": `wget -O ${TOTEM.fetchers.wgetout} --no_check-certificate --certificate ${certs.crt} --private-key ${certs.key} ${url}`
+			"https:": `wget -O ${TOTEM.fetchers.wgetout} --no-check-certificate --certificate ${certs.crt} --private-key ${certs.key} ${url}`
 		};
 	
 	retryExecute(
@@ -2646,8 +2656,7 @@ function traceExecute(cmd,cb) {
 function parseNode(req) {
 	
 	var 
-		query = req.query,	
-		node = req.node,
+		node = req.node, 
 		parts = node.split("?"),
 		file = req.file = parts[0],
 		parms = parts[1],
@@ -2655,6 +2664,7 @@ function parseNode(req) {
 		type = req.type = parts[1] || "",
 		areas = parts[0].split("/"),
 		table = req.table = areas.pop() || "",
+		query = req.query,	
 		area = req.area = areas[1] || "";
 
 	if ( req.path = TOTEM.paths.mime[req.area] )
@@ -2665,11 +2675,11 @@ function parseNode(req) {
 	
 //Trace(">parse node",[file,areas,req.area,req.path,req.table,req.type]);
 
-	//>>>> may be bug here that causes hang if no ?query provided
-	(parms ? parms.split("&") : []).each(function (n,parm) {  // parse the query parms
-		var parts = parm.split("=");
-		query[parts[0]] = parts[1] || "";
-	});
+	if (parms)  //$$$$
+		parms.split("&").each(function (n,parm) {  // parse the query parms
+			var parts = parm.split("=");
+			query[parts[0]] = parts[1]; 
+		});
 	
 	// flags and joins
 	
@@ -2700,7 +2710,8 @@ function parseNode(req) {
 			delete query[n];
 		else
 		if (n.charAt(0) == prefix) {  	// remap flag
-			flags[n.substr(1)] = query[n];
+			var flag = n.substr(1);
+			flags[flag] = query[n];
 			delete query[n];
 		}
 		else {							// remap join
@@ -2711,12 +2722,12 @@ function parseNode(req) {
 			}
 		}	
 
-	for (var n in query) {		// unescape query parameters
-		var parm = query[n] = unescape(query[n]);
+	/*for (var n in query) {		// unescape query parameters
+		var parm = query[n]; // = unescape(query[n]); 
 
 		if ( parm.charAt(0) == "[") 
-			query[n] = parm.parse(null);
-	}
+			query[n] = (query[n]||"").parse(null);
+	}*/
 	
 	for (var n in body) 		// remap body flags
 		if (n.charAt(0) == prefix) {  
@@ -2730,15 +2741,15 @@ function parseNode(req) {
 	}
 	
 	for (var n in flags) { 		// unescape flags
-		var parm = unescape(flags[n]);
+		var flag = flags[n]; //unescape(flags[n]); 
 		
 		if (n in lists) 
-			flags[n] = parm ? parm.split(",") : null;
+			flags[n] = flag ? flag.split(",") : null;
 		else
 		if (n in jsons)
-			flags[n] = parm.parse(null);
-		else
-			flags[n] = parm;
+			flags[n] = flag ? flag.parse(null) : null;
+		//else
+		//	flags[n] = flag;
 	}
 
 	if (trace)
