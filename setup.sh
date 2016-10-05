@@ -17,7 +17,7 @@ apply.)  # apply CMD to all projects
 	for prj in "${PROJECTS[@]}"; do
 		cd $prj
 			echo ">>>>>>>>> ${prj}"
-			$SETUP $2 $3 $4 $5
+			$SETUP $2 "$3" "$4" "$5"
 		cd ..
 	done
 	;;
@@ -41,7 +41,7 @@ baseline.)
 	cd ..
 	;;
 
-commit.)   # commit changes
+com.)   # commit changes
 	git commit -am "$2"
 	;;
 

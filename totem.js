@@ -121,9 +121,9 @@
  * 		site	: {  // vars and functions assessible to jade skins
  * 			... },
  * 
- * 		pretty(err)	: format an error message,
+ * 		prettyError(err)	: format an error message,
  * 		stop() 		: stop the service,
- *		thread(cb) 	:: provide sql connection to cb(sql),
+ *		thread(cb) 	: provide sql connection to cb(sql),
  * 
  * 		// antibot protection
  * 
@@ -212,7 +212,7 @@ var
 
 	IO: null, 			//< reserved for socket.io
 
-	Array: [
+	Array: [ 			//< Array prototypes
 		function joinify(cb) {
 			
 			var rtn = [];
@@ -276,7 +276,7 @@ var
 	
 	],
 
-	String: [
+	String: [ 			//< String prototypes
 		function each(pat, rtn, cb) {
 			
 			var msg = this;
@@ -369,7 +369,7 @@ var
 	
 	/**
 	 * @param TO
-	 * Time-Out values
+	 * Time-Out values (reserved - not presently used)
 	 * */
 	TO : {							//< Time-outs in msecs
 		COOKIE : 900000, 			//< Browser cookie 
@@ -395,7 +395,7 @@ var
 	 * @param reqflags
 	 * Options to parse request _flags
 	 * */
-	reqflags: {						//< Properties for request flags
+	reqflags: {				//< Properties for request flags
 		strips:	 					//< Flags to strips from request
 			{"":1, "_":1, leaf:1, _dc:1, id:1, "=":1, "?":1, "request":1}, 		
 		
@@ -609,7 +609,8 @@ var
 	
 	busy: 3000,				//< server toobusy check period in milliseconds
 	
-	pretty: function (err,con) {
+	//>>>>
+	prettyError: function (err,con) { 
 		if (con)
 			Trace(con);
 			
@@ -618,7 +619,7 @@ var
 	
 	// CRUDE extensions
 
-	reader: {	// by-type file readers/indexers/fetchers
+	reader: {				//< by-type file readers/indexers/fetchers
 		user: fetchUser,
 		wget: fetchWget,
 		curl: fetchCurl,
@@ -626,13 +627,13 @@ var
 		test: fetchTest
 	},
 	
-	worker: {	// by-action engine runner
+	worker: {				//< by-action engine runner
 	},
 
-	sender: {	// by-area file senders
+	sender: {				//< by-area file senders
 	},
 	
-	emulator: {	// by-action-table virtual table emulators
+	emulator: {				//< by-action-table virtual table emulators
 		select: {},
 		delete: {},
 		update: {},
@@ -642,7 +643,7 @@ var
 	
 	sendFile: sendFile,
 	
-	reset: function (sql,cb) {  // reset site parms $$$$
+	setContext: function (sql,cb) {  //>>>>
 		var site = TOTEM.site,
 			mysql = TOTEM.paths.mysql;
 		
@@ -721,7 +722,7 @@ var
 			
 	},
 
-	cache: { 	// cache by area-type 
+	cache: { 				//< by-area cache
 		
 		never: {	//< useful while debugging client side stuff
 			"/clients/base.js": 1,
@@ -750,7 +751,7 @@ var
 	
 	Function: Initialize,
 	
-	user: {		// access to user profiles
+	user: {					//< crude interface to user profiles
 		select: selectUser,
 		delete: deleteUser,
 		update: updateUser,
@@ -840,7 +841,7 @@ function startServer(opts) {
 		if (name && mysql)	// derive server and site parameters
 			sqlThread( function (sql) {
 				
-				TOTEM.reset(sql, function () {
+				TOTEM.setContext(sql, function () {
 					setupServer(cb);
 				});
 
@@ -1230,7 +1231,7 @@ function Responder(Req,Res) {
 	}		
 
 	function sendError(msg) {
-		Res.end( TOTEM.pretty(msg) );
+		Res.end( TOTEM.prettyError(msg) );
 		Req.req.sql.release();
 	}
 
