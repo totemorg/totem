@@ -1,4 +1,4 @@
-# Totem DEBE
+# Totem TOTEM
 
 [![Forked from SourceForge](https://sourceforge.net)]
 
@@ -27,9 +27,9 @@ Crude | HTTP requests:
 	insert	| POST 	 /NODE $ NODE ...
 	delete	| DELETE /NODE $ NODE ...
   
- where a data NODE can reference a mysql or emulated table:
+where a data NODE can reference a mysql or emulated table:
   
-  	NODE = TABLE.TYPE?PARMS
+  	NODE = DATASET.TYPE?PARMS
   
 or reference a language agnostic (e.g. jade skin, js, py, matlab, 
 emulated matlab, r, opencv, etc) engine:
@@ -73,8 +73,8 @@ where the startup options include:
 
 	emulator: {		// emulate virtual tables
 		select: {
-			TABLE: cb(req,res),
-			TABLE: cb(req,res),
+			DATASET: cb(req,res),
+			DATASET: cb(req,res),
 			...		},
 		...		},
 
@@ -153,7 +153,7 @@ where the startup options include:
 	url : {master,worker} urls for specified opts.cores,
 	all the ENUM enumerators
 
-Options are specified using ENUM-copy conventions:
+Options are specified using [Totem](https://git.geointapps.org/acmesds/transfer)ENUM.copy() conventions:
 
 	options =  {
 		key: value, 						// set 
@@ -197,8 +197,8 @@ Below sample use-cases are from totem/config.js:
 	N2: function () {
 		
 		Trace(
-`I **will be** a Totem client running in fault protection mode, 
-with 2 cores and default routes` );
+	`I **will be** a Totem client running in fault protection mode, 
+	with 2 cores and default routes` );
 
 		var TOTEM = require("../totem").start({
 			nofaults: true,
@@ -218,8 +218,8 @@ with 2 cores and default routes` );
 			
 			init: function () {				
 				Trace(
-`I **have become** a Totem client, with no cores, but 
-I do have mysql database from which I've derived my site parms`, {
+	`I **have become** a Totem client, with no cores, but 
+	I do have mysql database from which I've derived my site parms`, {
 
 					mysql_derived_parms: TOTEM.site
 				});
@@ -242,9 +242,9 @@ I do have mysql database from which I've derived my site parms`, {
 					res( "123" );
 					
 					Trace(		
-`PKI-encrypted Totem service, 2 cores, unprotected, with a mysql database, and \n
-(dothis,orthis) endpoints.  If the servers client.pfx does not exists, Totem will\n
-create the client.pfx and associated pems (public client.crt and private client.key).` , {
+	`PKI-encrypted Totem service, 2 cores, unprotected, with a mysql database, and \n
+	(dothis,orthis) endpoints.  If the servers client.pfx does not exists, Totem will\n
+	create the client.pfx and associated pems (public client.crt and private client.key).` , {
 
 						do_query: req.query
 					});
@@ -258,7 +258,7 @@ create the client.pfx and associated pems (public client.crt and private client.
 						res( new Error("We have a problem huston") );
 						
 					Trace(
-`Like dothis, but needs an ?x=value query`, {
+	`Like dothis, but needs an ?x=value query`, {
 						or_query: req.query,
 						or_user: [req.client,req.group]
 					});
@@ -288,8 +288,8 @@ create the client.pfx and associated pems (public client.crt and private client.
 			init: function () {
 				
 				Trace(
-`I am Totem client, with no cores but I do have mysql database and
-I have anti-bot protection!!`, {
+	`I am Totem client, with no cores but I do have mysql database and
+	I have anti-bot protection!!`, {
 					mysql_derived_parms: TOTEM.site
 				});
 			}
