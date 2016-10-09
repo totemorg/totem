@@ -1,3 +1,5 @@
+// UNCLASSIFIED $$$$
+
 /**
  * @module totem
  * @public
@@ -15,7 +17,8 @@
  * @requires mime
  * @requires socket.io
  * @requires socket.io-clusterhub
- * 
+ */
+/** 
  * TOTEM provides an HTTP-HTTPS service configured with/without the 
  * following options:
  * 
@@ -179,6 +182,7 @@
  * 			:
  * 		}
  * 
+ * Usage: Totem's config.js client is typically run via the maint.sh.
  * */
 
 var												// NodeJS modules
@@ -357,7 +361,7 @@ var
 	 * @param jsons
 	 * Site parms requiring json conversion when loaded
 	 * */
-	jsons: {    //$$$$
+	jsons: {  
 		info: {}
 	},
 	
@@ -399,7 +403,7 @@ var
 		strips:	 					//< Flags to strips from request
 			{"":1, "_":1, leaf:1, _dc:1, id:1, "=":1, "?":1, "request":1}, 		
 		
-		jsons: { 	//$$$$
+		jsons: { 
 		},
 		
 		lists: { 					//< Array list flags			
@@ -491,7 +495,7 @@ var
 	host: "localhost", 		//< service host name
 	proxy: false,			//< enable if https server being proxied
 
-	name: "Totem",	//$$$$
+	name: "Totem",	
 		//< service name to:
 		// derive site parms from mysql openv.apps by Nick=name
 		// set mysql name.table for guest clients,
@@ -574,7 +578,7 @@ var
 			
 		busy: "Too busy - try again later.",
 		
-		certs: {  //$$$$
+		certs: { 
 			truststore: "certs/truststore/",
 			server: "certs/"
 		},
@@ -589,12 +593,10 @@ var
 			socket: "REPLACE sockets SET ?",
 			session: "INSERT INTO sessions SET ?",
 			guest: "SELECT * FROM openv.profiles WHERE Client='guest' LIMIT 0,1",
-			pocs: "SELECT * FROM openv.POCs WHERE ?",  //$$$$
-			distros: "SELECT Role,group_concat(DISTINCT openv.linkdistro(Email)) AS Distro FROM openv.POCs WHERE ? GROUP BY Role"  //$$$$
+			pocs: "SELECT * FROM openv.POCs WHERE ?",
+			distros: "SELECT Role,group_concat(DISTINCT openv.Address) AS Distro FROM openv.POCs WHERE ? GROUP BY Role" 
 		},
 		
-		noroute: new Error("No route"),
-	
 		mime: {
 			files: ".",
 			captcha: ".",
@@ -604,12 +606,23 @@ var
 		}
 	},
 
+	errors: {
+		noRoute: new Error("no route"),
+		invalidQuery: new Error("invalid query"),
+		badGroup: new Error("invalid group requested"),
+		lostConnection: new Error("client connection lost"),
+		noDB: new Error("database not configured"),
+		failedUser: new Error("failed modification of user profile"),
+		missingPass: new Error("missing initial user password"),
+		expiredCert: new Error("cert expired"),
+		rejectedCert: new Error("cert rejected")
+	},
+
 	indexer: Indexer,		//< default file indexer
 	uploader: Uploader,		//< default file saver
 	
 	busy: 3000,				//< server toobusy check period in milliseconds
 	
-	//>>>>
 	prettyError: function (err,con) { 
 		if (con)
 			Trace(con);
@@ -643,15 +656,50 @@ var
 	
 	sendFile: sendFile,
 	
-	setContext: function (sql,cb) {  //>>>>
+	setContext: function (sql,cb) { 
 		var site = TOTEM.site,
 			mysql = TOTEM.paths.mysql;
 		
 		site.pocs = [];
 		site.distro = {};
 
-		if (derive = mysql.derive)
+		/*
+		if (TOTEM.jsons)
+			sql.query("SELECT * FROM openv.apps WHERE ?",{Name:TOTEM.name})
+			.on("result", function (opts) {
+				Each( TOTEM.jsons, function (n,def) {
+					//Trace(`${n}=${site[n]}`)
+					site[n.toLowerCase()] = (opts[n]||"").parse(def);
+				});
+			});*/
 
+		if (pocs = mysql.pocs)  	//$$$$
+			sql.query(pocs,{Site:TOTEM.name})
+			.on("result", function (poc) {
+				site.pocs.push(poc);
+			});
+				
+		if (distros = mysql.distros) 
+			sql.query(distros, {Site:TOTEM.name})
+			.on("result", function (poc) {
+				var role = poc.Role.toLowerCase().split(",")[0];
+				
+				site.distro[role] = poc.Distro;
+				
+				if (site.get)
+					site.get[role] = function (where,idx) {
+						return site.get(site.pocs,where,idx);
+					};
+				
+			});
+		
+		if (guest = mysql.guest)
+			sql.query(guest)
+			.on("result", function (rec) {
+				TOTEM.guest = Copy(rec,{});
+			});
+
+		if (derive = mysql.derive)
 			sql.query(derive, {Nick:TOTEM.name})
 			.on("result", function (opts) {
 				
@@ -683,43 +731,7 @@ var
 
 		else 
 		if (cb) cb();
-		
-		/*
-		if (TOTEM.jsons)
-			sql.query("SELECT * FROM openv.apps WHERE ?",{Name:TOTEM.name})
-			.on("result", function (opts) {
-				Each( TOTEM.jsons, function (n,def) {
-					//Trace(`${n}=${site[n]}`)
-					site[n.toLowerCase()] = (opts[n]||"").parse(def);
-				});
-			});*/
-
-		if (pocs = mysql.pocs)  //$$$$
-			sql.query(pocs,{Site:TOTEM.name})
-			.on("result", function (poc) {
-				site.pocs.push(poc);
-			});
-				
-		if (distros = mysql.distros) //$$$$
-			sql.query(distros, {Site:TOTEM.name})
-			.on("result", function (poc) {
-				site.distro[poc.Role] = poc.Distro;
-				
-				if (site.get)
-					site.get[poc.Role] = function (where,idx) {
-						return site.get(site.pocs,where,idx);
-					};
-				
-//console.log([poc.Role,site.distro[poc.Role]]);
-			});
-		
-//console.log(site);
-		if (guest = mysql.guest)
-			sql.query(guest)
-			.on("result", function (rec) {
-				TOTEM.guest = Copy(rec,{});
-			});
-			
+					
 	},
 
 	cache: { 				//< by-area cache
@@ -784,16 +796,16 @@ function dataSelect(req,res) {	//< Default virtual table logic is real table
 }
 
 function dataUpdate(req,res) {
-	res( TOTEM.paths.noroute );
+	res( TOTEM.paths.TOTEM.errors.noRoute );
 }
 function dataInsert(req,res) {
-	res( TOTEM.paths.noroute );
+	res( TOTEM.paths.TOTEM.errors.noRoute );
 }
 function dataDelete(req,res) {
-	res( TOTEM.paths.noroute );
+	res( TOTEM.paths.TOTEM.errors.noRoute );
 }
 function dataExecute(req,res) {
-	res( TOTEM.paths.noroute );
+	res( TOTEM.paths.TOTEM.errors.noRoute );
 }
 
 //============================================
@@ -815,7 +827,7 @@ function startServer(opts) {
 		site = TOTEM.site,
 		cb = null; //additional Initialize;
 
-	Trace(`STARTING ${name}`); //$$$$
+	Trace(`STARTING ${name}`); 
 	
 	if (TOTEM.jsons)
 		Each( TOTEM.jsons, function (n,def) {
@@ -1053,7 +1065,8 @@ function connectServer(cb) {
 	
 	var 
 		port = TOTEM.port,
-		name = TOTEM.name;
+		name = TOTEM.name,
+		certs = TOTEM.paths.certs;
 	
 	Trace((TOTEM.encrypt?"ENCRYPTED":"UNENCRYPTED")+` CONNECTION ${name} ON PORT ${port}`);
 
@@ -1108,7 +1121,7 @@ function setupServer(cb) {
 
 	Trace(`SETTINGUP ${name}`);
 	
-	TOTEM.cache.certs = {		// cache data fetching certs  //$$$$
+	TOTEM.cache.certs = {		// cache data fetching certs 
 		pfx: FS.readFileSync(`${certs.server}fetch.pfx`),
 		crt: `${certs.server}fetch.crt`,
 		key: `${certs.server}fetch.key`
@@ -1287,7 +1300,7 @@ function Responder(Req,Res) {
 							sendDb(ack,0,null);
 							break;
 							
-						case "html": //$$$$
+						case "html": 
 						case "txt":
 						default:
 							sendString( ack );
@@ -1362,7 +1375,7 @@ function Responder(Req,Res) {
 									break;
 								
 								default:
-									sendError(new Error("Bad action:"+req.action));
+									sendError( TOTOM.errors.invalidQuery );
 							}
 							break;
 						
@@ -1389,7 +1402,7 @@ function Responder(Req,Res) {
 							}) );
 							break;
 							
-						case "html": //$$$$
+						case "html": 
 							
 							var rtn = "";
 							ack.each(function (n,html) {
@@ -1429,7 +1442,7 @@ function Responder(Req,Res) {
 							sendString( JS2XML(req.table, ack) );
 							break;
 							
-						case "html":  //$$$$
+						case "html":
 							
 							sendString( ack );
 							break;
@@ -1542,7 +1555,7 @@ function Responder(Req,Res) {
 							sql.query("USE ??", req.group, function (err) {
 								
 								if (err)
-									res( new Error(`Invalid group ${req.group}`) );
+									res( TOTEM.errors.badGroup );
 								
 								else
 								if (TOTEM.validator) 
@@ -1563,7 +1576,7 @@ function Responder(Req,Res) {
 				});
 
 			else
-				res( new Error("Lost connection") );
+				res( TOTEM.errors.lostConnection );
 		});
 	}
 
@@ -1651,7 +1664,7 @@ function sqlThread(cb) {
 		else
 			cb( MYSQL.createConnection(mysql.opts) );
 	else 
-		cb( nosqlConnection(new Error("No mysql")) );
+		cb( nosqlConnection( TOTOM.errors.noDB ) );
 }
 
 function Emitter(action,opts) {
@@ -1720,42 +1733,36 @@ function selectUser(req,res) {
 
 function updateUser(req,res) {
 			
-	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk;  //$$$$
+	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk; 
 	
 	if (sql.query)
 		if (isHawk) 
 			// sql.context({users:{table:"openv.profile",where:{client:query.user},rec:query}});
 			var q= sql.query(
 				"UPDATE openv.profiles SET ? WHERE ?", 
-				[ query, {client:query.user} ], //$$$$
+				[ query, {client:query.user} ], 
 				function (err,info) {
 					Trace(q.sql);
 
-					res( err 
-						? new Error("Existing user could not be modified")
-						: null 
-					);
+					res( err || TOTEM.errors.failedUser );
 			});
 		
 		else
 			sql.query(
 				"UPDATE openv.profiles SET ? WHERE ?", 
-				[ query, {client:req.client} ], //$$$$
+				[ query, {client:req.client} ],
 				function (err,info) {
 					
-					res( err 
-						? new Error("Existing user could not be modified")
-						: null 
-					);
+					res( err || TOTEM.errors.failedUser );
 			});
 	else
-		res( new Error("No user query") );
+		res( TOTEM.errors.failedUser );
 			
 }
 
 function deleteUser(req,res) {
 			
-	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk;  //$$$$
+	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk;  
 
 	if (query)
 		if (isHawk)
@@ -1766,10 +1773,7 @@ function deleteUser(req,res) {
 				function (err,info) {
 					console.log(q.sql);
 
-					res( err 
-						? new Error("Existing user could not be removed")
-						: null 
-					);
+					res( err || TOTEM.errors.failedUser );
 					
 					// res should remove their files and other 
 					// allocated resources
@@ -1780,18 +1784,15 @@ function deleteUser(req,res) {
 				"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
 				[ {client:req.client}, req.query ], 
 				function (err,info) {
-					res( err 
-						? new Error("Existing user could not be removed")
-						: null 
-					);
+					res( err || TOTEM.errors.failedUser );
 			});
 	else
-		res( new Error("No user query") );
+		res( TOTEM.errors.failedUser );
 }
 			
 function insertUser (req,res) {
 			
-	var sql = req.sql, query = req.query || {}, isHawk = req.cert.isHawk;  //$$$$
+	var sql = req.sql, query = req.query || {}, isHawk = req.cert.isHawk; 
 	
 	var url = TOTEM.paths.url;
 	
@@ -1879,7 +1880,7 @@ To connect to ${site.Nick} from Windows:
 			});
 		
 		else
-			res( new Error("Need to specify initpass") );
+			res( TOTEM.errors.missingPass );
 
 	else
 		sql.query(
@@ -1887,10 +1888,7 @@ To connect to ${site.Nick} from Windows:
 			[ req.query , {User:req.User} ], 
 			function (err,info) {
 				
-				res( err 
-					? new Error("New user request could not be added")
-					: null 
-				);
+				res( err || TOTEM.errors.failedUser );
 		});
 }
 
@@ -1913,7 +1911,7 @@ function fetchUser(req,res) {
 		}
 	}
 	
-	res( new Error("Bad user access request") );
+	res( TOTEM.errors.failedUser );
 }
 
 //============================================
@@ -1927,7 +1925,7 @@ function fetchUser(req,res) {
  * */
 function createCert(owner,pass,cb) {
 
-	var name = TOTEM.paths.certs.server + owner,  //$$$$
+	var name = TOTEM.paths.certs.server + owner, 
 		pfx = name + ".pfx",
 		key = name + ".key",
 		crt = name + ".crt",
@@ -1943,7 +1941,7 @@ function createCert(owner,pass,cb) {
 		`puttygen ${owner}.key -N ${pass} -o ${ppk}`, 	
 		function () {
 		
-		Trace("IGNORE puttygen ERRORS IF NOT INSTALLED"); //$$$$
+		Trace("IGNORE puttygen ERRORS IF NOT INSTALLED"); 
 		cb();
 	});
 	});
@@ -2029,11 +2027,11 @@ function validateCert(con,req,res) {
 		if (TOTEM.encrypt) {
 
 			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
-				return res( new Error("Cert expired") );
+				return res( TOTEM.errors.expiredCert );
 				
 			if (admit)
 				if ( !(cert.issuer.O.toLowerCase() in admit && cert.subject.C.toLowerCase() in admit) ) 
-					return res( new Error("Cert rejected") );
+					return res( TOTEM.errors.rejectedCert );
 					
 		}
 	
@@ -2128,7 +2126,7 @@ function validateCert(con,req,res) {
 	
 	else 
 	if (TOTEM.encrypt)
-		res( new Error("MySQL unavailable on encrypted service") );
+		res( TOTEM.errors.noDB );
 	
 	else
 		res( null );
@@ -2312,7 +2310,7 @@ console.log(rid);
 //============================================
 // Fetchers for reader routes
 
-function curlFetch(url,cb) {  //$$$$
+function curlFetch(url,cb) {
 
 	var opts = URL.parse(url),
 		certs = TOTEM.cache.certs,
@@ -2326,12 +2324,12 @@ function curlFetch(url,cb) {  //$$$$
 		opts, 
 		
 		function (err,out) {
-			cb( err || (out||"").parse(new Error("Bad curl")) );
+			cb( err || (out||"").parse(new Error(err)) );
 	});
 
 }
 
-function wgetFetch(url,cb) { //$$$$
+function wgetFetch(url,cb) { 
 		
 	var opts = URL.parse(url),
 		certs = TOTEM.cache.certs,
@@ -2350,7 +2348,7 @@ function wgetFetch(url,cb) { //$$$$
 	
 }
 
-function httpFetch(url,cb) { //$$$$
+function httpFetch(url,cb) {
 			
 	var 
 		opts = URL.parse(url), 
@@ -2589,7 +2587,8 @@ function retryExecute(cmd,opts,cb) {
 		
 	function trycmd(cmd,cb) {
 
-		Trace(`TRY[${opts.retry}] ${cmd}`);
+		if (TOTEM.notify)
+			Trace(`TRY[${opts.retry}] ${cmd}`);
 
 		CP.exec(cmd, function (err,stdout,stderr) {
 			if (err) {
@@ -2599,15 +2598,14 @@ function retryExecute(cmd,opts,cb) {
 					trycmd(cmd,cb);
 				}
 				else
-					cb( opts.halted );
+					cb( new Error(`Halted ${cmd}`) );
 			}
 			else
 			if (cb) cb(stdout);
 		});
 	}
 	
-	opts.halted = new Error(`Halted ${cmd}`);
-	opts.trace = TOTEM.notify;
+	opts.retry = TOTEM.retries;
 
 	if (opts.retry) 
 		trycmd(cmd,cb);
@@ -2631,8 +2629,15 @@ function Initialize () {
 // Execution tracing
 
 function Trace(msg,arg) {
-	console.info("T>"+msg);
+	
+	if (msg.constructor == String)
+		console.log("T>"+msg);
+	else
+		console.log("T>"+msg.sql);
+
 	if (arg) console.log(arg);
+		
+	return msg;
 }
 
 function traceExecute(cmd,cb) {
@@ -2676,7 +2681,7 @@ function parseNode(req) {
 	
 //Trace(">parse node",[file,areas,req.area,req.path,req.table,req.type]);
 
-	if (parms)  //$$$$
+	if (parms)  
 		parms.split("&").each(function (n,parm) {  // parse the query parms
 			var parts = parm.split("=");
 			query[parts[0]] = parts[1]; 
@@ -2791,11 +2796,8 @@ function routeNode(req, res) {
 		table = req.table,
 		type = req.type,
 		action = req.action,
-		area = req.area,
-		
+		area = req.area,		
 		route = null,
-
-		noroute = new Error(`No route to /${area}/${table}.${type}`),
 		paths = TOTEM.paths;
 
 	if (route) 
@@ -2832,7 +2834,7 @@ function routeNode(req, res) {
 					followRoute(route,req,res);
 
 				else
-					res( noroute );
+					res( TOTEM.errors.noRoute );
 			else
 			if ( route = 			// route to emulator, reader or default
 					TOTEM.emulator[action][table]
@@ -2842,11 +2844,11 @@ function routeNode(req, res) {
 				followRoute(route,req,res);
 				
 			else
-				res( noroute );
+				res( TOTEM.errors.noRoute );
 
 		})
 		.on("error", function (err) {
-			res( new Error("Bad engine router") )
+			res( TOTEM.errors.noRoute )
 		})
 	
 	else
@@ -2860,10 +2862,10 @@ function routeNode(req, res) {
 			followRoute(route,req,res);
 
 		else
-			res( noroute );
+			res( TOTEM.errors.noRoute );
 	
 	else
-		res( noroute );
+		res( TOTEM.errors.noRoute );
 }
 
 function followRoute(route,req,res) {
@@ -2881,3 +2883,4 @@ function resThread(req, cb) {
 	});
 }
 
+// UNCLASSIFIED
