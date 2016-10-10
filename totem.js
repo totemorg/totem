@@ -57,12 +57,12 @@
  * where FILE = AREA/PATH provides redirection of the requested PATH
  * to a service defined AREA, and where 
  *
- * 		TYPE = db | txt | xml | csv | jade | exe | ...
+ * 		TYPE = db | txt | xml | csv | json | ...
  * 
- * returns NODE data in the specified format. An exe TYPE will schedule 
- * (one-time or periodic) jobs matched by table, engine or file.
+ * returns NODE data in the specified format (additional types can
+ * be supported by the next higher assembly using the TOTEM.reader). 
  * 
- * To starts TOTEM with options use:
+ * To start TOTEM with options use:
  * 
  * 		var TOTEM = require("totem").start({
  * 			// options
@@ -70,7 +70,7 @@
  * 
  * where the startup options include:
  * 
- * 		// CRUDE routing methods
+ * 		// CRUDE interface
  * 
  * 		select: cb(req,res),
  * 		update: cb(req,res),
@@ -78,9 +78,9 @@
  * 		insert: cb(req,res),
  * 		execute: cb(req,res),
  * 
- * 		// Object routing methods
+ * 		// NODE routers
  * 
- * 		worker: {		// return computed results from stateful engines
+ * 		worker: {		// computed results from stateful engines
  * 			select: cb(req,res),
  * 			update: cb(req,res),
  * 			... 	},
@@ -113,33 +113,34 @@
  * 		port	: number of this http/https (0 disables listening),
  * 		host	: "name" of http/https service,
  * 		encrypt	: "passphrase" for a https server ("" for http),
- * 		trace	: "prefix" to log console messages ("" forces quite),
  * 		cores	: number of cores in master-worker relationship (0 for master only),
  * 
- * 		// server protection
+ * 		paths	: {  // paths to various things
+ * 			... },
+ * 
+ * 		site	: {  // vars and functions assessible to jade skins
+ * 			... },
+ * 
+ * 		pretty(err)	: format an error message,
+ * 		stop() 		: stop the service,
+ *		thread(cb) 	:: provide sql connection to cb(sql),
+ * 
+ * 		// antibot protection
  * 
  * 		nofaults: switch to enable/disabled server fault protection,
  * 		busy	: number of millisecs to check busyness (0 disables),
  * 
  * 		riddles	: number of riddles to create for anti-bot protection (0 disables)
+ * 
  * 		map		: {	 // map riddle DIGIT to JPEG files
  *			DIGIT:["JPEG1","JPEG2", ...],
  *			DIGIT:["JPEG1","JPEG2", ...],
  * 			...	},
  * 
+ * 		// User administration 
+ * 
  * 		guest	: {	 // default guest profile 
- * 			},
- * 
- * 		paths	: {  // paths to various things
- * 			},
- * 
- * 		// Service methods
- * 
- * 		pretty(err)	: format an error message,
- * 		stop() 		: stop the service,
- *		thread(cb) 	: provide sql connection to cb(sql),
- * 
- * 		// User management methods
+ * 			... },
  * 
  *		create(owner,pass,cb) 	: makes a cert with callback cb,
  * 		validator(req,res) 		: validate cert during each request,
@@ -156,19 +157,28 @@
  * 
  * 		// Derived parameters
  * 
- * 		name	: "service" identifier
- * 			// set from "node service.js NAME"
- * 			// derive site parms from mysql openv.apps by name
- *			// default mysql db name for guest clients,
- *			// identify server cert file name.
+ * 		name	: identifier name
+ * 			// specified on startup via "node service.js NAME"
+ * 			// will derive site parms from mysql openv.apps by name
+ *			// will default mysql db name for guest clients,
+ *			// will identify server cert file name.
  *
+ * 		started: start time
  * 		site: {db parameters} loaded for specified opts.name,
  * 		url : {master,worker} urls for specified opts.cores,
- * 		copy,clone,extend,each,config,test,initialize enumerators
+ * 		all the ENUM enumerators
  *
+ * Options are specified using ENUM-copy conventions:
  * 
- * Any startup option can be a {"merge":{key:value,...}} to merge
- * the desired key:value pairs into the default option.
+ * 		options =  {
+ * 			key: value, 						// set 
+ * 			"key.key": value, 					// index and set
+ * 			"key.key.": value,					// index and append
+ * 			OBJECT: [ function (){}, ... ], 	// add prototypes
+ * 			Function: function () {} 			// add callback
+ * 			:
+ * 			:
+ * 		}
  * 
  * */
 
@@ -205,6 +215,133 @@ var
 	 * */
 	//ENGINE: null,		//< reserved for engine plugin
 	IO: null, 			//< reserved for socket.io
+
+	//$$$$
+	Array: [
+		function joinify(item,list,cb) {
+			
+			var rtn = [];
+
+			for (var n=0, N=this.length; n<N; n++) 
+				rtn.push( cb ? cb(this[n][item]) : this[n][item] );
+				
+			return rtn.join(list || ",");
+		},
+							
+		function treeify(idx,kids,level,piv,wt) {
+			
+			if (!wt) 
+				return this.treeify(0,recs.length,0,idx,"size");
+
+			var recs = this;
+			var key = piv[level];
+			var levels = piv.length-1;
+			var ref = recs[idx][key];
+			var len = 0;
+			var pos = idx, end = idx+kids;
+			var tar = [];
+			
+			if (level<levels)
+				while (pos<end) {
+					var rec = recs[idx];
+					var stop = (idx==end) ? true : (rec[key] != ref);
+					
+					if ( stop ) {
+						//console.log([pos,idx,end,key,ref,recs.length]);
+						//console.log(rec);
+						
+						var node = {
+							name: key+":"+ref, 
+							weight: len, //wt ? parseInt(rec[wt] || "0") : 0,
+							children: recs.treeify(pos,len,level+1,piv,wt)
+						};
+
+						tar.push( node );
+						pos = idx;
+						len = 0;
+						ref = (idx==end) ? null : recs[idx][key];
+					}
+					else {
+						idx++;
+						len++;
+					}
+				}
+			else
+				while (pos < end) {
+					var rec = recs[pos++];
+					tar.push({
+						name: key+":"+rec[key], 
+						weight: wt ? parseInt(rec[wt] || "1") : 1,
+						doc: rec
+					});
+				}
+				
+			return tar;
+		},
+	
+		function each(cb) {
+			for (var n=0,N=this.length; n<N; n++) cb(n,this[n]);
+		}
+	],
+
+	//$$$$
+	String: [
+		function each(pat, rtn, cb) {
+			
+			var msg = this;
+			
+			while ( (idx = msg.indexOf(pat) ) >=0 ) {
+				
+				msg = msg.substr(0,idx) + cb(rtn) + msg.substr(idx+pat.length);
+				
+			}
+
+			return msg;
+		},
+
+		function format(req,plugin) {
+			req.plugin = req.F = plugin || {};
+			return Format(req,this);
+		},
+	
+		function parse(def) {
+			try {
+				return JSON.parse(this);
+			}
+			catch (err) {
+				if (typeof def == "function") 
+					return def(this);
+				else
+					return def;
+			}
+		},
+		
+		function tag(el,at) {
+		
+			if (el.constructor == String) {
+				var rtn = "<"+el+" ";
+				
+				for (var n in at) rtn += n + "='" + at[n] + "' ";
+				
+				switch (el) {
+					case "embed":
+					case "img":
+					case "link":
+						return rtn+">" + this;
+					default:
+						return rtn+">" + this + "</"+el+">";
+				}
+				//return rtn+">" + this + "</"+el+">";
+			}
+			else {
+				var rtn = this + "?";
+
+				for (var n in el) rtn += n + "=" + el[n] + "&";
+				return rtn;
+			}
+				
+		}
+	],
 	
 	/**
 	 * @method start
@@ -335,71 +472,6 @@ var
 		trace: "" 					//< Echo flags before and after parse		
 	},
 
-	Array: [
-		
-		//>>>>
-		function joinify(item,list,cb) {
-			
-			var rtn = [];
-
-			for (var n=0, N=this.length; n<N; n++) 
-				rtn.push( cb ? cb(this[n][item]) : this[n][item] );
-				
-			return rtn.join(list || ",");
-		},
-							
-		function treeify(idx,kids,level,piv,wt) {
-			
-			if (!wt) 
-				return this.treeify(0,recs.length,0,idx,"size");
-
-			var recs = this;
-			var key = piv[level];
-			var levels = piv.length-1;
-			var ref = recs[idx][key];
-			var len = 0;
-			var pos = idx, end = idx+kids;
-			var tar = [];
-			
-			if (level<levels)
-				while (pos<end) {
-					var rec = recs[idx];
-					var stop = (idx==end) ? true : (rec[key] != ref);
-					
-					if ( stop ) {
-						//console.log([pos,idx,end,key,ref,recs.length]);
-						//console.log(rec);
-						
-						var node = {
-							name: key+":"+ref, 
-							weight: len, //wt ? parseInt(rec[wt] || "0") : 0,
-							children: recs.treeify(pos,len,level+1,piv,wt)
-						};
-
-						tar.push( node );
-						pos = idx;
-						len = 0;
-						ref = (idx==end) ? null : recs[idx][key];
-					}
-					else {
-						idx++;
-						len++;
-					}
-				}
-			else
-				while (pos < end) {
-					var rec = recs[pos++];
-					tar.push({
-						name: key+":"+rec[key], 
-						weight: wt ? parseInt(rec[wt] || "1") : 1,
-						doc: rec
-					});
-				}
-				
-			return tar;
-		}
-	],
-	
 	/**
 	 * @param fetchers
 	 * Data fetcher X is used when a GET on X is
@@ -459,7 +531,6 @@ var
 	insert: null,
 	execute: null,
 	
-	//>>>>
 	started: new Date(), 	//< totem start time
 	retries: 5,				//< max number of fetch retries
 	notify: true, 			//< notify every fetch
@@ -478,8 +549,6 @@ var
 	},	
 	
 	validator: null,		//< cert validator to use on each request
-	
-	trace: "T>", 			//< trace progress to console
 	
 	admit: null, 			//< null to admit all clients
 		/*{ "u.s. government": "required",
@@ -529,7 +598,6 @@ var
 		busy: "Too busy - try again later.",
 		
 		mysql: {
-			//>>>>
 			users: "SELECT client FROM ??.dblogs GROUP BY client",
 			derive: "SELECT * FROM openv.apps WHERE ?",
 			record: "INSERT INTO dblogs SET ?",
@@ -715,7 +783,6 @@ function startServer(opts) {
 						
 						Each(opts, function (key,val) {
 							key = key.toLowerCase();
-							//>>>>
 							site[key] = val;
 							if (key in TOTEM) {
 								//Trace(`${key}=${val}`);
@@ -723,13 +790,9 @@ function startServer(opts) {
 							}
 						});
 						
-						//>>>>
-						//Copy(opts, site);
-
 						if (TOTEM.jsons)
 							Each( TOTEM.jsons, function (n,def) {
 								//Trace(`${n}=${site[n]}`)
-								//>>>>
 								site[n.toLowerCase()] = (opts[n]||"").parse(def);
 							});
 
@@ -746,7 +809,6 @@ console.log(site);
 						TOTEM.guest = Copy(rec,{});
 					});
 					
-				//>>>>
 				if (users = paths.mysql.users) 
 					sql.query(users, [name], function (err,users) {
 						site.users = users.joinify("client", ";", function (user) {
@@ -1925,7 +1987,7 @@ function validateCert(con,req,res) {
 		email	: client, 			// email address from pki
 		//source	: req.table, 		// db target
 		hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
-	}, Copy(TOTEM.site, req));  //>>>> STATICS->site
+	}, Copy(TOTEM.site, req)); 
 
 	if (TOTEM.encrypt) {
 
@@ -2424,51 +2486,14 @@ function challengeClient(client, Prof) {
 
 //============================================
 // Basic formatters, minipulators and enumerators
-
+/*
 Array.prototype.each = function (cb) {
 	
 	for (var n=0, N=this.length; n<N; n++)
 		cb( n , this[n]);
 		
 }
-
-String.prototype.each = function (pat, rtn, cb) {
-	
-	var msg = this;
-	
-	while ( (idx = msg.indexOf(pat) ) >=0 ) {
-		
-		msg = msg.substr(0,idx) + cb(rtn) + msg.substr(idx+pat.length);
-		
-	}
-
-	return msg;
-	
-}
-
-/*  //>>>> added to enum  removed from base
-String.prototype.tag = function (tag,attrs) {
-	var rtn = "<"+tag+" ";
-	
-	if (attrs) 
-		Each(attrs,function (n,attr) {
-			rtn += n + "='" + attr + "' ";
-		});
-	
-	switch (tag) {
-		case "embed":
-		case "img":
-		case "link":
-			return rtn+">" + this;
-		default:
-			return rtn+">" + this + "</"+tag+">";
-	}
-}*/
-
-String.prototype.format = function (req,plugin) {
-	req.plugin = req.F = plugin || {};
-	return Format(req,this);
-}
+*/
 
 /**
  * @method Format
@@ -2507,8 +2532,7 @@ function retryExecute(cmd,opts,cb) {
 		
 	function trycmd(cmd,cb) {
 
-		if (opts.trace)
-			Trace(`TRY[${opts.retry}] ${cmd}`);
+		Trace(`TRY[${opts.retry}] ${cmd}`);
 
 		CP.exec(cmd, function (err,stdout,stderr) {
 			if (err) {

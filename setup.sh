@@ -4,9 +4,9 @@
 #
 # Setup env
 #
-if test -f config.sh; then
-	source config.sh
-fi
+#if test -f config.sh; then
+#	source config.sh
+#fi
 
 case "$1." in
 #
