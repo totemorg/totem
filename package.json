@@ -14,9 +14,14 @@
   "author": "ACME Software Disposal Service",
   "license": "ISC",
   "dependencies": {
-    "forever": "^0.15.2",
-    "mysql": "^2.10.2",
-    "xml2js": "^0.4.16"
+    "js2xmlparser": "^2.0.2",
+    "json2csv": "^3.7.0",
+    "mysql": "^2.11.1",
+    "socket.io": "^1.5.0",
+    "socket.io-client": "file:socket.io",
+    "socket.io-clusterhub": "^0.2.1",
+    "xml2js": "^0.4.17",
+    "xml2json": "^0.10.0"
   },
   "devDependencies": {}
 }

@@ -1,22 +1,25 @@
 // UNCLASSIFIED $$$$
 
 /**
+ * nodejs:
  * @module totem
- * @public
- * @requires mysql
- * @requires xml2js
  * @requires http
  * @requires https
- * @requires chip_process
  * @requires fs
  * @requires constants
  * @requires clusters
+ * @requires child-process
+ * totem:
+ * @requires mime
+ * @requires enum
+ * 3rd party:
+ * @requires socket.io
+ * @requires socket.io-clusterhub
+ * @requires mysql
+ * @requires xml2js
  * @requires toobusy
  * @requires json2csv
  * @requires js2xmlparser
- * @requires mime
- * @requires socket.io
- * @requires socket.io-clusterhub
  */
 /** 
  * TOTEM provides an HTTP-HTTPS service configured with/without the 
@@ -124,7 +127,6 @@
  * 		site	: {  // vars and functions assessible to jade skins
  * 			... },
  * 
- * 		prettyError(err)	: format an error message,
  * 		stop() 		: stop the service,
  *		thread(cb) 	: provide sql connection to cb(sql),
  * 
@@ -198,7 +200,7 @@ var 											// 3rd party modules
 	SIO = require('socket.io')					//< Socket.io client mesh
 	SIOHUB = require('socket.io-clusterhub'),	//< Socket.io client mesh for multicore app
 	MYSQL = require("mysql"),					//< mysql conector
-	XML2JS = require("xml2js"),					//< xml to json parser
+	XML2JS = require("xml2js"),					//< xml to json parser (*)
 	BUSY = null, //require('toobusy'),  		//< denial-of-service protector (cant install on NodeJS 5.x)
 	JS2XML = require('js2xmlparser'), 			//< JSON to XML parser
 	JS2CSV = require('json2csv'); 				//< JSON to CSV parser	
@@ -362,7 +364,6 @@ var
 	 * Site parms requiring json conversion when loaded
 	 * */
 	jsons: {  
-		info: {}
 	},
 	
 	/**
@@ -400,13 +401,16 @@ var
 	 * Options to parse request _flags
 	 * */
 	reqflags: {				//< Properties for request flags
-		strips:	 					//< Flags to strips from request
+		strips:	 			//< Flags to strips from request
 			{"":1, "_":1, leaf:1, _dc:1, id:1, "=":1, "?":1, "request":1}, 		
-		
-		jsons: { 
+
+		traps: {   			//< Traps to redefine flags
 		},
 		
-		lists: { 					//< Array list flags			
+		jsons: {  			///< Convert from json
+		},
+		
+		lists: { 			 //< Convert from list
 			encap: function encap(idx,recs) {
 				var encap = {};
 				encap[idx] = recs;
@@ -607,6 +611,9 @@ var
 	},
 
 	errors: {
+		pretty: function (err) { 
+			return (err+"");
+		},
 		noRoute: new Error("no route"),
 		invalidQuery: new Error("invalid query"),
 		badGroup: new Error("invalid group requested"),
@@ -622,13 +629,6 @@ var
 	uploader: Uploader,		//< default file saver
 	
 	busy: 3000,				//< server toobusy check period in milliseconds
-	
-	prettyError: function (err,con) { 
-		if (con)
-			Trace(con);
-			
-		return (err+"");
-	},
 	
 	// CRUDE extensions
 
@@ -726,9 +726,9 @@ var
 
 			})
 			.on("error", function (err) {
-				Trace(`FAILED CONFIG FROM DB - ${err}`);
+				Trace( "CANT DERIVE "+err );
 			});
-
+ 
 		else 
 		if (cb) cb();
 					
@@ -1122,7 +1122,7 @@ function setupServer(cb) {
 	Trace(`SETTINGUP ${name}`);
 	
 	TOTEM.cache.certs = {		// cache data fetching certs 
-		pfx: FS.readFileSync(`${certs.server}fetch.pfx`),
+		pfx: "", //FS.readFileSync(`${certs.server}fetch.pfx`),
 		crt: `${certs.server}fetch.crt`,
 		key: `${certs.server}fetch.key`
 	};
@@ -1244,7 +1244,7 @@ function Responder(Req,Res) {
 	}		
 
 	function sendError(msg) {
-		Res.end( TOTEM.prettyError(msg) );
+		Res.end( TOTEM.errors.pretty(msg) );
 		Req.req.sql.release();
 	}
 
@@ -1346,76 +1346,81 @@ function Responder(Req,Res) {
 								ack = conv(flag,ack,req);
 					});
 					
-					switch (req.type) {
-						case "db": 
-						
-							switch (req.action) {
-								case "select":
-								
-									sql.query("select found_rows()")
-									.on('result', function (stat) {		// ack from sql				
+					if (ack.constructor == Array)
+						switch (req.type) {
+							case "db": 
 
-										sendDb("data", stat["found_rows()"] || 0, ack);
-										
-									})
-									.on("error", function () {  		// ack from virtual table
-										
-										sendDb("data", ack.length, ack);
-										
-									});
-									
-									break;
-									
-								case "update":
-								case "delete":
-								case "insert":
-								case "execute":
-									
-									sendDb("info", 0, ack);
-									break;
-								
-								default:
-									sendError( TOTOM.errors.invalidQuery );
-							}
-							break;
-						
-						case "txt":
-						case "csv":
-							
-							JS2CSV({ 
-								data: ack, 
-								fields: Object.keys( ack[0]||{} )
-							} , function (err,csv) {
-								
-								if (err)
-									sendError("Bad conversion");
-								else 
-									sendString( csv );
-							});
-							break;
-		
-						case "xml":
-						
-							sendString( JS2XML(req.table, {  
-								count: ack.length,
-								data: ack
-							}) );
-							break;
-							
-						case "html": 
-							
-							var rtn = "";
-							ack.each(function (n,html) {
-								rtn += html;
-							});
-							sendString(rtn);
-							break;
-							
-						case "json":
-						default:
-							
-							sendString( JSON.stringify(ack) );
-					}
+								switch (req.action) {
+									case "select":
+
+										sql.query("select found_rows()")
+										.on('result', function (stat) {		// ack from sql				
+
+											sendDb("data", stat["found_rows()"] || 0, ack);
+
+										})
+										.on("error", function () {  		// ack from virtual table
+
+											sendDb("data", ack.length, ack);
+
+										});
+
+										break;
+
+									case "update":
+									case "delete":
+									case "insert":
+									case "execute":
+
+										sendDb("info", 0, ack);
+										break;
+
+									default:
+										sendError( TOTOM.errors.invalidQuery );
+								}
+								break;
+
+							case "txt":
+							case "csv":
+
+								JS2CSV({ 
+									data: ack, 
+									fields: Object.keys( ack[0]||{} )
+								} , function (err,csv) {
+
+									if (err)
+										sendError("Bad conversion");
+									else 
+										sendString( csv );
+								});
+								break;
+
+							case "xml":
+
+								sendString( JS2XML.parse(req.table, {  
+									count: ack.length,
+									data: ack
+								}) );
+								break;
+
+							case "html": 
+
+								var rtn = "";
+								ack.each(function (n,html) {
+									rtn += html;
+								});
+								sendString(rtn);
+								break;
+
+							case "json":
+							default:
+
+								sendString( JSON.stringify(ack) );
+						}
+					
+					else
+							res(ack);
+					
 					break;
 			
 				default:
@@ -2661,26 +2666,31 @@ function traceExecute(cmd,cb) {
 
 function parseNode(req) {
 	
-	var 
-		node = req.node, 
-		parts = node.split("?"),
-		file = req.file = parts[0],
-		parms = parts[1],
-		parts = file ? file.split(".") : [],
-		type = req.type = parts[1] || "",
-		areas = parts[0].split("/"),
-		table = req.table = areas.pop() || "",
-		query = req.query,	
+	var
+		node = URL.parse(req.node),
+		query = req.query = {},
+		parms = node.query,
+		areas = node.pathname.split("/"),
+		file = req.file = areas.pop(),
+		parts = file.split("."),
+		type = req.type = parts.pop(),
+		table = req.table = parts.pop() || "",
 		area = req.area = areas[1] || "";
-
+		
 	if ( req.path = TOTEM.paths.mime[req.area] )
-		req.path += file;
+		req.path += node.pathname;
 		
 	else
 		req.area = "";
-	
-//Trace(">parse node",[file,areas,req.area,req.path,req.table,req.type]);
 
+	if (trace)
+		console.log({
+			a: req.area,
+			t: req.type,
+			f: req.file,
+			p: req.path,
+			d: req.table});
+	
 	if (parms)  
 		parms.split("&").each(function (n,parm) {  // parse the query parms
 			var parts = parm.split("=");
@@ -2695,6 +2705,7 @@ function parseNode(req) {
 		prefix = reqflags.prefix,
 		lists = reqflags.lists,
 		jsons = reqflags.jsons,
+		traps = reqflags.traps,
 		id = reqflags.id,
 		trace = false, //query[reqflags.trace],
 	
@@ -2728,13 +2739,6 @@ function parseNode(req) {
 			}
 		}	
 
-	/*for (var n in query) {		// unescape query parameters
-		var parm = query[n]; // = unescape(query[n]); 
-
-		if ( parm.charAt(0) == "[") 
-			query[n] = (query[n]||"").parse(null);
-	}*/
-	
 	for (var n in body) 		// remap body flags
 		if (n.charAt(0) == prefix) {  
 			flags[n.substr(1)] = body[n];
@@ -2746,17 +2750,19 @@ function parseNode(req) {
 		delete body[id];
 	}
 	
-	for (var n in flags) { 		// unescape flags
-		var flag = flags[n]; //unescape(flags[n]); 
-		
-		if (n in lists) 
-			flags[n] = flag ? flag.split(",") : null;
+	for (var n in flags)  		// convert flags
+		if (flag = flags[n])
+			if (n in lists) 
+				flags[n] = flag.split(",");
+			else
+			if (n in jsons)
+				flags[n] = flag.parse(null);
+			else
+			if (trap = traps[n])
+				trap(query,flags);
+	
 		else
-		if (n in jsons)
-			flags[n] = flag ? flag.parse(null) : null;
-		//else
-		//	flags[n] = flag;
-	}
+			flags[n] = null;
 
 	if (trace)
 		console.info({
