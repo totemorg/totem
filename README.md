@@ -19,15 +19,14 @@ following options:
   
 TOTEM thus replaces a slew of god-awful middleware (like Express).
 
-To synchronize multiple data nodes, TOTEM uses the following 
-Crude | HTTP requests:
+To synchronize multiple datasets, TOTEM uses the following CRUD | HTTP requests:
   
 	select	| GET 	 /NODE $ NODE ...
 	update	| PUT 	 /NODE $ NODE ...
 	insert	| POST 	 /NODE $ NODE ...
 	delete	| DELETE /NODE $ NODE ...
   
-where a data NODE can reference a mysql or emulated table:
+where a dataset NODE can reference a mysql or emulated table:
   
   	NODE = DATASET.TYPE?PARMS
   
@@ -48,7 +47,7 @@ to a service defined AREA, and where
 returns NODE data in the specified format (additional types can
 be supported by the next higher assembly using the TOTEM.reader). 
 
-To start TOTEM with options use:
+TOTEM starts like so:
 
 	var TOTEM = require("totem").start({
 		// options
@@ -106,10 +105,9 @@ TOTEM start() options include:
 	paths	: {  // paths to various things
 		... },
 
-	site	: {  // vars and functions assessible to jade skins
+	site	: {  // vars and methods assessible to jade skins
 		... },
 
-	prettyError(err)	: format an error message,
 	stop() 		: stop the service,
 	thread(cb) 	: provide sql connection to cb(sql),
 
@@ -150,12 +148,12 @@ TOTEM start() options include:
 		// sets mysql name.table for guest clients,
 		// identifies server cert name.pfx file
 
-	started: start time
-	site: {db parameters} loaded for specified opts.name,
-	url : {master,worker} urls for specified opts.cores,
-	all the ENUM enumerators
+	started: // start time
+	site: {db parameters} // loaded for specified opts.name,
+	url : {master,worker} // urls for specified opts.cores,
 
-Options are specified using [Totem](https://git.geointapps.org/acmesds/transfer)ENUM.copy() conventions:
+TOTEM extends [ENUM](https://git.geointapps.org/acmesds/eum) so its start() options can be specified
+using ENUM.copy() conventions:
 
 	options =  {
 		key: value, 						// set 
@@ -179,7 +177,7 @@ want to link the following back to your project/config:
 	
 ## Examples
 
-Below sample use-cases are from totem/config.js:
+Below sample use-cases are from totem/config.js.
 
 ### N1
 
