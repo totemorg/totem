@@ -47,12 +47,6 @@ to a service defined AREA, and where
 returns NODE data in the specified format (additional types can
 be supported by the next higher assembly using the TOTEM.reader). 
 
-TOTEM starts like so:
-
-	var TOTEM = require("totem").start({
-		// options
-	});
-
 ## Start options
 
 TOTEM start() options include:
@@ -152,6 +146,24 @@ TOTEM start() options include:
 	site: {db parameters} // loaded for specified opts.name,
 	url : {master,worker} // urls for specified opts.cores,
 
+## Installation
+
+Download and unzip into your project/totem folder and revise the project/config module as needed
+for your [Totem](https://git.geointapps.org/acmesds/transfer) project.  Typically, you will
+want to link the following back to your project/config:
+
+	ln -s project/config/debe.sh config.sh
+	ln -s project/config/maint.sh maint.sh
+	ln -s project/config/certs certs
+	
+## Examples
+
+TOTEM starts like so:
+
+	var TOTEM = require("totem").start({
+		// options
+	});
+
 TOTEM extends [ENUM](https://git.geointapps.org/acmesds/eum) so its start() options can be specified
 using ENUM.copy() conventions:
 
@@ -165,18 +177,6 @@ using ENUM.copy() conventions:
 		:
 	}
  
-## Installation
-
-Download and unzip into your project/totem folder and revise the project/config module as needed
-for your [Totem](https://git.geointapps.org/acmesds/transfer) project.  Typically, you will
-want to link the following back to your project/config:
-
-	ln -s project/config/debe.sh config.sh
-	ln -s project/config/maint.sh maint.sh
-	ln -s project/config/certs certs
-	
-## Examples
-
 Below sample use-cases are from totem/config.js.
 
 ### N1
