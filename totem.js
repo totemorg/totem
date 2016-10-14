@@ -430,7 +430,7 @@ var
 				return recs;
 			},
 			
-			index: function index(idx,recs) {
+			xindex: function index(idx,recs) {
 				var group = idx[2],
 					x = idx[0],
 					y = idx[1];
@@ -1342,14 +1342,15 @@ function Responder(Req,Res) {
 
 					Each( TOTEM.reqflags.lists, function (n, conv) {
 						if (flag = flags[n])
-							if (conv)
+							if (conv) {
+								//console.log([">>>>>> conv",n,flag,ack]);
 								ack = conv(flag,ack,req);
+							}
 					});
 					
 					if (ack.constructor == Array)
 						switch (req.type) {
 							case "db": 
-
 								switch (req.action) {
 									case "select":
 
@@ -2683,7 +2684,7 @@ function parseNode(req) {
 	else
 		req.area = "";
 
-	if (trace)
+	if (false)
 		console.log({
 			a: req.area,
 			t: req.type,
@@ -2751,16 +2752,16 @@ function parseNode(req) {
 	}
 	
 	for (var n in flags)  		// convert flags
-		if (flag = flags[n])
+		if (flag = flags[n]) {
+			if (trap = traps[n]) 
+				trap(query,flags);
+			else
 			if (n in lists) 
 				flags[n] = flag.split(",");
 			else
 			if (n in jsons)
 				flags[n] = flag.parse(null);
-			else
-			if (trap = traps[n])
-				trap(query,flags);
-	
+		}
 		else
 			flags[n] = null;
 
