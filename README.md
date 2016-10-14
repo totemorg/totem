@@ -54,7 +54,9 @@ To start TOTEM with options use:
 		// options
 	});
 
-where the startup options include:
+## Start options
+
+TOTEM start() options include:
   
 	// CRUDE interface
 
@@ -169,18 +171,17 @@ Options are specified using [Totem](https://git.geointapps.org/acmesds/transfer)
 
 Download and unzip into your project/totem folder and revise the project/config module as needed
 for your [Totem](https://git.geointapps.org/acmesds/transfer) project.  Typically, you will
-want to:
+want to link the following back to your project/config:
 
 	ln -s project/config/debe.sh config.sh
 	ln -s project/config/maint.sh maint.sh
 	ln -s project/config/certs certs
 	
-to override the defaults.
-
-## Usage
-
+## Examples
 
 Below sample use-cases are from totem/config.js:
+
+### N1
 
 	N1: function () {
 		
@@ -194,6 +195,8 @@ Below sample use-cases are from totem/config.js:
 		});
 	},
 	
+### N2
+
 	N2: function () {
 		
 		Trace(
@@ -207,6 +210,8 @@ Below sample use-cases are from totem/config.js:
 		
 	},
 	
+### N3
+
 	N3: function () {
 		
 		var TOTEM = require("../totem").start({
@@ -227,7 +232,9 @@ Below sample use-cases are from totem/config.js:
 		});
 		
 	},
-	
+
+### N4
+
 	N4: function () {
 		
 		var TOTEM = require("../totem").start({
@@ -274,7 +281,9 @@ Below sample use-cases are from totem/config.js:
 		});
 		
 	},
-	
+
+### N5
+
 	N5: function () {
 		var TOTEM = require("../totem").start({
 			mysql: {
@@ -295,7 +304,7 @@ Below sample use-cases are from totem/config.js:
 			}
 		});
 	}
-	
+
 [Totem](https://git.geointapps.org/acmesds/transfer)'s DEBE module provides an
 example of how Totem can be integrated into higher level assemblies.
 
