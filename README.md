@@ -16,6 +16,7 @@ following options:
 	+ transfer, indexing, saving and selective cacheing of static mime files
 	+ anti-bot challenges: (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
 	+ full crude syncronized data operations with mutiple endpoints
+	+ database agnosticator (default MySQL-Cluster)
   
 TOTEM thus replaces a slew of god-awful middleware (like Express).
 

@@ -1,4 +1,4 @@
-// UNCLASSIFIED $$$$
+// UNCLASSIFIED >>>>
 
 /**
  * nodejs:
@@ -12,6 +12,7 @@
  * totem:
  * @requires mime
  * @requires enum
+ * @requires dsvar
  * 3rd party:
  * @requires socket.io
  * @requires socket.io-clusterhub
@@ -35,7 +36,7 @@
  * 	+ no faults run state
  *  + transfer, indexing, saving and selective cacheing of static mime files
  * 	+ anti-bot challenges: (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
- * 	+ full crude syncronized data operations with mutiple endpoints
+ * 	+ full crude syncronized data operations with mutiple u
  * 
  * TOTEM thus replaces god-awful middleware like Express.
  * 
@@ -206,6 +207,7 @@ var 											// 3rd party modules
 	JS2CSV = require('json2csv'); 				//< JSON to CSV parser	
 	
 var 											// Totem modules
+	DSVAR = require("dsvar"),				//< DSVAR database agnosticator
 	MIME = require("mime"),						//< MIME content types
 	ENUM = require("enum"); 					//< Basic enumerators
 
@@ -370,8 +372,8 @@ var
 	 * @method thread
 	 * Thread a new sql connection to a callback.
 	 * */
-	thread: sqlThread,
-	
+	thread: DSVAR.thread,
+		
 	/**
 	 * @param TO
 	 * Time-Out values (reserved - not presently used)
@@ -580,8 +582,6 @@ var
 			socketio: "/socket.io/socket.io.js"
 		},
 			
-		busy: "Too busy - try again later.",
-		
 		certs: { 
 			truststore: "certs/truststore/",
 			server: "certs/"
@@ -622,7 +622,10 @@ var
 		failedUser: new Error("failed modification of user profile"),
 		missingPass: new Error("missing initial user password"),
 		expiredCert: new Error("cert expired"),
-		rejectedCert: new Error("cert rejected")
+		rejectedCert: new Error("cert rejected"),
+		tooBusy: new Error("Too busy - try again later.")
+		
+
 	},
 
 	indexer: Indexer,		//< default file indexer
@@ -835,20 +838,27 @@ function startServer(opts) {
 		});
 	
 	if (mysql) {
-		mysql.opts = { 
-			host     : mysql.host,				// host name
-			user     : mysql.user,				// login
-			password : mysql.pass,				// passphrase
-			connectionLimit : mysql.sessions || 100, 		// max simultaneous connections
-			//acquireTimeout : 10000, 			// connection acquire timer
-			queueLimit: 0,  					// max concections to queue (0=unlimited)
-			waitForConnections: true			// allow connection requests to be queued
-		};
 
+		//mysql.pool = MYSQL.createPool(mysql.opts);
+		
+		DSVAR.config({
+			emit: TOTEM.IO ? TOTEM.IO.sockets.emit : null,
+
+			mysql: Copy( { 
+					opts: {
+						host: mysql.host,
+						user: mysql.user,
+						password : mysql.pass,				// passphrase
+						connectionLimit : mysql.sessions || 100, 		// max simultaneous connections
+						//acquireTimeout : 10000, 			// connection acquire timer
+						queueLimit: 0,  						// max concections to queue (0=unlimited)
+						waitForConnections: true			// allow connection requests to be queued
+					}
+				}, mysql)
+		});
+		
 		for (var n in mysql)
 			if (n in paths) paths[n] = mysql[n];
-		
-		mysql.pool = MYSQL.createPool(mysql.opts);
 		
 		if (name && mysql)	// derive server and site parameters
 			sqlThread( function (sql) {
@@ -1528,9 +1538,9 @@ function Responder(Req,Res) {
 	 * */
 	function checkBusy() {
 		
-		if (BUSY && (busy = TOTEM.paths.busy) )	
+		if (BUSY && (busy = TOTEM.errors.tooBusy) )	
 			if ( BUSY() )
-				Res.end( busy );
+				Res.end( TOTEM.errors.pretty( busy ) );
 	}
 	
 	/**
@@ -1639,40 +1649,6 @@ function Responder(Req,Res) {
 //============================================
 // sql support
 
-function sqlThread(cb) {
-
-	var 
-		name = TOTEM.name,
-		mysql = TOTEM.mysql;
-	
-	if (mysql)
-		if (mysql.pool)
-			mysql.pool.getConnection(function (err,sql) {
-				if (err) {
-					Trace( 
-						err
-						+ " total="	+ mysql.pool._allConnections.length 
-						+ " free="	+ mysql.pool._freeConnections.length
-						+ " queue="	+ mysql.pool._connectionQueue.length );
-				
-					mysql.pool.end( function (err) {
-						mysql.pool = MYSQL.createPool(mysql.opts);
-					});
-				
-					cb( nosqlConnection(err) );
-				}
-				else {
-					//Trace("sql opened");
-					cb( sql );
-				}
-			});
-		
-		else
-			cb( MYSQL.createConnection(mysql.opts) );
-	else 
-		cb( nosqlConnection( TOTOM.errors.noDB ) );
-}
-
 function Emitter(action,opts) {
 	
 	Trace("Emitting ${action} = "+JSON.stringify(opts));
@@ -1681,31 +1657,6 @@ function Emitter(action,opts) {
 		if (IO = TOTEM.IO)
 			IO.emit(action,opts);
 
-}
-
-function nosqlConnection(err) {
-		
-	var sql = {
-		query: function (q,args,cb) {
-			//if (cb||args) (cb||args)( err );
-			Trace(err+"");
-			return sql;
-		}, 
-		on: function (ev, cb) {
-			//cb( err );
-			Trace(err+"");
-			return sql;
-		},
-		sql: "", 
-		release: function () {
-			return sql;
-		},
-		createPool: function (opts) {
-			return sql;
-		}
-	};
-	
-	return sql;
 }
 
 //============================================
@@ -2625,7 +2576,21 @@ function retryExecute(cmd,opts,cb) {
 // TOTEM initalization
 
 function Initialize () {
+	
 	Trace(`INITIALIZED WITH ${TOTEM.riddles} RIDDLES`);
+	
+	/*
+	function context(ctx,cb) {
+		var sql = this;
+		var context = {};
+		for (var n in ctx) context[n] = new TOTEM.DSVAR(sql,ctx[n],{table:"app1."+n});
+		if (cb) cb(context);
+	}
+	
+	sqlThread( function (sql) {
+		ENUM.extend(sql.constructor, [ context ] );
+		sql.release();
+	});*/
 	
 	initChallenger();
 	
@@ -2888,6 +2853,10 @@ function resThread(req, cb) {
 	sqlThread( function (sql) {
 		cb( req.sql = sql );
 	});
+}
+
+function sqlThread(cb) {
+	DSVAR.thread(cb);
 }
 
 // UNCLASSIFIED
