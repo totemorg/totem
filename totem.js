@@ -1,4 +1,4 @@
-// UNCLASSIFIED >>>>
+// UNCLASSIFIED ++++
 
 /**
  * nodejs:
@@ -304,15 +304,44 @@ var
 		},
 	
 		function parse(def) {
-			try {
-				return JSON.parse(this);
-			}
-			catch (err) {
-				if (typeof def == "function") 
-					return def(this);
-				else
-					return def;
-			}
+			
+			var rtn = def;
+			
+			if (this)
+				try {
+					return JSON.parse(this);
+				}
+				catch (err) {
+
+					if (!def) return null;
+
+					var parms = (def.constructor == Function) 
+							? def(this) 
+							: this.split("&");
+
+					parms.each(function (n,parm) {
+
+						var	parts = parm.split("="),
+							rhs = parts.pop(),
+							lhs = parts.pop();
+
+						if (lhs)
+							try { 
+								rtn[lhs] = JSON.parse(rhs); 
+							}
+							catch (err) { 
+								rtn[lhs] = rhs;
+							}
+						else
+								rtn[rhs] = null;
+					});
+
+					return rtn;
+				}
+		
+			else
+				return rtn;
+			
 		},
 		
 		function xmlParse(def, cb) {
@@ -2634,8 +2663,8 @@ function parseNode(req) {
 	
 	var
 		node = URL.parse(req.node),
-		query = req.query = {},
-		parms = node.query,
+		query = req.query = (node.query||"").parse({}),
+		//parms = node.query,
 		areas = node.pathname.split("/"),
 		file = req.file = areas.pop(),
 		parts = file.split("."),
@@ -2657,11 +2686,11 @@ function parseNode(req) {
 			p: req.path,
 			d: req.table});
 	
-	if (parms)  
+	/*if (parms)  
 		parms.split("&").each(function (n,parm) {  // parse the query parms
 			var parts = parm.split("=");
 			query[parts[0]] = parts[1]; 
-		});
+		});*/
 	
 	// flags and joins
 	
@@ -2716,7 +2745,7 @@ function parseNode(req) {
 		delete body[id];
 	}
 	
-	for (var n in flags)  		// convert flags
+	/*for (var n in flags)  		// convert flags
 		if (flag = flags[n]) {
 			if (trap = traps[n]) 
 				trap(query,flags);
@@ -2729,7 +2758,12 @@ function parseNode(req) {
 		}
 		else
 			flags[n] = null;
-
+	*/
+	
+	for (var n in traps)
+		if (flag = flags[n])
+			traps[n](query,flags);
+	
 	if (trace)
 		console.info({
 			i: "after",
