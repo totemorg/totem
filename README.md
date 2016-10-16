@@ -18,7 +18,7 @@ following options:
 	+ full crude syncronized data operations with mutiple endpoints
 	+ database agnosticator (default MySQL-Cluster)
   
-TOTEM thus replaces a slew of god-awful middleware (like Express).
+TOTEM thus replaces a slew of god-awful middleware (like Express) written for NodeJS.
 
 To synchronize multiple datasets, TOTEM uses the following CRUD | HTTP requests:
   
@@ -149,14 +149,23 @@ TOTEM start() options include:
 
 ## Installation
 
-Download and unzip into your project/totem folder and revise the project/config module as needed
-for your [Totem](https://git.geointapps.org/acmesds/transfer) project.  Typically, you will
-want to link the following back to your project/config:
+Download and unzip [the latest version of Totem](https://git.geointapps.org/acmesds/transfer) into your 
+project/totem folder, then move into project/totem and install its dependencies
 
-	ln -s project/config/debe.sh config.sh
+	npm install
+
+If you are on a closed system, you will need to download  [Totem's 3rd-party repo](https://git.geointapps.org/acmesds/transfer) 
+into, say, a project/repo folder, then revise each dependencies in project/totem/package.json from {X:"ver"} to 
+{X: "file:../repo/X/node_modules} before you "npm install".
+
+Typically, you will then link 
+
+	ln -s project/config/totem.sh config.sh
 	ln -s project/config/maint.sh maint.sh
 	ln -s project/config/certs certs
 	
+back to your project/config files (primed from [the default Totem configuration](https://git.geointapps.org/acmesds/config))
+
 ## Examples
 
 TOTEM starts like so:
