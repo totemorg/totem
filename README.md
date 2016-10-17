@@ -149,7 +149,7 @@ TOTEM start() options include:
 
 ## Installation
 
-Download and unzip [the latest version of Totem](https://git.geointapps.org/acmesds/transfer) into your 
+Download and unzip [the latest version of TOTEM](https://git.geointapps.org/acmesds/transfer) into your 
 project/totem folder, then move into project/totem and install its dependencies
 
 	npm install
@@ -158,13 +158,12 @@ If you are on a closed system, you will need to download  [Totem's 3rd-party rep
 into, say, a project/repo folder, then revise each dependencies in project/totem/package.json from {X:"ver"} to 
 {X: "file:../repo/X/node_modules} before you "npm install".
 
-Typically, you will then link 
+You will then typically point the following back to your customized [project/config](https://git.geointapps.org/acmesds/config))
 
 	ln -s project/config/totem.sh config.sh
 	ln -s project/config/maint.sh maint.sh
 	ln -s project/config/certs certs
 	
-back to your project/config files (primed from [the default Totem configuration](https://git.geointapps.org/acmesds/config))
 
 ## Examples
 
