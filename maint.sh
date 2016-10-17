@@ -19,7 +19,7 @@ all.)
 			if test -f maint.sh; then
 				source maint.sh "$2" "$3" "$4"
 			fi
-		cd ../config
+		cd ../transfer
 
 	done
 	;;
