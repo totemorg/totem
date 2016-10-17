@@ -26,10 +26,9 @@ all.)
 
 zipall.)
 
-	rm ../transfer/archive.zip
-	zip ../transfer/archive.zip ../config/*
+	rm ../transfer/totem-project.zip
 	for mod in "${MODULES[@]}"; do
-		zip -r ../transfer/archive.zip ../$mod/* -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
+		zip -r ../transfer/totem-project.zip ../$mod/* -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
 	done
 	;;
 
