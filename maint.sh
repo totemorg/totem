@@ -6,7 +6,7 @@
 #
 
 export HERE=`pwd`
-export MODULES=(totem engine chipper sql enum xlwip reader debe dsvar)
+export MODULES=(totem engine chipper sql enum xlwip mime reader debe dsvar)
 
 case "$1." in
 
@@ -49,7 +49,7 @@ configall.)
 				echo "config $mod"
 				cd ../$mod
 					. config.sh
-				cd ../config
+				cd ../transfer
 			fi
 
 			let Totem_$mod=1
@@ -283,12 +283,12 @@ docker.)
 
 *)  	# start specified totem config
 
-	node config.js $1 $2 $3 $4 $5 
+	node test.js $1 $2 $3 $4 $5 
 	;;
 
 keepup)
 
-	forever start config.js $2 $3 $4 $5
+	forever start test.js $2 $3 $4 $5
 	;;
 
 esac

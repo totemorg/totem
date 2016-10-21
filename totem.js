@@ -1,4 +1,4 @@
-// UNCLASSIFIED ++++
+// UNCLASSIFIED >>>>
 
 /**
  * nodejs:
@@ -150,7 +150,7 @@
  * 
  *		create(owner,pass,cb) 	: makes a cert with callback cb,
  * 		validator(req,res) 		: validate cert during each request,
- * 		emitter(socket) 		: communicate with users over web sockets,
+ * 		//emitter(socket) 		: communicate with users over web sockets,
  *  
  * 		// Data fetching services
  * 
@@ -299,6 +299,25 @@ var
 		},
 
 		function format(req,plugin) {
+			
+			/**
+			 * @method Format
+			 * 
+			 * Format a string S containing ${X.key} tags.  The String wrapper for this
+			 * method extends X with optional plugins like X.F = {fn: function (X){}, ...}.
+			 * */
+			function Format(X,S) {
+
+			try {
+				var rtn = eval("`" + S + "`");
+				return rtn;
+			}
+			catch (err) {
+				return "[bad]";
+			}
+
+		}
+			
 			req.plugin = req.F = plugin || {};
 			return Format(req,this);
 		},
@@ -536,8 +555,10 @@ var
 		// set mysql name.table for guest clients,
 		// identify server cert name.pfx file.
 
-	site: {}, 				//< initial site context extened with mysql openv.apps
-	trust: [],				//< https service trust store built from all *.crt files
+	site: { 				//< initial site context extened with mysql openv.apps
+	},
+	trust: [				//< https service trust store built from all *.crt files
+	],
 	server: null,			//< defined when service started
 	
 	// CRUDE interface
@@ -652,9 +673,7 @@ var
 		missingPass: new Error("missing initial user password"),
 		expiredCert: new Error("cert expired"),
 		rejectedCert: new Error("cert rejected"),
-		tooBusy: new Error("Too busy - try again later.")
-		
-
+		tooBusy: new Error("too busy - try again later")
 	},
 
 	indexer: Indexer,		//< default file indexer
@@ -769,11 +788,11 @@ var
 	cache: { 				//< by-area cache
 		
 		never: {	//< useful while debugging client side stuff
-			"/clients/base.js": 1,
-			"/clients/grids.js": 1,
-			"/clients/guides.js": 1,
-			"/clients/jquery.js":1,
-			"/clients/models.js":1,
+			"base.js": 1,
+			"grids.js": 1,
+			"guides.js": 1,
+			"jquery.js":1,
+			"models.js":1,
 			"jade": 1,
 			"view": 1
 		},
@@ -791,7 +810,7 @@ var
 		certs: {} 		// reserved for client sessions
 	},
 	
-	emitter: Emitter,
+	//emitter: Emitter,
 	
 	Function: Initialize,
 	
@@ -805,28 +824,13 @@ var
 });
 
 //============================================
-// Readers
-
-function readExample(req,res) {
-	
-	var	sql = req.sql,
-		route = TOTEM.execute[req.table];
-
-	if (route)
-		route(req,res);
-	else
-		res();			
-}
-
-//============================================
-// Default CRUDE routes
+// Default CRUDE interface
 
 function dataSelect(req,res) {	//< Default virtual table logic is real table
 	req.sql.query("SELECT * FROM ??", req.table, function (err,data) {
 		res(err || data);
 	});
 }
-
 function dataUpdate(req,res) {
 	res( TOTEM.paths.TOTEM.errors.noRoute );
 }
@@ -841,7 +845,7 @@ function dataExecute(req,res) {
 }
 
 //============================================
-// Server related
+// Server methods
 
 /**
  * @method startServer
@@ -873,6 +877,9 @@ function startServer(opts) {
 		DSVAR.config({
 			emit: TOTEM.IO ? TOTEM.IO.sockets.emit : null,
 
+			dbtx: {
+			},
+			
 			mysql: Copy( { 
 					opts: {
 						host: mysql.host,
@@ -1187,7 +1194,7 @@ function setupServer(cb) {
 }
 
 /**
- * @method
+ * @method stopServer
  * 
  * Stop the server.
  * */
@@ -1201,8 +1208,1178 @@ function stopServer() {
 		});
 }
 
+/*function Emitter(action,opts) {
+	
+	Trace("Emitting ${action} = "+JSON.stringify(opts));
+	
+	if (TOTEM.server)
+		if (IO = TOTEM.IO)
+			IO.emit(action,opts);
+
+}*/
+
 //============================================
-// Responder and router
+// CRUDE routes for user maintenace
+
+function selectUser(req,res) {
+	
+	var sql = req.sql, query = req.query || 1, isHawk = req.cert.isHawk;
+			
+	isHawk = 1;
+	if (isHawk)
+		// sql.context({users:{table:"openv.profiles",where:query,rec:res}})
+		var q= sql.query(
+			"SELECT * FROM openv.profiles WHERE least(?,1)", 
+			[ query ], 
+			function (err,users) {
+				Trace(q.sql);
+
+				res( err || users );
+		});
+
+	else
+		// sql.context({users:{table:"openv.profiles",where:[{client:req.client},query],rec:res}})
+		sql.query(
+			"SELECT * FROM openv.profiles WHERE ? AND least(?,1)", 
+			[ {client:req.client}, req.query ], 
+			function (err,users) {
+				res( err || users );
+		});
+}
+
+function updateUser(req,res) {
+			
+	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk; 
+	
+	if (sql.query)
+		if (isHawk) 
+			// sql.context({users:{table:"openv.profile",where:{client:query.user},rec:query}});
+			var q= sql.query(
+				"UPDATE openv.profiles SET ? WHERE ?", 
+				[ query, {client:query.user} ], 
+				function (err,info) {
+					Trace(q.sql);
+
+					res( err || TOTEM.errors.failedUser );
+			});
+		
+		else
+			sql.query(
+				"UPDATE openv.profiles SET ? WHERE ?", 
+				[ query, {client:req.client} ],
+				function (err,info) {
+					
+					res( err || TOTEM.errors.failedUser );
+			});
+	else
+		res( TOTEM.errors.failedUser );
+			
+}
+
+function deleteUser(req,res) {
+			
+	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk;  
+
+	if (query)
+		if (isHawk)
+			// sql.context({users:{table:"openv.profiles",where:[ {client:query.user}, req.query ],rec:res}});
+			var q = sql.query(
+				"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
+				[ {client:query.user}, req.query ], 
+				function (err,info) {
+					console.log(q.sql);
+
+					res( err || TOTEM.errors.failedUser );
+					
+					// res should remove their files and other 
+					// allocated resources
+			});
+
+		else
+			sql.query(
+				"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
+				[ {client:req.client}, req.query ], 
+				function (err,info) {
+					res( err || TOTEM.errors.failedUser );
+			});
+	else
+		res( TOTEM.errors.failedUser );
+}
+			
+function insertUser (req,res) {
+			
+	var sql = req.sql, query = req.query || {}, isHawk = req.cert.isHawk; 
+	
+	var url = TOTEM.paths.url;
+	
+	if (req.cert.isHawk)
+		if (query.pass)
+			var q = sql.query(
+				"SELECT * FROM openv.profiles WHERE Requested AND NOT Approved AND least(?,1)", 
+				query.user ? {User: query.user} : 1 )
+				
+			.on("result", function (user) {
+				Trace(q.sql);
+				
+				var init = {	
+					Approved: new Date(),
+					Banned: url.resetpass
+						? "Please "+"s your password".tag("a",{href:url.resetpass})+" to access"
+						: "",
+
+					Client: user.User,					
+					QoS: 0,
+
+					Message:
+
+`Greetings from ${site.Nick.tag("a",{href:TOTEM.url.master})}-
+
+Admin:
+	Please create an AWS EC2 account for ${owner} using attached cert.
+
+To connect to ${site.Nick} from Windows:
+
+1. Establish gateway using 
+
+		Putty | SSH | Tunnels
+		
+	with the following LocalPort, RemotePort map:
+	
+		5001, ${TOTEM.url.master}:22
+		5100, ${TOTEM.url.master}:3389
+		5200, ${TOTEM.url.master}:8080
+		5910, ${TOTEM.url.master}:5910
+		5555, Dynamic
+	
+	and, for convienience:
+
+		Pageant | Add Keys | your private ppk cert
+
+2. Start a ${site.Nick} session using one of these methods:
+
+	${Putty} | Session | Host Name = localhost:5001 
+	Remote Desktop Connect| Computer = localhost:5100 
+	${FF} | Options | Network | Settings | Manual Proxy | Socks Host = localhost, Port = 5555, Socks = v5 `
+
+.replace(/\n/g,"<br>")					
+					
+				};
+
+				sql.query(
+					"UPDATE openv.profiles SET ? WHERE ?",
+					[ init, {User: user.User} ],
+					function (err) {
+						
+						createCert(user.User,pass,function () {
+
+							Trace(`Created cert for ${user.User}`);
+							
+							CP.exec(
+								`sudo adduser ${user.User} -gid ${user.Group}; sudo id ${user.User}`,
+								function (err,out) {
+									
+									sql.query(
+										"UPDATE openv.profiles SET ? WHERE ?",
+										[ {uid: out}, {User:user.User} ]
+									);
+
+									console.log( err 
+										? `Account failed for ${user.User} - require "sudo adduser" to protect this service`
+										: `Account created and group rights assigned to ${user.User}`
+									);
+							});
+						});
+				});
+			})
+			.on("end", function() {
+				res("User creation working");
+			});
+		
+		else
+			res( TOTEM.errors.missingPass );
+
+	else
+		sql.query(
+			"INSERT openv.profiles SET ? WHERE ?", 
+			[ req.query , {User:req.User} ], 
+			function (err,info) {
+				
+				res( err || TOTEM.errors.failedUser );
+		});
+}
+
+function fetchUser(req,res) {	
+	var access = TOTEM.user,
+		query = req.query;
+		
+	query.user = query.user || query.select || query.delete || query.update || query.insert;
+	
+	if (access) {
+		for (var n in {select:1,delete:1,update:1,insert:1})			
+			if (query[n]) {
+				delete query[n];
+				return access[n](req,res);
+			}
+		
+		if (call = query.call) {
+			delete query.call;
+			return access[call](req,res);
+		}
+	}
+	
+	res( TOTEM.errors.failedUser );
+}
+
+//============================================
+// PKI utilitities
+
+/**
+ * @method createCert
+ * 
+ * Create a cert for the desired owner with the desired passphrase with callback 
+ * to cb when complete.
+ * */
+function createCert(owner,pass,cb) {
+
+	function traceExecute(cmd,cb) {
+
+		Trace(cmd.replace(/\n/g,"\\n"));
+
+		CP.exec(cmd, function (err) {
+
+			if (err)
+				console.info({
+					shell: cmd,
+					error: err
+				});
+
+			cb();
+		});
+	}
+
+	var name = TOTEM.paths.certs.server + owner, 
+		pfx = name + ".pfx",
+		key = name + ".key",
+		crt = name + ".crt",
+		ppk = name + ".ppk";
+		
+	traceExecute(`echo -e "\n\n\n\n\n\n\n" | openssl req -x509 -nodes -days 5000 -newkey rsa:2048 -keyout ${key} -out ${crt}`, function () { 
+		
+	traceExecute(
+		`export PASS="${pass}";openssl pkcs12 -export -in ${crt} -inkey ${key} -out ${pfx} -passout env:PASS`, 
+		function () {
+		
+	traceExecute(
+		`puttygen ${owner}.key -N ${pass} -o ${ppk}`, 	
+		function () {
+		
+		Trace("IGNORE puttygen ERRORS IF NOT INSTALLED"); 
+		cb();
+	});
+	});
+	});
+
+}
+
+/**
+ * @method validateCert
+ * 
+ * Get, default, cache and validate the clients cert, then use this cert 
+ * to prime the req (client, group, log, and profile).
+ * 
+ * in req = {action, socketio, query, body, flags, joins}
+ * out req = adds {log, cert, client, org, locagio, group, profile, journal, 
+ * joined, email, hawk and STATICS}
+ * */
+function validateCert(con,req,res) {
+				
+	function getCert() {
+		var cert = {						//< Guest cert
+			issuer: {O:"acme"},
+			subjectaltname: "",
+			subject: {C:"xx",ST:"xx",L:"xx",O:"acme",OU:"",CN:"",emailAddress:""},
+			valid_to: null,
+			valid_from: null
+		};
+		
+		if (TOTEM.encrypt) {
+			
+			if ( con.getPeerCertificate )
+				var cert =  con.getPeerCertificate() || cert;
+			
+			if (TOTEM.proxy) {
+				var NA = Req.headers.ssl_client_notafter,
+					NB = Req.headers.sll_client_notbefore,
+					DN = Req.headers.ssl_client_s_dn;
+					
+				if (NA) cert.valid_to = new Date(
+						[NA.substr(2,2),NA.substr(4,2),NA.substr(0,2)].join("/")+" "+
+						[NA.substr(6,2),NA.substr(8,2),NA.substr(10,2)].join(":")
+					);
+					
+				if (NB) cert.valid_to = new Date(
+						[NB.substr(2,2),NB.substr(4,2),NB.substr(0,2)].join("/")+" "+
+						[NB.substr(6,2),NB.substr(8,2),NB.substr(10,2)].join(":")
+					);
+				
+				if (DN)
+					Each(DN.split("/"), function (n,hdr) {
+						if (hdr) {
+							var sub = hdr.split("=");
+							cert.subject[sub[0]] += sub[1];
+						}
+					});
+					
+				var CN = cert.subject.CN;
+				
+				if (CN) {
+					CN = CN.split(" ");
+					cert.subject.CN = CN[CN.length-1] + "@coe.ic.gov";
+				}
+			}
+
+		}
+			
+		cert.client = (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || TOTEM.guest.Client).split(",")[0].replace("email:","");
+
+		var cache = TOTEM.cache.certs;
+		
+		if ( !cache[cert.client] ) cache[cert.client] = cert;
+					
+		return cert;
+	}
+				
+	function admitClient(req, res, profile, cert, con) {
+		
+		var now = new Date(),		
+			admit = TOTEM.admit,
+			site = TOTEM.site,
+			client = cert.client;
+
+		if (TOTEM.encrypt) {
+
+			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
+				return res( TOTEM.errors.expiredCert );
+				
+			if (admit)
+				if ( !(cert.issuer.O.toLowerCase() in admit && cert.subject.C.toLowerCase() in admit) ) 
+					return res( TOTEM.errors.rejectedCert );
+					
+		}
+	
+		if (profile.Banned) 
+			res( new Error(profile.Banned) );
+			
+		else 
+			sql.query("show session status like 'Thread%'", function (err,stats) {
+
+				if (err)
+					stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
+					
+				Copy({
+					log: {  								// TOTEM monitored
+						Cores: site.Cores, 					// number of safety core hyperthreads
+						VMs: 1,								// number of VMs
+						Event: now,		 					// start time
+						Action: req.action, 				// db action
+						Client: client, 				// client id
+						Table: req.table, 					// db target
+						ThreadsRunning: stats[3].Value,		// sql threads running
+						ThreadsConnected: stats[1].Value,	// sql threads connected
+						RecID: req.query.ID || 0,			// sql recID
+						Stamp: TOTEM.name,					// site name
+						Fault: "isp"						// fault codes
+					},
+
+					cert	: cert,
+					client	: client,
+					org		: cert.subject.O || "noorg",
+					location: con.address().address,
+					group	: profile.Group || TOTEM.site.db, 
+					profile	: Copy(profile,{}),
+					journal : true,				// db actions journaled
+					joined	: now, 				// time joined
+					email	: client, 			// email address from pki
+					source	: req.table 		// db target
+					//hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
+				}, req);
+					
+				res(null);
+				
+			});	
+	}
+	
+	var sql = req.sql,
+		cert = getCert(),
+		client = cert.client;
+		
+	/*Copy({					// default session parms
+		log: {  					// TOTEM monitored
+			Cores: site.Cores, 		// number of safety core hyperthreads
+			VMs: 1,					// number of VMs
+			Event: now,		 		// start time
+			Action: req.action, 	// db action
+			Client: client, 		// client id
+			Table: req.table, 		// db target
+			Stamp: TOTEM.name,		// site name
+			Fault: "isp"			// fault codes
+		},
+
+		cert	: cert,
+		client	: client,
+		org		: cert.subject.O || "noorg",
+		location: con.address().address,
+		group	: TOTEM.site.db,
+		profile	: TOTEM.guest,
+		journal : true,				// db actions journaled
+		joined	: now, 				// time joined
+		email	: client 			// email address from pki
+		//source	: req.table, 		// db target
+		//hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
+	}, Copy(TOTEM.site, req)); */
+
+	if (TOTEM.mysql)	
+		sql.query("SELECT *,count(ID) as Count FROM openv.profiles WHERE ? LIMIT 0,1", {client: client})
+		.on("result", function (profile) {
+
+			if (profile.Count)
+				admitClient(req, res, profile, cert, con);
+				
+			else  {
+				TOTEM.guest.Client = client;
+				sql.query("INSERT INTO openv.profiles SET ?", TOTEM.guest, function (err) {
+					
+//console.log(err);
+					admitClient(req, res, TOTEM.guest, cert, con);
+				});
+			}
+			
+		});
+	
+	else 
+	if (TOTEM.encrypt)
+		res( TOTEM.errors.noDB );
+	
+	else
+		res( null );
+}
+
+//============================================
+// MIME utilities
+
+function Indexer(path,cb) {
+	
+	var files = [];
+	
+	Finder(path, function (n,file) {
+		
+		files.push( file );
+		
+	});
+	
+	cb( files );
+	
+}	
+
+function Finder(path,cb) {
+	var maxFiles = 20
+	
+	try {
+		FS.readdirSync(path).each( function (n,file) {
+			if (n > maxFiles) return true;
+			
+			if (file.charAt(0) != "_" && file.charAt(file.length-1) != "~") 
+				cb(n,file);
+		});
+	}
+	catch (err) {
+		return;
+	}
+}
+
+function Uploader(sql, files, area, cb) {
+
+	function copyFile(source, target, cb) {
+	  var cbCalled = false;
+	  var rd = FS.createReadStream(source);
+	  var wr = FS.createWriteStream(target);
+	  
+	  rd.on("error", function(err) {
+		done(err);
+	  });
+	  
+	  wr.on("error", function(err) {
+		done(err);
+	  });
+	  wr.on("close", function(ex) {
+		done();
+	  });
+	  
+	  rd.pipe(wr);
+
+	  function done(err) {
+		if (!cbCalled) {
+		  cb(err);
+		  cbCalled = true;
+		}
+	  }
+	}
+	
+	var arrived = new Date();
+	
+	files.each( function (n,file) {
+		var name = file.name;
+		var target = TOTEM.paths.mime[area]+"/"+area+"/"+file.name;
+
+		try {
+			if (file.image) {
+				
+				var prefix = "data:image/png;base64,";	
+				var buf64 = new Buffer(file.image.substr(prefix.length),'base64');
+				var temp = `tmp/temp.png`;  // many browsers only support png so convert to jpg
+				
+				FS.writeFile(temp, buf64.toString("binary"), {encoding:"binary"}, function (err) {
+					console.info("SAVE "+name+" TO "+target+(err?" FAILED":""));
+
+					if (!err && cb)
+						LWIP.open(temp, function (err,image) {
+						
+							if (!err) {
+								image.writeFile(target, function (err) {
+									console.info("JPG convert "+(err||"ok"));
+								});
+																	
+								if (cb)
+									cb({
+										Name: name,
+										Area: area,
+										Added: arrived,
+										Size: file.size,
+										Width: image.width(), 
+										Height: image.height()
+									});
+							}
+
+						});
+				
+				});
+								
+			}
+			else
+				copyFile(file.path,target,function (err) {
+					
+					console.info("SAVE "+file.path+" TO "+target+(err?" FAILED":""));
+
+					if (cb) cb({
+						Name: name,
+						Area: area,
+						Added: arrived,
+						Size: file.size
+					});
+						
+					if (false)
+						APP.NEWREAD.JOB(sql,body.Area,name);
+				});
+		}
+		catch (err) {
+			console.info(err);
+		}
+	});
+}
+
+//============================================
+// Data fetchers
+
+function fetchWget(req,res) {	//< wget endpoint
+	if (req.out) 
+		TOTEM.fetchers.wgetout = req.out;
+		
+	if ( url = TOTEM.paths.url[req.table] )
+		wgetFetch(url.format(req, TOTEM.fetchers.plugin),res);
+}
+
+function fetchCurl(req,res) {	//< curl endpoint
+	if( url = TOTEM.paths.url[req.table] )
+		curlFetch(url.format(req, TOTEM.fetchers.plugin),res);
+}
+
+function fetchHttp(req,res) {	//< http endpoint
+	if ( url = TOTEM.paths.url[req.table] )
+		httpFetch(url.format(req, TOTEM.fetchers.plugin),res);
+}
+
+function fetchTest(req,res) {	//< test endpoint
+	
+	var query = req.query,
+		sql = req.sql;
+		
+	sql.query("SELECT *,count(ID) as Count FROM openv.riddles WHERE ? LIMIT 0,1", {ID:query.ID})
+	.on("result", function (rid) {
+		
+		var ID = {ID:rid.ID},
+			guess = (query.guess||"").replace(/ /g,"");
+
+console.log(rid);
+
+		if (rid.Count) 
+			if (rid.Riddle == guess) {
+				res( "pass" );
+				sql.query("DELETE FROM openv.riddles WHERE ?",ID);
+			}
+			else
+			if (rid.Attempts > rid.maxAttempts) {
+				res( "fail" );
+				sql.query("DELETE FROM openv.riddles WHERE ?",ID);
+			}
+			else {
+				res( "retry" );
+				sql.query("UPDATE openv.riddles SET Attempts=Attempts+1 WHERE ?",ID);
+			}
+		
+	});
+}
+
+function curlFetch(url,cb) {
+
+	var opts = URL.parse(url),
+		certs = TOTEM.cache.certs,
+		transport = {
+			"http:": `curl ${url}`,
+			"https:": `curl -k --cert ${certs.crt} --key ${certs.key} ${url}`
+		};
+
+	retryFetch(
+		transport[opts.protocol],
+		opts, 
+		
+		function (err,out) {
+			cb( err || (out||"").parse(new Error(err)) );
+	});
+
+}
+
+function wgetFetch(url,cb) { 
+		
+	var opts = URL.parse(url),
+		certs = TOTEM.cache.certs,
+		transport = {
+			"http:": `wget -O ${TOTEM.fetchers.wgetout} ${url}`,
+			"https:": `wget -O ${TOTEM.fetchers.wgetout} --no-check-certificate --certificate ${certs.crt} --private-key ${certs.key} ${url}`
+		};
+	
+	retryFetch(
+		transport[opts.protocol],
+		opts, 
+
+		function (err) {
+			cb( err || TOTEM.fetchers.wgetout);
+	});
+	
+}
+
+function httpFetch(url,cb) {
+			
+	var 
+		opts = URL.parse(url), 
+		transport = {
+			"http:": HTTP,
+			"https:": HTTPS
+		};
+	
+	opts.pfx = TOTEM.cache.certs.pfx;
+	opts.passphrase = TOTEM.encrypt;
+	opts.retry = TOTEM.retries;
+	opts.rejectUnauthorized = false;
+	opts.agent = false;
+
+	/*if (opts.soap) {
+		opts.headers = {
+			"Content-Type": "application/soap+xml; charset=utf-8",
+			"Content-Length": opts.soap.length
+		};
+		opts.method = "POST";
+	}*/
+	
+	var req = transport[opts.protocol].request(opts, function(res) {
+		res.setEncoding('utf-8');
+		
+		var text = "";
+		res.on('data', function (chunk) {
+			text += chunk;
+		});
+
+		res.on("end", function () {
+
+			/*Trace("fetch", {
+				status: res.statusCode,
+				text: text,
+				header: res.headers}); */
+		
+			cb( text.parse(null) );
+		});
+		
+	});
+
+	req.on('error', function(err) {
+		Trace(`RETRYING(${opts.retry} ${err}`);
+		if (opts.retry) opts.retry--;
+	});
+
+	/*if (opts.soap)
+		req.write(opts.soap);*/
+		
+	req.end();
+}
+
+function retryFetch(cmd,opts,cb) {
+		
+	function trycmd(cmd,cb) {
+
+		if (TOTEM.notify)
+			Trace(`TRY[${opts.retry}] ${cmd}`);
+
+		CP.exec(cmd, function (err,stdout,stderr) {
+			if (err) {
+				if (opts.retry) {
+					opts.retry--;
+					
+					trycmd(cmd,cb);
+				}
+				else
+					cb( new Error(`Halted ${cmd}`) );
+			}
+			else
+			if (cb) cb(stdout);
+		});
+	}
+	
+	opts.retry = TOTEM.retries;
+
+	if (opts.retry) 
+		trycmd(cmd,cb);
+	else
+		CP.exec(cmd, function (err,stdout,stderr) {			
+			cb( err ? opts.halted : stdout );
+		});
+}
+
+//============================================
+// Default send and read methods
+
+function readTemplate(req,res) {
+	
+	var	sql = req.sql,
+		route = TOTEM.execute[req.table];
+
+	if (route)
+		route(req,res);
+	else
+		res();			
+}
+
+function sendTemplate(req,res) {
+	res( "there you go");
+}
+
+function sendFile(req,res) {
+
+	res( function () {return req.path; } );
+
+}
+
+//============================================
+// Antibot challenger
+
+function initChallenger() {
+
+	function Riddle(map, ref) {
+		var 
+			Q = {
+				x: Math.floor(Math.random()*10),
+				y: Math.floor(Math.random()*10),
+				z: Math.floor(Math.random()*10),
+				n: Math.floor(Math.random()*map["0"].length)
+			},
+			
+			A = {
+				x: "".tag("img", {src: `${ref}/${Q.x}/${map[Q.x][Q.n]}.jpg`}),
+				y: "".tag("img", {src: `${ref}/${Q.y}/${map[Q.y][Q.n]}.jpg`}),
+				z: "".tag("img", {src: `${ref}/${Q.z}/${map[Q.z][Q.n]}.jpg`})
+			};
+		
+		return {
+			Q: `${A.x} * ${A.y} + ${A.z}`,
+			A: Q.x * Q.y + Q.z
+		};
+	}
+	
+	var riddle = TOTEM.riddle = [],
+		N = TOTEM.riddles,
+		map = TOTEM.map,
+		ref = "/captcha";
+	
+	for (var n=0; n<N; n++)
+		riddle.push( Riddle(map,ref) );
+}
+
+function getChallenge(msg,rid,ids) {
+
+	var riddles = TOTEM.riddle,
+		N = riddles.length;
+	
+	msg = (msg||"")
+	.each("(riddle)", rid, function (rid) {
+		
+		var n = Math.floor( Math.random() * N ),
+			QA = riddles[n];
+		
+		rid.push( QA.A );
+		return QA.Q;
+		
+	})
+	.each("(yesno)", rid, function (rid) {
+		
+		rid.push( "yes" );
+		return "yes/no";
+		
+	})
+	.each("(ids)", rid, function (rid) {
+		
+		var rtn = "", pre="";
+		Each(ids, function (n, id) {
+			rtn += pre + "(" + n + ")";
+			pre = ", ";
+		});
+		
+		return rtn;
+	})
+	.each("(rand)", rid, function (rid) {
+		
+		rid.push( val = Math.floor(Math.random()*10) );
+		
+		return "random integer between 0 and 9";
+	})
+	.each("(card)", rid, function (rid) {
+		return "cac challenge TBD";
+	})
+	.each("(bio)", rid, function (rid) {
+		return "bio challenge TBD";
+	});
+	
+	Each(ids, function (n, id) {
+		
+		msg = msg.each("("+n+")", rid, function (rid) {			
+			rid.push( id );
+			return n;
+		});
+		
+	});
+	
+	return msg;
+}
+
+function challengeClient(client, Prof) {
+			
+	if (Prof.Banned) 
+		TOTEM.IO.emit("select", {
+			message: Prof.Banned,
+			rejected: true
+		});
+	else {
+		var 
+			rid = [],
+			reply = (TOTEM.map && TOTEM.riddles)
+					? getChallenge( Prof.Message, rid, (Prof.IDs||"").parse({}) )
+					: Prof.Message;
+	
+		if (reply) 
+			sqlThread( function (sql) {
+				sql.query("INSERT INTO openv.riddles SET ?", {
+					Riddle: rid.join(",").replace(/ /g,""),
+					Client: client,
+					Made: new Date(),
+					Attempts: 0
+				}, function (err,info) {
+					
+					TOTEM.IO.emit("select", {
+						message: reply,
+						riddles: rid.length,
+						rejected: false,
+						retries: Prof.Retries,
+						timeout: Prof.Timeout,
+						ID: info.insertId
+					});
+					
+					if (Prof.Repoll) {
+						
+						var SaveProf = Copy(Prof,{});
+						
+						setInterval(function () {
+							challengeClient(client, SaveProf);
+						}, Prof.Repoll);
+					}
+					
+					sql.release();
+				});
+			});
+	}
+}
+
+//============================================
+// TOTEM initalization
+
+function Initialize () {
+	
+	Trace(`INITIALIZED WITH ${TOTEM.riddles} RIDDLES`);
+	
+	initChallenger();
+	
+}
+
+//============================================
+// Execution tracing
+
+function Trace(msg,arg) {
+	
+	if (msg.constructor == String)
+		console.log("T>"+msg);
+	else
+		console.log("T>"+msg.sql);
+
+	if (arg) console.log(arg);
+		
+	return msg;
+}
+
+//====================================
+// Node routing
+
+function parseNode(req) {
+	
+	var
+		node = URL.parse(req.node),
+		query = req.query = (node.query||"").parse({}),
+		//parms = node.query,
+		areas = node.pathname.split("/"),
+		file = req.file = areas.pop(),
+		parts = file.split("."),
+		type = req.type = parts.pop(),
+		table = req.table = parts.pop() || "",
+		area = req.area = areas[1] || "";
+		
+	if ( req.path = TOTEM.paths.mime[req.area] )
+		req.path += node.pathname;
+		
+	else
+		req.area = "";
+
+	if (false)
+		console.log({
+			a: req.area,
+			t: req.type,
+			f: req.file,
+			p: req.path,
+			d: req.table});
+	
+	/*if (parms)  
+		parms.split("&").each(function (n,parm) {  // parse the query parms
+			var parts = parm.split("=");
+			query[parts[0]] = parts[1]; 
+		});*/
+	
+	// flags and joins
+	
+	var 
+		reqflags = TOTEM.reqflags,
+		strips = reqflags.strips,
+		prefix = reqflags.prefix,
+		lists = reqflags.lists,
+		jsons = reqflags.jsons,
+		traps = reqflags.traps,
+		id = reqflags.id,
+		trace = false, //query[reqflags.trace],
+	
+		body = req.body,
+		flags = req.flags,
+		joins = req.joins;
+
+	if (trace)
+		console.info({
+			i: "before",
+			a: req.action,
+			q: query,
+			b: body,
+			f: flags
+		});
+
+	for (var n in query) 		// remove bogus query parameters and remap query flags and joins
+		if ( n in strips ) 				// remove bogus
+			delete query[n];
+		else
+		if (n.charAt(0) == prefix) {  	// remap flag
+			var flag = n.substr(1);
+			flags[flag] = query[n];
+			delete query[n];
+		}
+		else {							// remap join
+			var parts = n.split(".");
+			if (parts.length>1) {
+				joins[parts[0]] = n+"="+query[n];
+				delete query[n];
+			}
+		}	
+
+	for (var n in body) 		// remap body flags
+		if (n.charAt(0) == prefix) {  
+			flags[n.substr(1)] = body[n];
+			delete body[n];
+		}
+	
+	if (id in body) {  			// remap body record id
+		query[id] = body[id];
+		delete body[id];
+	}
+	
+	/*for (var n in flags)  		// convert flags
+		if (flag = flags[n]) {
+			if (trap = traps[n]) 
+				trap(query,flags);
+			else
+			if (n in lists) 
+				flags[n] = flag.split(",");
+			else
+			if (n in jsons)
+				flags[n] = flag.parse(null);
+		}
+		else
+			flags[n] = null;
+	*/
+	
+	for (var n in traps)
+		if (flag = flags[n])
+			traps[n](query,flags);
+	
+	if (trace)
+		console.info({
+			i: "after",
+			a: req.action,
+			q: query,
+			b: body,
+			f: flags,
+			j: joins
+		});
+}						
+	
+function syncNodes(nodes, acks, req, res, cb) {
+	
+	if ( node = req.node = nodes.pop() )  	// grab last node
+		routeNode( req, function (ack) { 	// route it and intercept its ack
+			acks[req.file] = ack;
+			syncNodes( nodes, acks, Copy(req,{}), res, cb );
+		});
+
+	else
+	if (nodes.length) 	// still more nodes
+		syncNodes( nodes, acks, Copy(req,{}), res, cb );
+	
+	else  				// no more nodes
+		cb(acks);
+}
+
+function routeNode(req, res) {
+	
+	parseNode(req);
+
+	var
+		sql = req.sql,
+		
+		node = req.node,
+		table = req.table,
+		type = req.type,
+		action = req.action,
+		area = req.area,		
+		route = null,
+		paths = TOTEM.paths;
+
+	if (route) 
+		followRoute(route,req,res);
+	
+	else
+	if (req.path) 
+		followRoute( route = 
+				TOTEM.sender[area] 
+			|| 	TOTEM.reader[type] 
+			|| 	sendFile, 
+			
+			req, res );
+
+	else
+	if ( route = TOTEM.reader[type] )
+		followRoute(route,req,res);
+		
+	else
+	if (table && paths.mysql.engine)
+	
+		sql.query(paths.mysql.engine, {		// find an engine
+			Name: table,
+			Enabled: 1
+		})
+		.on("result", function (eng) {
+
+			Trace(`Engines = ${eng.Count}`);
+
+			var route;
+
+			if (eng.Count) 			// route to located engine
+				if ( route = TOTEM.worker[action] )	
+					followRoute(route,req,res);
+
+				else
+					res( TOTEM.errors.noRoute );
+			else
+			if ( route = 			// route to emulator, reader or default
+					TOTEM.emulator[action][table]
+				||	TOTEM.reader[table]
+				||	TOTEM[action]
+			)
+				followRoute(route,req,res);
+				
+			else
+				res( TOTEM.errors.noRoute );
+
+		})
+		.on("error", function (err) {
+			res( TOTEM.errors.noRoute )
+		})
+	
+	else
+	if (table)				
+		if (
+			route = 
+				TOTEM.emulator[action][table] 
+			||	TOTEM.reader[type]
+			|| 	TOTEM[action] )
+				
+			followRoute(route,req,res);
+
+		else
+			res( TOTEM.errors.noRoute );
+	
+	else
+		res( TOTEM.errors.noRoute );
+}
+
+function followRoute(route,req,res) {
+	Trace( 
+		//`[${req.log.ThreadsConnected}/${req.log.ThreadsRunning}] ` 
+		(route?route.name:"null").toUpperCase() 
+		+ ` ${req.file} FOR ${req.client} OF ${req.group}`);
+	
+	route(req, res);
+}
+
+//============================================
+// Thread processing
 
 /**
  * @method Responder
@@ -1673,1214 +2850,6 @@ function Responder(Req,Res) {
 				
 		});
 	});
-}
-
-//============================================
-// sql support
-
-function Emitter(action,opts) {
-	
-	Trace("Emitting ${action} = "+JSON.stringify(opts));
-	
-	if (TOTEM.server)
-		if (IO = TOTEM.IO)
-			IO.emit(action,opts);
-
-}
-
-//============================================
-// Default user profile CRUDE routes
-
-function selectUser(req,res) {
-	
-	var sql = req.sql, query = req.query || 1, isHawk = req.cert.isHawk;
-			
-	isHawk = 1;
-	if (isHawk)
-		// sql.context({users:{table:"openv.profiles",where:query,rec:res}})
-		var q= sql.query(
-			"SELECT * FROM openv.profiles WHERE least(?,1)", 
-			[ query ], 
-			function (err,users) {
-				Trace(q.sql);
-
-				res( err || users );
-		});
-
-	else
-		// sql.context({users:{table:"openv.profiles",where:[{client:req.client},query],rec:res}})
-		sql.query(
-			"SELECT * FROM openv.profiles WHERE ? AND least(?,1)", 
-			[ {client:req.client}, req.query ], 
-			function (err,users) {
-				res( err || users );
-		});
-}
-
-function updateUser(req,res) {
-			
-	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk; 
-	
-	if (sql.query)
-		if (isHawk) 
-			// sql.context({users:{table:"openv.profile",where:{client:query.user},rec:query}});
-			var q= sql.query(
-				"UPDATE openv.profiles SET ? WHERE ?", 
-				[ query, {client:query.user} ], 
-				function (err,info) {
-					Trace(q.sql);
-
-					res( err || TOTEM.errors.failedUser );
-			});
-		
-		else
-			sql.query(
-				"UPDATE openv.profiles SET ? WHERE ?", 
-				[ query, {client:req.client} ],
-				function (err,info) {
-					
-					res( err || TOTEM.errors.failedUser );
-			});
-	else
-		res( TOTEM.errors.failedUser );
-			
-}
-
-function deleteUser(req,res) {
-			
-	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk;  
-
-	if (query)
-		if (isHawk)
-			// sql.context({users:{table:"openv.profiles",where:[ {client:query.user}, req.query ],rec:res}});
-			var q = sql.query(
-				"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
-				[ {client:query.user}, req.query ], 
-				function (err,info) {
-					console.log(q.sql);
-
-					res( err || TOTEM.errors.failedUser );
-					
-					// res should remove their files and other 
-					// allocated resources
-			});
-
-		else
-			sql.query(
-				"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
-				[ {client:req.client}, req.query ], 
-				function (err,info) {
-					res( err || TOTEM.errors.failedUser );
-			});
-	else
-		res( TOTEM.errors.failedUser );
-}
-			
-function insertUser (req,res) {
-			
-	var sql = req.sql, query = req.query || {}, isHawk = req.cert.isHawk; 
-	
-	var url = TOTEM.paths.url;
-	
-	if (req.cert.isHawk)
-		if (query.pass)
-			var q = sql.query(
-				"SELECT * FROM openv.profiles WHERE Requested AND NOT Approved AND least(?,1)", 
-				query.user ? {User: query.user} : 1 )
-				
-			.on("result", function (user) {
-				Trace(q.sql);
-				
-				var init = {	
-					Approved: new Date(),
-					Banned: url.resetpass
-						? "Please "+"s your password".tag("a",{href:url.resetpass})+" to access"
-						: "",
-
-					Client: user.User,					
-					QoS: 0,
-
-					Message:
-
-`Greetings from ${site.Nick.tag("a",{href:TOTEM.url.master})}-
-
-Admin:
-	Please create an AWS EC2 account for ${owner} using attached cert.
-
-To connect to ${site.Nick} from Windows:
-
-1. Establish gateway using 
-
-		Putty | SSH | Tunnels
-		
-	with the following LocalPort, RemotePort map:
-	
-		5001, ${TOTEM.url.master}:22
-		5100, ${TOTEM.url.master}:3389
-		5200, ${TOTEM.url.master}:8080
-		5910, ${TOTEM.url.master}:5910
-		5555, Dynamic
-	
-	and, for convienience:
-
-		Pageant | Add Keys | your private ppk cert
-
-2. Start a ${site.Nick} session using one of these methods:
-
-	${Putty} | Session | Host Name = localhost:5001 
-	Remote Desktop Connect| Computer = localhost:5100 
-	${FF} | Options | Network | Settings | Manual Proxy | Socks Host = localhost, Port = 5555, Socks = v5 `
-
-.replace(/\n/g,"<br>")					
-					
-				};
-
-				sql.query(
-					"UPDATE openv.profiles SET ? WHERE ?",
-					[ init, {User: user.User} ],
-					function (err) {
-						
-						createCert(user.User,pass,function () {
-
-							Trace(`Created cert for ${user.User}`);
-							
-							CP.exec(
-								`sudo adduser ${user.User} -gid ${user.Group}; sudo id ${user.User}`,
-								function (err,out) {
-									
-									sql.query(
-										"UPDATE openv.profiles SET ? WHERE ?",
-										[ {uid: out}, {User:user.User} ]
-									);
-
-									console.log( err 
-										? `Account failed for ${user.User} - require "sudo adduser" to protect this service`
-										: `Account created and group rights assigned to ${user.User}`
-									);
-							});
-						});
-				});
-			})
-			.on("end", function() {
-				res("User creation working");
-			});
-		
-		else
-			res( TOTEM.errors.missingPass );
-
-	else
-		sql.query(
-			"INSERT openv.profiles SET ? WHERE ?", 
-			[ req.query , {User:req.User} ], 
-			function (err,info) {
-				
-				res( err || TOTEM.errors.failedUser );
-		});
-}
-
-function fetchUser(req,res) {	
-	var access = TOTEM.user,
-		query = req.query;
-		
-	query.user = query.user || query.select || query.delete || query.update || query.insert;
-	
-	if (access) {
-		for (var n in {select:1,delete:1,update:1,insert:1})			
-			if (query[n]) {
-				delete query[n];
-				return access[n](req,res);
-			}
-		
-		if (call = query.call) {
-			delete query.call;
-			return access[call](req,res);
-		}
-	}
-	
-	res( TOTEM.errors.failedUser );
-}
-
-//============================================
-// PKI utilitities
-
-/**
- * @method createCert
- * 
- * Create a cert for the desired owner with the desired passphrase with callback 
- * to cb when complete.
- * */
-function createCert(owner,pass,cb) {
-
-	var name = TOTEM.paths.certs.server + owner, 
-		pfx = name + ".pfx",
-		key = name + ".key",
-		crt = name + ".crt",
-		ppk = name + ".ppk";
-		
-	traceExecute(`echo -e "\n\n\n\n\n\n\n" | openssl req -x509 -nodes -days 5000 -newkey rsa:2048 -keyout ${key} -out ${crt}`, function () { 
-		
-	traceExecute(
-		`export PASS="${pass}";openssl pkcs12 -export -in ${crt} -inkey ${key} -out ${pfx} -passout env:PASS`, 
-		function () {
-		
-	traceExecute(
-		`puttygen ${owner}.key -N ${pass} -o ${ppk}`, 	
-		function () {
-		
-		Trace("IGNORE puttygen ERRORS IF NOT INSTALLED"); 
-		cb();
-	});
-	});
-	});
-
-}
-
-/**
- * @method validateCert
- * 
- * Get, default, cache and validate the clients cert, then use this cert 
- * to prime the req (client, group, log, and profile).
- * 
- * in req = {action, socketio, query, body, flags, joins}
- * out req = adds {log, cert, client, org, locagio, group, profile, journal, 
- * joined, email, hawk and STATICS}
- * */
-function validateCert(con,req,res) {
-				
-	function getCert() {
-		var cert = {						//< Guest cert
-			issuer: {O:"acme"},
-			subjectaltname: "",
-			subject: {C:"xx",ST:"xx",L:"xx",O:"acme",OU:"",CN:"",emailAddress:""},
-			valid_to: null,
-			valid_from: null
-		};
-		
-		if (TOTEM.encrypt) {
-			
-			if ( con.getPeerCertificate )
-				var cert =  con.getPeerCertificate() || cert;
-			
-			if (TOTEM.proxy) {
-				var NA = Req.headers.ssl_client_notafter,
-					NB = Req.headers.sll_client_notbefore,
-					DN = Req.headers.ssl_client_s_dn;
-					
-				if (NA) cert.valid_to = new Date(
-						[NA.substr(2,2),NA.substr(4,2),NA.substr(0,2)].join("/")+" "+
-						[NA.substr(6,2),NA.substr(8,2),NA.substr(10,2)].join(":")
-					);
-					
-				if (NB) cert.valid_to = new Date(
-						[NB.substr(2,2),NB.substr(4,2),NB.substr(0,2)].join("/")+" "+
-						[NB.substr(6,2),NB.substr(8,2),NB.substr(10,2)].join(":")
-					);
-				
-				if (DN)
-					Each(DN.split("/"), function (n,hdr) {
-						if (hdr) {
-							var sub = hdr.split("=");
-							cert.subject[sub[0]] += sub[1];
-						}
-					});
-					
-				var CN = cert.subject.CN;
-				
-				if (CN) {
-					CN = CN.split(" ");
-					cert.subject.CN = CN[CN.length-1] + "@coe.ic.gov";
-				}
-			}
-
-		}
-			
-		cert.client = (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || TOTEM.guest.Client).split(",")[0].replace("email:","");
-
-		var cache = TOTEM.cache.certs;
-		
-		if ( !cache[cert.client] ) cache[cert.client] = cert;
-					
-		return cert;
-	}
-				
-	function admitClient(req, res, profile, cert, con) {
-		
-		var now = new Date(),		
-			admit = TOTEM.admit,
-			site = TOTEM.site,
-			client = cert.client;
-
-		if (TOTEM.encrypt) {
-
-			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
-				return res( TOTEM.errors.expiredCert );
-				
-			if (admit)
-				if ( !(cert.issuer.O.toLowerCase() in admit && cert.subject.C.toLowerCase() in admit) ) 
-					return res( TOTEM.errors.rejectedCert );
-					
-		}
-	
-		if (profile.Banned) 
-			res( new Error(profile.Banned) );
-			
-		else 
-			sql.query("show session status like 'Thread%'", function (err,stats) {
-
-				if (err)
-					stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
-					
-				Copy({
-					log: {  								// TOTEM monitored
-						Cores: site.Cores, 					// number of safety core hyperthreads
-						VMs: 1,								// number of VMs
-						Event: now,		 					// start time
-						Action: req.action, 				// db action
-						Client: client, 				// client id
-						Table: req.table, 					// db target
-						ThreadsRunning: stats[3].Value,		// sql threads running
-						ThreadsConnected: stats[1].Value,	// sql threads connected
-						RecID: req.query.ID || 0,			// sql recID
-						Stamp: TOTEM.name,					// site name
-						Fault: "isp"						// fault codes
-					},
-
-					cert	: cert,
-					client	: client,
-					org		: cert.subject.O || "noorg",
-					location: con.address().address,
-					group	: profile.Group || TOTEM.site.db, 
-					profile	: Copy(profile,{}),
-					journal : true,				// db actions journaled
-					joined	: now, 				// time joined
-					email	: client, 			// email address from pki
-					source	: req.table 		// db target
-					//hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
-				}, req);
-					
-				res(null);
-				
-			});	
-	}
-	
-	var sql = req.sql,
-		cert = getCert(),
-		client = cert.client;
-		
-	/*Copy({					// default session parms
-		log: {  					// TOTEM monitored
-			Cores: site.Cores, 		// number of safety core hyperthreads
-			VMs: 1,					// number of VMs
-			Event: now,		 		// start time
-			Action: req.action, 	// db action
-			Client: client, 		// client id
-			Table: req.table, 		// db target
-			Stamp: TOTEM.name,		// site name
-			Fault: "isp"			// fault codes
-		},
-
-		cert	: cert,
-		client	: client,
-		org		: cert.subject.O || "noorg",
-		location: con.address().address,
-		group	: TOTEM.site.db,
-		profile	: TOTEM.guest,
-		journal : true,				// db actions journaled
-		joined	: now, 				// time joined
-		email	: client 			// email address from pki
-		//source	: req.table, 		// db target
-		//hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
-	}, Copy(TOTEM.site, req)); */
-
-	if (TOTEM.mysql)	
-		sql.query("SELECT *,count(ID) as Count FROM openv.profiles WHERE ? LIMIT 0,1", {client: client})
-		.on("result", function (profile) {
-
-			if (profile.Count)
-				admitClient(req, res, profile, cert, con);
-				
-			else  {
-				TOTEM.guest.Client = client;
-				sql.query("INSERT INTO openv.profiles SET ?", TOTEM.guest, function (err) {
-					
-//console.log(err);
-					admitClient(req, res, TOTEM.guest, cert, con);
-				});
-			}
-			
-		});
-	
-	else 
-	if (TOTEM.encrypt)
-		res( TOTEM.errors.noDB );
-	
-	else
-		res( null );
-}
-
-//============================================
-// MIME indexers and uploaders
-
-function Indexer(path,cb) {
-	
-	var files = [];
-	
-	Finder(path, function (n,file) {
-		
-		files.push( file );
-		
-	});
-	
-	cb( files );
-	
-}	
-
-function Finder(path,cb) {
-	var maxFiles = 20
-	
-	try {
-		FS.readdirSync(path).each( function (n,file) {
-			if (n > maxFiles) return true;
-			
-			if (file.charAt(0) != "_" && file.charAt(file.length-1) != "~") 
-				cb(n,file);
-		});
-	}
-	catch (err) {
-		return;
-	}
-}
-
-function Uploader(sql, files, area, cb) {
-
-	function copyFile(source, target, cb) {
-	  var cbCalled = false;
-	  var rd = FS.createReadStream(source);
-	  var wr = FS.createWriteStream(target);
-	  
-	  rd.on("error", function(err) {
-		done(err);
-	  });
-	  
-	  wr.on("error", function(err) {
-		done(err);
-	  });
-	  wr.on("close", function(ex) {
-		done();
-	  });
-	  
-	  rd.pipe(wr);
-
-	  function done(err) {
-		if (!cbCalled) {
-		  cb(err);
-		  cbCalled = true;
-		}
-	  }
-	}
-	
-	var arrived = new Date();
-	
-	files.each( function (n,file) {
-		var name = file.name;
-		var target = TOTEM.paths.mime[area]+"/"+area+"/"+file.name;
-
-		try {
-			if (file.image) {
-				
-				var prefix = "data:image/png;base64,";	
-				var buf64 = new Buffer(file.image.substr(prefix.length),'base64');
-				var temp = `tmp/temp.png`;  // many browsers only support png so convert to jpg
-				
-				FS.writeFile(temp, buf64.toString("binary"), {encoding:"binary"}, function (err) {
-					console.info("SAVE "+name+" TO "+target+(err?" FAILED":""));
-
-					if (!err && cb)
-						LWIP.open(temp, function (err,image) {
-						
-							if (!err) {
-								image.writeFile(target, function (err) {
-									console.info("JPG convert "+(err||"ok"));
-								});
-																	
-								if (cb)
-									cb({
-										Name: name,
-										Area: area,
-										Added: arrived,
-										Size: file.size,
-										Width: image.width(), 
-										Height: image.height()
-									});
-							}
-
-						});
-				
-				});
-								
-			}
-			else
-				copyFile(file.path,target,function (err) {
-					
-					console.info("SAVE "+file.path+" TO "+target+(err?" FAILED":""));
-
-					if (cb) cb({
-						Name: name,
-						Area: area,
-						Added: arrived,
-						Size: file.size
-					});
-						
-					if (false)
-						APP.NEWREAD.JOB(sql,body.Area,name);
-				});
-		}
-		catch (err) {
-			console.info(err);
-		}
-	});
-}
-
-//============================================
-// Fetcher routes
-
-function fetchWget(req,res) {	//< wget endpoint
-	if (req.out) 
-		TOTEM.fetchers.wgetout = req.out;
-		
-	if ( url = TOTEM.paths.url[req.table] )
-		wgetFetch(url.format(req, TOTEM.fetchers.plugin),res);
-}
-
-function fetchCurl(req,res) {	//< curl endpoint
-	if( url = TOTEM.paths.url[req.table] )
-		curlFetch(url.format(req, TOTEM.fetchers.plugin),res);
-}
-
-function fetchHttp(req,res) {	//< http endpoint
-	if ( url = TOTEM.paths.url[req.table] )
-		httpFetch(url.format(req, TOTEM.fetchers.plugin),res);
-}
-
-function fetchTest(req,res) {	//< test endpoint
-	
-	var query = req.query,
-		sql = req.sql;
-		
-	sql.query("SELECT *,count(ID) as Count FROM openv.riddles WHERE ? LIMIT 0,1", {ID:query.ID})
-	.on("result", function (rid) {
-		
-		var ID = {ID:rid.ID},
-			guess = (query.guess||"").replace(/ /g,"");
-
-console.log(rid);
-
-		if (rid.Count) 
-			if (rid.Riddle == guess) {
-				res( "pass" );
-				sql.query("DELETE FROM openv.riddles WHERE ?",ID);
-			}
-			else
-			if (rid.Attempts > rid.maxAttempts) {
-				res( "fail" );
-				sql.query("DELETE FROM openv.riddles WHERE ?",ID);
-			}
-			else {
-				res( "retry" );
-				sql.query("UPDATE openv.riddles SET Attempts=Attempts+1 WHERE ?",ID);
-			}
-		
-	});
-}
-
-//============================================
-// Fetchers for reader routes
-
-function curlFetch(url,cb) {
-
-	var opts = URL.parse(url),
-		certs = TOTEM.cache.certs,
-		transport = {
-			"http:": `curl ${url}`,
-			"https:": `curl -k --cert ${certs.crt} --key ${certs.key} ${url}`
-		};
-
-	retryExecute(
-		transport[opts.protocol],
-		opts, 
-		
-		function (err,out) {
-			cb( err || (out||"").parse(new Error(err)) );
-	});
-
-}
-
-function wgetFetch(url,cb) { 
-		
-	var opts = URL.parse(url),
-		certs = TOTEM.cache.certs,
-		transport = {
-			"http:": `wget -O ${TOTEM.fetchers.wgetout} ${url}`,
-			"https:": `wget -O ${TOTEM.fetchers.wgetout} --no-check-certificate --certificate ${certs.crt} --private-key ${certs.key} ${url}`
-		};
-	
-	retryExecute(
-		transport[opts.protocol],
-		opts, 
-
-		function (err) {
-			cb( err || TOTEM.fetchers.wgetout);
-	});
-	
-}
-
-function httpFetch(url,cb) {
-			
-	var 
-		opts = URL.parse(url), 
-		transport = {
-			"http:": HTTP,
-			"https:": HTTPS
-		};
-	
-	opts.pfx = TOTEM.cache.certs.pfx;
-	opts.passphrase = TOTEM.encrypt;
-	opts.retry = TOTEM.retries;
-	opts.rejectUnauthorized = false;
-	opts.agent = false;
-
-	/*if (opts.soap) {
-		opts.headers = {
-			"Content-Type": "application/soap+xml; charset=utf-8",
-			"Content-Length": opts.soap.length
-		};
-		opts.method = "POST";
-	}*/
-	
-	var req = transport[opts.protocol].request(opts, function(res) {
-		res.setEncoding('utf-8');
-		
-		var text = "";
-		res.on('data', function (chunk) {
-			text += chunk;
-		});
-
-		res.on("end", function () {
-
-			/*Trace("fetch", {
-				status: res.statusCode,
-				text: text,
-				header: res.headers}); */
-		
-			cb( text.parse(null) );
-		});
-		
-	});
-
-	req.on('error', function(err) {
-		Trace(`RETRYING(${opts.retry} ${err}`);
-		if (opts.retry) opts.retry--;
-	});
-
-	/*if (opts.soap)
-		req.write(opts.soap);*/
-		
-	req.end();
-}
-
-//============================================
-// Sender routes
-
-function sendExample(req,res) {
-	res( "there you go");
-}
-
-function sendFile(req,res) {
-
-	res( function () {return req.path; } );
-
-}
-
-//============================================
-// Antibot challenger
-
-function initChallenger() {
-
-	function Riddle(map, ref) {
-		var 
-			Q = {
-				x: Math.floor(Math.random()*10),
-				y: Math.floor(Math.random()*10),
-				z: Math.floor(Math.random()*10),
-				n: Math.floor(Math.random()*map["0"].length)
-			},
-			
-			A = {
-				x: "".tag("img", {src: `${ref}/${Q.x}/${map[Q.x][Q.n]}.jpg`}),
-				y: "".tag("img", {src: `${ref}/${Q.y}/${map[Q.y][Q.n]}.jpg`}),
-				z: "".tag("img", {src: `${ref}/${Q.z}/${map[Q.z][Q.n]}.jpg`})
-			};
-		
-		return {
-			Q: `${A.x} * ${A.y} + ${A.z}`,
-			A: Q.x * Q.y + Q.z
-		};
-	}
-	
-	var riddle = TOTEM.riddle = [],
-		N = TOTEM.riddles,
-		map = TOTEM.map,
-		ref = "/captcha";
-	
-	for (var n=0; n<N; n++)
-		riddle.push( Riddle(map,ref) );
-}
-
-function getChallenge(msg,rid,ids) {
-
-	var riddles = TOTEM.riddle,
-		N = riddles.length;
-	
-	msg = (msg||"")
-	.each("(riddle)", rid, function (rid) {
-		
-		var n = Math.floor( Math.random() * N ),
-			QA = riddles[n];
-		
-		rid.push( QA.A );
-		return QA.Q;
-		
-	})
-	.each("(yesno)", rid, function (rid) {
-		
-		rid.push( "yes" );
-		return "yes/no";
-		
-	})
-	.each("(ids)", rid, function (rid) {
-		
-		var rtn = "", pre="";
-		Each(ids, function (n, id) {
-			rtn += pre + "(" + n + ")";
-			pre = ", ";
-		});
-		
-		return rtn;
-	})
-	.each("(rand)", rid, function (rid) {
-		
-		rid.push( val = Math.floor(Math.random()*10) );
-		
-		return "random integer between 0 and 9";
-	})
-	.each("(card)", rid, function (rid) {
-		return "cac challenge TBD";
-	})
-	.each("(bio)", rid, function (rid) {
-		return "bio challenge TBD";
-	});
-	
-	Each(ids, function (n, id) {
-		
-		msg = msg.each("("+n+")", rid, function (rid) {			
-			rid.push( id );
-			return n;
-		});
-		
-	});
-	
-	return msg;
-}
-
-function challengeClient(client, Prof) {
-			
-	if (Prof.Banned) 
-		TOTEM.IO.emit("select", {
-			message: Prof.Banned,
-			rejected: true
-		});
-	else {
-		var 
-			rid = [],
-			reply = (TOTEM.map && TOTEM.riddles)
-					? getChallenge( Prof.Message, rid, (Prof.IDs||"").parse({}) )
-					: Prof.Message;
-	
-		if (reply) 
-			sqlThread( function (sql) {
-				sql.query("INSERT INTO openv.riddles SET ?", {
-					Riddle: rid.join(",").replace(/ /g,""),
-					Client: client,
-					Made: new Date(),
-					Attempts: 0
-				}, function (err,info) {
-					
-					TOTEM.IO.emit("select", {
-						message: reply,
-						riddles: rid.length,
-						rejected: false,
-						retries: Prof.Retries,
-						timeout: Prof.Timeout,
-						ID: info.insertId
-					});
-					
-					if (Prof.Repoll) {
-						
-						var SaveProf = Copy(Prof,{});
-						
-						setInterval(function () {
-							challengeClient(client, SaveProf);
-						}, Prof.Repoll);
-					}
-					
-					sql.release();
-				});
-			});
-	}
-}
-
-//============================================
-// Basic formatters, minipulators and enumerators
-/*
-Array.prototype.each = function (cb) {
-	
-	for (var n=0, N=this.length; n<N; n++)
-		cb( n , this[n]);
-		
-}
-*/
-
-/**
- * @method Format
- * 
- * Format a string S containing ${X.key} tags.  The String wrapper for this
- * method extends X with optional plugins like X.F = {fn: function (X){}, ...}.
- * */
-
-function Format(X,S) {
-
-	try {
-		var rtn = eval("`" + S + "`");
-		return rtn;
-	}
-	catch (err) {
-		return "[bad]";
-	}
-
-}
-		
-function retryExecute(cmd,opts,cb) {
-		
-	function trycmd(cmd,cb) {
-
-		if (TOTEM.notify)
-			Trace(`TRY[${opts.retry}] ${cmd}`);
-
-		CP.exec(cmd, function (err,stdout,stderr) {
-			if (err) {
-				if (opts.retry) {
-					opts.retry--;
-					
-					trycmd(cmd,cb);
-				}
-				else
-					cb( new Error(`Halted ${cmd}`) );
-			}
-			else
-			if (cb) cb(stdout);
-		});
-	}
-	
-	opts.retry = TOTEM.retries;
-
-	if (opts.retry) 
-		trycmd(cmd,cb);
-	else
-		CP.exec(cmd, function (err,stdout,stderr) {			
-			cb( err ? opts.halted : stdout );
-		});
-}
-
-//============================================
-// TOTEM initalization
-
-function Initialize () {
-	
-	Trace(`INITIALIZED WITH ${TOTEM.riddles} RIDDLES`);
-	
-	/*
-	function context(ctx,cb) {
-		var sql = this;
-		var context = {};
-		for (var n in ctx) context[n] = new TOTEM.DSVAR(sql,ctx[n],{table:"app1."+n});
-		if (cb) cb(context);
-	}
-	
-	sqlThread( function (sql) {
-		ENUM.extend(sql.constructor, [ context ] );
-		sql.release();
-	});*/
-	
-	initChallenger();
-	
-}
-
-//============================================
-// Execution tracing
-
-function Trace(msg,arg) {
-	
-	if (msg.constructor == String)
-		console.log("T>"+msg);
-	else
-		console.log("T>"+msg.sql);
-
-	if (arg) console.log(arg);
-		
-	return msg;
-}
-
-function traceExecute(cmd,cb) {
-	
-	Trace(cmd.replace(/\n/g,"\\n"));
-	
-	CP.exec(cmd, function (err) {
-		
-		if (err)
-			console.info({
-				shell: cmd,
-				error: err
-			});
-			
-		cb();
-	});
-}
-
-//====================================
-// Node routing
-
-function parseNode(req) {
-	
-	var
-		node = URL.parse(req.node),
-		query = req.query = (node.query||"").parse({}),
-		//parms = node.query,
-		areas = node.pathname.split("/"),
-		file = req.file = areas.pop(),
-		parts = file.split("."),
-		type = req.type = parts.pop(),
-		table = req.table = parts.pop() || "",
-		area = req.area = areas[1] || "";
-		
-	if ( req.path = TOTEM.paths.mime[req.area] )
-		req.path += node.pathname;
-		
-	else
-		req.area = "";
-
-	if (false)
-		console.log({
-			a: req.area,
-			t: req.type,
-			f: req.file,
-			p: req.path,
-			d: req.table});
-	
-	/*if (parms)  
-		parms.split("&").each(function (n,parm) {  // parse the query parms
-			var parts = parm.split("=");
-			query[parts[0]] = parts[1]; 
-		});*/
-	
-	// flags and joins
-	
-	var 
-		reqflags = TOTEM.reqflags,
-		strips = reqflags.strips,
-		prefix = reqflags.prefix,
-		lists = reqflags.lists,
-		jsons = reqflags.jsons,
-		traps = reqflags.traps,
-		id = reqflags.id,
-		trace = false, //query[reqflags.trace],
-	
-		body = req.body,
-		flags = req.flags,
-		joins = req.joins;
-
-	if (trace)
-		console.info({
-			i: "before",
-			a: req.action,
-			q: query,
-			b: body,
-			f: flags
-		});
-
-	for (var n in query) 		// remove bogus query parameters and remap query flags and joins
-		if ( n in strips ) 				// remove bogus
-			delete query[n];
-		else
-		if (n.charAt(0) == prefix) {  	// remap flag
-			var flag = n.substr(1);
-			flags[flag] = query[n];
-			delete query[n];
-		}
-		else {							// remap join
-			var parts = n.split(".");
-			if (parts.length>1) {
-				joins[parts[0]] = n+"="+query[n];
-				delete query[n];
-			}
-		}	
-
-	for (var n in body) 		// remap body flags
-		if (n.charAt(0) == prefix) {  
-			flags[n.substr(1)] = body[n];
-			delete body[n];
-		}
-	
-	if (id in body) {  			// remap body record id
-		query[id] = body[id];
-		delete body[id];
-	}
-	
-	/*for (var n in flags)  		// convert flags
-		if (flag = flags[n]) {
-			if (trap = traps[n]) 
-				trap(query,flags);
-			else
-			if (n in lists) 
-				flags[n] = flag.split(",");
-			else
-			if (n in jsons)
-				flags[n] = flag.parse(null);
-		}
-		else
-			flags[n] = null;
-	*/
-	
-	for (var n in traps)
-		if (flag = flags[n])
-			traps[n](query,flags);
-	
-	if (trace)
-		console.info({
-			i: "after",
-			a: req.action,
-			q: query,
-			b: body,
-			f: flags,
-			j: joins
-		});
-}						
-	
-function syncNodes(nodes, acks, req, res, cb) {
-	
-	if ( node = req.node = nodes.pop() )  	// grab last node
-		routeNode( req, function (ack) { 	// route it and intercept its ack
-			acks[req.file] = ack;
-			syncNodes( nodes, acks, Copy(req,{}), res, cb );
-		});
-
-	else
-	if (nodes.length) 	// still more nodes
-		syncNodes( nodes, acks, Copy(req,{}), res, cb );
-	
-	else  				// no more nodes
-		cb(acks);
-}
-
-function routeNode(req, res) {
-	
-	parseNode(req);
-
-	var
-		sql = req.sql,
-		
-		node = req.node,
-		table = req.table,
-		type = req.type,
-		action = req.action,
-		area = req.area,		
-		route = null,
-		paths = TOTEM.paths;
-
-	if (route) 
-		followRoute(route,req,res);
-	
-	else
-	if (req.path) 
-		followRoute( route = 
-				TOTEM.sender[area] 
-			|| 	TOTEM.reader[type] 
-			|| 	sendFile, 
-			
-			req, res );
-
-	else
-	if ( route = TOTEM.reader[type] )
-		followRoute(route,req,res);
-		
-	else
-	if (table && paths.mysql.engine)
-	
-		sql.query(paths.mysql.engine, {		// find an engine
-			Name: table,
-			Enabled: 1
-		})
-		.on("result", function (eng) {
-
-			Trace(`Engines = ${eng.Count}`);
-
-			var route;
-
-			if (eng.Count) 			// route to located engine
-				if ( route = TOTEM.worker[action] )	
-					followRoute(route,req,res);
-
-				else
-					res( TOTEM.errors.noRoute );
-			else
-			if ( route = 			// route to emulator, reader or default
-					TOTEM.emulator[action][table]
-				||	TOTEM.reader[table]
-				||	TOTEM[action]
-			)
-				followRoute(route,req,res);
-				
-			else
-				res( TOTEM.errors.noRoute );
-
-		})
-		.on("error", function (err) {
-			res( TOTEM.errors.noRoute )
-		})
-	
-	else
-	if (table)				
-		if (
-			route = 
-				TOTEM.emulator[action][table] 
-			||	TOTEM.reader[type]
-			|| 	TOTEM[action] )
-				
-			followRoute(route,req,res);
-
-		else
-			res( TOTEM.errors.noRoute );
-	
-	else
-		res( TOTEM.errors.noRoute );
-}
-
-function followRoute(route,req,res) {
-	Trace( 
-		//`[${req.log.ThreadsConnected}/${req.log.ThreadsRunning}] ` 
-		(route?route.name:"null").toUpperCase() 
-		+ ` ${req.path||req.table} FOR ${req.client} IN ${req.group}`);
-	
-	route(req, res);
 }
 
 function resThread(req, cb) {
