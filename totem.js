@@ -1,4 +1,4 @@
-// UNCLASSIFIED >>>>
+// UNCLASSIFIED ++++
 
 /**
  * nodejs:
@@ -150,7 +150,6 @@
  * 
  *		create(owner,pass,cb) 	: makes a cert with callback cb,
  * 		validator(req,res) 		: validate cert during each request,
- * 		//emitter(socket) 		: communicate with users over web sockets,
  *  
  * 		// Data fetching services
  * 
@@ -185,7 +184,9 @@
  * 			:
  * 		}
  * 
- * Usage: Totem's config.js client is typically run via the maint.sh.
+ * Usage: 
+ * 		node test.js CONFIG
+ *		. maint.sh CONFIG
  * */
 
 var												// NodeJS modules
@@ -215,6 +216,9 @@ var 											// shortcuts
 	Copy = ENUM.copy,
 	Each = ENUM.each;
 
+var 											// globals
+	MAXFILES = 100;						//< max files to index
+	
 var
 	TOTEM = module.exports = ENUM.extend({
 
@@ -601,7 +605,7 @@ var
 		Challenge: 1,
 		Client: "guest",
 		User: "guest",
-		Group: "",
+		Group: "app1",
 		Message: "Welcome guest - what is (riddle)?"
 	},
 
@@ -810,8 +814,6 @@ var
 		certs: {} 		// reserved for client sessions
 	},
 	
-	//emitter: Emitter,
-	
 	Function: Initialize,
 	
 	user: {					//< crude interface to user profiles
@@ -873,13 +875,10 @@ function startServer(opts) {
 	if (mysql) {
 
 		//mysql.pool = MYSQL.createPool(mysql.opts);
-		
+
 		DSVAR.config({
 			emit: TOTEM.IO ? TOTEM.IO.sockets.emit : null,
 
-			dbtx: {
-			},
-			
 			mysql: Copy( { 
 					opts: {
 						host: mysql.host,
@@ -905,6 +904,7 @@ function startServer(opts) {
 
 				sql.release();
 			});	
+		
 		else
 			setupServer(cb);
 	}
@@ -1208,16 +1208,6 @@ function stopServer() {
 		});
 }
 
-/*function Emitter(action,opts) {
-	
-	Trace("Emitting ${action} = "+JSON.stringify(opts));
-	
-	if (TOTEM.server)
-		if (IO = TOTEM.IO)
-			IO.emit(action,opts);
-
-}*/
-
 //============================================
 // CRUDE routes for user maintenace
 
@@ -1482,14 +1472,17 @@ function createCert(owner,pass,cb) {
 }
 
 /**
- * @method validateCert
- * 
- * Get, default, cache and validate the clients cert, then use this cert 
- * to prime the req (client, group, log, and profile).
- * 
- * in req = {action, socketio, query, body, flags, joins}
- * out req = adds {log, cert, client, org, locagio, group, profile, journal, 
- * joined, email, hawk and STATICS}
+* @method validateCert
+* @param {Object} con http connection
+* @param {Object} req totem request
+* @param {Function} res totem response
+*
+* Get, default, cache and validate the clients cert, then use this cert to prime the totem
+* request (client, group, log, and profile).  Responds will null (valid session) or an Error (invalid session).
+* 
+* on-input req = {action, socketio, query, body, flags, joins}
+* on-output req = adds {log, cert, client, org, locagio, group, profile, journal, joined, email, hawk and 
+* connection metrics}
  * */
 function validateCert(con,req,res) {
 				
@@ -1612,32 +1605,7 @@ function validateCert(con,req,res) {
 	var sql = req.sql,
 		cert = getCert(),
 		client = cert.client;
-		
-	/*Copy({					// default session parms
-		log: {  					// TOTEM monitored
-			Cores: site.Cores, 		// number of safety core hyperthreads
-			VMs: 1,					// number of VMs
-			Event: now,		 		// start time
-			Action: req.action, 	// db action
-			Client: client, 		// client id
-			Table: req.table, 		// db target
-			Stamp: TOTEM.name,		// site name
-			Fault: "isp"			// fault codes
-		},
-
-		cert	: cert,
-		client	: client,
-		org		: cert.subject.O || "noorg",
-		location: con.address().address,
-		group	: TOTEM.site.db,
-		profile	: TOTEM.guest,
-		journal : true,				// db actions journaled
-		joined	: now, 				// time joined
-		email	: client 			// email address from pki
-		//source	: req.table, 		// db target
-		//hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
-	}, Copy(TOTEM.site, req)); */
-
+	
 	if (TOTEM.mysql)	
 		sql.query("SELECT *,count(ID) as Count FROM openv.profiles WHERE ? LIMIT 0,1", {client: client})
 		.on("result", function (profile) {
@@ -1682,11 +1650,9 @@ function Indexer(path,cb) {
 }	
 
 function Finder(path,cb) {
-	var maxFiles = 20
-	
 	try {
 		FS.readdirSync(path).each( function (n,file) {
-			if (n > maxFiles) return true;
+			if (n > MAXFILES) return true;
 			
 			if (file.charAt(0) != "_" && file.charAt(file.length-1) != "~") 
 				cb(n,file);
@@ -1817,7 +1783,7 @@ function fetchTest(req,res) {	//< test endpoint
 	.on("result", function (rid) {
 		
 		var ID = {ID:rid.ID},
-			guess = (query.guess||"").replace(/ /g,"");
+			guess = (query.guess+"").replace(/ /g,"");
 
 console.log(rid);
 
@@ -2159,7 +2125,6 @@ function parseNode(req) {
 	var
 		node = URL.parse(req.node),
 		query = req.query = (node.query||"").parse({}),
-		//parms = node.query,
 		areas = node.pathname.split("/"),
 		file = req.file = areas.pop(),
 		parts = file.split("."),
@@ -2180,12 +2145,6 @@ function parseNode(req) {
 			f: req.file,
 			p: req.path,
 			d: req.table});
-	
-	/*if (parms)  
-		parms.split("&").each(function (n,parm) {  // parse the query parms
-			var parts = parm.split("=");
-			query[parts[0]] = parts[1]; 
-		});*/
 	
 	// flags and joins
 	
@@ -2240,22 +2199,7 @@ function parseNode(req) {
 		delete body[id];
 	}
 	
-	/*for (var n in flags)  		// convert flags
-		if (flag = flags[n]) {
-			if (trap = traps[n]) 
-				trap(query,flags);
-			else
-			if (n in lists) 
-				flags[n] = flag.split(",");
-			else
-			if (n in jsons)
-				flags[n] = flag.parse(null);
-		}
-		else
-			flags[n] = null;
-	*/
-	
-	for (var n in traps)
+	for (var n in traps) 		// let traps remap query-flag parms
 		if (flag = flags[n])
 			traps[n](query,flags);
 	
@@ -2269,7 +2213,7 @@ function parseNode(req) {
 			j: joins
 		});
 }						
-	
+
 function syncNodes(nodes, acks, req, res, cb) {
 	
 	if ( node = req.node = nodes.pop() )  	// grab last node
@@ -2373,7 +2317,7 @@ function followRoute(route,req,res) {
 	Trace( 
 		//`[${req.log.ThreadsConnected}/${req.log.ThreadsRunning}] ` 
 		(route?route.name:"null").toUpperCase() 
-		+ ` ${req.file} FOR ${req.client} OF ${req.group}`);
+		+ ` ${req.file} FOR ${req.client}@${req.group}`);
 	
 	route(req, res);
 }
@@ -2383,7 +2327,9 @@ function followRoute(route,req,res) {
 
 /**
  * @method Responder
- * 
+ * @param {Object} Req http/https request
+ * @param {Object} Res http/https response
+ *
  * Responds to an HTTP/HTTPS request-repsonse thread.
  * */
 function Responder(Req,Res) {	
@@ -2751,10 +2697,13 @@ function Responder(Req,Res) {
 	
 	/**
 	 * Start a connection thread cb(err) containing a Req.req.sql connector,
-	 * a validated Req.req.cert certificate, and appropriate Res headers. 
+	 * a validated Req.req.cert certificate, and set appropriate Res headers. 
 	 * 
-	 * in req = {action, socketio, query, body, flags, joins}
-	 * out req =  adds {log, cert, client, org, location, group, profile, journal, 
+	 * @param {Object} req request
+	 * @param {Function} res response
+	 *
+	 * on-input req = {action, socketio, query, body, flags, joins}
+	 * on-output req =  adds {log, cert, client, org, location, group, profile, journal, 
 	 * joined, email, hawk and STATICS}
 	 * */
 	function conThread(req, res) {
@@ -2806,7 +2755,8 @@ function Responder(Req,Res) {
 
 	getBody( function (body) {
 
-		var  							// parse request url into /area/nodes
+		var  							
+			// parse request url into /area/nodes
 			paths = TOTEM.paths,
 			
 			// prime session request hash
@@ -2826,7 +2776,7 @@ function Responder(Req,Res) {
 			// get a list of all nodes
 			nodes = url ? url.split("$") : [];
 
-		conThread( req, function (err) {
+		conThread( req, function (err) { 	// start session with client
 			
 			if (err) 					// validator rejected session
 				res(err);
