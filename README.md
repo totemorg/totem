@@ -1,3 +1,5 @@
+/**
+@class TOTEM
 # TOTEM
 
 [![Forked from SourceForge](https://sourceforge.net)]
@@ -182,7 +184,7 @@ using ENUM.copy() conventions:
 		:
 	}
  
-Below sample use-cases are from totem/config.js.
+Below sample use-cases are from totem/test.js.
 
 ### N1
 
@@ -318,3 +320,4 @@ connecors.
 ## License
 
 [MIT](LICENSE)
+*/

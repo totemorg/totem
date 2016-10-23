@@ -13,6 +13,9 @@ export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin
 export LD_LIBRARY_PATH=
 export REPO=git@git.geointapps.org:acmesds
 
+# JSDUCK
+export PATH=$PATH:/usr/local/share/gems/gems/jsduck-5.3.4/bin
+
 # NodeJS  
 export NODE=$BASE/nodejs
 export PATH=$PATH:$NODE/bin

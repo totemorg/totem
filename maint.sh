@@ -182,7 +182,9 @@ restyle.)
 	;;
 
 redoc.)
-	doxygen config.oxy
+	# doxygen config.oxy
+	npm run totem  	# uses babel to convert ES2015 JS (totem.js) to older JS (lib/totem.js)
+	jsduck lib/totem.js --output totem
 	;;
 
 proxy.)	# establish email proxy
