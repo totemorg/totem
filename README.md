@@ -1,9 +1,8 @@
-# Totem TOTEM
+# TOTEM
 
 [![Forked from SourceForge](https://sourceforge.net)]
 
-[Totem](https://git.geointapps.org/acmesds/transfer)'s TOTEM module provides an HTTP-HTTPS service 
-configured with/without the following features:
+The TOTEM module provides an HTTP-HTTPS service configured with/without the following features:
   
 	+ routing methods for table, engine, and file objects
 	+ Denial-of-Service protection
