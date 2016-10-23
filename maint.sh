@@ -113,7 +113,7 @@ help.)	# some help
 	echo " 	apply CMD to all projects [${MODULES[@]}]"
 	echo "Testing CMDs:"
 	echo "	docker FILE.js in N docker containers with OPTIONS"
-	echo "	CONFIG to run the test.js CONFIGuration"
+	echo "	CONFIG to run from test.js"
 	echo "Maintenance CMDs:"
 	echo "	startup dependent services (mysql, cesium, nodered, ...)"
 	echo "	halt all allocated docker threads"
@@ -127,7 +127,7 @@ help.)	# some help
 	echo "	sync code changes with other machines"
 	echo "Special CMDs:"
 	echo "	bind known c-modules to geonode"
-	echo "	redoc project using doxygen compiler"
+	echo "	doc autodocument using babel/jsduck/doxygen compilers"
 	echo "	restyle css styles using css compass complier"
 	;;
 	
@@ -183,8 +183,8 @@ restyle.)
 
 redoc.)
 	# doxygen config.oxy
-	npm run totem  	# uses babel to convert ES2015 JS (totem.js) to older JS (lib/totem.js)
-	jsduck lib/totem.js --output totem
+	npm run totem1  	# uses babel to convert ES2015 JS (totem.js) to older JS (lib/totem.js)
+	npm run totem2 		# jsduck produces html
 	;;
 
 proxy.)	# establish email proxy

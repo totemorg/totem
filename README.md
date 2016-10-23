@@ -1,8 +1,6 @@
 /**
-@class TOTEM
+@class totem [![Forked from SourceForge](https://sourceforge.net)]
 # TOTEM
-
-[![Forked from SourceForge](https://sourceforge.net)]
 
 The TOTEM module provides an HTTP-HTTPS service configured with/without the following features:
   

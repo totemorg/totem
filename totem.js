@@ -2,7 +2,6 @@
 
 /**
 @class totem
-See [Totem introduction](/shares/doc/totem.md).
 
 @requires http
 @requires https
