@@ -2,23 +2,23 @@
 
 [![Forked from SourceForge](https://sourceforge.net)]
 
-[Totem](https://git.geointapps.org/acmesds/transfer)'s TOTEM module provides an HTTP-HTTPS service configured with/without the 
-following options:
+[Totem](https://git.geointapps.org/acmesds/transfer)'s TOTEM module provides an HTTP-HTTPS service 
+configured with/without the following features:
   
 	+ routing methods for table, engine, and file objects
 	+ Denial-of-Service protection
 	+ web sockets for inter-client communications
-	+ client profiles (banning, journalling, hawking, challenge tags and polling)
+	+ client profiles (e.g. banning, journalling, hawking, challenge tags and polling)
 	+ account management by priviledged hawks and normal users
 	+ hyper-threading in a master-worker or master-only relationship
 	+ PKI channel encryption and authentication
-	+ no faults run state
+	+ no-faulting (protected) run state
 	+ transfer, indexing, saving and selective cacheing of static mime files
-	+ anti-bot challenges: (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
-	+ full crude syncronized data operations with mutiple endpoints
+	+ per-client anti-bot challenges: profile challenges like (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
+	+ syncronized crude operations on mutiple endpoints
 	+ database agnosticator (default MySQL-Cluster)
   
-TOTEM thus replaces a slew of god-awful middleware (like Express) written for NodeJS.
+TOTEM thus replaces a slew of god-awful middleware (like Express) that was developed for NodeJS.
 
 To synchronize multiple datasets, TOTEM uses the following CRUD | HTTP requests:
   
@@ -45,8 +45,8 @@ to a service defined AREA, and where
 
 	TYPE = db | txt | xml | csv | json | ...
 
-returns NODE data in the specified format (additional types can
-be supported by the next higher assembly using the TOTEM.reader). 
+returns NODE data in the specified format (additional types can be supported by the 
+next higher assembly using the TOTEM.reader). 
 
 ## Start options
 
@@ -104,7 +104,7 @@ TOTEM start() options include:
 		... },
 
 	stop() 		: stop the service,
-	thread(cb) 	: provide sql connection to cb(sql),
+	thread(cb) 	: provide sql connection to cb(sql) with agnosticator extensions,
 
 	// antibot protection
 
@@ -155,6 +155,13 @@ Download the latest version with
 
 See [Totem downloads](https://git.geointapps.org/acmesds/download) for optional Totem plugins.
 
+Typically, you will want to redirect the following to your project/master
+
+	ln -s ../master/test.js test.js
+	ln -s ../master/maint.sh maint.sh
+	ln -s ../master/someCertFolder certs
+	ln -s ../master/someJpgFolder captcha
+	
 ## Examples
 
 TOTEM starts like so:
@@ -303,7 +310,10 @@ Below sample use-cases are from totem/config.js.
 	}
 
 [Totem](https://git.geointapps.org/acmesds/transfer)'s DEBE module provides an
-example of how Totem can be integrated into higher level assemblies.
+example of how Totem can be integrated into higher level assemblies.  See
+[Totem's DSVAR](https://git.geointapps.org/acmesds/dsvar) for information on how
+to use Totem's optional database agnosticator extensions to standard MySQL
+connecors.
 
 
 ## License

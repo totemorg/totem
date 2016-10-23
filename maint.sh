@@ -6,7 +6,7 @@
 #
 
 export HERE=`pwd`
-export MODULES=(totem engine chipper sql enum xlwip mime reader debe dsvar)
+export MODULES=(totem engine chipper flex enum xlwip mime reader debe dsvar)
 
 case "$1." in
 

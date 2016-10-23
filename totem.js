@@ -1,4 +1,4 @@
-// UNCLASSIFIED ++++
+// UNCLASSIFIED 
 
 /**
  * nodejs:
@@ -21,173 +21,8 @@
  * @requires toobusy
  * @requires json2csv
  * @requires js2xmlparser
+ * @include README.md
  */
-/** 
- * TOTEM provides an HTTP-HTTPS service configured with/without the 
- * following options:
- * 
- * 	+ routing methods for table, engine, and file objects
- *	+ Denial-of-Service protection
- * 	+ web sockets for inter-client communications
- * 	+ client profiles (banning, journalling, hawking, challenge tags and polling)
- * 	+ account management by priviledged hawks and normal users
- * 	+ hyper-threading in a master-worker or master-only relationship
- * 	+ PKI channel encryption and authentication
- * 	+ no faults run state
- *  + transfer, indexing, saving and selective cacheing of static mime files
- * 	+ anti-bot challenges: (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
- * 	+ full crude syncronized data operations with mutiple u
- * 
- * TOTEM thus replaces god-awful middleware like Express.
- * 
- * To synchronize multiple data nodes, TOTEM uses the following 
- * Crude | HTTP requests:
- * 
- * 		select	| GET 	 /NODE $ NODE ...
- * 		update	| PUT 	 /NODE $ NODE ...
- * 		insert	| POST 	 /NODE $ NODE ...
- * 		delete	| DELETE /NODE $ NODE ...
- * 
- * where a data NODE can reference a mysql or emulated table:
- * 
- * 		NODE = TABLE.TYPE?PARMS
- * 
- * or reference a language agnostic (e.g. jade skin, js, py, matlab, 
- * emulated matlab, r, opencv, etc) engine:
- * 
- * 		NODE = ENGINE.TYPE?PARMS
- * 
- * or reference a file:
- * 
- * 		NODE = FILE.TYPE?PARMS
- * 
- * where FILE = AREA/PATH provides redirection of the requested PATH
- * to a service defined AREA, and where 
- *
- * 		TYPE = db | txt | xml | csv | json | ...
- * 
- * returns NODE data in the specified format (additional types can
- * be supported by the next higher assembly using the TOTEM.reader). 
- * 
- * To start TOTEM with options use:
- * 
- * 		var TOTEM = require("totem").start({
- * 			// options
- * 		});
- * 
- * where the startup options include:
- * 
- * 		// CRUDE interface
- * 
- * 		select: cb(req,res),
- * 		update: cb(req,res),
- * 		delete: cb(req,res),
- * 		insert: cb(req,res),
- * 		execute: cb(req,res),
- * 
- * 		// NODE routers
- * 
- * 		worker: {		// computed results from stateful engines
- * 			select: cb(req,res),
- * 			update: cb(req,res),
- * 			... 	},
- * 
- * 		emulator: {		// emulate virtual tables
- * 			select: {
- * 				TABLE: cb(req,res),
- * 				TABLE: cb(req,res),
- * 				...		},
- *			...		},
- * 
- * 		sender: {		// return raw files
- * 			AREA: cb(req,res),
- * 			AREA: cb(req,res),
- * 			...		},
- * 
- * 		reader: {		// readers
- * 			user: cb(req,res),	// manage users
- * 
- * 			wget: cb(req,res),	// fetch from other services
- * 			curl: cb(req,res),
- * 			http: cb(req,res),
- * 
- * 			TYPE: cb(req,res),	// index (scan, parse etc) files
- * 			TYPE: cb(req,res),
- * 			...		},
- *		
- * 		// server specific
- * 		
- * 		port	: number of this http/https (0 disables listening),
- * 		host	: "domain name" of http/https service,
- * 		encrypt	: "passphrase" for a https server ("" for http),
- * 		cores	: number of cores in master-worker relationship (0 for master only),
- * 
- * 		paths	: {  // paths to various things
- * 			... },
- * 
- * 		site	: {  // vars and functions assessible to jade skins
- * 			... },
- * 
- * 		stop() 		: stop the service,
- *		thread(cb) 	: provide sql connection to cb(sql),
- * 
- * 		// antibot protection
- * 
- * 		nofaults: switch to enable/disabled server fault protection,
- * 		busy	: number of millisecs to check busyness (0 disables),
- * 
- * 		riddles	: number of riddles to create for anti-bot protection (0 disables)
- * 
- * 		map		: {	 // map riddle DIGIT to JPEG files
- *			DIGIT:["JPEG1","JPEG2", ...],
- *			DIGIT:["JPEG1","JPEG2", ...],
- * 			...	},
- * 
- * 		// User administration 
- * 
- * 		guest	: {	 // default guest profile 
- * 			... },
- * 
- *		create(owner,pass,cb) 	: makes a cert with callback cb,
- * 		validator(req,res) 		: validate cert during each request,
- *  
- * 		// Data fetching services
- * 
- * 		retries	: count for failed fetches (0 no retries)
- * 		notify	: switch to trace every fetch
- *
- * 		// MySQL db service
- * 
- * 		mysql	: {host,user,pass,...} db connection parameters (null for no db),
- * 
- * 		// Derived parameters
- * 
- * 		name	: "service name"
- * 			// derives site parms from mysql openv.apps by Nick=name
- *			// sets mysql name.table for guest clients,
- *			// identifies server cert name.pfx file
- *
- * 		started: start time
- * 		site: {db parameters} loaded for specified opts.name,
- * 		url : {master,worker} urls for specified opts.cores,
- * 		all the ENUM enumerators
- *
- * Options are specified using ENUM-copy conventions:
- * 
- * 		options =  {
- * 			key: value, 						// set 
- * 			"key.key": value, 					// index and set
- * 			"key.key.": value,					// index and append
- * 			OBJECT: [ function (){}, ... ], 	// add prototypes
- * 			Function: function () {} 			// add callback
- * 			:
- * 			:
- * 		}
- * 
- * Usage: 
- * 		node test.js CONFIG
- *		. maint.sh CONFIG
- * */
 
 var												// NodeJS modules
 	HTTP = require("http"),						//< NodeJs module
@@ -626,6 +461,9 @@ var
 	
 	paths: { 				//< default paths to service files
 		render: "public/jade/",
+		
+		default: "home.view",
+		
 		url: {
 			//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 			//default: "/home",
@@ -728,7 +566,7 @@ var
 				});
 			});*/
 
-		if (pocs = mysql.pocs)  	//$$$$
+		if (pocs = mysql.pocs) 
 			sql.query(pocs,{Site:TOTEM.name})
 			.on("result", function (poc) {
 				site.pocs.push(poc);
@@ -957,19 +795,19 @@ function initServer(server,cb) {
 			
 		Trace("ATTACHING socket.io AT "+IO.path());
 		
-		if (IO) { 							// Setup client mesh support
+		if (IO) { 							// Setup client web-socket support
 
-			IO.on("connection", function (socket) {
+			IO.on("connection", function (socket) {  // Trap every connect
 				
 				//Trace(">CONNECTING socket.io CLIENT");
-				socket.on("select", function (req) {
+				socket.on("select", function (req) { 		// Trap select (join request) connects
 					
 					Trace(`>Connecting ${req.client} ${req.message}`);
 					
 					sqlThread( function (sql) {
 						//Trace("Socket opened");
 						
-						sql.query("SELECT *,count(ID) AS Count FROM ?? WHERE least(?) LIMIT 0,1", [
+						sql.query("SELECT * FROM ?? WHERE least(?) LIMIT 0,1", [
 							"openv.profiles", {Client:req.client, Challenge:1}
 						])
 						.on("result", function (Prof) {
@@ -987,13 +825,10 @@ function initServer(server,cb) {
 								sql.release();
 							});
 
-							if (!Prof.Count && TOTEM.guest.Group) 
-								Prof = TOTEM.guest;
-
 							challengeClient(req.client,Prof);
 							
-						});
-						//.on("end", sql.release);
+						})
+						.on("end", sql.release);
 					});
 				});
 			});	
@@ -2126,7 +1961,7 @@ function parseNode(req) {
 		node = URL.parse(req.node),
 		query = req.query = (node.query||"").parse({}),
 		areas = node.pathname.split("/"),
-		file = req.file = areas.pop(),
+		file = req.file = areas.pop() || TOTEM.paths.default,
 		parts = file.split("."),
 		type = req.type = parts.pop(),
 		table = req.table = parts.pop() || "",
