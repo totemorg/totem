@@ -127,7 +127,7 @@ help.)	# some help
 	echo "	sync code changes with other machines"
 	echo "Special CMDs:"
 	echo "	bind known c-modules to geonode"
-	echo "	doc autodocument using babel/jsduck/doxygen compilers"
+	echo "	redoc autodocument using babel/jsduck/doxygen compilers"
 	echo "	restyle css styles using css compass complier"
 	;;
 	
@@ -181,10 +181,19 @@ restyle.)
 	echo "to be developed"
 	;;
 
-redoc.)
+doc.)
 	# doxygen config.oxy
-	npm run totem1  	# uses babel to convert ES2015 JS (totem.js) to older JS (lib/totem.js)
-	npm run totem2 		# jsduck produces html
+	npm run $1  	# pass1 use babel to convert ES2015 JS to older JS
+	npm run $2 		# pass2 use jsduck to produces html
+	;;
+
+docall.)
+	for mod in "${MODULES[@]}"; do
+
+		echo ">>>> $mod"
+		source maint.sh doc "$mod"1 "$mod"2
+
+	done
 	;;
 
 proxy.)	# establish email proxy

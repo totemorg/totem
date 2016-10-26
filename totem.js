@@ -271,6 +271,13 @@ var
 	],
 	
 	/**
+	* @cfg
+	* @member totem
+	* Site moderator {mod1:strength1, .... }
+	*/
+	moderators: {},
+		
+	/**
 	 * @method
 	 * @member totem
 	 * Configure and start the service
@@ -968,6 +975,8 @@ function startServer(opts) {
 		DSVAR.config({
 			emit: TOTEM.IO ? TOTEM.IO.sockets.emit : null,
 
+			moderators: TOTEM.moderators,
+			
 			mysql: Copy( { 
 					opts: {
 						host: mysql.host,
@@ -1692,17 +1701,17 @@ function validateCert(con,req,res) {
 				if (err)
 					stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
 					
-				Copy({
-					log: {  								// TOTEM monitored
+				Copy({  // add session metric logs and session parms
+					log: {  								// metrics
 						Cores: site.Cores, 					// number of safety core hyperthreads
 						VMs: 1,								// number of VMs
 						Event: now,		 					// start time
 						Action: req.action, 				// db action
 						Client: client, 				// client id
-						Table: req.table, 					// db target
+						//Table: req.table, 					// db target
 						ThreadsRunning: stats[3].Value,		// sql threads running
 						ThreadsConnected: stats[1].Value,	// sql threads connected
-						RecID: req.query.ID || 0,			// sql recID
+						//RecID: req.query.ID || 0,			// sql recID
 						Stamp: TOTEM.name,					// site name
 						Fault: "isp"						// fault codes
 					},
@@ -1715,8 +1724,8 @@ function validateCert(con,req,res) {
 					profile	: Copy(profile,{}),
 					journal : true,				// db actions journaled
 					joined	: now, 				// time joined
-					email	: client, 			// email address from pki
-					source	: req.table 		// db target
+					email	: client 			// email address from pki
+					//source	: req.table 		// db source dataset, view or engine
 					//hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
 				}, req);
 					
@@ -2278,6 +2287,7 @@ function parseNode(req) {
 		parts = file.split("."),
 		type = req.type = parts.pop(),
 		table = req.table = parts.pop() || "",
+		search = req.search = node.search,
 		area = req.area = areas[1] || "";
 		
 	if ( req.path = TOTEM.paths.mime[req.area] )
@@ -2471,7 +2481,7 @@ function followRoute(route,req,res) {
 }
 
 /**
-@class support.threading
+@class support
 Totem thread processing
  */
 
@@ -2810,7 +2820,9 @@ function Responder(Req,Res) {
 						Delay: secs,
 						Overhead: bytes,
 						LinkSpeed: secs ? bytes / secs : 0,
-						Event: con._started
+						Event: con._started,
+						Dataset: req.table,
+						Action: req.action
 					}), function () {
 						//Trace("metrics closed");
 						sql.release();
