@@ -59,6 +59,15 @@ var
 	IO: null, 			//< reserved for socket.io
 
 	Array: [ 			//< Array prototypes
+		
+		function hyper(refs, arg) {
+			var rtns = [], ref = ref[0];
+			this.each( function (n,lab) {
+				rtns.push( lab.hyper(refs[n] || ref) );
+			});
+			return rtns.join(arg);
+		},
+						  
 		/**
 		@member Array
 		Joins a list under control by an optional callback.
@@ -239,6 +248,21 @@ var
 		},
 						
 		/**
+		@method hyper
+		@member String
+		Make a hyperlink
+		*/
+		function hyper(ref) {
+			if (ref)
+				if (ref.charAt(0) == ":")
+					return this.tag("a", {href: "/"+(ref.substr(1)||this)+".view"});
+				else
+					return this.tag("a", {href: ref});
+			else
+				return this.tag("a", {href: ref || "/"+this+".view"});		
+		},
+		
+		/**
 		@method tag
 		@member String
 		*/
@@ -275,7 +299,7 @@ var
 	* @member totem
 	* Site moderator {mod1:strength1, .... }
 	*/
-	moderators: {},
+	//moderators: {},
 		
 	/**
 	 * @method
@@ -975,7 +999,7 @@ function startServer(opts) {
 		DSVAR.config({
 			emit: TOTEM.IO ? TOTEM.IO.sockets.emit : null,
 
-			moderators: TOTEM.moderators,
+			//moderators: TOTEM.moderators,
 			
 			mysql: Copy( { 
 					opts: {
