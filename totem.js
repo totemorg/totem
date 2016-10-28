@@ -255,11 +255,11 @@ var
 		function hyper(ref) {
 			if (ref)
 				if (ref.charAt(0) == ":")
-					return this.tag("a", {href: "/"+(ref.substr(1)||this)+".view"});
+					return this.tag("a", {href: "/"+(ref.substr(1)||this.toLowerCase())+".view"});
 				else
 					return this.tag("a", {href: ref});
 			else
-				return this.tag("a", {href: ref || "/"+this+".view"});		
+				return this.tag("a", {href: ref || "/"+this.toLowerCase()+".view"});		
 		},
 		
 		/**
