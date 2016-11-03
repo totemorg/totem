@@ -206,13 +206,17 @@ var
 				}
 				catch (err) {
 
-					if (!def) return null;
-
-					var parms = (def.constructor == Function) 
+					if (!def) 
+						return null;
+					else
+					if (def.constructor == Function)
+						return def(this);
+					
+					/*var parms = (def.constructor == Function) 
 							? def(this) 
-							: this.split("&");
+							: this.split("&");*/
 
-					parms.each(function (n,parm) {
+					this.split("&").each(function (n,parm) {
 
 						var	parts = parm.split("="),
 							rhs = parts.pop(),
@@ -278,6 +282,7 @@ var
 					case "embed":
 					case "img":
 					case "link":
+					case "input":
 						return rtn+">" + this;
 					default:
 						return rtn+">" + this + "</"+el+">";
@@ -366,8 +371,8 @@ var
 		traps: {   			//< Traps to redefine flags
 		},
 		
-		jsons: {  			///< Convert from json
-		},
+		/*jsons: {  			///< Convert from json
+		},*/
 		
 		lists: { 			 //< Convert from list
 			encap: function encap(idx,recs) {
@@ -443,16 +448,6 @@ var
 	},
 
 	/**
-	 * @cfg url
-	 * @private
-	 * Derived urls for this service
-	 * */
-	url: {		
-		master: "nourl",
-		worker: "nourl"
-	},
-	
-	/**
 	@cfg {Object} 
 	mysql opts: {host,user,pass,flakey,sessions}
 	*/		
@@ -502,6 +497,7 @@ var
 	initial site context extended with mysql openv.apps when started
 	*/		
 	site: { 
+		url: {}		
 	},
 
 	/**
@@ -711,6 +707,7 @@ var
 		pretty: function (err) { 
 			return (err+"");
 		},
+		noProtocol: new Error("no protocol specified to fetch"),
 		noRoute: new Error("no route"),
 		invalidQuery: new Error("invalid query"),
 		badGroup: new Error("invalid group requested"),
@@ -733,7 +730,7 @@ var
 	@method 
 	File uploader 
 	*/			
-	uploader: uploadFIle,	
+	uploader: uploadFile,	
 	
 	/**
 	@cfg {Number} [busy=300]
@@ -854,7 +851,7 @@ var
 				if (users = mysql.users) 
 					sql.query(users, [site.db], function (err,users) {
 						site.distro.user = users.joinify( function (user) {
-							return user.client.tag("a",{href:"emailto:"+user.client});
+							return user.client.tag("a", {href:"emailto:"+user.client});
 						});
 					});
 
@@ -994,13 +991,9 @@ function startServer(opts) {
 	
 	if (mysql) {
 
-		//mysql.pool = MYSQL.createPool(mysql.opts);
-
 		DSVAR.config({
 			emit: TOTEM.IO ? TOTEM.IO.sockets.emit : null,
 
-			//moderators: TOTEM.moderators,
-			
 			mysql: Copy( { 
 					opts: {
 						host: mysql.host,
@@ -1064,6 +1057,11 @@ function initServer(server,cb) {
 	else
 		Trace("NO SERVER");
 
+	site.url = {  // derive urls to access master and worker clients
+		master: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + (TOTEM.cores ? TOTEM.port+1 : TOTEM.port) + "/",
+		worker: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/"
+	};
+	
 	TOTEM.flush();  		// init of geoclient callstack via Function key
 
 	if (TOTEM.init)  		// client init
@@ -1135,13 +1133,6 @@ function initServer(server,cb) {
 	if (BUSY && TOTEM.busy) 
 		BUSY.maxLag(TOTEM.busy);
 	
-	// derive urls to access master and worker clients
-	
-	TOTEM.url = {
-		master: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + (TOTEM.cores ? TOTEM.port+1 : TOTEM.port) + "/",
-		worker: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/"
-	};
-	
 	if ( !TOTEM.server )  // no need to listen or initialize if router disabled
 		return ;
 	
@@ -1156,7 +1147,7 @@ function initServer(server,cb) {
 			
 			if (server)
 				server.listen(TOTEM.port+1, function() {  // Establish master
-					Trace(`SERVING ${TOTEM.url.master} AT [${endpts}]`);
+					Trace(`SERVING ${site.url.master} AT [${endpts}]`);
 					if (cb) cb();
 
 				});
@@ -1196,7 +1187,7 @@ function initServer(server,cb) {
 			
 			if (server)
 				server.listen(TOTEM.port, function() {
-					Trace(`CORE${CLUSTER.worker.id} ROUTING ${TOTEM.url.worker} AT ${endpts}`);
+					Trace(`CORE${CLUSTER.worker.id} ROUTING ${site.url.worker} AT ${endpts}`);
 					if (cb) cb(TOTEM);
 				});
 			
@@ -1212,7 +1203,7 @@ function initServer(server,cb) {
 	else 								// Establish worker
 	if (server) 
 		server.listen(TOTEM.port, function() {
-			Trace(`SERVING ${TOTEM.url.master} AT ${endpts}`);
+			Trace(`SERVING ${site.url.master} AT ${endpts}`);
 			if (cb) cb();
 		});
 	else
@@ -1462,7 +1453,7 @@ function insertUser (req,res) {
 				var init = {	
 					Approved: new Date(),
 					Banned: url.resetpass
-						? "Please "+"s your password".tag("a",{href:url.resetpass})+" to access"
+						? "Please "+"s your password".tag("a", {href:url.resetpass})+" to access"
 						: "",
 
 					Client: user.User,					
@@ -1470,7 +1461,7 @@ function insertUser (req,res) {
 
 					Message:
 
-`Greetings from ${site.Nick.tag("a",{href:TOTEM.url.master})}-
+`Greetings from ${site.Nick.tag("a",{href:site.url.master})}-
 
 Admin:
 	Please create an AWS EC2 account for ${owner} using attached cert.
@@ -1483,10 +1474,10 @@ To connect to ${site.Nick} from Windows:
 		
 	with the following LocalPort, RemotePort map:
 	
-		5001, ${TOTEM.url.master}:22
-		5100, ${TOTEM.url.master}:3389
-		5200, ${TOTEM.url.master}:8080
-		5910, ${TOTEM.url.master}:5910
+		5001, ${site.url.master}:22
+		5100, ${site.url.master}:3389
+		5200, ${site.url.master}:8080
+		5910, ${site.url.master}:5910
 		5555, Dynamic
 	
 	and, for convienience:
@@ -1832,13 +1823,13 @@ function findFile(path,cb) {
 }
 
 /**
-* @method uploadFIle
+* @method uploadFile
 * @param {Object} sql sql connector
 * @param {Array} files files to upload
 * @param {String} area area to upload files into
 * @param {Function} res totem response
 */
-function uploadFIle(sql, files, area, cb) {
+function uploadFile( files, area, cb) {
 
 	function copyFile(source, target, cb) {
 	  var cbCalled = false;
@@ -1869,14 +1860,17 @@ function uploadFIle(sql, files, area, cb) {
 	var arrived = new Date();
 	
 	files.each( function (n,file) {
-		var name = file.name;
-		var target = TOTEM.paths.mime[area]+"/"+area+"/"+file.name;
+		var name = file.filename;
+		var target = TOTEM.paths.mime[area]+"/"+area+"/"+name;
 
+console.log([area,target,file.name]);
+		cb( file );
+		
 		try {
 			if (file.image) {
 				
 				var prefix = "data:image/png;base64,";	
-				var buf64 = new Buffer(file.image.substr(prefix.length),'base64');
+				var buf64 = new Buffer(file.image.substr(prefix.length), 'base64');
 				var temp = `tmp/temp.png`;  // many browsers only support png so convert to jpg
 				
 				FS.writeFile(temp, buf64.toString("binary"), {encoding:"binary"}, function (err) {
@@ -1904,10 +1898,14 @@ function uploadFIle(sql, files, area, cb) {
 						});
 				
 				});
-								
+
 			}
 			else
-				copyFile(file.path,target,function (err) {
+				FS.writeFile(target, file.data, {encodings:"utf-8"}, function (err) {
+					console.log(err);
+				});
+				/*
+				copyFile(file.path, target, function (err) {
 					
 					console.info("SAVE "+file.path+" TO "+target+(err?" FAILED":""));
 
@@ -1920,10 +1918,10 @@ function uploadFIle(sql, files, area, cb) {
 						
 					if (false)
 						APP.NEWREAD.JOB(sql,body.Area,name);
-				});
+				});*/
 		}
 		catch (err) {
-			console.info(err);
+			console.log(err);
 		}
 	});
 }
@@ -2043,35 +2041,39 @@ function httpFetch(url,cb) {
 		opts.method = "POST";
 	}*/
 	
-	var req = transport[opts.protocol].request(opts, function(res) {
-		res.setEncoding('utf-8');
-		
-		var text = "";
-		res.on('data', function (chunk) {
-			text += chunk;
+	if (opts.protocol) {
+		var req = transport[opts.protocol].request(opts, function(res) {
+			res.setEncoding('utf-8');
+
+			var text = "";
+			res.on('data', function (chunk) {
+				text += chunk;
+			});
+
+			res.on("end", function () {
+
+				/*Trace("fetch", {
+					status: res.statusCode,
+					text: text,
+					header: res.headers}); */
+
+				cb( text.parse(text) );
+			});
+
 		});
 
-		res.on("end", function () {
-
-			/*Trace("fetch", {
-				status: res.statusCode,
-				text: text,
-				header: res.headers}); */
-		
-			cb( text.parse(null) );
+		req.on('error', function(err) {
+			Trace(`RETRYING(${opts.retry} ${err}`);
+			if (opts.retry) opts.retry--;
 		});
-		
-	});
 
-	req.on('error', function(err) {
-		Trace(`RETRYING(${opts.retry} ${err}`);
-		if (opts.retry) opts.retry--;
-	});
+		/*if (opts.soap)
+			req.write(opts.soap);*/
 
-	/*if (opts.soap)
-		req.write(opts.soap);*/
-		
-	req.end();
+		req.end();
+	}
+	else
+		cb( TOTEM.errors.noProtocol );
 }
 
 function retryFetch(cmd,opts,cb) {
@@ -2309,8 +2311,8 @@ function parseNode(req) {
 		areas = node.pathname.split("/"),
 		file = req.file = areas.pop() //,|| TOTEM.paths.default,
 		parts = file.split("."),
-		type = req.type = parts.pop(),
-		table = req.table = parts.pop() || "",
+		type = req.type = parts[1] || "db",
+		table = req.table = parts[0] || "",
 		search = req.search = node.search,
 		area = req.area = areas[1] || "";
 		
@@ -2335,7 +2337,7 @@ function parseNode(req) {
 		strips = reqflags.strips,
 		prefix = reqflags.prefix,
 		lists = reqflags.lists,
-		jsons = reqflags.jsons,
+		//jsons = reqflags.jsons,
 		traps = reqflags.traps,
 		id = reqflags.id,
 		trace = false, //query[reqflags.trace],
@@ -2418,12 +2420,11 @@ function routeNode(req, res) {
 
 	var
 		sql = req.sql,
-		
 		node = req.node,
 		table = req.table,
 		type = req.type,
 		action = req.action,
-		area = req.area,		
+		area = req.area,
 		route = null,
 		paths = TOTEM.paths;
 
@@ -2867,7 +2868,43 @@ function Responder(Req,Res) {
 			body += chunk.toString();
 		})
 		.on("end", function () {
-			cb( body.parse({}) );
+console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+console.log(body);
+			if (body)
+				cb( body.parse( function () {  // yank files if parse fails
+
+					var files = [], parms = {};
+					body.split("\r\n").each( function (n,form) {
+//console.log("form="+form);
+
+						if (form) 
+							if (parms["Content-Type"]) {
+								files.push( Copy(parms,{data: form, size: form.length}) );
+								parms = {};
+							}
+							else {	
+								var args = form.split("; ");
+
+								args.each(function (n,arg) {
+									var tok = arg.split("="), val = tok.pop(), key = tok.pop();
+
+									if (key)
+										parms[key] = val.replace(/"/g,"");
+									else {
+										var tok = arg.split(": "), val = tok.pop(), key = tok.pop();
+										if (key)
+											parms[key] = val;
+									}
+
+								});
+							}
+					});
+
+//console.log(files);
+					return {files: files};
+				}) );
+			else
+				cb( {} );
 		});
 	}
 		
