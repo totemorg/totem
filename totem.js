@@ -227,7 +227,7 @@ var
 								rtn[lhs] = JSON.parse(rhs); 
 							}
 							catch (err) { 
-								rtn[lhs] = rhs;
+								rtn[lhs] = unescape(rhs);
 							}
 						else
 								rtn[rhs] = null;
@@ -2522,12 +2522,19 @@ function Responder(Req,Res) {
 	/** 
 	 * Terminal response functions to respond with a string, file, db structure, or error message.
 	 * */
+	
+	/**
+	* Send string to client
+	* */
 	function sendString( data ) {
 		//Trace("sql closed");
 		Res.end( data );
 		Req.req.sql.release();
 	}
 		
+	/**
+	* Send list of files under specified folder
+	* */
 	function sendFileIndex( head, files ){
 		
 		switch (0) {
@@ -2546,6 +2553,9 @@ function Responder(Req,Res) {
 		
 	}
 	
+	/**
+	* Cache and send file to client
+	* */
 	function sendCache(path,file,type,area) {
 
 		var mime = MIME[type] || MIME.html  || "text/plain",
@@ -2590,11 +2600,17 @@ function Responder(Req,Res) {
 		
 	}		
 
+	/**
+	* Send error message to client
+	* */
 	function sendError(msg) {
 		Res.end( TOTEM.errors.pretty(msg) );
 		Req.req.sql.release();
 	}
 
+	/**
+	* Send dataset to client in format suitable for typical browser technologies (extjs, jquery, etc)
+	* */
 	function sendDb( msg, cnt, data) {
 	
 		sendString( data
@@ -2808,7 +2824,6 @@ function Responder(Req,Res) {
 					break;
 			
 			}
-
 		}
 		catch (err) {
 			sendError("Bad result - "+err);
@@ -2859,6 +2874,9 @@ function Responder(Req,Res) {
 		}
 	}
 
+	/**
+	* Get body parameters and file parameters if supplied
+	* */
 	function getBody( cb ) {
 
 		var body = "";
@@ -2868,8 +2886,8 @@ function Responder(Req,Res) {
 			body += chunk.toString();
 		})
 		.on("end", function () {
-console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-console.log(body);
+//console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+//console.log(body);
 			if (body)
 				cb( body.parse( function () {  // yank files if parse fails
 
@@ -3008,7 +3026,7 @@ console.log(body);
 			if (nodes.length == 1) {	// respond with only this node
 				node = req.node = nodes.pop();	
 				routeNode(req, function (ack) {	
-//console.log({ack:ack});					
+//console.log({ack:ack});
 					Res.setHeader("Content-Type", MIME[req.type] || MIME.html || "text/plain");
 					res(ack);
 				});
@@ -3016,7 +3034,6 @@ console.log(body);
 			
 			else 					// sync and aggregate all nodes
 				syncNodes(nodes, {}, req, res, function (ack) {
-					
 					Res.setHeader("Content-Type", "application/json");
 					res(ack);
 				});
