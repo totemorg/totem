@@ -58,6 +58,9 @@ var
 
 	IO: null, 			//< reserved for socket.io
 
+	session: { 	//< reserved to track client sessions
+	},
+		
 	Array: [ 			//< Array prototypes
 		
 		function hyper(refs, arg) {
@@ -300,13 +303,6 @@ var
 	],
 	
 	/**
-	* @cfg
-	* @member totem
-	* Site moderator {mod1:strength1, .... }
-	*/
-	//moderators: {},
-		
-	/**
 	 * @method
 	 * @member totem
 	 * Configure and start the service
@@ -322,7 +318,7 @@ var
 	
 	/**
 	 * @cfg {Object} 
-	 * Site parms requiring json conversion when loaded
+	 * Site parms requiring json conversion when site context derived
 	 * */
 	jsons: {  
 	},
@@ -335,24 +331,9 @@ var
 	thread: DSVAR.thread,
 		
 	/**
-	 * @cfg {Object} 
-	 * @private
-	 * Time-Out values (reserved - not presently used)
-	 * */
-	TO : {							//< Time-outs in msecs
-		COOKIE : 900000, 			//< Browser cookie 
-		SESSION : 54000000,			//< Session  (legacy)
-		SQLDB : 10000,				//< SQL query connection 
-		ENGINE : 60000, 			//< Machine query connection 
-		SOCKET : 120000,			//< Socket 
-		LOCK : 30000 				//< Temporaray record lock 
-	},
-	
-	/**
-	 * @cfg {Object}  
-	 * @private
-	 * REST-to-CRUD translations
-	 * */
+	@cfg {Object}  
+	REST-to-CRUD translations
+	*/
 	crud: {
 		GET: "select",
 		DELETE: "delete",
@@ -361,9 +342,9 @@ var
 	},
 	
 	/**
-	 * @cfg {Object} reqflags
-	 * Options to parse Totem request _flags
-	 * */
+	@cfg {Object} reqflags
+	Options to parse Totem request _flags
+	 */
 	reqflags: {				//< Properties for request flags
 		strips:	 			//< Flags to strips from request
 			{"":1, "_":1, leaf:1, _dc:1, id:1, "=":1, "?":1, "request":1}, 		
@@ -429,11 +410,11 @@ var
 	},
 
 	/**
-	 * @cfg {Object} fetchers
-	 * @member totem
-	 * Data fetcher X is used when a GET on X is requested.  These fetchers feed data pulled from the
-	 * TOTEM.paths.url[req.table] URL to its callback.
-	 * */
+	@cfg {Object} fetchers
+	@member totem
+	Data fetcher X is used when a GET on X is requested.  These fetchers feed data pulled from the
+	TOTEM.paths.url[req.table] URL to its callback.
+	*/
 	fetchers: { 			//< data fetchers
 		curl: curlFetch,
 		wget: wgetFetch,
@@ -449,37 +430,40 @@ var
 
 	/**
 	@cfg {Object} 
-	mysql opts: {host,user,pass,flakey,sessions}
+	@member totem
+	Mysql opts: {host,user,pass,flakey,sessions}
 	*/		
 	mysql: null,			
 	
 	/**
 	@cfg {String} [encrypt=""]
-	https passphrase when running encrypted
+	@member totem
+	Cert passphrase when running encrypted
 	*/		
 	encrypt: "",		
 
 	/**
 	@cfg {Number} [cores=0]
-	number of worker cores (0 for master-only startup)
+	@member totem	
+	Number of worker cores (0 for master-only startup)
 	*/				
 	cores: 0,	
 		
 	/**
 	@cfg {Number} [port=8080]
-	service port
+	Service port number
 	*/				
 	port: 8080,				
 		
 	/**
 	@cfg {String} [host="localhost"]
-	service host name 
+	Service host name 
 	*/		
 	host: "localhost", 		
 		
 	/**
 	@cfg {Boolean} [proxy=false]
-	enable if https server being proxied
+	Enable if https server being proxied
 	*/				
 	proxy: false,
 
@@ -494,7 +478,7 @@ var
 
 	/**
 	@cfg {Object} 
-	initial site context extended with mysql openv.apps when started
+	Initial site context extened by mysql derived query when service started
 	*/		
 	site: { 
 		url: {}		
@@ -601,10 +585,10 @@ var
 	
 	/**
 	@cfg {Object} 
-	null to admit all clients, or {X:"required", Y: "optional", ...} to admit clients with cert organizational
+	null to admitRule all clients, or {X:"required", Y: "optional", ...} to admitRule clients with cert organizational
 	credentials X.
 	*/		
-	admit: null, 	
+	admitRule: null, 	
 		/*{ "u.s. government": "required",
 		  	"us": "optional"
 		  }*/
@@ -613,7 +597,7 @@ var
 	@cfg {Object} 
 	default guest profile 
 	*/		
-	guest: {				
+	guestProfile: {				
 		Banned: "",
 		QoS: 1,
 		Credit: 100,
@@ -623,6 +607,9 @@ var
 		Client: "guest",
 		User: "guest",
 		Group: "app1",
+		Repoll: true,
+		Retries: 5,
+		Timeout: 30,
 		Message: "Welcome guest - what is (riddle)?"
 	},
 
@@ -631,7 +618,7 @@ var
 	@private
 	riddle digit-to-jpeg map (null to disable riddles)
 	*/		
-	map: { 					
+	riddleMap: { 					
 		0: ["10","210"],
 		1: ["30","60"],
 		2: ["50","160"],
@@ -794,16 +781,6 @@ var
 		site.pocs = [];
 		site.distro = {};
 
-		/*
-		if (TOTEM.jsons)
-			sql.query("SELECT * FROM openv.apps WHERE ?",{Name:TOTEM.name})
-			.on("result", function (opts) {
-				Each( TOTEM.jsons, function (n,def) {
-					//Trace(`${n}=${site[n]}`)
-					site[n.toLowerCase()] = (opts[n]||"").parse(def);
-				});
-			});*/
-
 		if (pocs = mysql.pocs) 
 			sql.query(pocs,{Site:TOTEM.name})
 			.on("result", function (poc) {
@@ -827,7 +804,7 @@ var
 		if (guest = mysql.guest)
 			sql.query(guest)
 			.on("result", function (rec) {
-				TOTEM.guest = Copy(rec,{});
+				TOTEM.guestProfile = Copy(rec,{});
 			});
 
 		if (derive = mysql.derive)
@@ -871,7 +848,7 @@ var
 	*/		
 	cache: { 				//< by-area cache
 		
-		never: {	//< useful while debugging client side stuff
+		never: {	//< stuff to never cache - useful while debugging client side stuff
 			"base.js": 1,
 			"grids.js": 1,
 			"guides.js": 1,
@@ -881,17 +858,17 @@ var
 			"view": 1
 		},
 		
-		clients: {
+		clients: {  // file types under clients ares being cached
 			js: {},
 			css: {},
 			ico: {}
 		},
 		
-		"socket.io": {
+		"socket.io": {  // cache js in socketio area 
 			js: {}
 		},
 		
-		certs: {} 		// reserved for client sessions
+		certs: {} 		// reserved for crts in certs area
 	},
 	
 	/**
@@ -984,7 +961,7 @@ function startServer(opts) {
 
 	Trace(`STARTING ${name}`); 
 	
-	if (TOTEM.jsons)
+	if (TOTEM.jsons)  // prime site context with desired jsons
 		Each( TOTEM.jsons, function (n,def) {
 			site[n] = def;
 		});
@@ -992,7 +969,7 @@ function startServer(opts) {
 	if (mysql) {
 
 		DSVAR.config({
-			emit: TOTEM.IO ? TOTEM.IO.sockets.emit : null,
+			//io: TOTEM.IO,   // can setup its socketio only after server defined by initServer
 
 			mysql: Copy( { 
 					opts: {
@@ -1062,22 +1039,24 @@ function initServer(server,cb) {
 		worker: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/"
 	};
 	
-	TOTEM.flush();  		// init of geoclient callstack via Function key
+	TOTEM.flush();  		// init of client callstack via its Function key
 
-	if (TOTEM.init)  		// client init
+	if (TOTEM.init)  		 // client private init
 		TOTEM.init(); 
 	
-	if (TOTEM.encrypt && paths.url.socketio) { 
+	if (TOTEM.encrypt && paths.url.socketio) {   // establish web sockets with clients
 
-		// Attach "/socket.io" to SIO and block same path from server
-		var IO = TOTEM.IO = SIO(server, { // we want to use the defaults
+		// Attach "/socket.io" to SIO and block same path from server, and relay socketio
+		// to the DSVAR interface so that it can sync client changes.
+		
+		var IO = TOTEM.IO = DSVAR.io = SIO(server, { // we want to use the defaults
 				//serveClient: true, // default true to prevent server from intercepting path
 				//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
 			}),
 			HUBIO = TOTEM.HUBIO = new (SIOHUB); 		//< Hub fixes socket.io+cluster bug	
 			
 		Trace("ATTACHING socket.io AT "+IO.path());
-		
+
 		if (IO) { 							// Setup client web-socket support
 
 			IO.on("connection", function (socket) {  // Trap every connect
@@ -1085,30 +1064,21 @@ function initServer(server,cb) {
 				//Trace(">CONNECTING socket.io CLIENT");
 				socket.on("select", function (req) { 		// Trap select (join request) connects
 					
-					Trace(`>Connecting ${req.client} ${req.message}`);
-					
+					var ses = TOTEM.session[req.client];
+
+					Trace(`>Connecting ${req.client} >>> ${req.message}`);
+
+					if (!ses)
 					sqlThread( function (sql) {
 						//Trace("Socket opened");
 						
-						sql.query("SELECT * FROM ?? WHERE least(?) LIMIT 0,1", [
-							"openv.profiles", {Client:req.client, Challenge:1}
-						])
-						.on("result", function (Prof) {
+						sql.query("SELECT * FROM openv.profiles WHERE least(?) LIMIT 0,1", {Client:req.client, Challenge:1})
+						.on("result", function (prof) {
 
-							sql.query("REPLACE INTO ?? SET ?", [
-								Prof.Group+".sockets", {
-								client: req.client,
-								org: Prof.Group,
-								location: req.location,
-								joined: new Date(),
-								message: Prof.msg
-							}])
-							.on("end", function () {
-								//Trace("socket closed");
-								sql.release();
-							});
-
-							challengeClient(req.client,Prof);
+							if (!prof.Repoll) 
+								var ses = TOTEM.session[req.client] = {repoll: prof.Repoll};
+							
+							challengeClient(req.client, prof);
 							
 						})
 						.on("end", sql.release);
@@ -1125,7 +1095,7 @@ function initServer(server,cb) {
 			Trace("SOCKET.IO FAILED");
 	
 	}
-
+		
 	// The BUSY interface provides a mean to limit client connections that would lock the 
 	// service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
 	// service attacks.  (Alas latest versions do not compile in latest NodeJS.)
@@ -1499,7 +1469,7 @@ To connect to ${site.Nick} from Windows:
 					[ init, {User: user.User} ],
 					function (err) {
 						
-						createCert(user.User,pass,function () {
+						createCert(user.User, pass, function () {
 
 							Trace(`Created cert for ${user.User}`);
 							
@@ -1680,7 +1650,7 @@ function validateCert(con,req,res) {
 
 		}
 			
-		cert.client = (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || TOTEM.guest.Client).split(",")[0].replace("email:","");
+		cert.client = (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || TOTEM.guestProfile.Client).split(",")[0].replace("email:","");
 
 		var cache = TOTEM.cache.certs;
 		
@@ -1692,7 +1662,7 @@ function validateCert(con,req,res) {
 	function admitClient(req, res, profile, cert, con) {
 		
 		var now = new Date(),		
-			admit = TOTEM.admit,
+			admitRule = TOTEM.admitRule,
 			site = TOTEM.site,
 			client = cert.client;
 
@@ -1701,8 +1671,8 @@ function validateCert(con,req,res) {
 			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
 				return res( TOTEM.errors.expiredCert );
 				
-			if (admit)
-				if ( !(cert.issuer.O.toLowerCase() in admit && cert.subject.C.toLowerCase() in admit) ) 
+			if (admitRule)
+				if ( !(cert.issuer.O.toLowerCase() in admitRule && cert.subject.C.toLowerCase() in admitRule) ) 
 					return res( TOTEM.errors.rejectedCert );
 					
 		}
@@ -1760,14 +1730,14 @@ function validateCert(con,req,res) {
 			if (profile.Count)
 				admitClient(req, res, profile, cert, con);
 				
-			else  {
-				TOTEM.guest.Client = client;
-				sql.query("INSERT INTO openv.profiles SET ?", TOTEM.guest, function (err) {
+			else 
+				sql.query("INSERT INTO openv.profiles SET ?", Copy({
+					Client: client,
+					User: client.replace("ic.gov","").replace(/\./g,"").toLowerCase()
+				}, TOTEM.guestProfile), function (err) {
 					
-//console.log(err);
-					admitClient(req, res, TOTEM.guest, cert, con);
+					admitClient(req, res, TOTEM.guestProfile, cert, con);
 				});
-			}
 			
 		});
 	
@@ -1866,63 +1836,75 @@ function uploadFile( files, area, cb) {
 console.log([area,target,file.name]);
 		cb( file );
 		
-		try {
-			if (file.image) {
-				
-				var prefix = "data:image/png;base64,";	
-				var buf64 = new Buffer(file.image.substr(prefix.length), 'base64');
-				var temp = `tmp/temp.png`;  // many browsers only support png so convert to jpg
-				
-				FS.writeFile(temp, buf64.toString("binary"), {encoding:"binary"}, function (err) {
-					console.info("SAVE "+name+" TO "+target+(err?" FAILED":""));
+		if ( file.image ) {
 
-					if (!err && cb)
-						LWIP.open(temp, function (err,image) {
-						
-							if (!err) {
-								image.writeFile(target, function (err) {
-									console.info("JPG convert "+(err||"ok"));
+			var prefix = "data:image/png;base64,";	
+			var buf64 = new Buffer(file.image.substr(prefix.length), 'base64');
+			var temp = `tmp/temp.png`;  // many browsers only support png so convert to jpg
+
+			FS.writeFile(temp, buf64.toString("binary"), {encoding:"binary"}, function (err) {
+				console.info("SAVE "+name+" TO "+target+(err?" FAILED":""));
+
+				if (!err && cb)
+					LWIP.open(temp, function (err,image) {
+
+						if (!err) {
+							image.writeFile(target, function (err) {
+								console.info("JPG convert "+(err||"ok"));
+							});
+
+							if (cb)
+								cb({
+									Name: name,
+									Area: area,
+									Added: arrived,
+									Size: file.size,
+									Width: image.width(), 
+									Height: image.height()
 								});
-																	
-								if (cb)
-									cb({
-										Name: name,
-										Area: area,
-										Added: arrived,
-										Size: file.size,
-										Width: image.width(), 
-										Height: image.height()
-									});
-							}
+						}
 
-						});
-				
-				});
-
-			}
-			else
-				FS.writeFile(target, file.data, {encodings:"utf-8"}, function (err) {
-					console.log(err);
-				});
-				/*
-				copyFile(file.path, target, function (err) {
-					
-					console.info("SAVE "+file.path+" TO "+target+(err?" FAILED":""));
-
-					if (cb) cb({
-						Name: name,
-						Area: area,
-						Added: arrived,
-						Size: file.size
 					});
-						
-					if (false)
-						APP.NEWREAD.JOB(sql,body.Area,name);
-				});*/
+
+			});
+
 		}
-		catch (err) {
-			console.log(err);
-		}
+
+		else
+			switch ( file["Content-Type"] ) { 
+				case "image/jpeg":
+				case "application/pdf":
+
+					var buf = new Buffer(file.data, "base64");
+					console.log("jpgbuf="+buf.length);
+					FS.writeFile(target, buf.toString("binary"), {encodings:"binary"}, function (err) {
+						console.log(err);
+					});
+					break;
+
+				case "application/javascript":
+				default:
+					FS.writeFile(target, file.data, {encodings:"utf-8"}, function (err) {
+						console.log(err);
+					});
+			}
+
+		/*
+		copyFile(file.path, target, function (err) {
+
+			console.info("SAVE "+file.path+" TO "+target+(err?" FAILED":""));
+
+			if (cb) cb({
+				Name: name,
+				Area: area,
+				Added: arrived,
+				Size: file.size
+			});
+
+			if (false)
+				APP.NEWREAD.JOB(sql,body.Area,name);
+		});*/
+	
 	});
 }
 
@@ -2163,7 +2145,7 @@ function initChallenger() {
 	
 	var riddle = TOTEM.riddle = [],
 		N = TOTEM.riddles,
-		map = TOTEM.map,
+		map = TOTEM.riddleMap,
 		ref = "/captcha";
 	
 	for (var n=0; n<N; n++)
@@ -2226,51 +2208,36 @@ function getChallenge(msg,rid,ids) {
 	return msg;
 }
 
-function challengeClient(client, Prof) {
+function challengeClient(client, prof) {
 			
-	if (Prof.Banned) 
-		TOTEM.IO.emit("select", {
-			message: Prof.Banned,
-			rejected: true
-		});
-	else {
-		var 
-			rid = [],
-			reply = (TOTEM.map && TOTEM.riddles)
-					? getChallenge( Prof.Message, rid, (Prof.IDs||"").parse({}) )
-					: Prof.Message;
-	
-		if (reply) 
-			sqlThread( function (sql) {
-				sql.query("INSERT INTO openv.riddles SET ?", {
-					Riddle: rid.join(",").replace(/ /g,""),
-					Client: client,
-					Made: new Date(),
-					Attempts: 0
-				}, function (err,info) {
-					
-					TOTEM.IO.emit("select", {
-						message: reply,
-						riddles: rid.length,
-						rejected: false,
-						retries: Prof.Retries,
-						timeout: Prof.Timeout,
-						ID: info.insertId
-					});
-					
-					if (Prof.Repoll) {
-						
-						var SaveProf = Copy(Prof,{});
-						
-						setInterval(function () {
-							challengeClient(client, SaveProf);
-						}, Prof.Repoll);
-					}
-					
-					sql.release();
+	var 
+		rid = [],
+		reply = (TOTEM.riddleMap && TOTEM.riddles)
+				? getChallenge( prof.Message, rid, (prof.IDs||"").parse({}) )
+				: prof.Message;
+
+	if (reply) 
+		sqlThread( function (sql) {
+			sql.query("INSERT INTO openv.riddles SET ?", {
+				Riddle: rid.join(",").replace(/ /g,""),
+				Client: client,
+				Made: new Date(),
+				Attempts: 0,
+				maxAttempts: prof.Retries
+			}, function (err,info) {
+
+				TOTEM.IO.emit("select", {
+					message: reply,
+					riddles: rid.length,
+					rejected: false,
+					retries: prof.Retries,
+					timeout: prof.Timeout * 1e3,
+					ID: info.insertId
 				});
+
+				sql.release();
 			});
-	}
+		});
 }
 
 //============================================
@@ -2660,8 +2627,8 @@ function Responder(Req,Res) {
 				
 					switch (req.type) {
 						case "db": 
-							sendDb(ack,0,null);
-							break;
+							//sendDb(ack,0,null);
+							//break;
 							
 						case "html": 
 						case "txt":
