@@ -310,28 +310,31 @@ var
 	start: startServer,	
 	
 	/**
-	 * @method
-	 * @member totem
-	 * Stop the service
+	@method
+	@member totem
+	Stop the service
 	 * */
 	stop: stopServer,
 	
 	/**
-	 * @cfg {Object} 
-	 * Site parms requiring json conversion when site context derived
+	@cfg {Object} 
+	@member totem
+	 
+	 Site parms requiring json conversion when site context derived
 	 * */
 	jsons: {  
 	},
 	
 	/**
-	 * @method
-	 * Thread a new sql connection to a callback.  Defaults to thread provided by the
-	 * DSVAR database agnosticator.
+	@method
+	@member totem
+	Thread a new sql connection to a callback.  Unless overridden, will default to the DSVAR thread method.
 	 * */
 	thread: DSVAR.thread,
 		
 	/**
 	@cfg {Object}  
+	@member totem
 	REST-to-CRUD translations
 	*/
 	crud: {
@@ -343,7 +346,13 @@ var
 	
 	/**
 	@cfg {Object} reqflags
-	Options to parse Totem request _flags
+	@member totem
+	Options to parse request flags
+	
+			traps: { flag:cb(query,flags), ...} // sets trap cb for a _flag=list to reorganize the query and flags hash,
+			lists: { flag:cb(list,data,req), ...} // sets data conversion cb for a _flag=list,
+			prefix:  "_" 	// sets flag prefix
+	
 	 */
 	reqflags: {				//< Properties for request flags
 		strips:	 			//< Flags to strips from request
@@ -351,9 +360,6 @@ var
 
 		traps: {   			//< Traps to redefine flags
 		},
-		
-		/*jsons: {  			///< Convert from json
-		},*/
 		
 		lists: { 			 //< Convert from list
 			encap: function encap(idx,recs) {
@@ -412,8 +418,20 @@ var
 	/**
 	@cfg {Object} fetchers
 	@member totem
-	Data fetcher X is used when a GET on X is requested.  These fetchers feed data pulled from the
-	TOTEM.paths.url[req.table] URL to its callback.
+	Data fetcher X is used when a GET on X is requested.  Fetchers feed data pulled from the
+	TOTEM.paths.url[req.table] URL (formatted by an optional plugin context) to its callback:
+	
+			X: cb(url, res),
+			X: cb(...),
+			...
+			plugin: {
+				var: ...
+				var: ...
+				...
+				method: function () {...}
+				method: function () {...}
+				...
+			}
 	*/
 	fetchers: { 			//< data fetchers
 		curl: curlFetch,
@@ -431,14 +449,20 @@ var
 	/**
 	@cfg {Object} 
 	@member totem
-	Mysql opts: {host,user,pass,flakey,sessions}
+	Mysql connection options: 
+	
+		host: name
+		user: name
+		pass: phrase
+		sessions: number
+		
 	*/		
 	mysql: null,			
 	
 	/**
 	@cfg {String} [encrypt=""]
 	@member totem
-	Cert passphrase when running encrypted
+	Cert passphrase to start encrypted service
 	*/		
 	encrypt: "",		
 
@@ -479,7 +503,7 @@ var
 	/**
 	@cfg {Object} 
 	Initial site context extened by mysql derived query when service started
-	*/		
+	*/
 	site: { 
 		url: {}		
 	},
@@ -1833,7 +1857,7 @@ function uploadFile( files, area, cb) {
 		var name = file.filename;
 		var target = TOTEM.paths.mime[area]+"/"+area+"/"+name;
 
-console.log([area,target,file.name]);
+//console.log([area,target,name]);
 		cb( file );
 		
 		if ( file.image ) {
@@ -1871,21 +1895,22 @@ console.log([area,target,file.name]);
 		}
 
 		else
-			switch ( file["Content-Type"] ) { 
-				case "image/jpeg":
-				case "application/pdf":
+			switch ( file.type ) { 
+				case "xximage/jpeg":
 
 					var buf = new Buffer(file.data, "base64");
-					console.log("jpgbuf="+buf.length);
 					FS.writeFile(target, buf.toString("binary"), {encodings:"binary"}, function (err) {
 						console.log(err);
 					});
 					break;
 
+				case "image/jpeg":
+				case "application/pdf":
 				case "application/javascript":
 				default:
-					FS.writeFile(target, file.data, {encodings:"utf-8"}, function (err) {
-						console.log(err);
+					var buf = new Buffer(file.data,"base64");
+					FS.writeFile(target, buf,  "base64", function (err) {
+						if (err) console.log(err);
 					});
 			}
 
@@ -2793,7 +2818,7 @@ function Responder(Req,Res) {
 			}
 		}
 		catch (err) {
-			sendError("Bad result - "+err);
+			sendError("Bad response - "+err);
 		}
 	}
 
@@ -2846,7 +2871,7 @@ function Responder(Req,Res) {
 	* */
 	function getBody( cb ) {
 
-		var body = "";
+		var body = "", file = "filename:";
 		
 		Req
 		.on("data", function (chunk) {
@@ -2859,31 +2884,59 @@ function Responder(Req,Res) {
 				cb( body.parse( function () {  // yank files if parse fails
 
 					var files = [], parms = {};
-					body.split("\r\n").each( function (n,form) {
-//console.log("form="+form);
-
-						if (form) 
-							if (parms["Content-Type"]) {
-								files.push( Copy(parms,{data: form, size: form.length}) );
-								parms = {};
+					
+					if (body.substr(0,file.length) == file) {
+						var args = body.split(";");
+						
+						args.each( function (n,arg) {
+							
+							if (n == args.length-1) {
+								parms.data = arg;
+								parms.size = parms.data.length;
 							}
-							else {	
-								var args = form.split("; ");
+							else {								
+								var tok = arg.split(":"),
+									val = tok.pop(), 
+									key = tok.pop();
 
-								args.each(function (n,arg) {
-									var tok = arg.split("="), val = tok.pop(), key = tok.pop();
+								parms[key] = val;
+							}
+							
+						});
+						
+						files.push( parms );
+					}
+					
+					else   // extjs form submit with filefield
+						body.split("\r\n").each( function (n,line) {
+//console.log("line="+line);
 
-									if (key)
-										parms[key] = val.replace(/"/g,"");
-									else {
-										var tok = arg.split(": "), val = tok.pop(), key = tok.pop();
+							if (line) 
+								if (parms.type) {  // type was defined so have the file data
+									files.push( Copy(parms,{data: line, size: line.length}) );
+									parms = {};
+								}
+								else 
+									line.split("; ").each(function (n,arg) {
+
+										var tok = arg
+											.replace("Content-Disposition: ","disposition=")
+											.replace("Content-Type: ","type=")
+											.split("="), 
+
+											val = tok.pop(), 
+											key = tok.pop();
+
 										if (key)
-											parms[key] = val;
-									}
+											parms[key] = val.replace(/"/g,"");
+										/*else {
+											var tok = arg.split(": "), val = tok.pop(), key = tok.pop();
+											if (key)
+												parms[key] = val;
+										}*/
 
-								});
-							}
-					});
+									});
+						});
 
 //console.log(files);
 					return {files: files};
