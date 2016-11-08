@@ -51,6 +51,7 @@ var 											// shortcuts
 	Each = ENUM.each;
 
 var 											// globals
+	MULTINODES = "$$", 				//< node divider
 	MAXFILES = 100;						//< max files to index
 	
 var
@@ -878,6 +879,7 @@ var
 			"guides.js": 1,
 			"jquery.js":1,
 			"models.js":1,
+			"capture.js":1,
 			"jade": 1,
 			"view": 1
 		},
@@ -1058,10 +1060,8 @@ function initServer(server,cb) {
 	else
 		Trace("NO SERVER");
 
-	site.url = {  // derive urls to access master and worker clients
-		master: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + (TOTEM.cores ? TOTEM.port+1 : TOTEM.port) + "/",
-		worker: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/"
-	};
+	site.masterURL = (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + (TOTEM.cores ? TOTEM.port+1 : TOTEM.port) + "/";
+	site.workerURL = (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/";
 	
 	TOTEM.flush();  		// init of client callstack via its Function key
 
@@ -1141,7 +1141,7 @@ function initServer(server,cb) {
 			
 			if (server)
 				server.listen(TOTEM.port+1, function() {  // Establish master
-					Trace(`SERVING ${site.url.master} AT [${endpts}]`);
+					Trace(`SERVING ${site.masterURL} AT [${endpts}]`);
 					if (cb) cb();
 
 				});
@@ -1181,7 +1181,7 @@ function initServer(server,cb) {
 			
 			if (server)
 				server.listen(TOTEM.port, function() {
-					Trace(`CORE${CLUSTER.worker.id} ROUTING ${site.url.worker} AT ${endpts}`);
+					Trace(`CORE${CLUSTER.worker.id} ROUTING ${site.workerURL} AT ${endpts}`);
 					if (cb) cb(TOTEM);
 				});
 			
@@ -1197,7 +1197,7 @@ function initServer(server,cb) {
 	else 								// Establish worker
 	if (server) 
 		server.listen(TOTEM.port, function() {
-			Trace(`SERVING ${site.url.master} AT ${endpts}`);
+			Trace(`SERVING ${site.masterURL} AT ${endpts}`);
 			if (cb) cb();
 		});
 	else
@@ -1455,7 +1455,7 @@ function insertUser (req,res) {
 
 					Message:
 
-`Greetings from ${site.Nick.tag("a",{href:site.url.master})}-
+`Greetings from ${site.Nick.tag("a",{href:site.masterURL})}-
 
 Admin:
 	Please create an AWS EC2 account for ${owner} using attached cert.
@@ -1468,10 +1468,10 @@ To connect to ${site.Nick} from Windows:
 		
 	with the following LocalPort, RemotePort map:
 	
-		5001, ${site.url.master}:22
-		5100, ${site.url.master}:3389
-		5200, ${site.url.master}:8080
-		5910, ${site.url.master}:5910
+		5001, ${site.masterURL}:22
+		5100, ${site.masterURL}:3389
+		5200, ${site.masterURL}:8080
+		5910, ${site.masterURL}:5910
 		5555, Dynamic
 	
 	and, for convienience:
@@ -2885,58 +2885,31 @@ function Responder(Req,Res) {
 
 					var files = [], parms = {};
 					
-					if (body.substr(0,file.length) == file) {
-						var args = body.split(";");
-						
-						args.each( function (n,arg) {
-							
-							if (n == args.length-1) {
-								parms.data = arg;
-								parms.size = parms.data.length;
+					body.split("\r\n").each( function (n,line) {
+						if (line) 
+							if (parms.type) {  // type was defined so have the file data
+								files.push( Copy(parms,{data: line, size: line.length}) );
+								parms = {};
 							}
-							else {								
-								var tok = arg.split(":"),
-									val = tok.pop(), 
-									key = tok.pop();
+							else {
+								Trace("LOAD "+line);
 
-								parms[key] = val;
+								line.split(";").each(function (n,arg) {
+
+									var tok = arg
+										.replace("Content-Disposition: ","disposition=")
+										.replace("Content-Type: ","type=")
+										.split("="), 
+
+										val = tok.pop(), 
+										key = tok.pop();
+
+									if (key)
+										parms[key.replace(/ /g,"")] = val.replace(/"/g,"");
+
+								});
 							}
-							
-						});
-						
-						files.push( parms );
-					}
-					
-					else   // extjs form submit with filefield
-						body.split("\r\n").each( function (n,line) {
-//console.log("line="+line);
-
-							if (line) 
-								if (parms.type) {  // type was defined so have the file data
-									files.push( Copy(parms,{data: line, size: line.length}) );
-									parms = {};
-								}
-								else 
-									line.split("; ").each(function (n,arg) {
-
-										var tok = arg
-											.replace("Content-Disposition: ","disposition=")
-											.replace("Content-Type: ","type=")
-											.split("="), 
-
-											val = tok.pop(), 
-											key = tok.pop();
-
-										if (key)
-											parms[key] = val.replace(/"/g,"");
-										/*else {
-											var tok = arg.split(": "), val = tok.pop(), key = tok.pop();
-											if (key)
-												parms[key] = val;
-										}*/
-
-									});
-						});
+					});
 
 //console.log(files);
 					return {files: files};
@@ -3035,7 +3008,7 @@ function Responder(Req,Res) {
 			url = req.url = unescape(Req.url),
 			
 			// get a list of all nodes
-			nodes = url ? url.split("$") : [];
+			nodes = url ? url.split(MULTINODES) : [];
 
 		conThread( req, function (err) { 	// start session with client
 			
