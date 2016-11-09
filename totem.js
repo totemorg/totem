@@ -759,7 +759,7 @@ var
 		wget: fetchWget,
 		curl: fetchCurl,
 		http: fetchHttp,
-		test: fetchTest
+		riddle: fetchRiddle
 	},
 	
 	/**
@@ -1728,7 +1728,8 @@ function validateCert(con,req,res) {
 					cert	: cert,
 					client	: client,
 					org		: cert.subject.O || "noorg",
-					location: con.address().address,
+					ipaddress: con.address().address,
+					location: null,
 					group	: profile.Group || TOTEM.site.db, 
 					profile	: Copy(profile,{}),
 					journal : true,				// db actions journaled
@@ -1956,7 +1957,7 @@ function fetchHttp(req,res) {	//< http endpoint
 		httpFetch(url.format(req, TOTEM.fetchers.plugin),res);
 }
 
-function fetchTest(req,res) {	//< test endpoint
+function fetchRiddle(req,res) {	//< riddle guess endpoint
 	
 	var query = req.query,
 		sql = req.sql;
@@ -1983,6 +1984,8 @@ console.log(rid);
 				res( "retry" );
 				sql.query("UPDATE openv.riddles SET Attempts=Attempts+1 WHERE ?",ID);
 			}
+		else 
+			res( "fail" );
 		
 	});
 }
@@ -2937,7 +2940,7 @@ function Responder(Req,Res) {
 	 * @param {Function} res response
 	 *
 	 * on-input req = {action, socketio, query, body, flags, joins}
-	 * on-output req =  adds {log, cert, client, org, location, group, profile, journal, 
+	 * on-output req =  adds {log, cert, client, org, ipaddress, group, profile, journal, 
 	 * joined, email, hawk and STATICS}
 	 * */
 	function conThread(req, res) {
