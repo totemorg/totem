@@ -2,7 +2,7 @@
 @class totem [![Forked from SourceForge](https://sourceforge.net)]
 # TOTEM
 
-The TOTEM module provides an HTTP-HTTPS service configured with/without the following features:
+TOTEM provides an HTTP-HTTPS service that can be configured with/without the following features:
   
 	+ routing methods for table, engine, and file objects
 	+ Denial-of-Service protection
@@ -17,39 +17,54 @@ The TOTEM module provides an HTTP-HTTPS service configured with/without the foll
 	+ syncronized crude operations on mutiple endpoints
 	+ database agnosticator (default MySQL-Cluster)
   
-TOTEM thus replaces a slew of god-awful middleware (like Express) that was developed for NodeJS.
+TOTEM thus replaces a slew of god-awful NodeJS middleware (like Express).
 
-To synchronize multiple datasets, TOTEM uses the following CRUD | HTTP requests:
+The  following CRUD | HTTP interface is provided to one or more dataset NODES:
   
-	select	| GET 	 /NODE $ NODE ...
-	update	| PUT 	 /NODE $ NODE ...
-	insert	| POST 	 /NODE $ NODE ...
-	delete	| DELETE /NODE $ NODE ...
+	select	| GET 	 /NODE $$ NODE ...
+	update	| PUT 	 /NODE $$ NODE ...
+	insert	| POST 	 /NODE $$ NODE ...
+	delete	| DELETE /NODE $$ NODE ...
   
-where a dataset NODE can reference a mysql or emulated table:
+where a NODE can specify a [FLEX](https://git.geointapps.org/acmesds/flex) dataset:
   
   	NODE = DATASET.TYPE?PARMS
   
-or reference a language agnostic (e.g. jade skin, js, py, matlab, 
-emulated matlab, r, opencv, etc) engine:
+or a (jade skin, js, py, matlab, emulated matlab, r, opencv, ...) compute [ENGINE](https://git.geointapps.org/acmesds/engine):
 
 	NODE = ENGINE.TYPE?PARMS
 
-or reference a file:
+or a file:
 
 	NODE = FILE.TYPE?PARMS
   
 where FILE = AREA/PATH provides redirection of the requested PATH
 to a service defined AREA, and where 
 
-	TYPE = db | txt | xml | csv | json | ...
+	TYPE = view | db | txt | xml | csv | json | ...
 
-returns NODE data in the specified format (additional types can be supported by the 
-next higher assembly using the TOTEM.reader). 
+returns NODE data in the specified format (additional file types are supported by the file [READER](https://git.geointapps.org/acmesds/reader)).
 
-## Start options
+## Installation
 
-TOTEM start() options include:
+Download the latest version with
+
+	git clone https://git.geointapps.org/acmesds/totem
+
+Typically, you will want to redirect the following to your project
+
+	ln -s ../myproject/test.js test.js 					# unit testing
+	ln -s ../myproject/maint.sh maint.sh 			# test startup and maint scripts
+	ln -s ../myproject/myCertsFolder certs		# contains name.pfx cert and truststore folder 
+	ln -s ../myproject/myJpgFolder captcha 	 # contains map digits
+	
+## Usage
+
+Like all modules, TOTEM is started like this:
+
+	var TOTEM = require("../totem").start(options);
+	
+where options = {...} nclude:
   
 	// CRUDE interface
 
@@ -73,12 +88,12 @@ TOTEM start() options include:
 			...		},
 		...		},
 
-	sender: {		// return raw files
+	sender: {		// send raw files
 		AREA: cb(req,res),
 		AREA: cb(req,res),
 		...		},
 
-	reader: {		// readers
+	reader: {		// file readers
 		user: cb(req,res),	// manage users
 
 		wget: cb(req,res),	// fetch from other services
@@ -146,30 +161,7 @@ TOTEM start() options include:
 	site: {db parameters} // loaded for specified opts.name,
 	url : {master,worker} // urls for specified opts.cores,
 
-## Installation
-
-Download the latest version with
-
-	git clone https://git.geointapps.org/acmesds/totem
-
-See [Totem downloads](https://git.geointapps.org/acmesds/download) for optional Totem plugins.
-
-Typically, you will want to redirect the following to your project/master
-
-	ln -s ../master/test.js test.js
-	ln -s ../master/maint.sh maint.sh
-	ln -s ../master/someCertFolder certs
-	ln -s ../master/someJpgFolder captcha
-	
-## Examples
-
-TOTEM starts like so:
-
-	var TOTEM = require("totem").start({
-		// options
-	});
-
-TOTEM extends [ENUM](https://git.geointapps.org/acmesds/eum) so its start() options can be specified
+Because TOTEM extends [ENUM](https://git.geointapps.org/acmesds/eum), its' options can be specified
 using ENUM.copy() conventions:
 
 	options =  {
@@ -181,7 +173,13 @@ using ENUM.copy() conventions:
 		:
 		:
 	}
- 
+
+Totem's [DEBE](https://git.geointapps.org/acmesds/debe) module serves as a more complex use-case.  You may 
+also find Totem's [DSVAR](https://git.geointapps.org/acmesds/dsvar) useful, if you wish to learn more about
+its database agnosticator.
+
+## Examples
+
 Below sample use-cases are from totem/test.js.
 
 ### N1
@@ -307,12 +305,6 @@ Below sample use-cases are from totem/test.js.
 			}
 		});
 	}
-
-[Totem](https://git.geointapps.org/acmesds/transfer)'s DEBE module provides an
-example of how Totem can be integrated into higher level assemblies.  See
-[Totem's DSVAR](https://git.geointapps.org/acmesds/dsvar) for information on how
-to use Totem's optional database agnosticator extensions to standard MySQL
-connecors.
 
 
 ## License

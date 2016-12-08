@@ -2306,7 +2306,7 @@ function parseNode(req) {
 		areas = node.pathname.split("/"),
 		file = req.file = areas.pop() //,|| TOTEM.paths.default,
 		parts = file.split("."),
-		type = req.type = parts[1] || "db",
+		type = req.type = parts[1] || "",
 		table = req.table = parts[0] || "",
 		search = req.search = node.search,
 		area = req.area = areas[1] || "";
@@ -2606,7 +2606,7 @@ function Responder(Req,Res) {
 	/**
 	* Send dataset to client in format suitable for typical browser technologies (extjs, jquery, etc)
 	* */
-	function sendDb( msg, cnt, data) {
+	function sendDb(msg, cnt, data) {
 	
 		sendString( data
 			? JSON.stringify({ 
@@ -2624,6 +2624,84 @@ function Responder(Req,Res) {
 			}) 
 		);
 		
+	}
+	
+	function sendData(ack, req, res) {
+		
+		if (ack.constructor == Array)
+			switch (req.type) {
+				case "db": 
+					switch (req.action) {
+						case "select":
+
+							req.sql.query("select found_rows()")
+							.on('result', function (stat) {		// ack from sql				
+
+								sendDb("data", stat["found_rows()"] || 0, ack);
+
+							})
+							.on("error", function () {  		// ack from virtual table
+
+								sendDb("data", ack.length, ack);
+
+							});
+
+							break;
+
+						case "update":
+						case "delete":
+						case "insert":
+						case "execute":
+
+							sendDb("info", 0, ack);
+							break;
+
+						default:
+							sendError( TOTOM.errors.invalidQuery );
+					}
+					break;
+
+				case "txt":
+				case "csv":
+
+					JS2CSV({ 
+						data: ack, 
+						fields: Object.keys( ack[0]||{} )
+					} , function (err,csv) {
+
+						if (err)
+							sendError("Bad conversion");
+						else 
+							sendString( csv );
+					});
+					break;
+
+				case "xml":
+
+					sendString( JS2XML.parse(req.table, {  
+						count: ack.length,
+						data: ack
+					}) );
+					break;
+
+				case "html": 
+
+					var rtn = "";
+					ack.each(function (n,html) {
+						rtn += html;
+					});
+					sendString(rtn);
+					break;
+
+				case "json":
+				default:
+
+					sendString( JSON.stringify(ack) );
+			}
+
+		else
+				res(ack);
+					
 	}
 	
 	/**
@@ -2698,87 +2776,16 @@ function Responder(Req,Res) {
 
 					var flags = req.flags;
 
-					Each( TOTEM.reqflags.lists, function (n, conv) {
+					if ( !Each( TOTEM.reqflags.lists, function (n, conv) {  // allow only 1 conversion
 						if (flag = flags[n])
 							if (conv) {
-								//console.log([">>>>>> conv",n,flag,ack]);
-								ack = conv(flag,ack,req);
+								conv(flag,ack,req, function (ack) {
+									sendData(ack,req,res);
+								});
+								return true;
 							}
-					});
-					
-					if (ack.constructor == Array)
-						switch (req.type) {
-							case "db": 
-								switch (req.action) {
-									case "select":
-
-										sql.query("select found_rows()")
-										.on('result', function (stat) {		// ack from sql				
-
-											sendDb("data", stat["found_rows()"] || 0, ack);
-
-										})
-										.on("error", function () {  		// ack from virtual table
-
-											sendDb("data", ack.length, ack);
-
-										});
-
-										break;
-
-									case "update":
-									case "delete":
-									case "insert":
-									case "execute":
-
-										sendDb("info", 0, ack);
-										break;
-
-									default:
-										sendError( TOTOM.errors.invalidQuery );
-								}
-								break;
-
-							case "txt":
-							case "csv":
-
-								JS2CSV({ 
-									data: ack, 
-									fields: Object.keys( ack[0]||{} )
-								} , function (err,csv) {
-
-									if (err)
-										sendError("Bad conversion");
-									else 
-										sendString( csv );
-								});
-								break;
-
-							case "xml":
-
-								sendString( JS2XML.parse(req.table, {  
-									count: ack.length,
-									data: ack
-								}) );
-								break;
-
-							case "html": 
-
-								var rtn = "";
-								ack.each(function (n,html) {
-									rtn += html;
-								});
-								sendString(rtn);
-								break;
-
-							case "json":
-							default:
-
-								sendString( JSON.stringify(ack) );
-						}
-					
-					else
-							res(ack);
+					}) )  // no conversion done
+						sendData(ack,req,res);
 					
 					break;
 			

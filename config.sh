@@ -9,7 +9,7 @@ export HERE=`pwd`
 export BASE=/home/admin/base
 export MAP=/media/sf_vmshare
 export TOTEM=$BASE/service
-export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin	
+export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin
 export LD_LIBRARY_PATH=
 export REPO=git@git.geointapps.org:acmesds
 
@@ -63,7 +63,7 @@ export LIB=$BASE/lib64
 
 # ILE
 export USER=jamesbd
-export GPUHOST=$USER@giatstlgpu01
-export GUIHOST=$USER@giatstlgui07
+export GPUHOST=giatstlgui01.innovision.local
+export GUIHOST=giatstlgui01.innovision.local
 
 # UNCLASSIFIED when IP addresses and passwords are undefined
