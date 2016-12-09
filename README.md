@@ -161,7 +161,7 @@ where options = {...} nclude:
 	site: {db parameters} // loaded for specified opts.name,
 	url : {master,worker} // urls for specified opts.cores,
 
-Because TOTEM extends [ENUM](https://git.geointapps.org/acmesds/eum), its' options can be specified
+Because TOTEM extends [ENUM](https://git.geointapps.org/acmesds/enum), its' options can be specified
 using ENUM.copy() conventions:
 
 	options =  {
@@ -305,6 +305,7 @@ Below sample use-cases are from totem/test.js.
 			}
 		});
 	}
+
 
 
 ## License

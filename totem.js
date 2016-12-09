@@ -564,7 +564,7 @@ var
 	@private
 	totem start time
 	*/		
-	started: new Date(), 
+	started: null, 
 		
 	/**
 	@cfg {Number} [retries=5]
@@ -825,7 +825,7 @@ var
 					};
 				
 			});
-		
+
 		if (guest = mysql.guest)
 			sql.query(guest)
 			.on("result", function (rec) {
@@ -986,6 +986,8 @@ function startServer(opts) {
 		cb = null; //additional Initialize;
 
 	Trace(`STARTING ${name}`); 
+	
+	TOTEM.started = new Date();
 	
 	if (TOTEM.jsons)  // prime site context with desired jsons
 		Each( TOTEM.jsons, function (n,def) {
