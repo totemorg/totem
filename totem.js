@@ -351,7 +351,7 @@ var
 	Options to parse request flags
 	
 			traps: { flag:cb(query,flags), ...} // sets trap cb for a _flag=list to reorganize the query and flags hash,
-			lists: { flag:cb(list,data,req), ...} // sets data conversion cb for a _flag=list,
+			edits: { flag:cb(list,data,req), ...} // sets data conversion cb for a _flag=list,
 			prefix:  "_" 	// sets flag prefix
 	
 	 */
@@ -362,7 +362,7 @@ var
 		traps: {   			//< Traps to redefine flags
 		},
 		
-		lists: { 			 //< Convert from list
+		edits: { 			 //< Data convertors
 			encap: function encap(idx,recs) {
 				var encap = {};
 				encap[idx] = recs;
@@ -670,7 +670,7 @@ var
 	paths: { 			
 		render: "public/jade/",
 		
-		default: "home.view",
+		default: "",
 		
 		url: {
 			//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
@@ -2306,7 +2306,7 @@ function parseNode(req) {
 		node = URL.parse(req.node),
 		query = req.query = (node.query||"").parse({}),
 		areas = node.pathname.split("/"),
-		file = req.file = areas.pop() //,|| TOTEM.paths.default,
+		file = req.file = areas.pop() || (areas[1] ? "" : TOTEM.paths.default),
 		parts = file.split("."),
 		type = req.type = parts[1] || "",
 		table = req.table = parts[0] || "",
@@ -2333,8 +2333,7 @@ function parseNode(req) {
 		reqflags = TOTEM.reqflags,
 		strips = reqflags.strips,
 		prefix = reqflags.prefix,
-		lists = reqflags.lists,
-		//jsons = reqflags.jsons,
+		edits = reqflags.edits,
 		traps = reqflags.traps,
 		id = reqflags.id,
 		trace = false, //query[reqflags.trace],
@@ -2344,7 +2343,7 @@ function parseNode(req) {
 		joins = req.joins;
 
 	if (trace)
-		console.info({
+		console.log({
 			i: "before",
 			a: req.action,
 			q: query,
@@ -2381,11 +2380,11 @@ function parseNode(req) {
 	}
 	
 	for (var n in traps) 		// let traps remap query-flag parms
-		if (flag = flags[n])
-			traps[n](query,flags);
+		if ( flags[n] )
+			traps[n](req);
 	
 	if (trace)
-		console.info({
+		console.log({
 			i: "after",
 			a: req.action,
 			q: query,
@@ -2778,7 +2777,7 @@ function Responder(Req,Res) {
 
 					var flags = req.flags;
 
-					if ( !Each( TOTEM.reqflags.lists, function (n, conv) {  // allow only 1 conversion
+					if ( !Each( TOTEM.reqflags.edits, function (n, conv) {  // allow only 1 conversion
 						if (flag = flags[n])
 							if (conv) {
 								conv(flag,ack,req, function (ack) {

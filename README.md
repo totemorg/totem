@@ -45,21 +45,6 @@ to a service defined AREA, and where
 
 returns NODE data in the specified format (additional file types are supported by the file [READER](https://git.geointapps.org/acmesds/reader)).
 
-## Installation
-
-Download the latest version with
-
-	git clone https://git.geointapps.org/acmesds/totem
-
-Typically, you will want to redirect the following to your project
-
-	ln -s ../myproject/test.js test.js 					# unit testing
-	ln -s ../myproject/maint.sh maint.sh 			# test startup and maint scripts
-	ln -s ../myproject/myCertsFolder certs		# contains name.pfx cert and truststore folder 
-	ln -s ../myproject/myJpgFolder captcha 	 # contains map digits
-	
-## Usage
-
 Like all modules, TOTEM is started like this:
 
 	var TOTEM = require("../totem").start(options);
@@ -178,11 +163,24 @@ Totem's [DEBE](https://git.geointapps.org/acmesds/debe) module serves as a more 
 also find Totem's [DSVAR](https://git.geointapps.org/acmesds/dsvar) useful, if you wish to learn more about
 its database agnosticator.
 
+## Installation
+
+Download the latest version with
+
+	git clone https://git.geointapps.org/acmesds/totem
+
+Typically, you will want to redirect the following to your project
+
+	ln -s ../myproject/test.js test.js 					# unit testing
+	ln -s ../myproject/maint.sh maint.sh 			# test startup and maint scripts
+	ln -s ../myproject/myCertsFolder certs		# contains name.pfx cert and truststore folder 
+	ln -s ../myproject/myJpgFolder captcha 	 # contains map digits
+	
 ## Examples
 
 Below sample use-cases are from totem/test.js.
 
-### N1
+### N1 - Just an interface
 
 	N1: function () {
 		
@@ -196,7 +194,7 @@ Below sample use-cases are from totem/test.js.
 		});
 	},
 	
-### N2
+### N2 - 2 cores in fault protection mode
 
 	N2: function () {
 		
@@ -211,7 +209,7 @@ Below sample use-cases are from totem/test.js.
 		
 	},
 	
-### N3
+### N3 - No cores but a database
 
 	N3: function () {
 		
@@ -234,7 +232,7 @@ Below sample use-cases are from totem/test.js.
 		
 	},
 
-### N4
+### N4 - Encrypted with (dothis,orthis) endpoints
 
 	N4: function () {
 		
