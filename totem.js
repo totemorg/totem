@@ -182,15 +182,15 @@ var
 			 * */
 			function Format(X,S) {
 
-			try {
-				var rtn = eval("`" + S + "`");
-				return rtn;
-			}
-			catch (err) {
-				return "[bad]";
-			}
+				try {
+					var rtn = eval("`" + S + "`");
+					return rtn;
+				}
+				catch (err) {
+					return "[bad]";
+				}
 
-		}
+			}
 			
 			req.plugin = req.F = plugin || {};
 			return Format(req,this);
@@ -721,7 +721,7 @@ var
 		},
 		noProtocol: new Error("no protocol specified to fetch"),
 		noRoute: new Error("no route"),
-		invalidQuery: new Error("invalid query"),
+		badQuery: new Error("invalid query"),
 		badGroup: new Error("invalid group requested"),
 		lostConnection: new Error("client connection lost"),
 		noDB: new Error("database not configured"),
@@ -729,7 +729,11 @@ var
 		missingPass: new Error("missing initial user password"),
 		expiredCert: new Error("cert expired"),
 		rejectedCert: new Error("cert rejected"),
-		tooBusy: new Error("too busy - try again later")
+		tooBusy: new Error("too busy - try again later"),
+		noFile: new Error("File not found"),
+		noIndex: new Error("Index not found"),
+		badType: new Error("Bad dataset conversion"),
+		badReturn: new Error("Bad response")
 	},
 
 	/**
@@ -1277,7 +1281,7 @@ function setupServer(cb) {
 	Trace(`SETTINGUP ${name}`);
 	
 	TOTEM.cache.certs = {		// cache data fetching certs 
-		pfx: "", //FS.readFileSync(`${certs.server}fetch.pfx`),
+		pfx: FS.readFileSync(`${certs.server}fetch.pfx`),
 		crt: `${certs.server}fetch.crt`,
 		key: `${certs.server}fetch.key`
 	};
@@ -1997,8 +2001,8 @@ function curlFetch(url,cb) {
 	var opts = URL.parse(url),
 		certs = TOTEM.cache.certs,
 		transport = {
-			"http:": `curl ${url}`,
-			"https:": `curl -k --cert ${certs.crt} --key ${certs.key} ${url}`
+			"http:": `curl "${url}"`,
+			"https:": `curl -k --cert ${certs.crt} --key ${certs.key} "${url}"`
 		};
 
 	retryFetch(
@@ -2016,8 +2020,8 @@ function wgetFetch(url,cb) {
 	var opts = URL.parse(url),
 		certs = TOTEM.cache.certs,
 		transport = {
-			"http:": `wget -O ${TOTEM.fetchers.wgetout} ${url}`,
-			"https:": `wget -O ${TOTEM.fetchers.wgetout} --no-check-certificate --certificate ${certs.crt} --private-key ${certs.key} ${url}`
+			"http:": `wget -O ${TOTEM.fetchers.wgetout} "${url}"`,
+			"https:": `wget -O ${TOTEM.fetchers.wgetout} --no-check-certificate --certificate ${certs.crt} --private-key ${certs.key} "${url}"`
 		};
 	
 	retryFetch(
@@ -2580,7 +2584,7 @@ function Responder(Req,Res) {
 						sendString( FS.readFileSync(path) );
 				}
 				catch (err) {
-					sendError( "File not found" );
+					sendError( TOTEM.errors.noFile );
 				}
 		}
 		else
@@ -2592,15 +2596,15 @@ function Responder(Req,Res) {
 			});
 		}
 		else
-			sendError( "Index not found" );
+			sendError( TOTEM.errors.noIndex );
 		
 	}		
 
 	/**
 	* Send error message to client
 	* */
-	function sendError(msg) {
-		Res.end( TOTEM.errors.pretty(msg) );
+	function sendError(err) {
+		Res.end( TOTEM.errors.pretty(err) );
 		Req.req.sql.release();
 	}
 
@@ -2658,7 +2662,7 @@ function Responder(Req,Res) {
 							break;
 
 						default:
-							sendError( TOTOM.errors.invalidQuery );
+							sendError( TOTOM.errors.badQuery );
 					}
 					break;
 
@@ -2671,7 +2675,7 @@ function Responder(Req,Res) {
 					} , function (err,csv) {
 
 						if (err)
-							sendError("Bad conversion");
+							sendError( TOTEM.errors.badType );
 						else 
 							sendString( csv );
 					});
@@ -2750,13 +2754,13 @@ function Responder(Req,Res) {
 						sql.query(paths.mysql.search, {FullSearch:search}, function (err, files) {
 							
 							if (err) 
-								sendError("Files could not be scored");
+								sendError( TOTEM.errors.noFile );
 								
 							//else
 							//if (file = files[0])
 							//	sendCache( getPath(file.Area,file.Name), file.Name, file.Type );
 							else
-								sendError("No file found");
+								sendError( TOTEM.errors.noFile );
 								
 						});
 					
@@ -2803,7 +2807,7 @@ function Responder(Req,Res) {
 							
 							JS2CSV(ack , function (err,csv) {
 								if (err)
-									sendError("Bad conversion");
+									sendError( TOTEM.errors.badType );
 								else 
 									sendString( csv );
 							});
@@ -2829,7 +2833,7 @@ function Responder(Req,Res) {
 			}
 		}
 		catch (err) {
-			sendError("Bad response - "+err);
+			sendError( TOTEM.errors.badReturn );
 		}
 	}
 
@@ -2889,8 +2893,6 @@ function Responder(Req,Res) {
 			body += chunk.toString();
 		})
 		.on("end", function () {
-//console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-//console.log(body);
 			if (body)
 				cb( body.parse( function () {  // yank files if parse fails
 
