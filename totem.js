@@ -413,7 +413,7 @@ var
 		
 		id: "ID", 					//< SQL record id
 		prefix: "_",				//< Prefix that indicates a field is a flag
-		trace: "" 					//< Echo flags before and after parse		
+		trace: "_trace" 		//< Echo flags before and after parse		
 	},
 
 	/**
@@ -2340,21 +2340,22 @@ function parseNode(req) {
 		edits = reqflags.edits,
 		traps = reqflags.traps,
 		id = reqflags.id,
-		trace = false, //query[reqflags.trace],
+		trace = query[reqflags.trace],
 	
 		body = req.body,
 		flags = req.flags,
 		joins = req.joins;
 
-	if (trace)
-		console.log({
+	/*
+	console.log({
 			i: "before",
 			a: req.action,
 			q: query,
 			b: body,
 			f: flags
 		});
-
+	*/
+	
 	for (var n in query) 		// remove bogus query parameters and remap query flags and joins
 		if ( n in strips ) 				// remove bogus
 			delete query[n];
@@ -2389,12 +2390,11 @@ function parseNode(req) {
 	
 	if (trace)
 		console.log({
-			i: "after",
-			a: req.action,
-			q: query,
-			b: body,
-			f: flags,
-			j: joins
+			action: req.action,
+			query: query,
+			body: body,
+			flags: flags,
+			joins: joins
 		});
 }						
 
