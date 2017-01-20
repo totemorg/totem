@@ -199,42 +199,43 @@ var
 		/**
 		@method parse
 		@member String
+		Parse "&key=val ..." string or a "&relation" string into a rtn = {key:val, ...} default
+		hash or pass to a rtn = method to parse.
 		*/
-		function parse(def) {
-			
-			var rtn = def;
+		function parse(rtn) { 
 			
 			if (this)
-				try {
+				try {  // could be json string
 					return JSON.parse(this);
 				}
-				catch (err) {
+				catch (err) {  // "&key=val ..." string
 
-					if (!def) 
+					if (!rtn) // no default method so return null
 						return null;
 					else
-					if (def.constructor == Function)
-						return def(this);
+					if (rtn.constructor == Function)  // pass to default method
+						return rtn(this);
 					
 					/*var parms = (def.constructor == Function) 
 							? def(this) 
 							: this.split("&");*/
 
-					this.split("&").each(function (n,parm) {
+					this.split("&").each(function (n,parm) {  // get a key=val parm
 
-						var	parts = parm.split("="),
-							rhs = parts.pop(),
-							lhs = parts.pop();
+						var	
+							parts = parm.split("="),  // split into key-val
+							val = parts.pop(), 
+							key = parts.pop(); 
 
-						if (lhs)
-							try { 
-								rtn[lhs] = JSON.parse(rhs); 
+						if (key)
+							try {  // val could be json 
+								rtn[key] = JSON.parse(val); 
 							}
 							catch (err) { 
-								rtn[lhs] = unescape(rhs);
+								rtn[key] = unescape(val);
 							}
-						else
-								rtn[rhs] = null;
+						else // no key so val holds a relation
+								rtn[val] = null;
 					});
 
 					return rtn;
@@ -800,8 +801,8 @@ var
 				Each(opts, function (key,val) {
 					key = key.toLowerCase();
 
-					if (key in TOTEM.jsons)
-						site[key] = (val+"").parse(TOTEM.jsons[key]);
+					if (def = TOTEM.jsons[key])
+						site[key] = (val+"").parse(def);
 					else
 						site[key] = val;
 
@@ -2739,11 +2740,11 @@ function Responder(Req,Res) {
 					var flags = req.flags;
 
 					if ( !Each( TOTEM.reqflags.edits, function (n, conv) {  // allow only 1 conversion
-console.log([n,conv,flags[n]]);
+//console.log([n,conv,flags[n]]);
 						
-						if (flag = flags[n])
+						if (flag = flags[n])  
 							if (conv) {
-								conv(flag,ack,req, function (ack) {
+								conv(flag.split(","),ack,req, function (ack) {
 									sendData(ack,req,res);
 								});
 								return true;
@@ -2853,7 +2854,7 @@ console.log([n,conv,flags[n]]);
 		})
 		.on("end", function () {
 			if (body)
-				cb( body.parse( function () {  // yank files if parse fails
+				cb( body.parse( function () {  // yank files if body not json
 
 					var files = [], parms = {};
 					
