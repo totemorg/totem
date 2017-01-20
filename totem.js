@@ -363,52 +363,9 @@ var
 		},
 		
 		edits: { 			 //< Data convertors
-			encap: function encap(idx,recs) {
-				var encap = {};
-				encap[idx] = recs;
-				return encap;
-			},
-			
-			json: function json(idx,recs) {
-				recs.each( function (n,rec) {
-					idx.each( function (i,n) {
-						try {
-							rec[n] = (rec[n]||"").parse({});
-						}
-						catch (err) {
-						}
-					});
-				});
-				return recs;
-			},
-			
-			xindex: function index(idx,recs) {
-				var group = idx[2],
-					x = idx[0],
-					y = idx[1];
-				
-				if (group) {
-					var rtn = {};
-					recs.each( function (n,rec) {
-						var xy = rtn[rec[group]];
-						if (!xy) xy = rtn[rec[group]] = [];
-						xy.push([rec[x], rec[y]]);
-					});
-				}
-				else {
-					var rtn = {group: []}, xy = rtn.group;
-					recs.each( function (n,rec) {
-						if (!xy) xy = rtn[rec[group]] = [];
-						xy.push([rec[x], rec[y]]);
-					});
-				}
-				
-				return [rtn];
-			},
-				
-			tree: function tree(idx,recs) {
+			/*tree: function tree(idx,recs) {
 				return recs.treeify(idx);
-			}
+			}*/
 		},
 		
 		id: "ID", 					//< SQL record id
@@ -2782,6 +2739,8 @@ function Responder(Req,Res) {
 					var flags = req.flags;
 
 					if ( !Each( TOTEM.reqflags.edits, function (n, conv) {  // allow only 1 conversion
+console.log([n,conv,flags[n]]);
+						
 						if (flag = flags[n])
 							if (conv) {
 								conv(flag,ack,req, function (ack) {
