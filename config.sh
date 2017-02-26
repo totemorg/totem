@@ -6,7 +6,7 @@ export HERE=`pwd`
 #export node_path=./node_modules
 
 # initialize dev/prod paths
-export BASE=/home/admin/base
+export BASE=/local
 export MAP=/media/sf_vmshare
 export TOTEM=$BASE/service
 export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin
