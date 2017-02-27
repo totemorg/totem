@@ -683,6 +683,7 @@ var
 		badGroup: new Error("invalid group requested"),
 		lostConnection: new Error("client connection lost"),
 		noDB: new Error("database not configured"),
+		noProfile: new Error("user profile could not be determined"),
 		failedUser: new Error("failed modification of user profile"),
 		missingPass: new Error("missing initial user password"),
 		expiredCert: new Error("cert expired"),
@@ -1712,10 +1713,11 @@ function validateCert(con,req,res) {
 		cert = getCert(),
 		client = cert.client;
 	
-	if (TOTEM.mysql)	
+	if (TOTEM.mysql) 
 		sql.query("SELECT *,count(ID) as Count FROM openv.profiles WHERE ? LIMIT 0,1", {client: client})
 		.on("result", function (profile) {
-
+console.log(profile);
+			
 			if (profile.Count)
 				admitClient(req, res, profile, cert, con);
 				
@@ -1728,6 +1730,9 @@ function validateCert(con,req,res) {
 					admitClient(req, res, TOTEM.guestProfile, cert, con);
 				});
 			
+		})
+		.on("error", function (err) {
+			res( TOTEM.errors.noProfile );
 		});
 	
 	else 
@@ -2855,7 +2860,7 @@ function Responder(Req,Res) {
 		.on("end", function () {
 			if (body)
 				cb( body.parse( function () {  // yank files if body not json
-
+					
 					var files = [], parms = {};
 					
 					body.split("\r\n").each( function (n,line) {
@@ -2918,17 +2923,17 @@ function Responder(Req,Res) {
 		var con = Req.connection;
 
 		resThread( req, function (sql) {
-
 			metrics();
 
 			if (con)
 				validateCert(con, req, function (err) {
 					if (err)
 						res(err);
+
 					else {
 						Res.setHeader("Set-Cookie", 
 							["client="+req.client, "service="+TOTEM.name]);		
-					
+
 						if (TOTEM.mysql)
 							sql.query("USE ??", req.group, function (err) {
 								
@@ -2943,11 +2948,11 @@ function Responder(Req,Res) {
 									res(err);
 								
 							});
-						
+
 						else
 						if (TOTEM.validator) 
 							TOTEM.validator(req, res);
-						
+
 						else
 							res( null );
 					}
@@ -2961,7 +2966,7 @@ function Responder(Req,Res) {
 	checkBusy();
 
 	getBody( function (body) {
-
+		
 		var  							
 			// parse request url into /area/nodes
 			paths = TOTEM.paths,
@@ -2984,7 +2989,7 @@ function Responder(Req,Res) {
 			nodes = url ? url.split(MULTINODES) : [];
 
 		conThread( req, function (err) { 	// start session with client
-			
+
 			if (err) 					// validator rejected session
 				res(err);
 				

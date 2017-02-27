@@ -1,0 +1,448 @@
+# notepadqq
+wget -O /etc/yum.repos.d/sea-devel.repo "http://sea.fedorapeople.org/sea-devel.repo"
+yum install notepadqq
+
+# initial setup
+git config --global user.name "DEBE"
+git config --global user.email "g5120089@trbvm.com"
+git remote add origin git@git.geointapps.org:ACME/sigma.git
+cd sigma
+git init
+git touch README.md
+git add README.md
+git commit -m "first commit"
+git push -u origin master
+
+# commit changes to local repo
+git commit -am "sigma 36 extjs5 themes charts ui fixes"
+
+# push local repo to master branch at gitlab service
+git push -u origin master
+
+# pull master branch at gitlab service into local repo
+git pull origin master
+
+# forget all changes and reprime codebase
+git reset --hard HEAD
+git clean -f
+git pull origin master
+
+# make git stop tracking files that are now ignored
+git rm -r --caced .
+git add .
+git commit -am "Remove ignoed files"
+
+# initial stuff (if not installied  in base centos - doubt we need - only need cmake)
+yum groupinstall "Development Tools"  --setopt=group_package_types=mandatory,default,optional  # centos 7.x
+yum groupinstall "Development Tools"  # centos 6.x
+yum install cmake
+yum install libaio  # centos 6.x
+
+# service iptables start  		# not sure why i noted this here
+
+interface with git repo (end product name DEBE now known as geonode)
+git config --global user.name "DEBE"
+git config --global user.email "g500xxx@trbvm.com"
+git remote add origin git@git.geointapps.org:ACME/sigma.git
+git pull
+.ssh/id_rsa shoould contain private key corresponding to git public key uploaded into https://git.geointapps.org
+
+##### Folllowing gdal stuff never fully worked.  gdal and OSSIM used to orthorectify images
+
+determining fastest mirrors
+ * base: centos.mbni.med.umich.edu
+ * extras: mirrors.lga7.us.voxel.net
+ * updates: mirror.trouble-free.net
+base                                                                           | 3.7 kB     00:00     
+elgis                                                                          | 3.4 kB     00:00     
+elgis/primary_db                                                               |  85 kB     00:00     
+extras                                                                         | 3.4 kB     00:00     
+updates                                                                        | 3.4 kB     00:00     
+updates/primary_db                                                             | 2.5 MB     00:04   
+
+yum list gdal*  
+Loaded plugins: fastestmirror, refresh-packagekit, security
+Determining fastest mirrors
+ * base: mirror.raystedman.net
+ * extras: mirrors.lga7.us.voxel.net
+ * updates: mirror.trouble-free.net
+Available Packages
+gdal.i386                                          1.8.1-1_0.el6                                 elgis
+gdal.i686                                          1.9.2-4.el6                                   elgis
+gdal-devel.i386                                    1.8.1-1_0.el6                                 elgis
+gdal-devel.i686                                    1.9.2-4.el6                                   elgis
+gdal-doc.i386                                      1.8.1-1_0.el6                                 elgis
+gdal-doc.noarch                                    1.9.2-4.el6                                   elgis
+gdal-java.i386                                     1.8.1-1_0.el6                                 elgis
+gdal-java.i686                                     1.9.2-4.el6                                   elgis
+gdal-javadoc.noarch                                1.9.2-4.el6                                   elgis
+gdal-libs.i686                                     1.9.2-4.el6                                   elgis
+gdal-perl.i386                                     1.8.1-1_0.el6                                 elgis
+gdal-perl.i686                                     1.9.2-4.el6                                   elgis
+gdal-python.i386                                   1.8.1-1_0.el6                                 elgis
+gdal-python.i686                                   1.9.2-4.el6                                   elgis
+gdal-ruby.i386                                     1.8.1-1_0.el6                                 elgis
+gdal-ruby.i686                                     1.9.2-4.el6                                   elgis
+gdal-static.i386                                   1.8.1-1_0.el6                                 elgis
+
+
+yum install gdal gdal-devel [gdal-java gdal-perl gdal-python] 
+
+yum --enablerepo=rpmforge install gdal
+
+#### end gdal
+
+## Getting Started - eg on how client d3/topojson is used
+
+    Include D3.js and Topojson on your page
+    Include Datamaps.js on your page
+    Add a container, set the height and width and position to relative
+    Create a new Datamaps(options), passing in at least an element option
+
+Example:
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.5.3/d3.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/topojson/1.6.9/topojson.min.js"></script>
+<script src="/datamaps.world.min.js"></script>
+<div id="container" style="position: relative; width: 500px; height: 300px;"></div>
+<script>
+    var map = new Datamap({element: document.getElementById('container')});
+</script>
+
+
+#ruby etc - used for extjs sas custom css themes
+yum install ruby rubygems ruby-devel
+gem install compass
+
+#opencv install on aws centos
+
+grab opencv.2.3.1a, 2.4.10 or 3.0.0 (best) and tar xvf it.  
+
+#follow opencv.org standard install process
+cd opencv
+mkdir newbuild
+cd newbuild
+cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/local/opencv ..
+make   # will get 2 errors re gpu/cuda support - ignore them - wont use these modules jet
+sudo make install
+
+# opencv3.0.0 install completely installs w/o errors - likely because it include cuda drivers
+# will need to update the $PATH and $LD_LIBRARY_PATH to ref the
+# installed dir ~/opencv
+
+######## Start legacy - not used anymore)
+mv newbuild ~/opencv
+cp -r include/* ~/opencv/include
+cp -r modules/core  ~/opencv/modules
+
+# legacy - for mergevec util - but dont need this util 
+#setup pkg config for compiler
+export PKG_CONFIG_PATH=/home/jamesdb/opencv/unix-install/
+
+pkg-config --cflags opencv # produces ...
+	-I/home/jamesdb/opencv/include/opencv -I/home/jamesdb/opencv/include  
+
+pkg-config --libs opencv  # produces ...
+	-L/home/jamesdb/opencv/lib -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_ml -lopencv_video -lopencv_features2d -lopencv_calib3d -lopencv_objdetect -lopencv_contrib -lopencv_legacy -lopencv_flann	
+
+# to compile mergevec utility ... 
+cd ~/opencv/modules/haartraining
+cp ~/sigma/opencv_util/mergevec.cpp .
+g++ `pkg-config --cflags opencv` `pkg-config --libs opencv` -o mergevec mergevec.cpp cvboost.o cvcommon.o cvsamples.o cvhaarclassifier.o cvhaartraining.o  #note .o (not .cpp) 
+
+###### end legacy
+
+# for gtk support for opencv (needed for graphical/console functions)
+sudo yum install gtk+-devel gtk2-devel
+
+# install mysql cluster 7.5
+groupadd mysql
+useradd -g mysql -s /bin/failse mysql
+
+# install mysql cluster 7.3.6 (or 7.4.8) from generic linux install package (not the .el versions)
+# then add an english errmsg.sys
+cd [mysql]
+mkdir bin/share
+cp share/english/errmsg.sys bin/share
+
+# make the db folders (note /home/jamesdb -> /base and data->sqldb)
+cd [mysql] 
+# for 7.5
+#   /scripts -> /bin 
+#   use /bin/mysql --initialize --insecure --user=.... instead of mysql_install 
+#   start with mysqld_safe using --skip-password
+#   alter user "root"@"localhost" identified by "new password" instead of using mysqladmin
+#   set gloval sql_mode = ""  # 7.5 introduced query checks that will interfere with existing queries
+
+./scripts/mysql_install_db --user=mysql --datadir=$BASE/sqldb
+
+# make sure my.cnf looks like
+[mysqld_safe]
+datadir=/local/sqldb
+basedir=/local/mysql/bin
+socket=/tmp/mysql.sock
+symbolic-links=0
+log-error=/local/sqldb/mysqld.log
+pid-file=/local/sqldb/mysqld.pid
+
+# to start use
+cd [mysql]
+./bin/mysqld_safe --defaults-file=my.cnf &
+
+# follow instructions to change password
+cd [mysql]
+./bin/mysqladmin -u root password 'newpassword'
+
+# secure the database following the usual "secure initial database" procedure
+mysql -u root -p 'password'
+select user,host,password from mysql.user;
+update mysql.user set password=password('newpassword');
+
+# prime the database ...
+create database openv;
+create database app1;
+
+cd sigma/admins/db
+mysql -uroot -ppass openv <openv.sql
+mysql -uroot -ppass app1 <app1.sql
+mysql -uroot -ppass app1 <funcs.sql
+
+# install pdftk
+wget https://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/pdftk-2.02-1.el6.x86_64.rpm
+sudo yum install libgcj
+sudo rpm -i pdftk*.rpm
+
+sudo yum install libgcj
+sudo rpm -i pdftk-2.02-1.*.rpm
+
+# caffe dependencies
+# cuda
+
+# atlas
+bunzip2 -c ~/dload/atlas3.10.0.tar.bz2 | tar xfm -
+cd ATLAS 
+mkdir build
+cd build
+# do not use doc example: 
+../configure -b 64 -D c -DPentiumCPS=2400 --prefix=/home/jamesdb/atlas-3.10
+# instead, use:
+../configure -b 64 --prefix=/home/jamesdb/atlas-3.10 --shared
+make build
+make check
+make ptcheck
+make time
+make install
+
+# centos vbox home
+# to access dns server from arcade, add 
+	[Resolve]
+	DNS1=82.163.142.7
+	DNS2=95.211.158.134
+
+to  /etc/systems/resolved.conf.  When rebooted this will be reflected
+in the /etc/resolv.conf, and there should then be connectivity.  The
+DNS addressed are discoveron the Windows via Startup | Control Panel | Network Setting | The Dom Site Guest Bridge | IPv4 | properties.
+
+# system update
+sudo yum -y update 
+sudo yum -y groupinstall "Development Tools"
+sudo yum -y install kernel-devel kernel-headers dkms cmake
+
+# nvidia gpu drivers
+
+lspci -vnn | grep VGA -A 12
+# www.binarytides.com/linux-get-gpu-information
+VGA compatible controller [0300]: InnoTek Systemberatung GmbH VirtualBox Graphics Adapter [80ee:beef] (prog-if 00 [VGA controller])
+	Flags: bus master, fast devsel, latency 0, IRQ 11
+	Memory at e0000000 (32-bit, prefetchable) [size=16M]
+	Expansion ROM at <unassigned> [disabled]
+	
+	[80ee = vedor, beef = pci id]
+
+# ****>>> use the -noopengl switch when installing the driver 
+# to prevent desktop gnome from getting clobbered. Also
+# skip the "update x11 driver" at end
+
+
+sudo dmidecode -t baseboard | grep -i 'Product'
+
+glxinfo | grep OpenGL
+OpenGL vendor string: Mesa Project
+OpenGL renderer string: Software Rasterizer
+OpenGL version string: 2.1 Mesa 9.2.0-devel
+OpenGL shading language version string: 1.20
+OpenGL extensions:
+
+modinfo nvidia
+
+# do not do this ...
+lsmod | grep -i nouveau  # these drivers are the ones we will be deleteing
+sudo rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
+sudo rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-2.el7.elrepo.noarch.rpm
+echo -e "\nblacklist nouveau\noptions nouveau modeset=0" | sudo tee -a /etc/modprobe.d/blacklist.conf
+
+# some say this is advised:
+#sudo mv -v /boot/initramfs-$(uname -r).img /boot/initramfs-$(uname -r).img.bak
+#sudo dracut -v /boot/initramfs-$(uname -r).img $(uname -r)
+#sudo systemctl disable gdm   # if gnome was installed 
+
+# reboot
+
+# dont do this ...
+sudo yum install kmod-nvidia    # will take 10mins
+# reboot
+
+lsmod | grep -i nvidia     # tada
+
+############## can install desktop (but wont work with nvidia)
+#### this no longer needed if -noopengl used
+sudo nvidia-xconfig
+vi /etc/X11/xorg.conf
+# add 'Load "glx"' to 'Section "Module"'
+sudo yum install tigervnc xrdp
+sudo yum group install "X Window System" "gnome desktop"
+sudo systemctl enable gdm
+sudo systemctl set-default graphical.target
+sudo yum install tigervnc-server
+sudo rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+sudo systemctl enable xrdp.service
+vi /etc/systemd/system/vncserver@:1.service
+# replace 2 <USER> tokens with <account> name
+# ExecStart = /sbin/runuser -l <account> -c "/usr/bin/vncserver %i -geometry"
+sudo systemctl start vncserver@:1.service
+
+vi /etc/xrdp/xrdp.init
+# ip = 127.0.0.1
+# port = 5901
+sudo systemctl start xrdp
+
+echo -e "\nhald_enable='YES'\ndbus_enable='YES'" | sudo tee -a /etc/rc.conf
+##################
+
+# docker
+sudo yum -y install docker docker-registry 
+sudo systemctl enable docker.service
+sudo systemctl start docker.service
+sudo systemctl status docker.service
+sudo docker pull centos
+
+# move install rpms, zips etc to installs folder via winscp eg
+
+# install CUDA toolkit (only)
+
+yum install kernel-devel-$(uname -r) kernel-headers-$(uname -r)
+
+sudo sh cuda_7.5*.run  # dont install the nvidia drivers
+cd NVIDIA*  # skip these driver install steps
+make    # will take 20mins 
+cd bin/x86_64/linux/release
+./deviceQuery   # better work
+./bandwidthTest	 # insightful info
+
+# install opencv-3.0
+# install anaconda-1.9
+# install sigma
+# install mysql-cluster-7.4
+
+######## install caffe
+
+# install caffe dependencies
+
+sudo yum install protobuf-devel leveldb-devel snappy-devel boost-devel hdf5-devel gflags-devel glog-devel lmdb-devel python-devel
+
+sudo yum install atlas-devel blas-devel  # on centos 6.x.  not sure if blas needed
+# on centos 7.x, I needed to install atlas (blas not needed) see notes-annex
+ 
+unzip cuDNN_v3
+mv cuDNN_v3 ~/cuDNN-3.0 
+
+# could cp lib64/* and include/* to /usr/lib64 and /usr/include but, instead, I chose to ref these in caffe Makefile.conf via its LIBs and INCLUDEs
+
+# on centos 6.x we need to install opencv-2.x globally (as setting caffe Makefile.config includes/libs does not work):
+sudo yum install opencv-devel
+
+# on centos 7.x we install opencv-3.x from downdload
+cd opencv-3.0
+cp lib/*.so* /usr/lib64   # caffe make will not look for these despite adding to its Makefile.config LIBs
+
+tar xvf caffe-master
+mv caffe-master caffe
+cd caffe
+cp Makefile.config.example Makefile.config
+vi Makefile.config   # adjust (enable CPU only[laptop], opencv3, and BLAS_INCLUDE=/local/atlas/include)
+make clean
+make all
+make test
+make runtest     /local/atlas/include:/local/anaconda/bin:/local/include/python:/local/oxygen/bin:/opt/cmake:/local/anaconda/bin:/local/include/python:/local/oxygen/bin:/opt/cmake:/local/mysql/bin:/local/bin:/usr/bin:/local/sbin:/usr/sbin:/usr/local/share/gems/gems/jsduck-5.3.4/bin:/local/nodejs/bin:/local/include/opencv:/local/opencv/bin:/local/nodejs/bin:/local/include/opencv:/local/opencv/bin
+
+# python connector for centos 7.x
+
+sudo rpm -Uvh mysql-connector-python-2.1.x.rpm
+sudo cp -r /usr/lib/python-2.7/site-packages/mysql $CONDA/lib/python-2.7/site-packages
+
+$ pyton home
+cd /usr/lib
+mv python2.7 _python2.7
+ln -s /base/anaconda/lib/python2.7 python2.7
+
+# python interface
+cd caffe
+make pycaffe
+
+# we need python protobuf too (undocumented reqt)
+cd $CONDA/bin
+./pip install protobuf    # use conda's version so it installs to conda's site pkgs
+
+# most of this may not be needed as it is provided by anaconda
+cd caffe/python  
+for req in $(cat requirements.txt); do pip install $req; done    # some errors are generated
+###################
+
+# docker nvidia image
+sudo usermod -aG docker jamesdb
+
+docker run -it $VOL docker.io/centos
+yum update
+yum install kmod-nvidia   # see above for rpm setup.  blacklisting nouveau not needed.
+
+# base link to /usr/local
+
+ln -s /usr/local /base
+ln -s /usr/lib64 /base/caffe/lib
+
+# git
+# install per notes-git.txt
+
+# putty and putty gen
+
+wget http://pkgs.repoforge.org/rpmforge-release/rpmforge-release-0.5.3-1.el6.rf.x86_64.rpm
+rpm --import http://apt.sw.be/RPM-GPG-KEY.dag.txt
+sudo rpm -ivh rpmforge-release-0.5.3-1.el6.rf.x86_64.rpm
+sudo yum --enablerepo=rpmforge install putty
+
+# get putty source tar from www.chiark.greenend.org.uk/~sgtatham/putty/download.html
+# is used "release" vs "develop" source.  Dev src may be better but Im ok with just fixing puttgen
+# download cmdgen patch from www.itefix.net
+# unpack src tar, cd into it
+# following patch to add -N option "works", but does not circumvent prompt for load passphrase
+# so must ssh-genkey with no passphrase, then use pathced puttygen with -N passphrase
+
+patch cmdgen.c < cmdgen.option-N.patch
+./configure
+make
+mv puttygen /usr/bin
+
+# general dev tools
+# yum groupinstall "Development Tools"
+# service iptables start
+# yum install cmake
+# yum install libaio
+
+# git install
+# git config --global user.name "DEBE"
+# git config --global user.email "g500xxx@trbvm.com"
+# git remote add origin git@git.geointapps.org:ACME/sigma.git
+# git pull
+# .ssh/id_rsa shoould contain private key corresponding to git public key uploaded into https://git.geointapps.org
+
+
