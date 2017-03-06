@@ -369,11 +369,18 @@ tar xvf caffe-master
 mv caffe-master caffe
 cd caffe
 cp Makefile.config.example Makefile.config
-vi Makefile.config   # adjust (enable CPU only[laptop], opencv3, and BLAS_INCLUDE=/local/atlas/include)
+vi Makefile.config   # adjust ...
+   > enable CPU_ONLY=1 if gpu-less laptop
+   > enable opencv3
+   > define CUDA+DIR=/local/cuda
+   > define BLAS_INCLUDE=/local/atlas/include and BLAS_LIB=/local/atlas/lib
+
 make clean
 make all
 make test
-make runtest     /local/atlas/include:/local/anaconda/bin:/local/include/python:/local/oxygen/bin:/opt/cmake:/local/anaconda/bin:/local/include/python:/local/oxygen/bin:/opt/cmake:/local/mysql/bin:/local/bin:/usr/bin:/local/sbin:/usr/sbin:/usr/local/share/gems/gems/jsduck-5.3.4/bin:/local/nodejs/bin:/local/include/opencv:/local/opencv/bin:/local/nodejs/bin:/local/include/opencv:/local/opencv/bin
+make runtest     
+
+## /local/atlas/include:/local/anaconda/bin:/local/include/python:/local/oxygen/bin:/opt/cmake:/local/anaconda/bin:/local/include/python:/local/oxygen/bin:/opt/cmake:/local/mysql/bin:/local/bin:/usr/bin:/local/sbin:/usr/sbin:/usr/local/share/gems/gems/jsduck-5.3.4/bin:/local/nodejs/bin:/local/include/opencv:/local/opencv/bin:/local/nodejs/bin:/local/include/opencv:/local/opencv/bin
 
 # python connector for centos 7.x
 
@@ -394,7 +401,7 @@ cd $CONDA/bin
 ./pip install protobuf    # use conda's version so it installs to conda's site pkgs
 
 # most of this may not be needed as it is provided by anaconda
-cd caffe/python  
+cd caffe/python
 for req in $(cat requirements.txt); do pip install $req; done    # some errors are generated
 ###################
 

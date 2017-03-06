@@ -838,16 +838,17 @@ var
 		
 		never: {	//< stuff to never cache - useful while debugging client side stuff
 			"base.js": 1,
-			"grids.js": 1,
-			"guides.js": 1,
+			"extjs.js": 1,
 			"jquery.js":1,
-			"models.js":1,
+			"joint.js":1,
+			"dojo.js":1,
+			"games.js":1,
 			"capture.js":1,
 			"jade": 1,
 			"view": 1
 		},
 		
-		clients: {  // file types under clients ares being cached
+		clients: {  // file types under clients areas being cached
 			js: {},
 			css: {},
 			ico: {}
@@ -1716,7 +1717,7 @@ function validateCert(con,req,res) {
 	if (TOTEM.mysql) 
 		sql.query("SELECT *,count(ID) as Count FROM openv.profiles WHERE ? LIMIT 0,1", {client: client})
 		.on("result", function (profile) {
-console.log(profile);
+//console.log(profile);
 			
 			if (profile.Count)
 				admitClient(req, res, profile, cert, con);
@@ -1728,6 +1729,7 @@ console.log(profile);
 				}, TOTEM.guestProfile), function (err) {
 					
 					admitClient(req, res, TOTEM.guestProfile, cert, con);
+					
 				});
 			
 		})
@@ -2187,7 +2189,7 @@ function getChallenge(msg,rid,ids) {
 		return "random integer between 0 and 9";
 	})
 	.each("(card)", rid, function (rid) {
-		return "cac challenge TBD";
+		return "cac card challenge TBD";
 	})
 	.each("(bio)", rid, function (rid) {
 		return "bio challenge TBD";
