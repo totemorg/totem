@@ -247,7 +247,11 @@ archive.) 	# archive service to archive area
 	echo "Archiving to $MAP/archives"
 	zip -r $MAP/archives/totem-N.zip ../* -x \*.zip \*/dbs/\* \*/clients/\*  \*/captcha/\* \*.git/\*  \*/_\*  _\*
 	;;
-	
+
+snap.)
+	zip $MAP/archives/snap.zip */*.js */*.sh debe/uis/* debe/public/* totem/certs/*
+	;;
+
 sync.)   # special forced code syncs
 	#rsync $CHIPS/forecasts/* $GPUHOST:$CHIPS/forecasts
 	rsync $HOME/*.jpg $GPUHOST:$HOME

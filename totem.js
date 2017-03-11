@@ -469,6 +469,91 @@ var
 
 	/**
 	@cfg {Object} 
+	Converters (req,ack,cb) callback cb with string version of ack list.
+	*/
+	converters: {
+		db: function (req, ack, cb) {
+			switch (req.action) {
+				case "select":
+
+					req.sql.query("select found_rows()")
+					.on('result', function (stat) {		// ack from sql				
+
+						//sendDb("data", stat["found_rows()"] || 0, ack);
+						cb( JSON.stringify({ 
+								success: true,
+								msg: "data",
+								count: stat["found_rows()"] || 0,
+								data: ack
+						}) );
+
+					})
+					.on("error", function () {  		// ack from virtual table
+
+						//sendDb("data", ack.length, ack);
+						cb( JSON.stringify({ 
+								success: true,
+								msg: "data",
+								count: ack.length,
+								data: ack
+						}) );
+
+					});
+
+					break;
+
+				case "update":
+				case "delete":
+				case "insert":
+				case "execute":
+
+					//sendDb("info", 0, ack);
+					cb( JSON.stringify({ 
+							success: true,
+							msg: "info",
+							count: 0,
+							data: ack
+					}) );
+					
+					break;
+
+				default:
+					//sendError( TOTOM.errors.badQuery );
+					cb( TOTOM.errors.badQuery );
+			}
+		},
+		
+		csv: function (req, ack, cb) {
+			JS2CSV({ 
+				data: ack, 
+				fields: Object.keys( ack[0]||{} )
+			} , function (err,csv) {
+				cb( err ? TOTEM.errors.badType : csv );
+			});
+		},
+		
+		xml: function (req, ack, cb) {
+			cb( JS2XML.parse(req.table, {  
+				count: ack.length,
+				data: ack
+			}) );
+		},
+		
+		html: function (req, ack, cb) {
+			var rtn = "";
+			ack.each(function (n,html) {
+				rtn += html;
+			});
+			cb(rtn);
+		},
+		
+		json: function (req, ack, cb) {
+			cb( JSON.stringify(ack) );
+		}
+	},
+
+	/**
+	@cfg {Object} 
 	@private
 	Reserved for Totem's trust store built if started in encrypted mode
 	*/		
@@ -689,10 +774,10 @@ var
 		expiredCert: new Error("cert expired"),
 		rejectedCert: new Error("cert rejected"),
 		tooBusy: new Error("too busy - try again later"),
-		noFile: new Error("File not found"),
-		noIndex: new Error("Index not found"),
-		badType: new Error("Bad dataset conversion"),
-		badReturn: new Error("Bad response")
+		noFile: new Error("file not found"),
+		noIndex: new Error("index not found"),
+		badType: new Error("no dataset conversion"),
+		badReturn: new Error("response fault")
 	},
 
 	/**
@@ -2401,14 +2486,12 @@ function routeNode(req, res) {
 		followRoute( route = 
 				TOTEM.sender[area] 
 			|| 	TOTEM.reader[type] 
-			|| 	sendFile, 
-			
-			req, res );
+			|| 	sendFile, req, res );
 
 	else
-	if ( route = TOTEM.reader[type] )
+	if ( route = TOTEM.reader[type] ) 
 		followRoute(route,req,res);
-		
+
 	else
 	if (table && paths.mysql.engine)
 	
@@ -2573,105 +2656,17 @@ function Responder(Req,Res) {
 		Req.req.sql.release();
 	}
 
-	/**
-	* Send dataset to client in format suitable for typical browser technologies (extjs, jquery, etc)
-	* */
-	function sendDb(msg, cnt, data) {
-	
-		sendString( data
-			? JSON.stringify({ 
-				success: true,
-				msg: msg,
-				count: cnt,
-				data: data
-			})
-			
-			: JSON.stringify({ 
-				success: false,
-				msg: msg,
-				count: cnt,
-				data: []
-			}) 
-		);
+	function sendList(ack, req, res) {
+		if (conv = TOTEM.converters[req.type])
+			conv(req, ack, function (rtn) {
+					if (rtn.constructor == Error)
+						sendError( rtn );
+					else 
+						sendString( rtn );
+			});
 		
-	}
-	
-	function sendData(ack, req, res) {
-		
-		if (ack.constructor == Array)
-			switch (req.type) {
-				case "db": 
-					switch (req.action) {
-						case "select":
-
-							req.sql.query("select found_rows()")
-							.on('result', function (stat) {		// ack from sql				
-
-								sendDb("data", stat["found_rows()"] || 0, ack);
-
-							})
-							.on("error", function () {  		// ack from virtual table
-
-								sendDb("data", ack.length, ack);
-
-							});
-
-							break;
-
-						case "update":
-						case "delete":
-						case "insert":
-						case "execute":
-
-							sendDb("info", 0, ack);
-							break;
-
-						default:
-							sendError( TOTOM.errors.badQuery );
-					}
-					break;
-
-				case "txt":
-				case "csv":
-
-					JS2CSV({ 
-						data: ack, 
-						fields: Object.keys( ack[0]||{} )
-					} , function (err,csv) {
-
-						if (err)
-							sendError( TOTEM.errors.badType );
-						else 
-							sendString( csv );
-					});
-					break;
-
-				case "xml":
-
-					sendString( JS2XML.parse(req.table, {  
-						count: ack.length,
-						data: ack
-					}) );
-					break;
-
-				case "html": 
-
-					var rtn = "";
-					ack.each(function (n,html) {
-						rtn += html;
-					});
-					sendString(rtn);
-					break;
-
-				case "json":
-				default:
-
-					sendString( JSON.stringify(ack) );
-			}
-
 		else
-				res(ack);
-					
+			sendError( TOTEM.errors.badType );
 	}
 	
 	/**
@@ -2682,37 +2677,28 @@ function Responder(Req,Res) {
 		var req = Req.req,
 			sql = req.sql,
 			paths = TOTEM.paths;
+
+//console.log(["send>>>>>", ack.constructor,  req.type, req.table]);
 		
-		try {
+		try {		
 			switch (ack.constructor) {
 				case Error: 			// send error message
 					
 					switch (req.type) {
 						case "db":
-
-							sendDb(ack+"",0,null);
+							sendString( JSON.stringify({ 
+								success: false,
+								msg: ack+"",
+								count: 0,
+								data: []
+							}) );
 							break;
 							
 						default:
-						
 							sendError( ack );
 					}
 					break;
 				
-				case String: 			// send raw string
-				
-					switch (req.type) {
-						case "db": 
-							//sendDb(ack,0,null);
-							//break;
-							
-						case "html": 
-						case "txt":
-						default:
-							sendString( ack );
-					}
-					break;
-					
 				case Function: 			// send file via search or direct
 				
 					if (search = req.query.search && paths.mysql.search) 		// search for file via nlp/etc
@@ -2752,53 +2738,39 @@ function Responder(Req,Res) {
 						if (flag = flags[n])  
 							if (conv) {
 								conv(flag.split(","),ack,req, function (ack) {
-									sendData(ack,req,res);
+									sendList(ack,req,res);
 								});
 								return true;
 							}
 					}) )  // no conversion done
-						sendData(ack,req,res);
+						sendList(ack,req,res);
 					
 					break;
 			
+				case String:
+					sendString(ack);
+					break;
+					
 				default:
-				
+
 					switch (req.type) {
 						case "db": 
-							
-							sendDb( "info", 0, ack );
+							sendString( JSON.stringify({ 
+								success: true,
+								msg: ack+"",
+								count: 0,
+								data: []
+							}) );
 							break;
 							
-						case "txt":
-						case "csv":
-							
-							JS2CSV(ack , function (err,csv) {
-								if (err)
-									sendError( TOTEM.errors.badType );
-								else 
-									sendString( csv );
-							});
-							break;
-		
-						case "xml":
-						
-							sendString( JS2XML(req.table, ack) );
-							break;
-							
-						case "html":
-							
-							sendString( ack );
-							break;
-							
-						case "json":
 						default:
-							
 							sendString( JSON.stringify(ack) );
 					}
 					break;
 			
 			}
 		}
+
 		catch (err) {
 			sendError( TOTEM.errors.badReturn );
 		}
