@@ -322,14 +322,6 @@ var
 	stop: stopServer,
 	
 	/**
-	@cfg {Object} 
-	@member totem
-	 Site parms requiring json conversion when site context derived
-	 * */
-	jsons: {  
-	},
-	
-	/**
 	@method
 	@member totem
 	Thread a new sql connection to a callback.  Unless overridden, will default to the DSVAR thread method.
@@ -466,6 +458,8 @@ var
 	The site context extended by the mysql derived query when service starts
 	*/
 	site: { 
+		jsons: {  // Site parms requiring json conversion when site context derived
+		},
 		url: {}	// reserved for master and slave urls
 	},
 
@@ -866,7 +860,7 @@ var
 				Each(opts, function (key,val) {
 					key = key.toLowerCase();
 
-					if (def = TOTEM.jsons[key])
+					if (def = site.jsons[key])
 						site[key] = (val+"").parse(def);
 					else
 						site[key] = val;
@@ -1017,8 +1011,8 @@ function startServer(opts) {
 	
 	TOTEM.started = new Date();
 	
-	if (TOTEM.jsons)  // prime site context with desired jsons
-		Each( TOTEM.jsons, function (n,def) {
+	if (site.jsons)  // prime site context with desired jsons
+		Each( site.jsons, function (n,def) {
 			site[n] = def;
 		});
 	
