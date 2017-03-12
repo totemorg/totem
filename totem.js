@@ -209,32 +209,35 @@ var
 					return JSON.parse(this);
 				}
 				catch (err) {  // "&key=val ..." string
-
+					
 					if (!rtn) // no default method so return null
 						return null;
-					else
-					if (rtn.constructor == Function)  // pass to default method
-						return rtn(this);
+					
+					//else
+					//if (rtn.constructor == Function)  // pass to default method
+					//	return rtn(this);
 					
 					/*var parms = (def.constructor == Function) 
 							? def(this) 
 							: this.split("&");*/
 
 					this.split("&").each(function (n,parm) {  // get a key=val parm
-
+						
 						var	
 							parts = parm.split("="),  // split into key-val
 							val = parts.pop(), 
 							key = parts.pop(); 
 
-						if (key)
+						if (key)   // val holds a value
 							try {  // val could be json 
 								rtn[key] = JSON.parse(val); 
 							}
 							catch (err) { 
 								rtn[key] = unescape(val);
+//console.log(["parse",n,key]);
 							}
-						else // no key so val holds a relation
+						
+						else 		// no key so val holds a relation
 								rtn[val] = null;
 					});
 
@@ -321,7 +324,6 @@ var
 	/**
 	@cfg {Object} 
 	@member totem
-	 
 	 Site parms requiring json conversion when site context derived
 	 * */
 	jsons: {  
@@ -461,69 +463,51 @@ var
 
 	/**
 	@cfg {Object} 
-	Initial site context extened by mysql derived query when service started
+	The site context extended by the mysql derived query when service starts
 	*/
 	site: { 
-		url: {}		
+		url: {}	// reserved for master and slave urls
 	},
 
 	/**
 	@cfg {Object} 
-	Converters (req,ack,cb) callback cb with string version of ack list.
+	NODE.TYPE route converters will callback cb(string) for given ack data
 	*/
-	converters: {
-		db: function (req, ack, cb) {
-			switch (req.action) {
-				case "select":
+	converters: {  
+		db: function (ack, req, cb) {
+			if ( ack.constructor == Array ) 
+				req.sql.query("select found_rows()")
+				.on('result', function (stat) {		// ack from sql				
 
-					req.sql.query("select found_rows()")
-					.on('result', function (stat) {		// ack from sql				
+					cb( JSON.stringify({ 
+						succcess: true,
+						msg: "",
+						count: stat["found_rows()"] || 0,
+						data: ack
+					}) );
 
-						//sendDb("data", stat["found_rows()"] || 0, ack);
-						cb( JSON.stringify({ 
-								success: true,
-								msg: "data",
-								count: stat["found_rows()"] || 0,
-								data: ack
-						}) );
+				})
+				.on("error", function () {  		// ack from virtual table
 
-					})
-					.on("error", function () {  		// ack from virtual table
-
-						//sendDb("data", ack.length, ack);
-						cb( JSON.stringify({ 
-								success: true,
-								msg: "data",
-								count: ack.length,
-								data: ack
-						}) );
-
-					});
-
-					break;
-
-				case "update":
-				case "delete":
-				case "insert":
-				case "execute":
-
-					//sendDb("info", 0, ack);
 					cb( JSON.stringify({ 
 							success: true,
-							msg: "info",
-							count: 0,
+							msg: "",
+							count: ack.length,
 							data: ack
 					}) );
-					
-					break;
 
-				default:
-					//sendError( TOTOM.errors.badQuery );
-					cb( TOTOM.errors.badQuery );
-			}
+				});
+
+			else 
+				cb( JSON.stringify({ 
+					success: true,
+					msg: "",
+					count: 0,
+					data: ack
+				}) );
 		},
 		
-		csv: function (req, ack, cb) {
+		csv: function (ack, req, cb) {
 			JS2CSV({ 
 				data: ack, 
 				fields: Object.keys( ack[0]||{} )
@@ -532,33 +516,28 @@ var
 			});
 		},
 		
-		xml: function (req, ack, cb) {
+		xml: function (ack, req, cb) {
 			cb( JS2XML.parse(req.table, {  
 				count: ack.length,
 				data: ack
 			}) );
 		},
 		
-		html: function (req, ack, cb) {
+		html: function (ack, req, cb) {
 			var rtn = "";
 			ack.each(function (n,html) {
 				rtn += html;
 			});
 			cb(rtn);
-		},
-		
-		json: function (req, ack, cb) {
-			cb( JSON.stringify(ack) );
 		}
 	},
 
 	/**
 	@cfg {Object} 
 	@private
-	Reserved for Totem's trust store built if started in encrypted mode
+	Ttrust store extened with certs in the certs.truststore folder when the service starts in encrypted mode
 	*/		
-	trust: [	
-	],
+	trust: [ ],   
 		
 	/**
 	@cfg {Object} 
@@ -611,26 +590,26 @@ var
 		
 	/**
 	@cfg {Number} [retries=5]
-	max number of data fetcher retries
+	Maximum number of retries the data fetcher will user
 	*/				
 	retries: 5,	
 		
 	/**
 	@cfg {Boolean} [notify=true]
-	enable/disable tracing of data fetchers
+	Enable/disable tracing of data fetchers
 	*/		
 	notify: true, 	
 
 	/**
 	@cfg {Boolean} [nofaults=false]
-	enable/disable service protection mode
+	Enable/disable service protection mode
 	*/		
 	nofaults: false,
 		
 	/**
 	@cfg {Object} 
 	@private
-	service protections when in nofaults mode
+	Service protections when in nofaults mode
 	*/		
 	protect: {				
 		SIGUSR1:1,
@@ -646,14 +625,14 @@ var
 	
 	/**
 	@cfg {Function} 
-	additional session validator(req,res) responds will null if client validated, otherwise
+	Additional session validator(req,res) responds will null if client validated, otherwise
 	responds with an error.
 	*/		
 	validator: null,	
 	
 	/**
 	@cfg {Object} 
-	null to admitRule all clients, or {X:"required", Y: "optional", ...} to admitRule clients with cert organizational
+	Null to admitRule all clients, or {X:"required", Y: "optional", ...} to admitRule clients with cert organizational
 	credentials X.
 	*/		
 	admitRule: null, 	
@@ -662,8 +641,8 @@ var
 		  }*/
 
 	/**
-	@cfg {Object} 
-	default guest profile 
+	@cfg {Object}
+	Default guest profile (unencrypted or client profile not found)
 	*/		
 	guestProfile: {				
 		Banned: "",
@@ -684,7 +663,7 @@ var
 	/**
 	@cfg {Object} 
 	@private
-	riddle digit-to-jpeg map (null to disable riddles)
+	Riddle digit-to-jpeg map (null to disable riddles)
 	*/		
 	riddleMap: { 					
 		0: ["10","210"],
@@ -701,14 +680,14 @@ var
 
 	/**
 	@cfg {Number} [riddles=0]
-	number of riddles to protect site (0 to disable anti-bot)
+	Number of riddles to protect site (0 to disable anti-bot)
 	*/		
 	riddles: 0, 			
 	
 	/**
 	@cfg {Object} 
 	@private
-	default paths to service files
+	Default paths to service files
 	*/		
 	paths: { 			
 		render: "public/jade/",
@@ -776,13 +755,13 @@ var
 		tooBusy: new Error("too busy - try again later"),
 		noFile: new Error("file not found"),
 		noIndex: new Error("index not found"),
-		badType: new Error("no dataset conversion"),
+		badType: new Error("no converter found"),
 		badReturn: new Error("response fault")
 	},
 
 	/**
 	@method 
- 	file indexer
+ 	File indexer
 	*/		
 	indexer: indexFile,
 
@@ -794,7 +773,7 @@ var
 	
 	/**
 	@cfg {Number} [busy=300]
-	server toobusy check period in milliseconds
+	Server toobusy check period in milliseconds
 	*/		
 	busy: 3000,				
 	
@@ -1124,7 +1103,7 @@ function initServer(server,cb) {
 		// Attach "/socket.io" to SIO and block same path from server, and relay socketio
 		// to the DSVAR interface so that it can sync client changes.
 		
-		var IO = TOTEM.IO = DSVAR.io = SIO(server, { // we want to use the defaults
+		var IO = TOTEM.IO = DSVAR.io = SIO(server, { // use defaults but can override ...
 				//serveClient: true, // default true to prevent server from intercepting path
 				//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
 			}),
@@ -1674,7 +1653,7 @@ function createCert(owner,pass,cb) {
 * 
 * on-input req = {action, socketio, query, body, flags, joins}
 * on-output req = adds {log, cert, client, org, locagio, group, profile, journal, joined, email, hawk and 
-* connection metrics}
+* connection logMetrics}
  * */
 function validateCert(con,req,res) {
 				
@@ -1762,7 +1741,7 @@ function validateCert(con,req,res) {
 					stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
 					
 				Copy({  // add session metric logs and session parms
-					log: {  								// metrics
+					log: {  								// logMetrics
 						Cores: site.Cores, 					// number of safety core hyperthreads
 						VMs: 1,								// number of VMs
 						Event: now,		 					// start time
@@ -2117,12 +2096,6 @@ function httpFetch(url,cb) {
 			});
 
 			res.on("end", function () {
-
-				/*Trace("fetch", {
-					status: res.statusCode,
-					text: text,
-					header: res.headers}); */
-
 				cb( text.parse(text) );
 			});
 
@@ -2567,23 +2540,14 @@ Totem thread processing
  * */
 function Responder(Req,Res) {	
 	
-	/** 
-	 * Terminal response functions to respond with a string, file, db structure, or error message.
-	 * */
+	// Session terminating functions to respond with a string, file, db structure, or error message.
 	
-	/**
-	* Send string to client
-	* */
-	function sendString( data ) {
-		//Trace("sql closed");
+	function sendString( data ) {  // Send string
 		Res.end( data );
 		Req.req.sql.release();
 	}
 		
-	/**
-	* Send list of files under specified folder
-	* */
-	function sendFileIndex( head, files ){
+	function sendFileIndex( head, files ) {  // Send list of files under specified folder
 		
 		switch (0) {
 			case 0:
@@ -2601,10 +2565,7 @@ function Responder(Req,Res) {
 		
 	}
 	
-	/**
-	* Cache and send file to client
-	* */
-	function sendCache(path,file,type,area) {
+	function sendCache(path,file,type,area) { // Cache and send file to client
 
 		var mime = MIME[type] || MIME.html  || "text/plain",
 			paths = TOTEM.paths;
@@ -2635,6 +2596,7 @@ function Responder(Req,Res) {
 					sendError( TOTEM.errors.noFile );
 				}
 		}
+		
 		else
 		if ( 	( index = paths.mime.index ) &&
 				( indexer = index[area] ) ) {
@@ -2643,43 +2605,40 @@ function Responder(Req,Res) {
 				sendFileIndex(`Index of ${path}`, files);
 			});
 		}
+		
 		else
 			sendError( TOTEM.errors.noIndex );
 		
 	}		
 
-	/**
-	* Send error message to client
-	* */
-	function sendError(err) {
+	function sendError(err) {  // Send pretty error message
 		Res.end( TOTEM.errors.pretty(err) );
 		Req.req.sql.release();
 	}
 
-	function sendList(ack, req, res) {
-		if (conv = TOTEM.converters[req.type])
-			conv(req, ack, function (rtn) {
+	function sendData(ack, req, res) {  // Send data via converter
+		if (req.type)
+			if (conv = TOTEM.converters[req.type])
+				conv(ack, req, function (rtn) {
 					if (rtn.constructor == Error)
 						sendError( rtn );
 					else 
 						sendString( rtn );
-			});
+				});
+
+			else
+				sendError( TOTEM.errors.badType );
 		
 		else
-			sendError( TOTEM.errors.badType );
+			sendString( JSON.stringify(ack) );
 	}
 	
-	/**
-	 * Session response callback
-	 * */
-	function res(ack) {
+	function res(ack) {  // Session response callback
 		
 		var req = Req.req,
 			sql = req.sql,
 			paths = TOTEM.paths;
 
-//console.log(["send>>>>>", ack.constructor,  req.type, req.table]);
-		
 		try {		
 			switch (ack.constructor) {
 				case Error: 			// send error message
@@ -2732,40 +2691,24 @@ function Responder(Req,Res) {
 
 					var flags = req.flags;
 
-					if ( !Each( TOTEM.reqflags.edits, function (n, conv) {  // allow only 1 conversion
-//console.log([n,conv,flags[n]]);
+					if ( !Each( TOTEM.reqflags.edits, function (n, conv) {  // one conversion allowed
 						
 						if (flag = flags[n])  
 							if (conv) {
 								conv(flag.split(","),ack,req, function (ack) {
-									sendList(ack,req,res);
+									sendData(ack,req,res);
 								});
 								return true;
 							}
-					}) )  // no conversion done
-						sendList(ack,req,res);
+					}) )  // no conversion needed
+						
+						sendData(ack,req,res);
 					
 					break;
 			
-				case String:
-					sendString(ack);
-					break;
-					
-				default:
+				default: 					// send data
 
-					switch (req.type) {
-						case "db": 
-							sendString( JSON.stringify({ 
-								success: true,
-								msg: ack+"",
-								count: 0,
-								data: []
-							}) );
-							break;
-							
-						default:
-							sendString( JSON.stringify(ack) );
-					}
+					sendData(ack,req,res);
 					break;
 			
 			}
@@ -2776,11 +2719,7 @@ function Responder(Req,Res) {
 		}
 	}
 
-	/**
-	 * Feed computed link metrics on specified http connection
-	 * to the callback.
-	 * */
-	function metrics() {	
+	function logMetrics() { // Log computed http-connection logMetrics 
 		
 		var con = Req.connection,
 			req = Req.req;
@@ -2810,7 +2749,7 @@ function Responder(Req,Res) {
 						Dataset: req.table,
 						Action: req.action
 					}), function () {
-						//Trace("metrics closed");
+						//Trace("logMetrics closed");
 						sql.release();
 					});
 					
@@ -2820,10 +2759,7 @@ function Responder(Req,Res) {
 		}
 	}
 
-	/**
-	* Get body parameters and file parameters if supplied
-	* */
-	function getBody( cb ) {
+	function getBody( cb ) { // Feed body and file parameters to callback
 
 		var body = "", file = "filename:";
 		
@@ -2833,7 +2769,7 @@ function Responder(Req,Res) {
 		})
 		.on("end", function () {
 			if (body)
-				cb( body.parse( function () {  // yank files if body not json
+				cb( body.parse( {}, function () {  // yank files if body not json
 					
 					var files = [], parms = {};
 					
@@ -2844,7 +2780,7 @@ function Responder(Req,Res) {
 								parms = {};
 							}
 							else {
-								Trace("LOAD "+line);
+								//Trace("LOAD "+line);
 
 								line.split(";").each(function (n,arg) {
 
@@ -2871,14 +2807,15 @@ function Responder(Req,Res) {
 		});
 	}
 		
-	/** 
-	 * Combat denial of service attacks by checking if http session is too busy.
-	 * */
-	function checkBusy() {
+	function startSession( cb ) { // Combat denial of service attacks by checking if session is too busy.
 		
 		if (BUSY && (busy = TOTEM.errors.tooBusy) )	
 			if ( BUSY() )
 				Res.end( TOTEM.errors.pretty( busy ) );
+			else
+				cb();
+		else
+			cb();
 	}
 	
 	/**
@@ -2897,7 +2834,7 @@ function Responder(Req,Res) {
 		var con = Req.connection;
 
 		resThread( req, function (sql) {
-			metrics();
+			logMetrics();
 
 			if (con)
 				validateCert(con, req, function (err) {
@@ -2937,52 +2874,51 @@ function Responder(Req,Res) {
 		});
 	}
 
-	checkBusy();
+	startSession( function() {  // process if session not busy
+		getBody( function (body) {  // parse body, query and route
 
-	getBody( function (body) {
-		
-		var  							
-			// parse request url into /area/nodes
-			paths = TOTEM.paths,
-			
-			// prime session request hash
-			req = Req.req = {
-				action: TOTEM.crud[Req.method],
-				socketio: TOTEM.encrypt ? TOTEM.paths.url.socketio : "",
-				query: {},
-				body: body,
-				flags: {},
-				joins: {},
-				connection: Req.connection	// engines require for transferring work to workers
-			},
+			var 
+				// parse request url into /area/nodes
+				paths = TOTEM.paths,
 
-			// get a clean url
-			url = req.url = unescape(Req.url),
-			
-			// get a list of all nodes
-			nodes = url ? url.split(MULTINODES) : [];
+				// prime session request hash
+				req = Req.req = {
+					action: TOTEM.crud[Req.method],
+					socketio: TOTEM.encrypt ? TOTEM.paths.url.socketio : "",
+					query: {},
+					body: body,
+					flags: {},
+					joins: {},
+					connection: Req.connection	// engines require for transferring work to workers
+				},
 
-		conThread( req, function (err) { 	// start session with client
+				// get a clean url
+				url = req.url = unescape(Req.url),
 
-			if (err) 					// validator rejected session
-				res(err);
-				
-			else
-			if (nodes.length == 1) {	// respond with only this node
-				node = req.node = nodes.pop();	
-				routeNode(req, function (ack) {	
-//console.log({ack:ack});
-					Res.setHeader("Content-Type", MIME[req.type] || MIME.html || "text/plain");
-					res(ack);
-				});
-			}
-			
-			else 					// sync and aggregate all nodes
-				syncNodes(nodes, {}, req, res, function (ack) {
-					Res.setHeader("Content-Type", "application/json");
-					res(ack);
-				});
-				
+				// get a list of all nodes
+				nodes = url ? url.split(MULTINODES) : [];
+
+			conThread( req, function (err) { 	// start session with client
+
+				if (err) 					// session validator rejected (bad cert)
+					res(err);
+
+				else
+				if (nodes.length == 1) {	// respond with only this node
+					node = req.node = nodes.pop();	
+					routeNode(req, function (ack) {	
+						Res.setHeader("Content-Type", MIME[req.type] || MIME.html || "text/plain");
+						res(ack);
+					});
+				}
+
+				else 					// respond with aggregate of all nodes
+					syncNodes(nodes, {}, req, res, function (ack) {
+						Res.setHeader("Content-Type", "application/json");
+						res(ack);
+					});
+
+			});
 		});
 	});
 }
