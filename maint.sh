@@ -249,7 +249,7 @@ archive.) 	# archive service to archive area
 	;;
 
 snap.)
-	zip $MAP/archives/snap.zip */*.js */*.sh debe/uis/* debe/public/* totem/certs/*
+	zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/admins/*/* debe/public/*/* totem/certs/*
 	;;
 
 sync.)   # special forced code syncs

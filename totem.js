@@ -465,7 +465,7 @@ var
 
 	/**
 	@cfg {Object} 
-	NODE.TYPE route converters will callback cb(string) for given ack data
+	NODE.TYPE converters to callback cb(ack data as string || error)
 	*/
 	converters: {  
 		db: function (ack, req, cb) {
@@ -473,32 +473,32 @@ var
 				req.sql.query("select found_rows()")
 				.on('result', function (stat) {		// ack from sql				
 
-					cb( JSON.stringify({ 
+					cb({ 
 						succcess: true,
 						msg: "",
 						count: stat["found_rows()"] || 0,
 						data: ack
-					}) );
+					});
 
 				})
 				.on("error", function () {  		// ack from virtual table
 
-					cb( JSON.stringify({ 
-							success: true,
-							msg: "",
-							count: ack.length,
-							data: ack
-					}) );
+					cb({ 
+						success: true,
+						msg: "",
+						count: ack.length,
+						data: ack
+					});
 
 				});
 
 			else 
-				cb( JSON.stringify({ 
+				cb({ 
 					success: true,
 					msg: "",
 					count: 0,
 					data: ack
-				}) );
+				});
 		},
 		
 		csv: function (ack, req, cb) {
@@ -749,7 +749,7 @@ var
 		tooBusy: new Error("too busy - try again later"),
 		noFile: new Error("file not found"),
 		noIndex: new Error("index not found"),
-		badType: new Error("no converter found"),
+		badType: new Error("bad presentation type"),
 		badReturn: new Error("response fault")
 	},
 
@@ -2614,10 +2614,18 @@ function Responder(Req,Res) {
 		if (req.type)
 			if (conv = TOTEM.converters[req.type])
 				conv(ack, req, function (rtn) {
-					if (rtn.constructor == Error)
-						sendError( rtn );
-					else 
-						sendString( rtn );
+					switch (rtn.constructor) {
+						case Error:
+							sendError( rtn );
+							break;
+							
+						case String:
+							sendString( rtn );
+							break;
+							
+						default:
+							sendString( JSON.stringify(rtn) );
+					}
 				});
 
 			else
@@ -2685,18 +2693,12 @@ function Responder(Req,Res) {
 
 					var flags = req.flags;
 
-					if ( !Each( TOTEM.reqflags.edits, function (n, conv) {  // one conversion allowed
-						
-						if (flag = flags[n])  
-							if (conv) {
-								conv(flag.split(","),ack,req, function (ack) {
-									sendData(ack,req,res);
-								});
-								return true;
-							}
-					}) )  // no conversion needed
-						
-						sendData(ack,req,res);
+					Each( TOTEM.reqflags.edits, function (n, conv) {  						
+						if (conv) 
+							if (flag = flags[n])  
+								conv(flag.split(","),ack,req);
+					});
+					sendData(ack,req,res);
 					
 					break;
 			

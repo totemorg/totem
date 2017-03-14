@@ -73,6 +73,11 @@ where options = {...} nclude:
 			...		},
 		...		},
 
+	converters: {  // NODE.TYPE converters to callback cb(ack data as string || error)
+		TYPE: function (ack,req,cb),
+		...
+	},
+	
 	sender: {		// send raw files
 		AREA: cb(req,res),
 		AREA: cb(req,res),
