@@ -113,7 +113,6 @@ var
 					
 					if ( stop ) {
 						//console.log([pos,idx,end,key,ref,recs.length]);
-						//console.log(rec);
 						
 						var node = {
 							name: key+":"+ref, 
@@ -234,7 +233,6 @@ var
 							}
 							catch (err) { 
 								rtn[key] = unescape(val);
-//console.log(["parse",n,key]);
 							}
 						
 						else 		// no key so val holds a relation
@@ -457,10 +455,7 @@ var
 	@cfg {Object} 
 	The site context extended by the mysql derived query when service starts
 	*/
-	site: { 
-		jsons: {  // Site parms requiring json conversion when site context derived
-		},
-		url: {}	// reserved for master and slave urls
+	site: { // reserved for derived context vars
 	},
 
 	/**
@@ -818,7 +813,7 @@ var
 	/**
 	@method
 	@private
-	Defines the site context parameters availble in TOTEM.site.
+	Defines the site context parameters available in TOTEM.site.
 	*/		
 	setContext: function (sql,cb) { 
 		var site = TOTEM.site,
@@ -853,36 +848,40 @@ var
 				TOTEM.guestProfile = Copy(rec,{});
 			});
 
-		if (derive = mysql.derive)
-			sql.query(derive, {Nick:TOTEM.name})
-			.on("result", function (opts) {
-				
-				Each(opts, function (key,val) {
-					key = key.toLowerCase();
+		if (derive = mysql.derive)  // derive site context vars
+			sql.indexJsons( "openv.apps", {}, function (jsons) {	// get site json vars
+			
+				sql.query(derive, {Nick:TOTEM.name})
+				.on("result", function (opts) {
 
-					if (def = site.jsons[key])
-						site[key] = (val+"").parse(def);
-					else
-						site[key] = val;
+					Each(opts, function (key,val) {
+						key = key.toLowerCase();
 
-					if (key in TOTEM) 
-						TOTEM[key] = val;
-				});
-				
-				if (cb) cb();
+						if (def = jsons[key])
+							site[key] = (val+"").parse(def);
+						
+						else
+							site[key] = val;
 
-				if (users = mysql.users) 
-					sql.query(users, [site.db], function (err,users) {
-						site.distro.user = users.joinify( function (user) {
-							return user.client.tag("a", {href:"emailto:"+user.client});
-						});
+						if (key in TOTEM) 
+							TOTEM[key] = val;
 					});
 
-			})
-			.on("error", function (err) {
-				Trace( "CANT DERIVE "+err );
+					if (cb) cb();
+
+					if (users = mysql.users) 
+						sql.query(users, [site.db], function (err,users) {
+							site.distro.user = users.joinify( function (user) {
+								return user.client.tag("a", {href:"emailto:"+user.client});
+							});
+						});
+
+				})
+				.on("error", function (err) {
+					Trace( "CANT DERIVE "+err );
+				});
 			});
- 
+		
 		else 
 		if (cb) cb();
 					
@@ -1010,49 +1009,38 @@ function startServer(opts) {
 	Trace(`STARTING ${name}`); 
 	
 	TOTEM.started = new Date();
-	
-	if (site.jsons)  // prime site context with desired jsons
-		Each( site.jsons, function (n,def) {
-			site[n] = def;
-		});
-	
-	if (mysql) {
 
-		DSVAR.config({
+	if (mysql) 
+		DSVAR.config({   // establish the db agnosticator 
 			//io: TOTEM.IO,   // can setup its socketio only after server defined by initServer
 
-			mysql: Copy( { 
-					opts: {
-						host: mysql.host,
-						user: mysql.user,
-						password : mysql.pass,				// passphrase
-						connectionLimit : mysql.sessions || 100, 		// max simultaneous connections
-						//acquireTimeout : 10000, 			// connection acquire timer
-						queueLimit: 0,  						// max concections to queue (0=unlimited)
-						waitForConnections: true			// allow connection requests to be queued
-					}
-				}, mysql)
-		});
+			mysql: Copy({ 
+				opts: {
+					host: mysql.host,
+					user: mysql.user,
+					password : mysql.pass,				// passphrase
+					connectionLimit : mysql.sessions || 100, 		// max simultaneous connections
+					//acquireTimeout : 10000, 			// connection acquire timer
+					queueLimit: 0,  						// max concections to queue (0=unlimited)
+					waitForConnections: true			// allow connection requests to be queued
+				}
+			}, mysql)
+		}, function (sql) {  // derive server vars and site context vars
 		
-		for (var n in mysql)
-			if (n in paths) paths[n] = mysql[n];
-		
-		if (name && mysql)	// derive server and site parameters
-			sqlThread( function (sql) {
-				
+			for (var n in mysql)  // derive server paths
+				if (n in paths) paths[n] = mysql[n];
+
+			if (name)	// derive site context
 				TOTEM.setContext(sql, function () {
 					setupServer(cb);
 				});
 
-				sql.release();
-			});	
-		
-		else
-			setupServer(cb);
-	}
+			//sql.release();
+		});	
+
 	else
 		setupServer(cb);
-
+	
 	return TOTEM;
 }
 
