@@ -356,9 +356,6 @@ var
 		},
 		
 		edits: { 			 //< Data convertors
-			/*tree: function tree(idx,recs) {
-				return recs.treeify(idx);
-			}*/
 		},
 		
 		id: "ID", 					//< SQL record id
@@ -2435,7 +2432,7 @@ function routeNode(req, res) {
 
 	if (route) 
 		followRoute(route,req,res);
-	
+
 	else
 	if (req.path) 
 		followRoute( route = 
@@ -2449,7 +2446,7 @@ function routeNode(req, res) {
 
 	else
 	if (table && paths.mysql.engine)
-	
+
 		sql.query(paths.mysql.engine, {		// find an engine
 			Name: table,
 			Enabled: 1
@@ -2461,6 +2458,12 @@ function routeNode(req, res) {
 			var route;
 
 			if (eng.Count) 			// route to located engine
+				if (eng.Engine == "url") {
+					req.node = eng.Code;
+					routeNode(req,res);
+				}
+
+				else
 				if ( route = TOTEM.worker[action] )	
 					followRoute(route,req,res);
 
@@ -2473,7 +2476,7 @@ function routeNode(req, res) {
 				||	TOTEM[action]
 			)
 				followRoute(route,req,res);
-				
+			
 			else
 				res( TOTEM.errors.noRoute );
 
@@ -2481,7 +2484,7 @@ function routeNode(req, res) {
 		.on("error", function (err) {
 			res( TOTEM.errors.noRoute )
 		})
-	
+
 	else
 	if (table)				
 		if (
@@ -2489,12 +2492,12 @@ function routeNode(req, res) {
 				TOTEM.emulator[action][table] 
 			||	TOTEM.reader[type]
 			|| 	TOTEM[action] )
-				
+			
 			followRoute(route,req,res);
 
 		else
 			res( TOTEM.errors.noRoute );
-	
+
 	else
 		res( TOTEM.errors.noRoute );
 }
@@ -2681,7 +2684,7 @@ function Responder(Req,Res) {
 
 					var flags = req.flags;
 
-					Each( TOTEM.reqflags.edits, function (n, conv) {  						
+					Each( TOTEM.reqflags.edits, function (n, conv) { 
 						if (conv) 
 							if (flag = flags[n])  
 								conv(flag.split(","),ack,req);
