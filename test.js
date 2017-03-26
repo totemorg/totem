@@ -150,7 +150,7 @@ I have an anti-bot shield!!`, {
 		var TOTEM = require("../totem");
 		
 		TOTEM.config({}, function (err) {
-			Trace( err || "Started but I will not power it down" );
+			Trace( err || "Started but I will now power down" );
 			TOTEM.stop();
 		});
 
