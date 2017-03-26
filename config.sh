@@ -32,6 +32,7 @@ export MYSQL_HOST=localhost
 
 # service
 export SERVICE_PASS=test
+export SERVICE_NAME=Totem
 
 # tools
 export PATH=/opt/cmake:$PATH 			# latest cmake

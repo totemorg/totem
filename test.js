@@ -25,7 +25,7 @@ require("../enum").test({
 		var TOTEM = require("../totem");
 
 		Trace(
-			"Im simply the default Totem interface so Im not running any service", {
+			"Im simply a Totem interface so Im not running any service", {
 			default_fetcher_endpts: TOTEM.reader,
 			default_protect_mode: TOTEM.nofaults,
 			default_cores_used: TOTEM.cores
@@ -35,42 +35,43 @@ require("../enum").test({
 	N2: function () {
 		
 		Trace(
-`I **will be** a Totem client running in fault protection mode, no database yet, but I am running
+`I **will become** a Totem client running in fault protection mode, no database yet, but I am running
 with 2 cores and the default endpoint routes` );
 
-		var TOTEM = require("../totem").start({
+		var TOTEM = require("../totem").config({
 			nofaults: true,
 			cores: 2
+		}, function (err) {
+			Trace(err || "Ok - Im started and ready to rock!");
 		});
 		
 	},
 	
 	N3: function () {
 		
-		var TOTEM = require("../totem").start({
+		var TOTEM = require("../totem").config({
 			name: "Totem",
 			
 			mysql: {
 				host: ENV.MYSQL_HOST,
 				user: ENV.MYSQL_USER,
 				pass: ENV.MYSQL_PASS
-			},
-			
-			init: function () {				
-				Trace(
-`I **have become** a Totem client, with no cores, but 
-I do have mysql database from which I've derived my start() options from openv.apps.nick = TOTEM.name = "Totem"`, {
-
-					mysql_derived_site_parms: TOTEM.site
-				});
 			}
+		},  function (err) {				
+			Trace( err ||
+`I **have become** a Totem client, with no cores, but 
+I do have mysql database from which I've derived my start() 
+options from openv.apps.nick = TOTEM.name = "Totem"`, {
+
+				mysql_derived_site_parms: TOTEM.site
+			});
 		});
 		
 	},
 	
 	N4: function () {
 		
-		var TOTEM = require("../totem").start({
+		var TOTEM = require("../totem").config({
 			encrypt: ENV.SERVICE_PASS,
 			mysql: {
 				host: ENV.MYSQL_HOST,
@@ -81,11 +82,7 @@ I do have mysql database from which I've derived my start() options from openv.a
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 					res( "123" );
 					
-					Trace(		
-`PKI-encrypted Totem service, 2 cores, unprotected, with a mysql database, and \n
-(dothis,orthis) endpoints.  If the servers client.pfx does not exists, Totem will\n
-create the client.pfx and associated pems (public client.crt and private client.key).` , {
-
+					Trace({
 						do_query: req.query
 					});
 				},
@@ -103,36 +100,34 @@ create the client.pfx and associated pems (public client.crt and private client.
 						or_user: [req.client,req.group]
 					});
 				}
-			},
-			
-			init: function () {
-				Trace(
-					"try my **encrypted** (dothis,orthis) endpoints", {
-					my_endpoints: TOTEM.reader
-				});
 			}
+		}, function (err) {
+			Trace( err || 
+`Now stronger and **encrypted** -- try my https /dothis and /orthis endpoints.
+Ive only requested 1 core, and Im unprotected, with a mysql database.  
+If my client.pfx does not already exists, Totem will create the client.pfx 
+and associated pems (public client.crt and private client.key).` , {
+				my_endpoints: TOTEM.reader
+			});
 		});
 		
 	},
 	
 	N5: function () {
-		var TOTEM = require("../totem").start({
+		var TOTEM = require("../totem").config({
 			mysql: {
 				host: ENV.MYSQL_HOST,
 				user: ENV.MYSQL_USER,
 				pass: ENV.MYSQL_PASS
 			},
 	
-			riddles: 10,
-			
-			init: function () {
-				
-				Trace(
+			riddles: 10
+		}, function (err) {
+			Trace( err ||
 `I am Totem client, with no cores but I do have mysql database and
-I have anti-bot protection!!`, {
-					mysql_derived_parms: TOTEM.site
-				});
-			}
+I have an anti-bot shield!!`, {
+				mysql_derived_parms: TOTEM.site
+			});
 		});
 	},
 	
@@ -141,7 +136,7 @@ I have anti-bot protection!!`, {
 		var ENGINE = require("../engine");
 		var TOTEM = require("../totem");
 
-		Trace( "A default Totem client", {
+		Trace( "A Totem+Engine client has been created", {
 			a_tau_template: ENGINE.tau("somejob.pdf"),
 			engine_errors: ENGINE.error,
 			get_endpts: TOTEM.reader,
@@ -154,14 +149,9 @@ I have anti-bot protection!!`, {
 
 		var TOTEM = require("../totem");
 		
-		TOTEM.start({
-			
-			init: function () {
-
-				Trace( "Totem being powered down" );
-				
-				TOTEM.stop();
-			}
+		TOTEM.config({}, function (err) {
+			Trace( err || "Started but I will not power it down" );
+			TOTEM.stop();
 		});
 
 		var ENGINE = require("../engine").config({
@@ -171,9 +161,8 @@ I have anti-bot protection!!`, {
 	},
 			
 	E3: function () {
-		
-		var TOTEM = require("../totem").start({
 
+		var TOTEM = require("../totem").config({
 			"reader.": {
 				chipper: function Chipper(req,res) {				
 					res( 123 );
@@ -191,14 +180,11 @@ I have anti-bot protection!!`, {
 		var ENGINE = require("../engine").config({
 			thread: TOTEM.thread
 		});
-
-		Trace( "Starting a trivial Totem with a chipper fetcher and a database" );
 	},
 	
 	E4: function () {
 		
-		var TOTEM = require("../totem").start({
-
+		var TOTEM = require("../totem").config({
 			"reader.": {
 				test: function Chipper(req,res) {
 					
@@ -358,13 +344,13 @@ function faces(tau,parms) { return 102; }
 				pass: ENV.MYSQL_PASS
 			}
 			
+		}, function (err) {
+			Trace( "Unit test my engines with /test?config=cv | py1 | py2 | py3 | js" );
 		});
 
 		var ENGINE = require("../engine").config({
 			thread: TOTEM.thread
 		});
-
-		Trace( "Unit test engines with /test?config=cv | py1 | py2 | py3 | js" );
 
 	},
 	
@@ -372,7 +358,7 @@ function faces(tau,parms) { return 102; }
 		
 		var CHIPPER = require("../chipper");
 		
-		var TOTEM = require("../totem").start({
+		var TOTEM = require("../totem").config({
 			"reader.": {
 				chip: CHIPPER.chippers,
 
@@ -391,14 +377,11 @@ function faces(tau,parms) { return 102; }
 				host: ENV.MYSQL_HOST,
 				user: ENV.MYSQL_USER,
 				pass: ENV.MYSQL_PASS
-			},
-			
-			init: function () {
-
-				Trace( "Test my default endpoints", {
-					my_readers: TOTEM.reader
-				});
 			}
+		}, function (err) {
+			Trace( err || "Go ahead and test my default /chip and /wfs endpoints", {
+				my_readers: TOTEM.reader
+			});
 		});
 		
 		CHIPPER.config({
@@ -408,40 +391,31 @@ function faces(tau,parms) { return 102; }
 	},
 	
 	D1: function () {
-		
-		var TOTEM = require("../debe").start({
-			//encrypt: ENV.SERVICE_PASS,
-			
+
+		var TOTEM = require("../debe").config({
+			name: ENV.SERVICE_NAME,
+			encrypt: ENV.SERVICE_PASS,
 			mysql: {
 				host: ENV.MYSQL_HOST,
 				user: ENV.MYSQL_USER,
 				pass: ENV.MYSQL_PASS
-			},
-			
-			init: function () {
-
-				Trace( "Encrypted Totem client with a database" );
-				//debe_mysql:TOTEM.mysql,
-				//debe_site: TOTEM.site
-				
 			}
-			
+		}, function (err) {
+			Trace( err || "Yowzers - An encrypted DEBE service with a database" );
 		});
-			
+
 	},
 	
 	D2: function () {
 		
-		var TOTEM = require("../debe").start({
+		var TOTEM = require("../debe").config({
 			encrypt: ENV.SERVICE_PASS,
 			riddles: 10,
-			
 			mysql: {
 				host: ENV.MYSQL_HOST,
 				user: ENV.MYSQL_USER,
 				pass: ENV.MYSQL_PASS
 			},
-
 			"reader.": {
 				wfs: function (req,res) {
 					res("here i go again");
@@ -451,18 +425,12 @@ function faces(tau,parms) { return 102; }
 					});
 				}
 
-			},				
-			
-			init: function () {
-
-				Trace( "Unencrypted dev-Totem client with a database and wfs endpoint" );
-				
 			}
-			
+		}, function (err) {
+			Trace( "This bad boy in an unencrypted service with a database and has an /wfs endpoint" );
 		});
 			
 	}
-	
 	
 });	
 

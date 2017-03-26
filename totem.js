@@ -310,14 +310,14 @@ var
 	 * @member totem
 	 * Configure and start the service
 	 * */
-	start: startServer,	
+	config: configService,	
 	
 	/**
 	@method
 	@member totem
 	Stop the service
 	 * */
-	stop: stopServer,
+	stop: stopService,
 	
 	/**
 	@method
@@ -742,7 +742,9 @@ var
 		noFile: new Error("file not found"),
 		noIndex: new Error("index not found"),
 		badType: new Error("bad presentation type"),
-		badReturn: new Error("response fault")
+		badReturn: new Error("response fault"),
+		noSockets: new Error("scoket.io failed"),
+		noService: new Error("no service  to start")
 	},
 
 	/**
@@ -988,11 +990,11 @@ function dataExecute(req,res) {
  **/
 
 /**
- * @method startServer
+ * @method configService
  * Start this server with the desired options.
  * @param {Object} opts configuration options
  * */
-function startServer(opts) {
+function configService(opts, cb) {
 
 	TOTEM.extend(opts);
 	
@@ -1000,16 +1002,16 @@ function startServer(opts) {
 		name  = TOTEM.name,
 		mysql = TOTEM.mysql,
 		paths = TOTEM.paths,
-		site = TOTEM.site,
-		cb = null; //additional Initialize;
+		site = TOTEM.site;
+		//cb = null; //additional Initialize;
 
-	Trace(`STARTING ${name}`); 
+	Trace(`CONFIGURING ${name}`); 
 	
 	TOTEM.started = new Date();
 
 	if (mysql) 
 		DSVAR.config({   // establish the db agnosticator 
-			//io: TOTEM.IO,   // can setup its socketio only after server defined by initServer
+			//io: TOTEM.IO,   // can setup its socketio only after server defined by startService
 
 			mysql: Copy({ 
 				opts: {
@@ -1029,31 +1031,35 @@ function startServer(opts) {
 
 			if (name)	// derive site context
 				TOTEM.setContext(sql, function () {
-					setupServer(cb);
+					protectService(cb || function (err) {
+						Trace(err || `STARTED ${name} ENCRYPTED`);
+					});
 				});
 
 			//sql.release();
 		});	
 
 	else
-		setupServer(cb);
+		protectService(cb || function (err) {
+			Trace(err || `STARTED ${name} UNENCRYPTED`);			
+		});
 	
 	return TOTEM;
 }
 
 /**
- * @method initServer
+ * @method startService
  * Attach the responder to this server then initialized.
  * @param {Object} server HTTP/HTTP server
  * @param {Function} cb callback() when service initialized.
  * */
-function initServer(server,cb) {
+function startService(server,cb) {
 	
 	var name = TOTEM.name,
 		site = TOTEM.site,
 		paths = TOTEM.paths;
 	
-	Trace(`INITIALIZING ${name}`);
+	Trace(`STARTING ${name}`);
 	
 	TOTEM.server = server || { 	// define server
 		listen: function () {
@@ -1067,15 +1073,14 @@ function initServer(server,cb) {
 	if (server && name) 			// attach responder
 		server.on("request", Responder);
 	else
-		Trace("NO SERVER");
+		return cb( TOTEM.errors.noService );
 
 	site.masterURL = (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + (TOTEM.cores ? TOTEM.port+1 : TOTEM.port) + "/";
 	site.workerURL = (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/";
 	
 	TOTEM.flush();  		// init of client callstack via its Function key
 
-	if (TOTEM.init)  		 // client private init
-		TOTEM.init(); 
+	// (TOTEM.init) TOTEM.init();  // legacy init
 	
 	if (TOTEM.encrypt && paths.url.socketio) {   // establish web sockets with clients
 
@@ -1091,7 +1096,6 @@ function initServer(server,cb) {
 		Trace("ATTACHING socket.io AT "+IO.path());
 
 		if (IO) { 							// Setup client web-socket support
-
 			IO.on("connection", function (socket) {  // Trap every connect
 				
 				//Trace(">CONNECTING socket.io CLIENT");
@@ -1122,12 +1126,14 @@ function initServer(server,cb) {
 			IO.on("disconnection", function (socket) {
 				Trace(">>Disconnecting socket.io client");
 			});	
-
+			
+			cb( null );
 		}
 		else
-			Trace("SOCKET.IO FAILED");
-	
+			return cb( TOTEM.errors.noSockets );	
 	}
+	else
+		cb( null );
 		
 	// The BUSY interface provides a mean to limit client connections that would lock the 
 	// service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
@@ -1136,27 +1142,18 @@ function initServer(server,cb) {
 	if (BUSY && TOTEM.busy) 
 		BUSY.maxLag(TOTEM.busy);
 	
-	if ( !TOTEM.server )  // no need to listen or initialize if router disabled
-		return ;
-	
 	// listening on-routes message
 
 	var endpts = [];	
 	for (var n in TOTEM.select || {}) endpts.push(n);
 	endpts = "["+endpts.join()+"]";
 
-	if (TOTEM.cores) 					// Establish cores, master and workers
+	if (TOTEM.cores) 					// Establish master and worker cores
 		if (CLUSTER.isMaster) {			// Establish master
 			
-			if (server)
-				server.listen(TOTEM.port+1, function() {  // Establish master
-					Trace(`SERVING ${site.masterURL} AT [${endpts}]`);
-					if (cb) cb();
-
-				});
-			
-			else
-			if (cb) cb();
+			server.listen(TOTEM.port+1, function() {  // Establish master
+				Trace(`SERVING ${site.masterURL} AT [${endpts}]`);
+			});
 			
 			if (TOTEM.nofaults) {
 				process.on("uncaughtException", function (err) {
@@ -1186,43 +1183,35 @@ function initServer(server,cb) {
 				console.info(`CORE${worker.id} FORKED`);
 			}
 		}
-		else {							// Establish core worker
-			
-			if (server)
-				server.listen(TOTEM.port, function() {
-					Trace(`CORE${CLUSTER.worker.id} ROUTING ${site.workerURL} AT ${endpts}`);
-					if (cb) cb(TOTEM);
-				});
-			
-			else
-			if (cb) cb(TOTEM);
+		
+		else {								// Establish worker cores
+			server.listen(TOTEM.port, function() {
+				Trace(`CORE${CLUSTER.worker.id} ROUTING ${site.workerURL} AT ${endpts}`);
+				//cb(null);
+			});
 			
 			if (TOTEM.nofaults)
 				CLUSTER.worker.process.on("uncaughtException", function (err) {
 					console.warn(`CORE${CLUSTER.worker.id} FAULTED ${err}`);
 				});	
-				
 		}
+	
 	else 								// Establish worker
-	if (server) 
 		server.listen(TOTEM.port, function() {
 			Trace(`SERVING ${site.masterURL} AT ${endpts}`);
-			if (cb) cb();
 		});
-	else
-	if (cb) cb();
 			
 }
 		
 /**
- * @method connectServer
+ * @method connectService
  * If the TOTEM server already connected, inherit the server; otherwise
  * define an the apprpriate http interface (https if encrypted, 
  * http if unencrypted), then start the server.
  * @param {Function} cb callback when done
  *
  * */
-function connectServer(cb) {
+function connectService(cb) {
 	
 	var 
 		port = TOTEM.port,
@@ -1231,7 +1220,7 @@ function connectServer(cb) {
 	
 	Trace((TOTEM.encrypt?"ENCRYPTED":"UNENCRYPTED")+` CONNECTION ${name} ON PORT ${port}`);
 
-	if (TOTEM.encrypt) {
+	if (TOTEM.encrypt) {  // build the trust strore
 		try {
 			Each( FS.readdirSync(certs.truststore), function (n,file) {
 				if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
@@ -1244,7 +1233,7 @@ function connectServer(cb) {
 		}
 
 		if (port)
-			initServer( HTTPS.createServer({
+			startService( HTTPS.createServer({
 				passphrase: TOTEM.encrypt,		// passphrase for pfx
 				pfx: FS.readFileSync(`${certs.server}${name}.pfx`),			// TOTEM.paths's pfx/p12 encoded crt+key TOTEM.paths
 				ca: TOTEM.trust,				// list of TOTEM.paths authorities (trusted serrver.trust)
@@ -1255,33 +1244,33 @@ function connectServer(cb) {
 			}) , cb );
 
 		else 
-			initServer( null, cb );
+			startService( null, cb );
 	}
 	
 	else
 	if (port)
-		initServer( HTTP.createServer(), cb );
+		startService( HTTP.createServer(), cb );
 	
 	else 
-		initServer( null, cb );
+		startService( null, cb );
 	
 }
 
 /**
- * @method setupServer
+ * @method protectService
  * Create the server's PKI certs (if they dont exist), then setup
  * its master-worker urls and callback the service initializer.
  * @param {Function} cb callback when done
  * 
  * */
-function setupServer(cb) {
+function protectService(cb) {
 	
 	var 
 		encrypt = TOTEM.encrypt,
 		name = TOTEM.name,
 		certs = TOTEM.paths.certs;
 
-	Trace(`SETTINGUP ${name}`);
+	Trace(`PROTECTING ${name}`);
 	
 	TOTEM.cache.certs = {		// cache data fetching certs 
 		pfx: FS.readFileSync(`${certs.server}fetch.pfx`),
@@ -1297,30 +1286,31 @@ function setupServer(cb) {
 				Trace(`CREATING SERVER CERTIFICATE FOR ${owner}`);
 			
 				createCert(owner,encrypt,function () {
-					connectServer(cb);
+					connectService(cb);
 				});				
 			}
 				
 			else
-				connectServer(cb);
+				connectService(cb);
 
 		});
+	
 	else 
-		connectServer(cb);
+		connectService(cb);
 }
 
 /**
- * @method stopServer
+ * @method stopService
  * 
  * Stop the server.
  * */
-function stopServer() {
+function stopService() {
 		
 	var server = TOTEM.server;
 			
 	if (server)
 		server.close(function () {
-			Trace("STOPPED");
+			Trace(`STOPPED ${TOTEM.name}`);
 		});
 }
 
@@ -2876,6 +2866,7 @@ function Responder(Req,Res) {
 					body: body,
 					flags: {},
 					joins: {},
+					site: TOTEM.site,
 					connection: Req.connection	// engines require for transferring work to workers
 				},
 

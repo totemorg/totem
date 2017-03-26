@@ -28,28 +28,27 @@ The  following CRUD | HTTP interface is provided to one or more dataset NODES:
   
 where a NODE can specify a [FLEX](https://git.geointapps.org/acmesds/flex) dataset:
   
-  	NODE = DATASET.TYPE?PARMS
-  
-or a (jade skin, js, py, matlab, emulated matlab, r, opencv, ...) compute [ENGINE](https://git.geointapps.org/acmesds/engine):
+  	DATASET.TYPE?PARMS
+	TYPE = [db | xml | csv | txt | tab | view | tree | flat | delta | nav | kml | exe | encap | html | ...] formats returned data
 
-	NODE = ENGINE.TYPE?PARMS
+or specify a compute [ENGINE](https://git.geointapps.org/acmesds/engine):
 
-or a file:
+	ENGINE.TYPE?PARMS
+	TYPE = [view | js | py | mat | r | cv |  ...] specifies the engine type
 
-	NODE = FILE.TYPE?PARMS
-  
-where FILE = AREA/PATH provides redirection of the requested PATH
-to a service defined AREA, and where 
+or specify a file:
 
-	TYPE = view | db | txt | xml | csv | json | ...
+	FILE.TYPE?PARMS
+	FILE = AREA/PATH provides redirection of the requested PATH 
+	TYPE = types supported by the [file READER](https://git.geointapps.org/acmesds/reader)).
 
-returns NODE data in the specified format (additional file types are supported by the file [READER](https://git.geointapps.org/acmesds/reader)).
+TOTEM is configured and started like this:
 
-Like all modules, TOTEM is started like this:
-
-	var TOTEM = require("../totem").start(options);
+	var TOTEM = require("../totem").config(options, function (err) {
+		// the callback when service has been started
+	});
 	
-where options = {...} nclude:
+where options = {...} include:
   
 	// CRUDE interface
 
@@ -151,8 +150,7 @@ where options = {...} nclude:
 	site: {db parameters} // loaded for specified opts.name,
 	url : {master,worker} // urls for specified opts.cores,
 
-Because TOTEM extends [ENUM](https://git.geointapps.org/acmesds/enum), its' options can be specified
-using ENUM.copy() conventions:
+TOTEM options can be specified using [ENUM copy()](https://git.geointapps.org/acmesds/enum) conventions:
 
 	options =  {
 		key: value, 						// set 
@@ -163,10 +161,6 @@ using ENUM.copy() conventions:
 		:
 		:
 	}
-
-Totem's [DEBE](https://git.geointapps.org/acmesds/debe) module serves as a more complex use-case.  You may 
-also find Totem's [DSVAR](https://git.geointapps.org/acmesds/dsvar) useful, if you wish to learn more about
-its database agnosticator.
 
 ## Installation
 
@@ -183,65 +177,57 @@ Typically, you will want to redirect the following to your project
 	
 ## Examples
 
-Below sample use-cases are from totem/test.js.
+Below sample are from the totem/test.js unit tester.  See Totem's [DEBE](https://git.geointapps.org/acmesds/debe) 
+for a far more complex use-case.  You may  also find Totem's [DSVAR](https://git.geointapps.org/acmesds/dsvar) 
+useful, if you wish to learn more about its database agnosticator.
 
 ### N1 - Just an interface
 
-	N1: function () {
-		
-		var TOTEM = require("../totem");
-
-		Trace(
-			"Im simply the default Totem interface so Im not running any service", {
-			default_fetcher_endpts: TOTEM.reader,
-			default_protect_mode: TOTEM.nofaults,
-			default_cores_used: TOTEM.cores
-		});
-	},
+	var TOTEM = require("../totem");
+	
+	Trace(
+		"Im simply a Totem interface so Im not running any service", {
+		default_fetcher_endpts: TOTEM.reader,
+		default_protect_mode: TOTEM.nofaults,
+		default_cores_used: TOTEM.cores
+	});
 	
 ### N2 - 2 cores in fault protection mode
 
-	N2: function () {
-		
-		Trace(
-	`I **will be** a Totem client running in fault protection mode, 
-	with 2 cores and default routes` );
+	Trace(
+	`I **will become** a Totem client running in fault protection mode, no database yet, but I am running
+	with 2 cores and the default endpoint routes` );
 
-		var TOTEM = require("../totem").start({
-			nofaults: true,
-			cores: 2
-		});
-		
-	},
+	var TOTEM = require("../totem").config({
+		nofaults: true,
+		cores: 2
+	}, function (err) {
+		Trace(err || "Ok - Im started and ready to rock!");
+	});
 	
 ### N3 - No cores but a database
 
-	N3: function () {
-		
-		var TOTEM = require("../totem").start({
-			mysql: {
-				host: ENV.MYSQL_HOST,
-				user: ENV.MYSQL_USER,
-				pass: ENV.MYSQL_PASS
-			},
-			
-			init: function () {				
-				Trace(
-	`I **have become** a Totem client, with no cores, but 
-	I do have mysql database from which I've derived my site parms`, {
+	var TOTEM = require("../totem").config({
+		name: "Totem",
 
-					mysql_derived_parms: TOTEM.site
-				});
-			}
+		mysql: {
+			host: ENV.MYSQL_HOST,
+			user: ENV.MYSQL_USER,
+			pass: ENV.MYSQL_PASS
+		}
+	},  function (err) {				
+		Trace( err ||
+			`I **have become** a Totem client, with no cores, but 
+			I do have mysql database from which I've derived my start() 
+			options from openv.apps.nick = TOTEM.name = "Totem"`, {
+
+			mysql_derived_site_parms: TOTEM.site
 		});
-		
-	},
+	});
 
 ### N4 - Encrypted with (dothis,orthis) endpoints
 
-	N4: function () {
-		
-		var TOTEM = require("../totem").start({
+	var TOTEM = require("../totem").config({
 			encrypt: ENV.SERVICE_PASS,
 			mysql: {
 				host: ENV.MYSQL_HOST,
@@ -251,65 +237,52 @@ Below sample use-cases are from totem/test.js.
 			reader: {
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 					res( "123" );
-					
-					Trace(		
-	`PKI-encrypted Totem service, 2 cores, unprotected, with a mysql database, and \n
-	(dothis,orthis) endpoints.  If the servers client.pfx does not exists, Totem will\n
-	create the client.pfx and associated pems (public client.crt and private client.key).` , {
 
+					Trace({
 						do_query: req.query
 					});
 				},
 
 				orthis: function orthis(req,res) {
-					
+
 					if (req.query.x)
 						res( [{x:req.query.x+1,y:req.query.x+2}] );
 					else
 						res( new Error("We have a problem huston") );
-						
-					Trace(
-	`Like dothis, but needs an ?x=value query`, {
+
+					Trace( `Like dothis, but needs an ?x=value query`, {
 						or_query: req.query,
 						or_user: [req.client,req.group]
 					});
 				}
-			},
-			
-			init: function () {
-				Trace(
-					"try my **encrypted** (dothis,orthis) endpoints", {
-					my_endpoints: TOTEM.reader
-				});
 			}
+		}, function (err) {
+			Trace( err || 
+				`Now stronger and **encrypted** -- try my https /dothis and /orthis endpoints.
+				Ive only requested 1 core, and Im unprotected, with a mysql database.  
+				If my client.pfx does not already exists, Totem will create the client.pfx 
+				and associated pems (public client.crt and private client.key).` , {
+					my_endpoints: TOTEM.reader
+			});
 		});
 		
-	},
-
 ### N5
 
-	N5: function () {
-		var TOTEM = require("../totem").start({
-			mysql: {
-				host: ENV.MYSQL_HOST,
-				user: ENV.MYSQL_USER,
-				pass: ENV.MYSQL_PASS
-			},
-	
-			riddles: 10,
-			
-			init: function () {
-				
-				Trace(
-	`I am Totem client, with no cores but I do have mysql database and
-	I have anti-bot protection!!`, {
-					mysql_derived_parms: TOTEM.site
-				});
-			}
+	var TOTEM = require("../totem").config({
+		mysql: {
+			host: ENV.MYSQL_HOST,
+			user: ENV.MYSQL_USER,
+			pass: ENV.MYSQL_PASS
+		},
+
+		riddles: 10
+	}, function (err) {
+		Trace( err ||
+			`I am Totem client, with no cores but I do have mysql database and
+			I have an anti-bot shield!!`, {
+				mysql_derived_parms: TOTEM.site
 		});
-	}
-
-
+	});
 
 ## License
 
