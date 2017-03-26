@@ -2,7 +2,7 @@
 @class totem [![Forked from SourceForge](https://sourceforge.net)]
 # TOTEM
 
-TOTEM provides an HTTP-HTTPS service that can be configured with/without the following features:
+TOTEM provides an HTTP service with the following optional features:
   
 	+ routing methods for table, engine, and file objects
 	+ Denial-of-Service protection
@@ -19,7 +19,7 @@ TOTEM provides an HTTP-HTTPS service that can be configured with/without the fol
   
 TOTEM thus replaces a slew of god-awful NodeJS middleware (like Express).
 
-The  following CRUD | HTTP interface is provided to one or more dataset NODES:
+TOTEM provides CRUD endpoints to synchronize dataset NODES:
   
 	select	| GET 	 /NODE $$ NODE ...
 	update	| PUT 	 /NODE $$ NODE ...
@@ -31,16 +31,21 @@ where a NODE can specify a [FLEX](https://git.geointapps.org/acmesds/flex) datas
   	DATASET.TYPE?PARMS
 	TYPE = [db | xml | csv | txt | tab | view | tree | flat | delta | nav | kml | exe | encap | html | ...] formats returned data
 
-or specify a compute [ENGINE](https://git.geointapps.org/acmesds/engine):
+a compute [ENGINE](https://git.geointapps.org/acmesds/engine):
 
 	ENGINE.TYPE?PARMS
-	TYPE = [view | js | py | mat | r | cv |  ...] specifies the engine type
+	TYPE = [view | js | py | mat | r | cv |  ...] identifies type of engine to execute
 
-or specify a file:
+a static content file:
 
 	FILE.TYPE?PARMS
 	FILE = AREA/PATH provides redirection of the requested PATH 
-	TYPE = types supported by the [file READER](https://git.geointapps.org/acmesds/reader)).
+
+or a [READER](https://git.geointapps.org/acmesds/reader) file to be parsed:
+
+	FILE.TYPE?PARMS
+	FILE = AREA/PATH provides redirection of the requested PATH 
+	TYPE = type of file to be parsed
 
 TOTEM is configured and started like this:
 
@@ -225,7 +230,7 @@ useful, if you wish to learn more about its database agnosticator.
 		});
 	});
 
-### N4 - Encrypted with (dothis,orthis) endpoints
+### N4 - Encrypted with some endpoints
 
 	var TOTEM = require("../totem").config({
 			encrypt: ENV.SERVICE_PASS,
@@ -266,7 +271,7 @@ useful, if you wish to learn more about its database agnosticator.
 			});
 		});
 		
-### N5
+### N5 - Unencrypted but has an anti-bot shield
 
 	var TOTEM = require("../totem").config({
 		mysql: {
