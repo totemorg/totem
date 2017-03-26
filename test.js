@@ -392,7 +392,7 @@ function faces(tau,parms) { return 102; }
 	
 	D1: function () {
 
-		var TOTEM = require("../debe").config({
+		var DEBE = require("../debe").config({
 			name: ENV.SERVICE_NAME,
 			encrypt: ENV.SERVICE_PASS,
 			mysql: {
@@ -408,7 +408,7 @@ function faces(tau,parms) { return 102; }
 	
 	D2: function () {
 		
-		var TOTEM = require("../debe").config({
+		var DEBE = require("../debe").config({
 			encrypt: ENV.SERVICE_PASS,
 			riddles: 10,
 			mysql: {
@@ -427,7 +427,7 @@ function faces(tau,parms) { return 102; }
 
 			}
 		}, function (err) {
-			Trace( "This bad boy in an unencrypted service with a database and has an /wfs endpoint" );
+			Trace( "This bad boy in an encrypted service with a database and has an /wfs endpoint" );
 		});
 			
 	}

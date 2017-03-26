@@ -155,7 +155,7 @@ where options = {...} include:
 	site: {db parameters} // loaded for specified opts.name,
 	url : {master,worker} // urls for specified opts.cores,
 
-TOTEM options can be specified using [ENUM copy()](https://git.geointapps.org/acmesds/enum) conventions:
+TOTEM options use the [ENUM copy()](https://git.geointapps.org/acmesds/enum) conventions:
 
 	options =  {
 		key: value, 						// set 
