@@ -1755,7 +1755,8 @@ function validateCert(con,req,res) {
 			if (profile.Count)
 				admitClient(req, res, profile, cert, con);
 				
-			else 
+			else {
+				delete TOTEM.guestProfile.ID;
 				sql.query("INSERT INTO openv.profiles SET ?", Copy({
 					Client: client,
 					User: client.replace("ic.gov","").replace(/\./g,"").toLowerCase()
@@ -1764,6 +1765,7 @@ function validateCert(con,req,res) {
 					admitClient(req, res, TOTEM.guestProfile, cert, con);
 					
 				});
+			}
 			
 		})
 		.on("error", function (err) {
@@ -2681,6 +2683,10 @@ function Responder(Req,Res) {
 					});
 					sendData(ack,req,res);
 					
+					break;
+
+				case String:
+					sendString(ack);
 					break;
 			
 				default: 					// send data
