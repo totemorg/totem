@@ -678,7 +678,7 @@ var
 	paths: { 			
 		render: "public/jade/",
 		
-		default: "",
+		default: "/home.view",
 		
 		url: {
 			//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
@@ -709,10 +709,10 @@ var
 			distros: "SELECT Role,group_concat(DISTINCT openv.Address) AS Distro FROM openv.POCs WHERE ? GROUP BY Role" 
 		},
 		
-		mime: {
-			files: ".",
-			captcha: ".",
-			index: {
+		mime: { // default static file areas
+			files: ".", // path to shared files 
+			captcha: ".",  // path to antibot captchas
+			index: { // indexers
 				files: "indexer"
 			}
 		}
@@ -774,7 +774,7 @@ var
 		wget: fetchWget,
 		curl: fetchCurl,
 		http: fetchHttp,
-		riddle: fetchRiddle
+		riddle: getRiddle
 	},
 	
 	/**
@@ -1071,7 +1071,7 @@ function startService(server,cb) {
 	};
 	
 	if (server && name) 			// attach responder
-		server.on("request", Responder);
+		server.on("request", sesThread);
 	else
 		return cb( TOTEM.errors.noService );
 
@@ -1313,6 +1313,9 @@ function stopService() {
 			Trace(`STOPPED ${TOTEM.name}`);
 		});
 }
+
+//============================================
+// User maintenance CRUDE interface
 
 /**
 @class support.user
@@ -1558,6 +1561,9 @@ function fetchUser(req,res) {
 	res( TOTEM.errors.failedUser );
 }
 
+//=============================================
+// PKI support
+
 /**
 @class support.cert
 PKI cert utilitities
@@ -1780,9 +1786,12 @@ function validateCert(con,req,res) {
 		res( null );
 }
 
+//=============================================
+// Static file indexing and uploading
+
 /**
 @class support.file
-MIME file utilitities
+MIME static file indexing and uploading
  */
 
 /**
@@ -1810,17 +1819,18 @@ function indexFile(path,cb) {
 * @param {Function} cb totem response
 */
 function findFile(path,cb) {
+	
 	try {
 		FS.readdirSync(path).each( function (n,file) {
 			if (n > MAXFILES) return true;
-			
+
 			if (file.charAt(0) != "_" && file.charAt(file.length-1) != "~") 
 				cb(n,file);
 		});
 	}
 	catch (err) {
-		return;
-	}
+			return;
+		}
 }
 
 /**
@@ -1864,7 +1874,6 @@ function uploadFile( files, area, cb) {
 		var name = file.filename;
 		var target = TOTEM.paths.mime[area]+"/"+area+"/"+name;
 
-//console.log([area,target,name]);
 		cb( file );
 		
 		if ( file.image ) {
@@ -1903,14 +1912,16 @@ function uploadFile( files, area, cb) {
 
 		else
 			switch ( file.type ) { 
-				case "xximage/jpeg":
+				/*
+				case "image/jpeg":  // legacy
 
 					var buf = new Buffer(file.data, "base64");
 					FS.writeFile(target, buf.toString("binary"), {encodings:"binary"}, function (err) {
 						console.log(err);
 					});
 					break;
-
+				*/
+					
 				case "image/jpeg":
 				case "application/pdf":
 				case "application/javascript":
@@ -1940,9 +1951,12 @@ function uploadFile( files, area, cb) {
 	});
 }
 
+//========================================
+// External data fetchers
+
 /**
 @class support.fetch
-Data fetcher utilitities
+External data fetchers
  */
 
 function fetchWget(req,res) {	//< wget endpoint
@@ -1961,39 +1975,6 @@ function fetchCurl(req,res) {	//< curl endpoint
 function fetchHttp(req,res) {	//< http endpoint
 	if ( url = TOTEM.paths.url[req.table] )
 		httpFetch(url.format(req, TOTEM.fetchers.plugin),res);
-}
-
-function fetchRiddle(req,res) {	//< riddle guess endpoint
-	
-	var query = req.query,
-		sql = req.sql;
-		
-	sql.query("SELECT *,count(ID) as Count FROM openv.riddles WHERE ? LIMIT 0,1", {ID:query.ID})
-	.on("result", function (rid) {
-		
-		var ID = {ID:rid.ID},
-			guess = (query.guess+"").replace(/ /g,"");
-
-console.log(rid);
-
-		if (rid.Count) 
-			if (rid.Riddle == guess) {
-				res( "pass" );
-				sql.query("DELETE FROM openv.riddles WHERE ?",ID);
-			}
-			else
-			if (rid.Attempts > rid.maxAttempts) {
-				res( "fail" );
-				sql.query("DELETE FROM openv.riddles WHERE ?",ID);
-			}
-			else {
-				res( "retry" );
-				sql.query("UPDATE openv.riddles SET Attempts=Attempts+1 WHERE ?",ID);
-			}
-		else 
-			res( "fail" );
-		
-	});
 }
 
 function curlFetch(url,cb) {
@@ -2138,15 +2119,49 @@ function sendTemplate(req,res) {
 }
 
 function sendFile(req,res) {
-
 	res( function () {return req.path; } );
-
 }
 
+//==========================================
+// Antibot protection
+ 
 /**
 @class support.antibot
- Antibot challenger utilities
+ Antibot protection
  */
+
+function getRiddle(req,res) {	//< request riddle endpoint
+	
+	var query = req.query,
+		sql = req.sql;
+		
+	sql.query("SELECT *,count(ID) as Count FROM openv.riddles WHERE ? LIMIT 0,1", {ID:query.ID})
+	.on("result", function (rid) {
+		
+		var ID = {ID:rid.ID},
+			guess = (query.guess+"").replace(/ /g,"");
+
+console.log(rid);
+
+		if (rid.Count) 
+			if (rid.Riddle == guess) {
+				res( "pass" );
+				sql.query("DELETE FROM openv.riddles WHERE ?",ID);
+			}
+			else
+			if (rid.Attempts > rid.maxAttempts) {
+				res( "fail" );
+				sql.query("DELETE FROM openv.riddles WHERE ?",ID);
+			}
+			else {
+				res( "retry" );
+				sql.query("UPDATE openv.riddles SET Attempts=Attempts+1 WHERE ?",ID);
+			}
+		else 
+			res( "fail" );
+		
+	});
+}
 
 function initChallenger() {
 
@@ -2180,7 +2195,7 @@ function initChallenger() {
 		riddle.push( Riddle(map,ref) );
 }
 
-function getChallenge(msg,rid,ids) {
+function makeRiddle(msg,rid,ids) {
 
 	var riddles = TOTEM.riddle,
 		N = riddles.length;
@@ -2241,7 +2256,7 @@ function challengeClient(client, prof) {
 	var 
 		rid = [],
 		reply = (TOTEM.riddleMap && TOTEM.riddles)
-				? getChallenge( prof.Message, rid, (prof.IDs||"").parse({}) )
+				? makeRiddle( prof.Message, rid, (prof.IDs||"").parse({}) )
 				: prof.Message;
 
 	if (reply) 
@@ -2269,7 +2284,7 @@ function challengeClient(client, prof) {
 }
 
 //============================================
-// TOTEM initalization
+// Initalization
 
 function Initialize () {
 	
@@ -2280,7 +2295,7 @@ function Initialize () {
 }
 
 //============================================
-// Execution tracing
+// Node routing and tracing
 
 function Trace(msg,arg) {
 	
@@ -2353,12 +2368,14 @@ function parseNode(req) {
 	for (var n in query) 		// remove bogus query parameters and remap query flags and joins
 		if ( n in strips ) 				// remove bogus
 			delete query[n];
+		
 		else
 		if (n.charAt(0) == prefix) {  	// remap flag
 			var flag = n.substr(1);
 			flags[flag] = query[n];
 			delete query[n];
 		}
+		
 		else {							// remap join
 			var parts = n.split(".");
 			if (parts.length>1) {
@@ -2392,22 +2409,37 @@ function parseNode(req) {
 		});
 }						
 
-function syncNodes(nodes, acks, req, res, cb) {
+/**
+Submit nodes=[/dataset.type, /dataset.type ...]  on the current request thread req to the routeNode() 
+method, aggregate results, then send with supplied response().
+*/
+function syncNodes(nodes, acks, req, res) {
 	
 	if ( node = req.node = nodes.pop() )  	// grab last node
 		routeNode( req, function (ack) { 	// route it and intercept its ack
 			acks[req.file] = ack;
-			syncNodes( nodes, acks, Copy(req,{}), res, cb );
+			syncNodes( nodes, acks, Copy(req,{}), res );
 		});
 
 	else
 	if (nodes.length) 	// still more nodes
-		syncNodes( nodes, acks, Copy(req,{}), res, cb );
+		syncNodes( nodes, acks, Copy(req,{}), res );
 	
 	else  				// no more nodes
-		cb(acks);
+		res(acks);
 }
 
+/*
+Parse the node=/dataset.type on the current req thread, then route it to the approprate sender, 
+reader, emulator, engine or file indexer according to 
+
+	dataset	route to
+	=============================
+	area 	sender[area] || reader[type]
+	file		reader[type]	
+	name	engine[name] || worker[action]
+	table		emulator[action][table] || reader[type] || crud[action]
+*/
 function routeNode(req, res) {
 	
 	parseNode(req);
@@ -2461,6 +2493,7 @@ function routeNode(req, res) {
 
 				else
 					res( TOTEM.errors.noRoute );
+			
 			else
 			if ( route = 			// route to emulator, reader or default
 					TOTEM.emulator[action][table]
@@ -2494,6 +2527,9 @@ function routeNode(req, res) {
 		res( TOTEM.errors.noRoute );
 }
 
+/*
+Trace the current route then callback route on the supplied request-response thread
+*/
 function followRoute(route,req,res) {
 	Trace( 
 		//`[${req.log.ThreadsConnected}/${req.log.ThreadsRunning}] ` 
@@ -2503,19 +2539,22 @@ function followRoute(route,req,res) {
 	route(req, res);
 }
 
+//===============================================
+// Thread processing
+
 /**
 @class support
-Totem thread processing
+Thread processing
  */
 
 /**
- * @method Responder
+ * @method sesThread
  * @param {Object} Req http/https request
  * @param {Object} Res http/https response
  *
- * Responds to an HTTP/HTTPS request-repsonse thread.
+ * Holds a HTTP/HTTPS request-repsonse session thread.
  * */
-function Responder(Req,Res) {	
+function sesThread(Req,Res) {	
 	
 	// Session terminating functions to respond with a string, file, db structure, or error message.
 	
@@ -2543,14 +2582,14 @@ function Responder(Req,Res) {
 	}
 	
 	function sendCache(path,file,type,area) { // Cache and send file to client
-
+		
 		var mime = MIME[type] || MIME.html  || "text/plain",
 			paths = TOTEM.paths;
 		
 		//Trace(`SENDING ${path} AS ${mime} ${file} ${type} ${area}`);
 		//Res.setHeader("Content-Type", mime );
 		
-		if (type) {
+		if (type) {  // cache and send file
 				
 			var cache = TOTEM.cache;
 			
@@ -2575,10 +2614,9 @@ function Responder(Req,Res) {
 		}
 		
 		else
-		if ( 	( index = paths.mime.index ) &&
-				( indexer = index[area] ) ) {
+		if ( 	( index = paths.mime.index ) && ( indexer = index[area] ) ) { // index files
 
-			TOTEM[indexer](path, function (files) {
+			TOTEM[indexer](path, function (files) { // use configured indexer
 				sendFileIndex(`Index of ${path}`, files);
 			});
 		}
@@ -2686,6 +2724,7 @@ function Responder(Req,Res) {
 					break;
 
 				case String:
+					
 					sendString(ack);
 					break;
 			
@@ -2897,7 +2936,7 @@ function Responder(Req,Res) {
 				}
 
 				else 					// respond with aggregate of all nodes
-					syncNodes(nodes, {}, req, res, function (ack) {
+					syncNodes(nodes, {}, req, function (ack) {
 						Res.setHeader("Content-Type", "application/json");
 						res(ack);
 					});
