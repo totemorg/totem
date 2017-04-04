@@ -187,7 +187,7 @@ pid-file=/local/sqldb/mysqld.pid
 
 # to start use
 cd [mysql]
-./bin/mysqld_safe --defaults-file=my.cnf &
+./bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" &
 
 # follow instructions to change password
 cd [mysql]
