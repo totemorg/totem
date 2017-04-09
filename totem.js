@@ -2317,13 +2317,13 @@ function parseNode(req) {
 	
 	var
 		node = URL.parse(req.node),
-		query = req.query = (node.query||"").parse({}),
+		search = req.search = node.query || "",
+		query = req.query = search.parse({}),
 		areas = node.pathname.split("/"),
 		file = req.file = areas.pop() || (areas[1] ? "" : TOTEM.paths.default),
 		parts = file.split("."),
 		type = req.type = parts[1] || "",
 		table = req.table = parts[0] || "",
-		search = req.search = node.search,
 		area = req.area = areas[1] || "";
 		
 	if ( req.path = TOTEM.paths.mime[req.area] )
