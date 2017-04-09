@@ -140,7 +140,7 @@ startup.)		# status and start dependent services
 		echo -e "mysql service running: \n$P"
 	else
 		rm /var/lib/mysql/mysql.sock      # in case its hanging around
-		mysqld_safe --defaults-file=/base/mysql/my.cnf &
+		mysqld_safe --defaults-file=/base/mysql/my.cnf --sql-mode="" &
 	fi
 
 	if P=$(pgrep cesium); then
