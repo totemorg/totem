@@ -744,7 +744,8 @@ var
 		badType: new Error("bad presentation type"),
 		badReturn: new Error("response fault"),
 		noSockets: new Error("scoket.io failed"),
-		noService: new Error("no service  to start")
+		noService: new Error("no service  to start"),
+		badData: new Error("data has circular reference")
 	},
 
 	/**
@@ -2645,7 +2646,12 @@ function sesThread(Req,Res) {
 							break;
 							
 						default:
-							sendString( JSON.stringify(rtn) );
+							try {
+								sendString( JSON.stringify(rtn) );
+							}
+							catch (err) {
+								sendErrror(TOTEM.badData);
+							}
 					}
 				});
 
@@ -2653,7 +2659,12 @@ function sesThread(Req,Res) {
 				sendError( TOTEM.errors.badType );
 		
 		else
-			sendString( JSON.stringify(ack) );
+			try {
+				sendString( JSON.stringify(ack) );
+			}
+			catch (err) {
+				sendErrror(TOTEM.badData);
+			}
 	}
 	
 	function res(ack) {  // Session response callback
