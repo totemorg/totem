@@ -245,7 +245,7 @@ archive.) 	# archive service to archive area
 
 
 	echo "Archiving to $MAP/archives"
-	zip -r $MAP/archives/totem-N.zip ../* -x \*.zip \*/dbs/\* \*/clients/\*  \*/captcha/\* \*.git/\*  \*/_\*  _\*
+	zip -r $MAP/archives/totem-N.zip * -x \*.zip \*/dbs/\* \*/clients/\*  \*/captcha/\* \*.git/\*  \*/_\*  _\*
 	;;
 
 snap.)

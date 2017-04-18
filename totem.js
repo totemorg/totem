@@ -265,11 +265,11 @@ var
 		function hyper(ref) {
 			if (ref)
 				if (ref.charAt(0) == ":")
-					return this.tag("a", {href: "/"+(ref.substr(1)||this.toLowerCase())+".view"});
+					return this.link( "/"+(ref.substr(1)||this.toLowerCase())+".view" );
 				else
-					return this.tag("a", {href: ref});
+					return this.link(ref);
 			else
-				return this.tag("a", {href: ref || "/"+this.toLowerCase()+".view"});		
+				return this.link(ref || "/"+this.toLowerCase()+".view");
 		},
 		
 		/**
@@ -453,6 +453,7 @@ var
 	The site context extended by the mysql derived query when service starts
 	*/
 	site: { // reserved for derived context vars
+		
 	},
 
 	/**
@@ -1691,26 +1692,27 @@ function validateCert(con,req,res) {
 				
 	function admitClient(req, res, profile, cert, con) {
 		
-		var now = new Date(),		
+		var 
+			now = new Date(),		
 			admitRule = TOTEM.admitRule,
 			site = TOTEM.site,
 			client = cert.client;
 
-		if (TOTEM.encrypt) {
+		if (TOTEM.encrypt) {  // validate client's cert
 
 			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
 				return res( TOTEM.errors.expiredCert );
-				
+
 			if (admitRule)
 				if ( !(cert.issuer.O.toLowerCase() in admitRule && cert.subject.C.toLowerCase() in admitRule) ) 
 					return res( TOTEM.errors.rejectedCert );
-					
+
 		}
 	
-		if (profile.Banned) 
+		if (profile.Banned)  // block client if banned
 			res( new Error(profile.Banned) );
 			
-		else 
+		else  // start session metric logging
 			sql.query("show session status like 'Thread%'", function (err,stats) {
 
 				if (err)
@@ -1747,6 +1749,12 @@ function validateCert(con,req,res) {
 					
 				res(null);
 				
+				sql.query("INSERT INTO sockets SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1", {
+					client	: client,
+					org		: cert.subject.O || "noorg",
+					location: "tbd"
+				});
+
 			});	
 	}
 	
@@ -1754,7 +1762,7 @@ function validateCert(con,req,res) {
 		cert = getCert(),
 		client = cert.client;
 	
-	if (TOTEM.mysql) 
+	if (TOTEM.mysql)  // get client's profile
 		sql.query("SELECT *,count(ID) as Count FROM openv.profiles WHERE ? LIMIT 0,1", {client: client})
 		.on("result", function (profile) {
 //console.log(profile);
