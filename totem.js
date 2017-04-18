@@ -903,7 +903,8 @@ var
 			"games.js":1,
 			"capture.js":1,
 			"jade": 1,
-			"view": 1
+			"view": 1,
+			"gif": 1
 		},
 		
 		clients: {  // file types under clients areas being cached
@@ -1749,7 +1750,7 @@ function validateCert(con,req,res) {
 					
 				res(null);
 				
-				sql.query("INSERT INTO sockets SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1", {
+				sql.query("INSERT INTO openv.sockets SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1", {
 					client	: client,
 					org		: cert.subject.O || "noorg",
 					location: "tbd"
