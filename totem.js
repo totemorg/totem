@@ -59,6 +59,9 @@ var
 
 	IO: null, 			//< reserved for socket.io
 
+	dsAttrs: {			//< reserved for openv dataset attributes derived by DSVAR.config
+	},
+		
 	session: { 	//< reserved to track client sessions
 	},
 		
@@ -1039,6 +1042,7 @@ function configService(opts, cb) {
 					});
 				});
 
+			TOTEM.dsAttrs = DSVAR.attrs;
 			//sql.release();
 		});	
 
