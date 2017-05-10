@@ -201,8 +201,8 @@ var
 		/**
 		@method parse
 		@member String
-		Parse "&key=val ..." string or a "&relation" string into a rtn = {key:val, ...} default
-		hash or pass to a rtn = method to parse.
+		Parse a JSON string, or parse a "&PARM&PARM ..." string into a rtn = {key:val, relation:null, key:json, ...} hash where PARM is a "key=val",  "relation", 
+		or "key=json"  string.
 		*/
 		function parse(rtn) { 
 			
@@ -212,34 +212,39 @@ var
 				}
 				catch (err) {  // "&key=val ..." string
 					
-					if (!rtn) // no default method so return null
+					if ( !rtn ) // no default method so return null
 						return null;
 					
-					//else
-					//if (rtn.constructor == Function)  // pass to default method
-					//	return rtn(this);
+					else
+					if (rtn.constructor == Function)  // use supplied parse method
+						return rtn(this);
 					
-					/*var parms = (def.constructor == Function) 
-							? def(this) 
-							: this.split("&");*/
+					var key = "";
 
-					this.split("&").each(function (n,parm) {  // get a key=val parm
+					this.split("?").each( function (m,query) {
+						if (m) 
+							rtn[key] += "?" + query;
+					
+						else
+							query.split("&").each(function (n,parm) {  // get a key=val parm
 						
-						var	
-							parts = parm.split("="),  // split into key-val
-							val = parts.pop(), 
-							key = parts.pop(); 
+								var	
+									parts = parm.split("="),  // split into key=val
+									val = parts.pop();
 
-						if (key)   // val holds a value
-							try {  // val could be json 
-								rtn[key] = JSON.parse(val); 
-							}
-							catch (err) { 
-								rtn[key] = unescape(val);
-							}
+								key = parts.pop(); 
+
+								if (key)   // key = val used
+									try {  // val could be json 
+										rtn[key] = JSON.parse(val); 
+									}
+									catch (err) { 
+										rtn[key] = unescape(val);
+									}
 						
-						else 		// no key so val holds a relation
-								rtn[val] = null;
+								else 		// store "key RELATION val"
+									rtn[parm] = null;
+							});
 					});
 
 					return rtn;
@@ -2062,7 +2067,7 @@ function httpFetch(url,cb) {
 			});
 
 			res.on("end", function () {
-				cb( text.parse(text) );
+				cb( text.parse() || text );
 			});
 
 		});
@@ -2815,7 +2820,7 @@ function sesThread(Req,Res) {
 		})
 		.on("end", function () {
 			if (body)
-				cb( body.parse( {}, function () {  // yank files if body not json
+				cb( body.parse( function () {  // yank files if body not json
 					
 					var files = [], parms = {};
 					
