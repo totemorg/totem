@@ -201,8 +201,8 @@ var
 		/**
 		@method parse
 		@member String
-		Parse a JSON string, or parse a "&PARM&PARM ..." string into a rtn = {key:val, relation:null, key:json, ...} hash where PARM is a "key=val",  "relation", 
-		or "key=json"  string.
+		Parse a JSON string or parse a "&key=val&key=val?query&relation& ..." string into 
+		the default rtn = {key:val, key=val?query, relation:null, key:json, ...} hash.
 		*/
 		function parse(rtn) { 
 			
@@ -221,12 +221,13 @@ var
 					
 					var key = "";
 
-					this.split("?").each( function (m,query) {
-						if (m) 
-							rtn[key] += "?" + query;
+					this.split("?").each( function (m,parms) {
+						
+						if (m && key) 
+							rtn[key] += "?" + escape(parms);
 					
 						else
-							query.split("&").each(function (n,parm) {  // get a key=val parm
+							parms.split("&").each(function (n,parm) {  // get a key=val parm
 						
 								var	
 									parts = parm.split("="),  // split into key=val
