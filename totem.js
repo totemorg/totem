@@ -708,7 +708,7 @@ var
 		mysql: {
 			users: "SELECT client FROM ??.dblogs GROUP BY client",
 			derive: "SELECT * FROM openv.apps WHERE ?",
-			record: "INSERT INTO dblogs SET ?",
+			record: "INSERT INTO app1.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
 			engine: "SELECT *,count(ID) as Count FROM engines WHERE least(?,1)",
 			search: "SELECT * FROM files HAVING Score > 0.1",
 			credit: "SELECT * FROM files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 0,1",
@@ -1640,10 +1640,9 @@ function createCert(owner,pass,cb) {
 * request (client, group, log, and profile).  Responds will null (valid session) or an Error (invalid session).
 * 
 * on-input req = {action, socketio, query, body, flags, joins}
-* on-output req = adds {log, cert, client, org, locagio, group, profile, journal, joined, email, hawk and 
-* connection logMetrics}
+* on-output req = adds {log, cert, client, org, locagio, group, profile, journal, joined, email, hawk}
  * */
-function validateCert(con,req,res) {
+function validateCert(req,res) {
 				
 	function getCert() {
 		var cert = {						//< Guest cert
@@ -1730,9 +1729,9 @@ function validateCert(con,req,res) {
 					stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
 					
 				Copy({  // add session metric logs and session parms
-					log: {  								// logMetrics
-						Cores: site.Cores, 					// number of safety core hyperthreads
-						VMs: 1,								// number of VMs
+					log: {  								// potential session metrics to log
+						//Cores: site.Cores, 					// number of safety core hyperthreads
+						//VMs: 1,								// number of VMs
 						Event: now,		 					// start time
 						Action: req.action, 				// db action
 						Client: client, 				// client id
@@ -1769,7 +1768,9 @@ function validateCert(con,req,res) {
 			});	
 	}
 	
-	var sql = req.sql,
+	var 
+		con = req.connection,
+		sql = req.sql,
 		cert = getCert(),
 		client = cert.client;
 	
@@ -2551,8 +2552,47 @@ function routeNode(req, res) {
 Trace the current route then callback route on the supplied request-response thread
 */
 function followRoute(route,req,res) {
+
+	function logMetrics() { // log session metrics 
+		
+		if ((con=req.connection) && (record=TOTEM.paths.mysql.record)) {
+			var log = req.log;
+		
+			con._started = new Date();
+			
+			// If maxlisteners is not set to infinity=0, the connection 
+			// becomes sensitive to a sql connector t/o and there will
+			// be random memory leak warnings.
+			
+			con.setMaxListeners(0);
+			con.on('close', function () { 		// cb when connection closed
+				
+				var 
+					secs = ((new Date()).getTime() - con._started.getTime()) / 1000,
+					bytes = con.bytesWritten,
+					log = req.log;
+				
+				sqlThread( function (sql) {
+
+					sql.query(record, [ Copy(log, {
+						Delay: secs,
+						Transfer: bytes,
+						Event: con._started,
+						Dataset: req.table,
+						Actions: 1
+					}), bytes, secs, log.Event  ]);
+
+					sql.release();
+					
+				});
+			});
+
+		}
+	}
+
+	if ( !req.path ) logMetrics();
+	
 	Trace( 
-		//`[${req.log.ThreadsConnected}/${req.log.ThreadsRunning}] ` 
 		(route?route.name:"null").toUpperCase() 
 		+ ` ${req.file} FOR ${req.client}@${req.group}`);
 	
@@ -2693,11 +2733,11 @@ function sesThread(Req,Res) {
 			paths = TOTEM.paths;
 
 		try {		
-			switch (ack.constructor) {
+			switch (ack.constructor) {  // send ack based on its type
 				case Error: 			// send error message
 					
 					switch (req.type) {
-						case "db":
+						case "db":  
 							sendString( JSON.stringify({ 
 								success: false,
 								msg: ack+"",
@@ -2719,15 +2759,12 @@ function sesThread(Req,Res) {
 							if (err) 
 								sendError( TOTEM.errors.noFile );
 								
-							//else
-							//if (file = files[0])
-							//	sendCache( getPath(file.Area,file.Name), file.Name, file.Type );
 							else
 								sendError( TOTEM.errors.noFile );
 								
 						});
 					
-					else {						
+					else {		// credit/charge client when file pulled from file system	
 						if (paths.mysql.credit)
 							sql.query( paths.mysql.credit, {Name:req.node,Area:req.area} )
 							.on("result", function (file) {
@@ -2740,25 +2777,26 @@ function sesThread(Req,Res) {
 				
 					break;
 					
-				case Array: 			// send records
+				case Array: 			// send records with applicable conversions
 
 					var flags = req.flags;
 
-					Each( TOTEM.reqflags.edits, function (n, conv) { 
+					Each( TOTEM.reqflags.edits, function (n, conv) {  // do applicable conversions
 						if (conv) 
 							if (flag = flags[n])  
 								conv(flag.split(","),ack,req);
 					});
+					
 					sendData(ack,req,res);
 					
 					break;
 
-				case String:
+				case String:  			// send message
 					
 					sendString(ack);
 					break;
 			
-				default: 					// send data
+				default: 					// send data as-is
 
 					sendData(ack,req,res);
 					break;
@@ -2768,46 +2806,6 @@ function sesThread(Req,Res) {
 
 		catch (err) {
 			sendError( TOTEM.errors.badReturn );
-		}
-	}
-
-	function logMetrics() { // Log computed http-connection logMetrics 
-		
-		var con = Req.connection,
-			req = Req.req;
-		
-		if (con && (record = TOTEM.paths.mysql.record)) {
-		
-			con._started = new Date();
-			
-			// If maxlisteners is not set to infinity=0, the connection 
-			// becomes sensitive to a sql connector t/o and there will
-			// be random memory leak warnings.
-			
-			con.setMaxListeners(0);
-			con.on('close', function () { 		// cb when connection closed
-					
-				var secs = ((new Date()).getTime() - con._started.getTime()) / 1000;
-				var bytes = con.bytesWritten;
-				var paths = TOTEM.paths;
-
-				sqlThread( function (sql) {
-
-					sql.query(record, Copy( req.log || {} , {
-						Delay: secs,
-						Overhead: bytes,
-						LinkSpeed: secs ? bytes / secs : 0,
-						Event: con._started,
-						Dataset: req.table,
-						Action: req.action
-					}), function () {
-						//Trace("logMetrics closed");
-						sql.release();
-					});
-					
-				});
-			});
-
 		}
 	}
 
@@ -2883,13 +2881,11 @@ function sesThread(Req,Res) {
 	 * */
 	function conThread(req, res) {
 
-		var con = Req.connection;
+		var con = req.connection = Req.connection;
 
 		resThread( req, function (sql) {
-			logMetrics();
-
 			if (con)
-				validateCert(con, req, function (err) {
+				validateCert(req, function (err) {
 					if (err)
 						res(err);
 
@@ -2946,6 +2942,11 @@ function sesThread(Req,Res) {
 				},
 
 				// get a clean url
+				/* there exists an edge case wherein an html tag within json content, e.g <img src="/ABC">, 
+				is reflected back the server as a /%5c%22ABC%5c%22 which then unescapes to /\\"ABC\\".
+				This is ok but can be confusing.
+				*/
+				
 				url = req.url = unescape(Req.url),
 
 				// get a list of all nodes
