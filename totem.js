@@ -647,8 +647,8 @@ var
 		Charge: 0,
 		LikeUs: 0,
 		Challenge: 1,
-		Client: "guest",
-		User: "guest",
+		Client: "guest@nowhere.org",
+		User: "guest@nowhere",
 		Group: "app1",
 		Repoll: true,
 		Retries: 5,
@@ -706,7 +706,7 @@ var
 		},
 		
 		mysql: {
-			users: "SELECT client FROM ??.dblogs GROUP BY client",
+			users: "SELECT Client FROM openv.profiles",
 			derive: "SELECT * FROM openv.apps WHERE ?",
 			record: "INSERT INTO app1.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
 			engine: "SELECT *,count(ID) as Count FROM engines WHERE least(?,1)",
@@ -880,9 +880,9 @@ var
 					if (cb) cb();
 
 					if (users = mysql.users) 
-						sql.query(users, [site.db], function (err,users) {
+						sql.query(users, function (err,users) {
 							site.distro.user = users.joinify( function (user) {
-								return user.client.tag("a", {href:"emailto:"+user.client});
+								return user.Client.tag("a", {href:"emailto:"+user.Client});
 							});
 						});
 
@@ -1734,7 +1734,7 @@ function validateCert(req,res) {
 						//VMs: 1,								// number of VMs
 						Event: now,		 					// start time
 						Action: req.action, 				// db action
-						Client: client, 				// client id
+						//Client: client, 				// client id
 						//Table: req.table, 					// db target
 						ThreadsRunning: stats[3].Value,		// sql threads running
 						ThreadsConnected: stats[1].Value,	// sql threads connected
@@ -2582,6 +2582,14 @@ function followRoute(route,req,res) {
 						Actions: 1
 					}), bytes, secs, log.Event  ]);
 
+					sql.query(record, [ Copy(log, {
+						Delay: secs,
+						Transfer: bytes,
+						Event: con._started,
+						Dataset: req.client,
+						Actions: 1
+					}), bytes, secs, log.Event  ]);
+					
 					sql.release();
 					
 				});
