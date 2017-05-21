@@ -907,7 +907,7 @@ var
 			"base.js": 1,
 			"extjs.js": 1,
 			"jquery.js":1,
-			"joint.js":1,
+			"flow.js":1,
 			"dojo.js":1,
 			"games.js":1,
 			"capture.js":1,
@@ -2472,84 +2472,44 @@ function routeNode(req, res) {
 		type = req.type,
 		action = req.action,
 		area = req.area,
-		route = null,
 		paths = TOTEM.paths;
 
-	if (route) 
-		followRoute(route,req,res);
+	if (req.path) 
+		followRoute( route = TOTEM.sender[area] || TOTEM.reader[type] || sendFile, req, res );
 
 	else
-	if (req.path) 
-		followRoute( route = 
-				TOTEM.sender[area] 
-			|| 	TOTEM.reader[type] 
-			|| 	sendFile, req, res );
-
+	if ( route = TOTEM.emulator[action][table] )
+		followRoute(route,req,res);
+	
 	else
 	if ( route = TOTEM.reader[type] ) 
 		followRoute(route,req,res);
 
 	else
-	if (table && paths.mysql.engine)
-
-		sql.query(paths.mysql.engine, {		// find an engine
-			Name: table,
-			Enabled: 1
-		})
-		.on("result", function (eng) {
-
-			Trace(`Engines = ${eng.Count}`);
-
-			var route;
-
-			if (eng.Count) 			// route to located engine
-				if (eng.Engine == "url") {
-					req.node = eng.Code;
-					routeNode(req,res);
-				}
-
-				else
-				if ( route = TOTEM.worker[action] )	
+	if ( route = TOTEM.worker[action] )	
+		followRoute(route,req, function (ack) {
+			if (ack.constructor == Error)
+				if ( route = TOTEM[action] ) 
 					followRoute(route,req,res);
 
 				else
 					res( TOTEM.errors.noRoute );
 			
 			else
-			if ( route = 			// route to emulator, reader or default
-					TOTEM.emulator[action][table]
-				||	TOTEM.reader[table]
-				||	TOTEM[action]
-			)
-				followRoute(route,req,res);
-			
-			else
-				res( TOTEM.errors.noRoute );
-
-		})
-		.on("error", function (err) {
-			res( TOTEM.errors.noRoute )
-		})
-
+				res(ack);
+		});
+		
 	else
-	if (table)				
-		if (
-			route = 
-				TOTEM.emulator[action][table] 
-			||	TOTEM.reader[type]
-			|| 	TOTEM[action] )
-			
-			followRoute(route,req,res);
-
-		else
-			res( TOTEM.errors.noRoute );
+	if ( route = TOTEM[action] )
+		followRoute(route,req,res);
 
 	else
 		res( TOTEM.errors.noRoute );
 }
 
 /*
-Trace the current route then callback route on the supplied request-response thread
+Log session metrics, trace the current route, then callback route on the supplied 
+request-response thread
 */
 function followRoute(route,req,res) {
 
@@ -2598,7 +2558,7 @@ function followRoute(route,req,res) {
 		}
 	}
 
-	if ( !req.path ) logMetrics();
+	if ( !req.path ) logMetrics();  // dont log file requests
 	
 	Trace( 
 		(route?route.name:"null").toUpperCase() 
