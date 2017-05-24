@@ -2482,6 +2482,10 @@ function routeNode(req, res) {
 		followRoute(route,req,res);
 	
 	else
+	if ( route = TOTEM.reader[table] ) 
+		followRoute(route,req,res);
+	
+	else
 	if ( route = TOTEM.reader[type] ) 
 		followRoute(route,req,res);
 
