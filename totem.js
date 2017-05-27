@@ -2491,19 +2491,20 @@ function routeNode(req, res) {
 		followRoute(route,req,res);
 
 	else
-	if ( route = TOTEM.worker[action] )	
-		followRoute(route,req, function (ack) {
-			if (ack.constructor == Error)
-				if ( route = TOTEM[action] ) 
-					followRoute(route,req,res);
+	if ( route = TOTEM.worker[action] )	  // if engines installed
+		followRoute(route,req, function (ack) {  // try engine
+			if ( isError(ack) ) 
 
+				if ( route = TOTEM[action] )  // try dataset CRUDE 
+					followRoute(route,req,res);
+			
 				else
 					res( TOTEM.errors.noRoute );
-			
+
 			else
 				res(ack);
 		});
-		
+
 	else
 	if ( route = TOTEM[action] )
 		followRoute(route,req,res);
@@ -2583,6 +2584,10 @@ function followRoute(route,req,res) {
 		+ ` ${req.file} FOR ${req.client} IN ${req.group}`);
 	
 	route(req, res);
+}
+
+function isError(arg) {
+	return arg ? arg.constructor == Error : false;
 }
 
 //===============================================
