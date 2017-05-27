@@ -517,15 +517,16 @@ var
 				count: ack.length,
 				data: ack
 			}) );
-		},
+		}
 		
+		/*
 		html: function (ack, req, cb) {
 			var rtn = "";
 			ack.each(function (n,html) {
 				rtn += html;
 			});
 			cb(rtn);
-		}
+		}*/
 	},
 
 	/**
@@ -2524,9 +2525,10 @@ function followRoute(route,req,res) {
 		
 			con._started = new Date();
 			
-			// If maxlisteners is not set to infinity=0, the connection 
-			// becomes sensitive to a sql connector t/o and there will
-			// be random memory leak warnings.
+			/*
+			If maxlisteners is not set to infinity=0, the connection becomes sensitive to a sql 
+			connector t/o and there will be random memory leak warnings.
+			*/
 			
 			con.setMaxListeners(0);
 			con.on('close', function () { 		// cb when connection closed
@@ -2538,21 +2540,33 @@ function followRoute(route,req,res) {
 				
 				sqlThread( function (sql) {
 
-					sql.query(record, [ Copy(log, {
-						Delay: secs,
-						Transfer: bytes,
-						Event: con._started,
-						Dataset: req.table,
-						Actions: 1
-					}), bytes, secs, log.Event  ]);
+					if (false)  // grainular track
+						sql.query(record, [ Copy(log, {
+							Delay: secs,
+							Transfer: bytes,
+							Event: con._started,
+							Dataset: req.table,
+							Client: rec.client,
+							Actions: 1
+						}), bytes, secs, log.Event  ]);
+					
+					else { // bucket track
+						sql.query(record, [ Copy(log, {
+							Delay: secs,
+							Transfer: bytes,
+							Event: con._started,
+							Dataset: req.table,
+							Actions: 1
+						}), bytes, secs, log.Event  ]);
 
-					sql.query(record, [ Copy(log, {
-						Delay: secs,
-						Transfer: bytes,
-						Event: con._started,
-						Dataset: req.client,
-						Actions: 1
-					}), bytes, secs, log.Event  ]);
+						sql.query(record, [ Copy(log, {
+							Delay: secs,
+							Transfer: bytes,
+							Event: con._started,
+							Dataset: req.client,
+							Actions: 1
+						}), bytes, secs, log.Event  ]);
+					}
 					
 					sql.release();
 					
@@ -2566,7 +2580,7 @@ function followRoute(route,req,res) {
 	
 	Trace( 
 		(route?route.name:"null").toUpperCase() 
-		+ ` ${req.file} FOR ${req.client}@${req.group}`);
+		+ ` ${req.file} FOR ${req.client} IN ${req.group}`);
 	
 	route(req, res);
 }
