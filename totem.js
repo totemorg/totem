@@ -1113,26 +1113,36 @@ function startService(server,cb) {
 			IO.on("connection", function (socket) {  // Trap every connect
 				
 				//Trace(">CONNECTING socket.io CLIENT");
-				socket.on("select", function (req) { 		// Trap select (join request) connects
+				socket.on("select", function (req) { 		// Trap connect raised on client "select/join request"
 					
 					var ses = TOTEM.session[req.client];
 
-					Trace(`>Connecting ${req.client} >>> ${req.message}`);
+					Trace(`>CONNECTING ${req.client} AT ${req.ip}`);
 
 					if (!ses)
 					sqlThread( function (sql) {
 						//Trace("Socket opened");
 						
+						var ses = TOTEM.session[req.client] = new Object({
+							Client	: req.client,
+							Location: req.location,
+							At: req.ip,
+							Connects: 1,
+							Joined: new Date(),
+							Message: req.message
+						});
+							
+						sql.query("INSERT INTO openv.sockets SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1", ses);
+
 						sql.query("SELECT * FROM openv.profiles WHERE least(?) LIMIT 0,1", {Client:req.client, Challenge:1})
 						.on("result", function (prof) {
-
+							/*
 							if (!prof.Repoll) 
 								var ses = TOTEM.session[req.client] = {repoll: prof.Repoll};
-							
-							challengeClient(req.client, prof);
-							
-						})
-						.on("end", sql.release);
+							*/
+							challengeClient(req.client, prof);	
+						});
+						sql.release();
 					});
 				});
 			});	
@@ -1642,7 +1652,7 @@ function createCert(owner,pass,cb) {
 * request (client, group, log, and profile).  Responds will null (valid session) or an Error (invalid session).
 * 
 * on-input req = {action, socketio, query, body, flags, joins}
-* on-output req = adds {log, cert, client, org, locagio, group, profile, journal, joined, email, hawk}
+* on-output req = adds {log, cert, session, client, org, group, profile, journal, email}
  * */
 function validateCert(req,res) {
 				
@@ -1726,48 +1736,44 @@ function validateCert(req,res) {
 			
 		else  // start session metric logging
 			sql.query("show session status like 'Thread%'", function (err,stats) {
-
 				if (err)
 					stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
-					
-				Copy({  // add session metric logs and session parms
-					log: {  								// potential session metrics to log
-						//Cores: site.Cores, 					// number of safety core hyperthreads
-						//VMs: 1,								// number of VMs
-						Event: now,		 					// start time
-						Action: req.action, 				// db action
-						//Client: client, 				// client id
-						//Table: req.table, 					// db target
-						ThreadsRunning: stats[3].Value,		// sql threads running
-						ThreadsConnected: stats[1].Value,	// sql threads connected
-						//RecID: req.query.ID || 0,			// sql recID
-						Stamp: TOTEM.name,					// site name
-						Fault: "isp"						// fault codes
-					},
 
-					cert	: cert,
-					client	: client,
-					org		: cert.subject.O || "noorg",
-					serverip: con.address().address || "unknown",
-					clientip: req.clientip || "unknown",
-					location: null,
-					group	: profile.Group || TOTEM.site.db, 
-					profile	: Copy(profile,{}),
-					journal : true,				// db actions journaled
-					joined	: now, 				// time joined
-					email	: client 			// email address from pki
-					//source	: req.table 		// db source dataset, view or engine
-					//hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
-				}, req);
-					
-				res(null);
-				
-				sql.query("INSERT INTO openv.sockets SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1", {
-					client	: client,
-					org		: cert.subject.O || "noorg",
-					location: "tbd"
+				sql.query("SELECT * FROM openv.sockets WHERE ? LIMIT 0,1", {Client: client})
+				.on("result", function (ses) {
+					Copy({  // add session metric logs and session parms
+						log: {  								// potential session metrics to log
+							//Cores: site.Cores, 					// number of safety core hyperthreads
+							//VMs: 1,								// number of VMs
+							Event: now,		 					// start time
+							Action: req.action, 				// db action
+							//Client: client, 				// client id
+							//Table: req.table, 					// db target
+							ThreadsRunning: stats[3].Value,		// sql threads running
+							ThreadsConnected: stats[1].Value,	// sql threads connected
+							//RecID: req.query.ID || 0,			// sql recID
+							Stamp: TOTEM.name,					// site name
+							Fault: "isp"						// fault codes
+						},
+
+						cert	: cert,
+						client	: client,
+						org		: cert.subject.O || "unknown",
+						serverip: con.address().address || "unknown",
+						session: Copy(ses,{}),
+						//clientip: req.clientip || "unknown",
+						//location: null,
+						group	: profile.Group || TOTEM.site.db, 
+						profile	: Copy(profile,{}),
+						journal : true,				// db actions journaled
+						//joined	: now, 				// time joined
+						email	: client 			// email address from pki
+						//source	: req.table 		// db source dataset, view or engine
+						//hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
+					}, req);
+
+					res(null);
 				});
-
 			});	
 	}
 	
@@ -2164,8 +2170,7 @@ function getRiddle(req,res) {	//< request riddle endpoint
 		
 		var 
 			ID = {ID:rid.ID},
-			guess = (query.guess+"").replace(/ /g,""),
-			clientip = req.clientip = query.clientip;
+			guess = (query.guess+"").replace(/ /g,"");
 
 console.log([rid,query]);
 
@@ -2723,7 +2728,8 @@ function sesThread(Req,Res) {
 	
 	function res(ack) {  // Session response callback
 		
-		var req = Req.req,
+		var
+			req = Req.req,
 			sql = req.sql,
 			paths = TOTEM.paths;
 
@@ -2871,8 +2877,8 @@ function sesThread(Req,Res) {
 	 * @param {Function} res response
 	 *
 	 * on-input req = {action, socketio, query, body, flags, joins}
-	 * on-output req =  adds {log, cert, client, org, serverip, clientip, group, profile, journal, 
-	 * joined, email, hawk and STATICS}
+	 * on-output req =  adds {log, cert, client, org, serverip, session, group, profile, journal, 
+	 * joined, email and STATICS}
 	 * */
 	function conThread(req, res) {
 
