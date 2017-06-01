@@ -2160,10 +2160,11 @@ function getRiddle(req,res) {	//< request riddle endpoint
 	sql.query("SELECT *,count(ID) as Count FROM openv.riddles WHERE ? LIMIT 0,1", {ID:query.ID})
 	.on("result", function (rid) {
 		
-		var ID = {ID:rid.ID},
+		var 
+			ID = {ID:rid.ID},
 			guess = (query.guess+"").replace(/ /g,"");
 
-console.log(rid);
+console.log([rid,query]);
 
 		if (rid.Count) 
 			if (rid.Riddle == guess) {
