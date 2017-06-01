@@ -1607,7 +1607,8 @@ function createCert(owner,pass,cb) {
 		});
 	}
 
-	var name = TOTEM.paths.certs.server + owner, 
+	var 
+		name = TOTEM.paths.certs.server + owner, 
 		pfx = name + ".pfx",
 		key = name + ".key",
 		crt = name + ".crt",
@@ -1747,7 +1748,8 @@ function validateCert(req,res) {
 					cert	: cert,
 					client	: client,
 					org		: cert.subject.O || "noorg",
-					ipaddress: con.address().address,
+					serverip: con.address().address || "unknown",
+					clientip: req.clientip || "unknown",
 					location: null,
 					group	: profile.Group || TOTEM.site.db, 
 					profile	: Copy(profile,{}),
@@ -2162,7 +2164,8 @@ function getRiddle(req,res) {	//< request riddle endpoint
 		
 		var 
 			ID = {ID:rid.ID},
-			guess = (query.guess+"").replace(/ /g,"");
+			guess = (query.guess+"").replace(/ /g,""),
+			clientip = req.clientip = query.clientip;
 
 console.log([rid,query]);
 
@@ -2868,7 +2871,7 @@ function sesThread(Req,Res) {
 	 * @param {Function} res response
 	 *
 	 * on-input req = {action, socketio, query, body, flags, joins}
-	 * on-output req =  adds {log, cert, client, org, ipaddress, group, profile, journal, 
+	 * on-output req =  adds {log, cert, client, org, serverip, clientip, group, profile, journal, 
 	 * joined, email, hawk and STATICS}
 	 * */
 	function conThread(req, res) {
