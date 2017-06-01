@@ -713,8 +713,8 @@ var
 			engine: "SELECT *,count(ID) as Count FROM engines WHERE least(?,1)",
 			search: "SELECT * FROM files HAVING Score > 0.1",
 			credit: "SELECT * FROM files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 0,1",
-			socket: "REPLACE sockets SET ?",
-			session: "INSERT INTO sessions SET ?",
+			session: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1,?",
+			challenge: "SELECT *,count(ID) as Count FROM openv.profiles WHERE least(?) LIMIT 0,1",
 			guest: "SELECT * FROM openv.profiles WHERE Client='guest' LIMIT 0,1",
 			pocs: "SELECT * FROM openv.POCs WHERE ?",
 			distros: "SELECT Role,group_concat(DISTINCT openv.Address) AS Distro FROM openv.POCs WHERE ? GROUP BY Role" 
@@ -1069,7 +1069,8 @@ function configService(opts, cb) {
  * */
 function startService(server,cb) {
 	
-	var name = TOTEM.name,
+	var 
+		name = TOTEM.name,
 		site = TOTEM.site,
 		paths = TOTEM.paths;
 	
@@ -1115,33 +1116,36 @@ function startService(server,cb) {
 				//Trace(">CONNECTING socket.io CLIENT");
 				socket.on("select", function (req) { 		// Trap connect raised on client "select/join request"
 					
-					var ses = TOTEM.session[req.client];
-
 					Trace(`>CONNECTING ${req.client} AT ${req.ip}`);
 
-					if (!ses)
 					sqlThread( function (sql) {
-						//Trace("Socket opened");
-						
-						var ses = TOTEM.session[req.client] = new Object({
+						var ses = {
 							Client	: req.client,
 							Location: req.location,
 							At: req.ip,
 							Connects: 1,
 							Joined: new Date(),
 							Message: req.message
-						});
-							
-						sql.query("INSERT INTO openv.sockets SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1", ses);
+						};
+						
+						if (session = paths.mysql.session) 
+							sql.query(session, [ses, {
+								At: ses.At,
+								Location: ses.Location
+							}]);
+					
+						if (challenge = paths.mysql.challenge)
+							sql.query(challenge, {Client:req.client, Challenge:1})
+							.on("result", function (prof) {
+								/*
+								if (!prof.Repoll) 
+									var ses = TOTEM.session[req.client] = {repoll: prof.Repoll};
+								*/
+								if (prof.Count)
+									challengeClient(req.client, prof);	
 
-						sql.query("SELECT * FROM openv.profiles WHERE least(?) LIMIT 0,1", {Client:req.client, Challenge:1})
-						.on("result", function (prof) {
-							/*
-							if (!prof.Repoll) 
-								var ses = TOTEM.session[req.client] = {repoll: prof.Repoll};
-							*/
-							challengeClient(req.client, prof);	
-						});
+							});
+						
 						sql.release();
 					});
 				});
@@ -1739,7 +1743,7 @@ function validateCert(req,res) {
 				if (err)
 					stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
 
-				sql.query("SELECT * FROM openv.sockets WHERE ? LIMIT 0,1", {Client: client})
+				sql.query("SELECT *,count(ID) AS Count FROM openv.sessions WHERE ? LIMIT 0,1", {Client: client})
 				.on("result", function (ses) {
 					Copy({  // add session metric logs and session parms
 						log: {  								// potential session metrics to log
@@ -1760,7 +1764,7 @@ function validateCert(req,res) {
 						client	: client,
 						org		: cert.subject.O || "unknown",
 						serverip: con.address().address || "unknown",
-						session: Copy(ses,{}),
+						session: ses.Count ? Copy(ses,{}) : {},
 						//clientip: req.clientip || "unknown",
 						//location: null,
 						group	: profile.Group || TOTEM.site.db, 
