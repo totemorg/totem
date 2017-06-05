@@ -62,9 +62,6 @@ var
 	dsAttrs: {			//< reserved for openv dataset attributes derived by DSVAR.config
 	},
 		
-	session: { 	//< reserved to track client sessions
-	},
-		
 	Array: [ 			//< Array prototypes
 		
 		function hyper(refs, arg) {
@@ -1769,7 +1766,7 @@ function validateCert(req,res) {
 						//location: null,
 						group	: profile.Group || TOTEM.site.db, 
 						profile	: Copy(profile,{}),
-						journal : true,				// db actions journaled
+						journal : true,				// journal db actions
 						//joined	: now, 				// time joined
 						email	: client 			// email address from pki
 						//source	: req.table 		// db source dataset, view or engine
