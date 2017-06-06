@@ -645,8 +645,8 @@ var
 		Charge: 0,
 		LikeUs: 0,
 		Challenge: 1,
-		Client: "guest@nowhere.org",
-		User: "guest@nowhere",
+		Client: "guest@guest.org",
+		User: "guest@guest",
 		Group: "app1",
 		Repoll: true,
 		Retries: 5,
@@ -704,7 +704,7 @@ var
 		},
 		
 		mysql: {
-			users: "SELECT Client FROM openv.profiles",
+			users: "SELECT 'user' AS Role, group_concat(DISTINCT dataset SEPARATOR ';') AS Contact FROM app1.dblogs WHERE instr(dataset,'@')",
 			derive: "SELECT * FROM openv.apps WHERE ?",
 			record: "INSERT INTO app1.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
 			engine: "SELECT *,count(ID) as Count FROM engines WHERE least(?,1)",
@@ -713,8 +713,7 @@ var
 			session: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1,?",
 			challenge: "SELECT *,count(ID) as Count FROM openv.profiles WHERE least(?) LIMIT 0,1",
 			guest: "SELECT * FROM openv.profiles WHERE Client='guest' LIMIT 0,1",
-			pocs: "SELECT * FROM openv.POCs WHERE ?",
-			distros: "SELECT Role,group_concat(DISTINCT openv.Address) AS Distro FROM openv.POCs WHERE ? GROUP BY Role" 
+			pocs: "SELECT lower(Hawk) AS Role, group_concat(DISTINCT Client SEPARATOR ';') AS Contact FROM openv.roles GROUP BY hawk",
 		},
 		
 		mime: { // default static file areas
@@ -824,32 +823,27 @@ var
 	Defines the site context parameters available in TOTEM.site.
 	*/		
 	setContext: function (sql,cb) { 
-		var site = TOTEM.site,
+		var 
+			site = TOTEM.site,
 			mysql = TOTEM.paths.mysql;
 		
-		site.pocs = [];
+		site.pocs = {};
 		site.distro = {};
 
 		if (pocs = mysql.pocs) 
-			sql.query(pocs,{Site:TOTEM.name})
+			sql.query(pocs)
 			.on("result", function (poc) {
-				site.pocs.push(poc);
-			});
-				
-		if (distros = mysql.distros) 
-			sql.query(distros, {Site:TOTEM.name})
-			.on("result", function (poc) {
-				var role = poc.Role.toLowerCase().split(",")[0];
-				
-				site.distro[role] = poc.Distro;
-				
-				if (site.get)
-					site.get[role] = function (where,idx) {
-						return site.get(site.pocs,where,idx);
-					};
-				
+				site.pocs[poc.Role] = poc.Contact;
+				site.distro[poc.Role] = poc.Role.link("mailto:"+poc.Contact);
 			});
 
+		if (users = mysql.users) 
+			sql.query(users)
+			.on("result", function (poc) {
+				site.pocs[poc.Role] = poc.Contact;
+				site.distro[poc.Role] = poc.Role.link("mailto:"+poc.Contact);				
+			});
+		
 		if (guest = mysql.guest)
 			sql.query(guest)
 			.on("result", function (rec) {
@@ -876,14 +870,6 @@ var
 					});
 
 					if (cb) cb();
-
-					if (users = mysql.users) 
-						sql.query(users, function (err,users) {
-							site.distro.user = users.joinify( function (user) {
-								return user.Client.tag("a", {href:"emailto:"+user.Client});
-							});
-						});
-
 				})
 				.on("error", function (err) {
 					Trace( "CANT DERIVE "+err );
