@@ -210,14 +210,18 @@ notes.)
 	
 bind.) 	# bind known genode c-modules
 
-	cd $TAUIF/opencv
-	$GEOBIND rebuild
+	cd $ENGINES/opencv
+	node-gyp rebuild
 	
-	cd $TAUIF/python
-	$GEOBIND rebuild
+	cd $ENGINES/python
+	node-gyp rebuild
 	
-	cd $TAUIF
-	$GEOBIND rebuild
+	cd $ENGINES/mac
+	node-gyp rebuild
+
+	cd $ENGINES
+	node-gyp rebuild
+
 	;;
 
 #

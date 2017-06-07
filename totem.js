@@ -777,7 +777,7 @@ var
 	@cfg {Object} 
 	CRUDE(req,res) methods for Toteam reader routes
 	*/		
-	reader: {				//< by-type file readers/indexers/fetchers
+	worker: {				//< by-type file readers/indexers/fetchers
 		user: fetchUser,
 		wget: fetchWget,
 		curl: fetchCurl,
@@ -789,7 +789,7 @@ var
 	@cfg {Object} 
 	CRUDE(req,res) methods for Toteam worker routes
 	*/				
-	worker: {				//< by-action engine runner
+	reader: {				//< by-action engine runner
 	},
 
 	/**
@@ -2455,7 +2455,7 @@ reader, emulator, engine or file indexer according to
 	=============================
 	area 	sender[area] || reader[type]
 	file		reader[type]	
-	name	engine[name] || worker[action]
+	name	engine[name] || worker[table]
 	table		emulator[action][table] || reader[type] || crud[action]
 */
 function routeNode(req, res) {
@@ -2472,20 +2472,21 @@ function routeNode(req, res) {
 		paths = TOTEM.paths;
 
 	if (req.path) 
-		followRoute( route = TOTEM.sender[area] || TOTEM.reader[type] || sendFile, req, res );
+		followRoute( route = TOTEM.sender[area] || sendFile, req, res );
 
 	else
 	if ( route = TOTEM.emulator[action][table] )
 		followRoute(route,req,res);
 	
 	else
-	if ( route = TOTEM.reader[table] ) 
+	if ( route = TOTEM.worker[table] ) 
 		followRoute(route,req,res);
 	
 	else
 	if ( route = TOTEM.reader[type] ) 
-		followRoute(route,req,res);
-
+		followRoute(route[action],req,res);
+	
+	/*
 	else
 	if ( route = TOTEM.worker[action] )	  // if engines installed
 		followRoute(route,req, function (ack) {  // try engine
@@ -2500,7 +2501,8 @@ function routeNode(req, res) {
 			else
 				res(ack);
 		});
-
+	*/
+	
 	else
 	if ( route = TOTEM[action] )
 		followRoute(route,req,res);
@@ -2679,38 +2681,56 @@ function sesThread(Req,Res) {
 	}
 
 	function sendData(ack, req, res) {  // Send data via converter
-		if (req.type)
-			if (conv = TOTEM.converters[req.type])
-				conv(ack, req, function (rtn) {
-					switch (rtn.constructor) {
-						case Error:
-							sendError( rtn );
-							break;
-							
-						case String:
-							sendString( rtn );
-							break;
-							
-						default:
-							try {
-								sendString( JSON.stringify(rtn) );
-							}
-							catch (err) {
-								sendErrror(TOTEM.badData);
-							}
+		if (ack)
+			if (req.type)
+				if (conv = TOTEM.converters[req.type])
+					conv(ack, req, function (rtn) {
+						switch (rtn.constructor) {
+							case Error:
+								sendError( rtn );
+								break;
+
+							case String:
+								sendString( rtn );
+								break;
+
+							default:
+								try {
+									sendString( JSON.stringify(rtn) );
+								}
+								catch (err) {
+									sendErrror(TOTEM.badData);
+								}
+						}
+					});
+
+				else
+				if (ack.constructor == String)
+					sendString(ack);
+		
+				else
+					try {
+						sendString(JSON.stringify(ack));
 					}
-				});
+					catch (err) {
+						sendErrror(TOTEM.badData);
+					}
+					//sendError( TOTEM.errors.badType );
 
 			else
-				sendError( TOTEM.errors.badType );
+			if (ack.constructor == String)
+				sendString(ack);
+		
+			else
+				try {
+					sendString(JSON.stringify(ack));
+				}
+				catch (err) {
+					sendErrror(TOTEM.badData);
+				}
 		
 		else
-			try {
-				sendString( JSON.stringify(ack) );
-			}
-			catch (err) {
-				sendErrror(TOTEM.badData);
-			}
+			sendErrror(TOTEM.badData);
 	}
 	
 	function res(ack) {  // Session response callback

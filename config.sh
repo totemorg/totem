@@ -49,7 +49,8 @@ export RUND="$RUN -d"
 
 #export GEO=". $BASH_SOURCE"
 export GYPOPTS=--nodedir=$NODE/install	# use "node-gyp $GYPTOPS" to override distro ref to inet
-export GEOBIND="node-gyp rebuild"
+export ENGINES=$TOTEM/engine/engines
+#export GEOBIND="node-gyp rebuild"
 #export LINK=g++ 			# fixes node-gyp flock issue when source files on NFS system
 
 # Devs

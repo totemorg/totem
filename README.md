@@ -65,17 +65,27 @@ where options = {...} include:
 
 	// NODE routers
 
-	worker: {		// computed results from stateful engines
-		select: cb(req,res),
-		update: cb(req,res),
-		... 	},
+	reader: {		// computed results from stateful engines
+		TYPE: {			// index (scan, parse etc) files
+			select: cb(req,res),	
+		}, ...
+		
+		TYPE: {  		 // execute engine
+			select: cb(req,res), 
+			update: cb(req,res),
+			delete: cb(req,res),
+			update: cb(req,res)
+		}, ...
+	},
 
 	emulator: {		// emulate virtual tables
 		select: {
 			DATASET: cb(req,res),
 			DATASET: cb(req,res),
-			...		},
-		...		},
+			...		
+		},
+		...	
+	},
 
 	converters: {  // NODE.TYPE converters to callback cb(ack data as string || error)
 		TYPE: function (ack,req,cb),
@@ -85,18 +95,17 @@ where options = {...} include:
 	sender: {		// send raw files
 		AREA: cb(req,res),
 		AREA: cb(req,res),
-		...		},
+		...		
+	},
 
-	reader: {		// file readers
+	worker: {		// worker and data fetcher endpoints
 		user: cb(req,res),	// manage users
 
 		wget: cb(req,res),	// fetch from other services
 		curl: cb(req,res),
 		http: cb(req,res),
-
-		TYPE: cb(req,res),	// index (scan, parse etc) files
-		TYPE: cb(req,res),
-		...		},
+		...
+	},
 	
 	// server specific
 	
