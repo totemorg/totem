@@ -211,16 +211,16 @@ notes.)
 bind.) 	# bind known genode c-modules
 
 	cd $ENGINES/opencv
-	node-gyp rebuild
+	node-gyp rebuild  $GYPOPTS
 	
 	cd $ENGINES/python
-	node-gyp rebuild
+	node-gyp rebuild $GYPOPTS
 	
 	cd $ENGINES/mac
-	node-gyp rebuild
+	node-gyp rebuild $GYPOPTS
 
 	cd $ENGINES
-	node-gyp rebuild
+	node-gyp rebuild $GYPOPTS
 
 	;;
 
