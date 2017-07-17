@@ -57,13 +57,29 @@ var 											// globals
 var
 	TOTEM = module.exports = ENUM.extend({
 
-	IO: null, 			//< reserved for socket.io
+	/**
+	@cfg {Object}
+	@member totem
+	Reserved for socket.io support to multiple clients
+	*/
+	IO: null, 
 
-	dsAttrs: {			//< reserved for openv dataset attributes derived by DSVAR.config
+	/**
+	@cfg {Object}
+	@member totem
+	Reserved for dataset attributes derived by DSVAR.config
+	*/
+	dsAttrs: {
 	},
 		
 	Array: [ 			//< Array prototypes
 		
+		/**
+		@method hyper
+		@member Array
+		Returns list containing hyperlink list joined by an arg spearator.
+		@param {Function} cb callback(val) returns item for join
+		*/		
 		function hyper(refs, arg) {
 			var rtns = [], ref = ref[0];
 			this.each( function (n,lab) {
@@ -73,8 +89,9 @@ var
 		},
 						  
 		/**
+		@methjod joinify
 		@member Array
-		Joins a list under control by an optional callback.
+		Return list joined under control by an optional callback.
 		@param {Function} cb callback(val) returns item for join
 		*/
 		function joinify(cb) {
@@ -90,8 +107,12 @@ var
 		/**
 		@method treeify
 		@member Array
-		Return a list in tree (children,size) form given indecies.
-		@param [Array] idx
+		Returns list as a tree containing children,weight,name leafs.
+		@param [Number] idx starting index (0 on first call)
+		@param [Number] kids number of leafs following starting index (this.length on first call)
+		@param [Number] level current depth (0 on first call)
+		@param [Array] piv pivots
+		@param [String] wt key name that contains leaf weight (defaults to "size")
 		*/		
 		function treeify(idx,kids,level,piv,wt) {
 			
@@ -130,6 +151,7 @@ var
 						len++;
 					}
 				}
+			
 			else
 				while (pos < end) {
 					var rec = recs[pos++];
@@ -170,6 +192,7 @@ var
 		/**
 		@method format
 		@member String
+		Format a string with supplied req tokens using the plugin as referenced in this string.
 		*/
 		function format(req,plugin) {
 			
@@ -266,7 +289,7 @@ var
 		/**
 		@method hyper
 		@member String
-		Make a hyperlink
+		Return a hyperlink of given label string.
 		*/
 		function hyper(ref) {
 			if (ref)
@@ -312,10 +335,10 @@ var
 	],
 	
 	/**
-	 * @method
-	 * @member totem
-	 * Configure and start the service
-	 * */
+	@method
+	@member totem
+	Configure and start the service
+	*/
 	config: configService,	
 	
 	/**
@@ -345,7 +368,7 @@ var
 	},
 	
 	/**
-	@cfg {Object} reqflags
+	@cfg {Object} 
 	@member totem
 	Options to parse request flags
 	
@@ -353,7 +376,7 @@ var
 			edits: { flag:cb(list,data,req), ...} // sets data conversion cb for a _flag=list,
 			prefix:  "_" 	// sets flag prefix
 	
-	 */
+	*/
 	reqflags: {				//< Properties for request flags
 		strips:	 			//< Flags to strips from request
 			{"":1, "_":1, leaf:1, _dc:1, id:1, "=":1, "?":1, "request":1}, 		
@@ -370,7 +393,7 @@ var
 	},
 
 	/**
-	@cfg {Object} fetchers
+	@cfg {Object} 
 	@member totem
 	Data fetcher X is used when a GET on X is requested.  Fetchers feed data pulled from the
 	TOTEM.paths.url[req.table] URL (formatted by an optional plugin context) to its callback:
@@ -438,6 +461,13 @@ var
 	Service host name 
 	*/		
 	host: "localhost", 		
+
+	/**
+	@cfg {Obect}
+	Folder watch callbacks cb(path) 
+	*/				
+	watch: {
+	},
 		
 	/**
 	@cfg {Boolean} [proxy=false]
@@ -447,24 +477,23 @@ var
 
 	/**
 	@cfg {String} [name="Totem"]
-	Identifies this Totem service and will be used to
-		+ derive site parms from mysql openv.apps by Nick=name
-		+ set mysql name.table for guest clients,
-		+ identify server cert name.pfx file.
+	Name of this service used to
+		1) derive site parms from mysql openv.apps by Nick=name
+		2) set mysql name.table for guest clients,
+		3) identify server cert name.pfx file.
 	*/	
 	name: "Totem",
 
 	/**
 	@cfg {Object} 
-	The site context extended by the mysql derived query when service starts
+	Site context extended by the mysql derived query when service starts
 	*/
-	site: { // reserved for derived context vars
-		
+	site: {  	// reserved for derived context vars		
 	},
 
 	/**
 	@cfg {Object} 
-	NODE.TYPE converters to callback cb(ack data as string || error)
+	Endpoint converters cb(ack data as string || error)
 	*/
 	converters: {  
 		db: function (ack, req, cb) {
@@ -528,8 +557,45 @@ var
 
 	/**
 	@cfg {Object} 
+	By-table endpoint routers for data fetchers and user management
+	*/				
+	worker: {				
+		wget: fetchWget,
+		curl: fetchCurl,
+		http: fetchHttp,
+		riddle: getRiddle
+	},
+		
+	/**
+	@cfg {Object} 
+	By-type-action endpoint routers for access to engines and file readers
+	*/				
+	reader: {
+	},
+
+	/**
+	@cfg {Object} 
+	By-area endpoint routers for sending/cacheing files
+	*/		
+	sender: {	
+	},
+	
+	/**
+	@cfg {Object} 
+	By-action-table endpoint routers for access to virtual tables
+	*/		
+	emulator: {	
+		select: {},
+		delete: {},
+		update: {},
+		insert: {},
+		execute: {}
+	},
+	
+	/**
+	@cfg {Object} 
 	@private
-	Ttrust store extened with certs in the certs.truststore folder when the service starts in encrypted mode
+	Trust store extened with certs in the certs.truststore folder when the service starts in encrypted mode
 	*/		
 	trust: [ ],   
 		
@@ -539,42 +605,47 @@ var
 	*/				
 	server: null,
 	
+	//======================================
+	// CRUDE interface
+		
 	/**
-	@method
+	@method select
 	@param {Object} req Totem request
 	@param {Function} res Totem responder
 	CRUDE (req,res) method to respond to a Totem request
 	*/				
 	select: dataSelect,	
 	/**
-	@method
+	@method update
 	@param {Object} req Totem request
 	@param {Function} res Totem responder
 	CRUDE (req,res) method to respond to a Totem request
 	*/				
 	update: null,
 	/**
-	@method
+	@method delete
 	@param {Object} req Totem request
 	@param {Function} res Totem responder
 	CRUDE (req,res) method to respond to a Totem request
 	*/				
 	delete: null,
 	/**
-	@method
+	@method insert
 	@param {Object} req Totem request
 	@param {Function} res Totem responder
 	CRUDE (req,res) method to respond to a Totem request
 	*/				
 	insert: null,
 	/**
-	@method
+	@method execute
 	@param {Object} req Totem request
 	@param {Function} res Totem responder
 	CRUDE (req,res) method to respond to a Totem request
 	*/				
 	execute: null,
 
+	//======================================
+		
 	/**
 	@cfg {Date} 
 	@private
@@ -686,7 +757,7 @@ var
 	paths: { 			
 		render: "public/jade/",
 		
-		default: "/home.view",
+		default: "/",
 		
 		url: {
 			//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
@@ -775,44 +846,6 @@ var
 	
 	/**
 	@cfg {Object} 
-	CRUDE(req,res) methods for Toteam reader routes
-	*/		
-	worker: {				//< by-type file readers/indexers/fetchers
-		user: fetchUser,
-		wget: fetchWget,
-		curl: fetchCurl,
-		http: fetchHttp,
-		riddle: getRiddle
-	},
-	
-	/**
-	@cfg {Object} 
-	CRUDE(req,res) methods for Toteam worker routes
-	*/				
-	reader: {				//< by-action engine runner
-	},
-
-	/**
-	@cfg {Object} 
-	CRUDE(req,res) methods for Toteam sender routes	
-	*/		
-	sender: {				//< by-area file senders
-	},
-	
-	/**
-	@cfg {Object} 
-	CRUDE(req,res) methods for Toteam emulator routes	
-	*/		
-	emulator: {				//< by-action-table virtual table emulators
-		select: {},
-		delete: {},
-		update: {},
-		insert: {},
-		execute: {}
-	},
-	
-	/**
-	@cfg {Object} 
 	@private
 	*/		
 	sendFile: sendFile,
@@ -820,7 +853,7 @@ var
 	/**
 	@method
 	@private
-	Defines the site context parameters available in TOTEM.site.
+	Sets the site context parameters available in TOTEM.site.
 	*/		
 	setContext: function (sql,cb) { 
 		var 
@@ -918,18 +951,8 @@ var
 	@private
 	ENUM will callback this initializer when the service is started
 	*/		
-	Function: Initialize,
+	Function: Initialize
 	
-	/**
-	@cfg {Object} 
-	*/		
-	user: {					//< crude interface to user profiles
-		select: selectUser,
-		delete: deleteUser,
-		update: updateUser,
-		insert: insertUser
-	}
-		
 });
 
 /**
@@ -1005,6 +1028,40 @@ function configService(opts, cb) {
 	
 	TOTEM.started = new Date();
 
+	Each(TOTEM.watch, function (folder, cb) {
+		FS.readdir( folder, function (err, files) {
+			files.each(function (n,file) {
+				var path = folder + "/" + file;
+				
+				Trace("WATCHING "+path);
+				FS.watch(path, function (ev, file) {  //{persistent: false, recursive: false}, 
+
+					//console.log([ev,file, FLEX.thread]);
+					Trace(ev.toUpperCase()+" "+file);
+
+					if (file && FLEX.thread)
+					switch (ev) {
+						case "change":
+							FLEX.thread( function (sql) {
+								/*READ.reader(sql, path+file, function (keys) {
+									console.log(["keys",keys]);
+								});
+								*/
+								cb(path);
+								sql.release();
+							});
+
+							break;
+
+						case "x":
+						default:
+
+					}
+				});
+			});
+		});	
+	});
+				
 	if (mysql) 
 		DSVAR.config({   // establish the db agnosticator 
 			//io: TOTEM.IO,   // can setup its socketio only after server defined by startService
@@ -2451,12 +2508,11 @@ function syncNodes(nodes, acks, req, res) {
 Parse the node=/dataset.type on the current req thread, then route it to the approprate sender, 
 reader, emulator, engine or file indexer according to 
 
-	dataset	route to
+	dataset	route to TOTEM.method
 	=============================
-	area 	sender[area] || reader[type]
-	file		reader[type]	
-	name	engine[name] || worker[table]
-	table		emulator[action][table] || reader[type] || crud[action]
+	area 	sender[area]
+	file		reader[type]
+	table		emulator[action][table] 
 */
 function routeNode(req, res) {
 	
@@ -2471,11 +2527,13 @@ function routeNode(req, res) {
 		area = req.area,
 		paths = TOTEM.paths;
 
+	//console.log([action,req.path,area,table,type]);
+	
 	if (req.path) 
 		followRoute( route = TOTEM.sender[area] || sendFile, req, res );
 
 	else
-	if ( route = TOTEM.emulator[action][table] )
+	if ( route = TOTEM.emulator[action][table])
 		followRoute(route,req,res);
 	
 	else
@@ -2484,30 +2542,16 @@ function routeNode(req, res) {
 	
 	else
 	if ( route = TOTEM.reader[type] ) 
-		followRoute(route[action],req,res);
-	
-	/*
-	else
-	if ( route = TOTEM.worker[action] )	  // if engines installed
-		followRoute(route,req, function (ack) {  // try engine
-			if ( isError(ack) ) 
-
-				if ( route = TOTEM[action] )  // try dataset CRUDE 
-					followRoute(route,req,res);
-			
-				else
-					res( TOTEM.errors.noRoute );
-
-			else
-				res(ack);
-		});
-	*/
+		if ( route = route[action] )
+			followRoute(route,req,res);
+		else
+			res( TOTEM.errors.noRoute );
 	
 	else
 	if ( route = TOTEM[action] )
 		followRoute(route,req,res);
 
-	else
+	else 
 		res( TOTEM.errors.noRoute );
 }
 
@@ -2650,6 +2694,7 @@ function sesThread(Req,Res) {
 			
 			if (buf)
 				sendString( buf );
+			
 			else
 				try {
 					if (cache)

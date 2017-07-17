@@ -399,9 +399,14 @@ function faces(tau,parms) { return 102; }
 				host: ENV.MYSQL_HOST,
 				user: ENV.MYSQL_USER,
 				pass: ENV.MYSQL_PASS
+			},
+			watch: {
+				"./uploads": function (file) {
+				}
 			}
+			
 		}, function (err) {
-			Trace( err || "Yowzers - An encrypted DEBE service with a database" );
+			Trace( err || "Yowzers - An encrypted DEBE service with a database watching files in uploads area" );
 		});
 
 	},
