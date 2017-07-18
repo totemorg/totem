@@ -11,14 +11,7 @@
 
 var ENV = process.env;
 
-function Trace(msg,arg) {
-	
-	console.log("U>"+msg);
-
-	if (arg) console.log(arg);
-}
-
-require("../enum").test({
+var ENUM = require("enum").test({
 
 	N1: function () {
 		
@@ -438,5 +431,9 @@ function faces(tau,parms) { return 102; }
 	}
 	
 });	
+
+function Trace(msg,arg) {
+	ENUM.trace("U>",msg,arg);	
+}
 
 // UNCLASSIFIED

@@ -299,39 +299,8 @@ var
 					return this.link(ref);
 			else
 				return this.link(ref || "/"+this.toLowerCase()+".view");
-		},
-		
-		/**
-		@method tag
-		@member String
-		*/
-		function tag(el,at) {
-		
-			if (el.constructor == String) {
-				var rtn = "<"+el+" ";
-				
-				if (at)  
-					for (var n in at) rtn += n + "='" + at[n] + "' ";
-				
-				switch (el) {
-					case "embed":
-					case "img":
-					case "link":
-					case "input":
-						return rtn+">" + this;
-					default:
-						return rtn+">" + this + "</"+el+">";
-				}
-				//return rtn+">" + this + "</"+el+">";
-			}
-			else {
-				var rtn = this;
-
-				for (var n in el) rtn += "&" + n + "=" + el[n];
-				return rtn;
-			}
-				
 		}
+		
 	],
 	
 	/**
@@ -464,7 +433,7 @@ var
 
 	/**
 	@cfg {Obect}
-	Folder watch callbacks cb(path) 
+	Folder watching callbacks cb(path) 
 	*/				
 	watch: {
 	},
@@ -951,7 +920,7 @@ var
 	@private
 	ENUM will callback this initializer when the service is started
 	*/		
-	Function: Initialize
+	Function: Initialize  //< added to ENUM callback stack
 	
 });
 
@@ -2372,18 +2341,6 @@ function Initialize () {
 //============================================
 // Node routing and tracing
 
-function Trace(msg,arg) {
-	
-	if (msg.constructor == String)
-		console.log("T>"+msg);
-	else
-		console.log("T>"+msg.sql);
-
-	if (arg) console.log(arg);
-		
-	return msg;
-}
-
 /**
 @class support.routing
 Totem routing methods
@@ -3051,6 +3008,10 @@ function resThread(req, cb) {
  * */
 function sqlThread(cb) {
 	DSVAR.thread(cb);
+}
+
+function Trace(msg,arg) {
+	ENUM.trace("T>",msg,arg);
 }
 
 // UNCLASSIFIED
