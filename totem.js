@@ -192,7 +192,7 @@ var
 		/**
 		@method format
 		@member String
-		Format a string with supplied req tokens using the plugin as referenced in this string.
+		Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
 		*/
 		function format(req,plugin) {
 			
@@ -2015,7 +2015,7 @@ function fetchWget(req,res) {	//< wget endpoint
 }
 
 function fetchCurl(req,res) {	//< curl endpoint
-	if( url = TOTEM.paths.url[req.table] )
+	if( url = TOTEM.paths.url[req.table] ) 
 		curlFetch(url.format(req, TOTEM.fetchers.plugin),res);
 }
 
