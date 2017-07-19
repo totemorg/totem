@@ -999,35 +999,39 @@ function configService(opts, cb) {
 
 	Each(TOTEM.watch, function (folder, cb) {
 		FS.readdir( folder, function (err, files) {
-			files.each(function (n,file) {
-				var path = folder + "/" + file;
-				
-				Trace("WATCHING "+path);
-				FS.watch(path, function (ev, file) {  //{persistent: false, recursive: false}, 
+			if (err) 
+				Trace(err);
+			
+			else
+				files.each(function (n,file) {
+					var path = folder + "/" + file;
 
-					//console.log([ev,file, FLEX.thread]);
-					Trace(ev.toUpperCase()+" "+file);
+					Trace("WATCHING "+path);
+					FS.watch(path, function (ev, file) {  //{persistent: false, recursive: false}, 
 
-					if (file && FLEX.thread)
-					switch (ev) {
-						case "change":
-							FLEX.thread( function (sql) {
-								/*READ.reader(sql, path+file, function (keys) {
-									console.log(["keys",keys]);
+						//console.log([ev,file, FLEX.thread]);
+						Trace(ev.toUpperCase()+" "+file);
+
+						if (file && FLEX.thread)
+						switch (ev) {
+							case "change":
+								FLEX.thread( function (sql) {
+									/*READ.reader(sql, path+file, function (keys) {
+										console.log(["keys",keys]);
+									});
+									*/
+									cb(path);
+									sql.release();
 								});
-								*/
-								cb(path);
-								sql.release();
-							});
 
-							break;
+								break;
 
-						case "x":
-						default:
+							case "x":
+							default:
 
-					}
+						}
+					});
 				});
-			});
 		});	
 	});
 				

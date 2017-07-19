@@ -16,6 +16,7 @@ TOTEM provides an HTTP service with the following optional features:
 	+ per-client anti-bot challenges: profile challenges like (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
 	+ syncronized crude operations on mutiple endpoints
 	+ database agnosticator (default MySQL-Cluster)
+	+ watch file changes
   
 TOTEM thus replaces a slew of god-awful NodeJS middleware (like Express).
 
@@ -99,11 +100,14 @@ where options = {...} include:
 	},
 
 	worker: {		// worker and data fetcher endpoints
-		user: cb(req,res),	// manage users
-
-		wget: cb(req,res),	// fetch from other services
+		wget: cb(req,res),	// fetch data from other services
 		curl: cb(req,res),
 		http: cb(req,res),
+		...
+	},
+	
+	watch: { // file watchers
+		FOLDER: cb(file),
 		...
 	},
 	
@@ -182,13 +186,6 @@ Download the latest version with
 
 	git clone https://git.geointapps.org/acmesds/totem
 
-Typically, you will want to redirect the following to your project
-
-	ln -s ../myproject/test.js test.js 					# unit testing
-	ln -s ../myproject/maint.sh maint.sh 			# test startup and maint scripts
-	ln -s ../myproject/myCertsFolder certs		# contains name.pfx cert and truststore folder 
-	ln -s ../myproject/myJpgFolder captcha 	 # contains map digits
-	
 ## Examples
 
 Below sample are from the totem/test.js unit tester.  See Totem's [DEBE](https://git.geointapps.org/acmesds/debe) 
