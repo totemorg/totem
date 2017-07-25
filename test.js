@@ -11,7 +11,9 @@
 
 var ENV = process.env;
 
-var ENUM = require("enum").test({
+var ENUM = require("enum");
+
+ENUM.test({
 
 	N1: function () {
 		

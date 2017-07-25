@@ -388,7 +388,7 @@ var
 				return req.profile.QoS + req.profile.Credit;
 			},
 			ex2: "save.file.jpg",
-			wgetout: "wget.out"
+			wgetout: "./shares/wget.out"
 		}
 	},
 
@@ -680,7 +680,7 @@ var
 	*/		
 	guestProfile: {				
 		Banned: "",
-		QoS: 1,
+		QoS: 10000,
 		Credit: 100,
 		Charge: 0,
 		LikeUs: 0,
@@ -1487,7 +1487,7 @@ function insertUser (req,res) {
 			.on("result", function (user) {
 				Trace(q.sql);
 				
-				var init = {	
+				var init = Copy({	
 					Approved: new Date(),
 					Banned: url.resetpass
 						? "Please "+"s your password".tag("a", {href:url.resetpass})+" to access"
@@ -1529,7 +1529,7 @@ To connect to ${site.Nick} from Windows:
 
 .replace(/\n/g,"<br>")					
 					
-				};
+				}, Copy(TOTEM.guestProfile,{}) );
 
 				sql.query(
 					"UPDATE openv.profiles SET ? WHERE ?",
@@ -2008,7 +2008,7 @@ External data fetchers
 
 function fetchWget(req,res) {	//< wget endpoint
 	if (req.out) 
-		TOTEM.fetchers.wgetout = req.out;
+		TOTEM.fetchers.plugin.wgetout = req.out;
 		
 	if ( url = TOTEM.paths.url[req.table] )
 		wgetFetch(url.format(req, TOTEM.fetchers.plugin),res);
@@ -2030,7 +2030,7 @@ function curlFetch(url,cb) {
 		certs = TOTEM.cache.certs,
 		transport = {
 			"http:": `curl "${url}"`,
-			"https:": `curl -k --cert ${certs.crt} --key ${certs.key} "${url}"`
+			"https:": `curl -gk --cert ${certs.crt} --key ${certs.key} "${url}"`
 		};
 
 	retryFetch(
@@ -2048,8 +2048,8 @@ function wgetFetch(url,cb) {
 	var opts = URL.parse(url),
 		certs = TOTEM.cache.certs,
 		transport = {
-			"http:": `wget -O ${TOTEM.fetchers.wgetout} "${url}"`,
-			"https:": `wget -O ${TOTEM.fetchers.wgetout} --no-check-certificate --certificate ${certs.crt} --private-key ${certs.key} "${url}"`
+			"http:": `wget -O ${TOTEM.fetchers.plugin.wgetout} "${url}"`,
+			"https:": `wget -O ${TOTEM.fetchers.plugin.wgetout} --no-check-certificate --certificate ${certs.crt} --private-key ${certs.key} "${url}"`
 		};
 	
 	retryFetch(
@@ -2057,7 +2057,7 @@ function wgetFetch(url,cb) {
 		opts, 
 
 		function (err) {
-			cb( err || TOTEM.fetchers.wgetout);
+			cb( err || TOTEM.fetchers.plugin.wgetout);
 	});
 	
 }
@@ -2089,13 +2089,18 @@ function httpFetch(url,cb) {
 		var req = transport[opts.protocol].request(opts, function(res) {
 			res.setEncoding('utf-8');
 
-			var text = "";
+			var atext = "";
 			res.on('data', function (chunk) {
-				text += chunk;
+				atext += chunk;
 			});
 
 			res.on("end", function () {
-				cb( text.parse() || text );
+				try {
+					cb( JSON.parse(atext) );
+				}
+				catch (err) {
+					cb( atext );
+				}					
 			});
 
 		});
