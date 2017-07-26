@@ -16,16 +16,16 @@ TOTEM provides an HTTP service with the following optional features:
 	+ per-client anti-bot challenges: profile challenges like (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
 	+ syncronized crude operations on mutiple endpoints
 	+ database agnosticator (default MySQL-Cluster)
-	+ watch file changes
+	+ monitor files
   
 TOTEM thus replaces a slew of god-awful NodeJS middleware (like Express).
 
 TOTEM provides CRUD endpoints to synchronize dataset NODES:
   
-	select	| GET 	 /NODE $$ NODE ...
-	update	| PUT 	 /NODE $$ NODE ...
-	insert	| POST 	 /NODE $$ NODE ...
-	delete	| DELETE /NODE $$ NODE ...
+	(select) GET 	 /NODE $$ NODE ...
+	(update) PUT 	 /NODE $$ NODE ...
+	(insert) POST 	 /NODE $$ NODE ...
+	(delete) DELETE /NODE $$ NODE ...
   
 where a NODE can specify a [FLEX](https://git.geointapps.org/acmesds/flex) dataset:
   
@@ -45,16 +45,24 @@ a static content file:
 or a [READER](https://git.geointapps.org/acmesds/reader) file to be parsed:
 
 	FILE.TYPE?PARMS
-	FILE = AREA/PATH provides redirection of the requested PATH 
+	FILE = AREA/PATH provides redirection of the requested PATH under an AREA
 	TYPE = type of file to be parsed
 
 TOTEM is configured and started like this:
 
-	var TOTEM = require("../totem").config(options, function (err) {
+	var TOTEM = require("../totem").config( {options...}, function (err) {
 		// the callback when service has been started
 	});
 	
-where options = {...} include:
+Its default service
+
+	help, stop, alert, codes, ping, bit, config
+	
+data fetching and antibot protection
+
+	wget, curl, http, riddle
+	
+endpoints can be overriden with the config() options:
   
 	// CRUDE interface
 
@@ -64,9 +72,19 @@ where options = {...} include:
 	insert: cb(req,res),
 	execute: cb(req,res),
 
-	// NODE routers
+	converters: {  // NODE.TYPE converters to callback cb(ack data as string || error)
+		TYPE: function (ack,req,cb),
+		...
+	},
+	
+	watch: { // file watchers
+		FOLDER: cb(file),
+		...
+	},
+	
+	// NODE endpoint routers
 
-	reader: {		// computed results from stateful engines
+	reader: {		// endpoints to readers and engines
 		TYPE: {			// index (scan, parse etc) files
 			select: cb(req,res),	
 		}, ...
@@ -79,7 +97,7 @@ where options = {...} include:
 		}, ...
 	},
 
-	emulator: {		// emulate virtual tables
+	emulator: {		// endpoints to virtual datasets
 		select: {
 			DATASET: cb(req,res),
 			DATASET: cb(req,res),
@@ -88,26 +106,17 @@ where options = {...} include:
 		...	
 	},
 
-	converters: {  // NODE.TYPE converters to callback cb(ack data as string || error)
-		TYPE: function (ack,req,cb),
-		...
-	},
-	
-	sender: {		// send raw files
+	sender: {		// endpoints to send cached files
 		AREA: cb(req,res),
 		AREA: cb(req,res),
 		...		
 	},
 
-	worker: {		// worker and data fetcher endpoints
-		wget: cb(req,res),	// fetch data from other services
-		curl: cb(req,res),
-		http: cb(req,res),
-		...
-	},
-	
-	watch: { // file watchers
-		FOLDER: cb(file),
+	worker: {		// endpoints to workers and data fetcher
+		wget: cb(req,res),	// data fetch service
+		curl: cb(req,res),	// data fetch service
+		http: cb(req,res), // data fetch service
+		riddle: cb(req,res) // antibot protection interface
 		...
 	},
 	
