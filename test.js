@@ -395,13 +395,19 @@ function faces(tau,parms) { return 102; }
 				user: ENV.MYSQL_USER,
 				pass: ENV.MYSQL_PASS
 			},
+			
+			cycles: {
+				billing: 60e3,
+				diag: 60e3
+			},
+			
 			watch: {
 				"./uploads": function (file) {
 				}
 			}
 			
 		}, function (err) {
-			Trace( err || "Yowzers - An encrypted DEBE service with a database watching files in uploads area" );
+			Trace( err || "Yowzers - An encrypted DEBE service, a upload file watcher, billing jobs and self diags every minute" );
 		});
 
 	},
