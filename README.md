@@ -16,38 +16,31 @@ TOTEM provides an HTTP service with the following optional features:
 	+ per-client anti-bot challenges: profile challenges like (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
 	+ syncronized crude operations on mutiple endpoints
 	+ database agnosticator (default MySQL-Cluster)
-	+ monitor files
+	+ poll files and services
   
 TOTEM thus replaces a slew of god-awful NodeJS middleware (like Express).
 
-TOTEM provides CRUD endpoints to synchronize dataset NODES:
+TOTEM provides SUDI endpoints to synchronize dataset NODES:
   
 	(select) GET 	 /NODE $$ NODE ...
 	(update) PUT 	 /NODE $$ NODE ...
 	(insert) POST 	 /NODE $$ NODE ...
 	(delete) DELETE /NODE $$ NODE ...
   
-where a NODE can specify a [FLEX](https://git.geointapps.org/acmesds/flex) dataset:
-  
+where a NODE:
+
   	DATASET.TYPE?PARMS
-	TYPE = [db | xml | csv | txt | tab | view | tree | flat | delta | nav | kml | exe | encap | html | ...] formats returned data
-
-a compute [ENGINE](https://git.geointapps.org/acmesds/engine):
-
 	ENGINE.TYPE?PARMS
-	TYPE = [view | js | py | mat | r | cv |  ...] identifies type of engine to execute
-
-a static content file:
-
+	AREA/PATH.TYPE?PARMS
 	FILE.TYPE?PARMS
-	FILE = AREA/PATH provides redirection of the requested PATH 
 
-or a [READER](https://git.geointapps.org/acmesds/reader) file to be parsed:
+addresses a [FLEX dataset](https://github.com/acmesds/flex), a [compute ENGINE](https://github.com/acmesds/engine),
+a static file, or a [READER file](https://github.com/acmesds/reader) to parse.  The dataset TYPE:
 
-	FILE.TYPE?PARMS
-	FILE = AREA/PATH provides redirection of the requested PATH under an AREA
-	TYPE = type of file to be parsed
-
+	db | xml | csv
+	
+qualifies how datasets are rendered.
+ 
 TOTEM is configured and started like this:
 
 	var TOTEM = require("../totem").config( {options...}, function (err) {
@@ -64,7 +57,7 @@ data fetching and antibot protection
 	
 endpoints can be overriden with the config() options:
   
-	// CRUDE interface
+	// SUDIE interface
 
 	select: cb(req,res),
 	update: cb(req,res),
@@ -177,7 +170,7 @@ endpoints can be overriden with the config() options:
 	site: {db parameters} // loaded for specified opts.name,
 	url : {master,worker} // urls for specified opts.cores,
 
-TOTEM options use the [ENUM copy()](https://git.geointapps.org/acmesds/enum) conventions:
+TOTEM options use the [ENUM copy()](https://github.com/acmesds/enum) conventions:
 
 	options =  {
 		key: value, 						// set 
@@ -193,12 +186,12 @@ TOTEM options use the [ENUM copy()](https://git.geointapps.org/acmesds/enum) con
 
 Download the latest version with
 
-	git clone https://git.geointapps.org/acmesds/totem
+	git clone https://github.com/acmesds/totem
 
 ## Examples
 
-Below sample are from the totem/test.js unit tester.  See Totem's [DEBE](https://git.geointapps.org/acmesds/debe) 
-for a far more complex use-case.  You may  also find Totem's [DSVAR](https://git.geointapps.org/acmesds/dsvar) 
+Below sample are from the totem/test.js unit tester.  See Totem's [DEBE](https://github.com/acmesds/debe) 
+for a far more complex use-case.  You may  also find Totem's [DSVAR](https://github.com/acmesds/dsvar) 
 useful, if you wish to learn more about its database agnosticator.
 
 ### N1 - Just an interface

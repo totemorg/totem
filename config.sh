@@ -27,7 +27,7 @@ export MYSQL=$BASE/mysql
 export PATH=$MYSQL/bin:$PATH
 export MYSQL_PASS=NGA
 export MYSQL_USER=root
-export MYSQL_NAME=app1
+export MYSQL_NAME=app
 export MYSQL_HOST=localhost
 
 # service

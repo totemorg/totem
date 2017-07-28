@@ -537,7 +537,13 @@ var
 		
 	/**
 	@cfg {Object} 
-	By-type-action endpoint routers for access to engines and file readers
+	By-action endpoint routers for accessing engines
+	*/				
+	runner: null,
+
+	/**
+	@cfg {Object} 
+	By-type endpoint routers for accessing readers
 	*/				
 	reader: {
 	},
@@ -687,7 +693,7 @@ var
 		Challenge: 1,
 		Client: "guest@guest.org",
 		User: "guest@guest",
-		Group: "app1",
+		Group: "app",
 		Repoll: true,
 		Retries: 5,
 		Timeout: 30,
@@ -744,9 +750,9 @@ var
 		},
 		
 		mysql: {
-			users: "SELECT 'user' AS Role, group_concat(DISTINCT dataset SEPARATOR ';') AS Contact FROM app1.dblogs WHERE instr(dataset,'@')",
+			users: "SELECT 'user' AS Role, group_concat(DISTINCT dataset SEPARATOR ';') AS Contact FROM app.dblogs WHERE instr(dataset,'@')",
 			derive: "SELECT * FROM openv.apps WHERE ?",
-			record: "INSERT INTO app1.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
+			record: "INSERT INTO app.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
 			engine: "SELECT *,count(ID) as Count FROM engines WHERE least(?,1)",
 			search: "SELECT * FROM files HAVING Score > 0.1",
 			credit: "SELECT * FROM files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 0,1",
@@ -986,6 +992,7 @@ function configService(opts, cb) {
 
 	TOTEM.extend(opts);
 	
+	
 	var
 		name  = TOTEM.name,
 		mysql = TOTEM.mysql,
@@ -1037,12 +1044,20 @@ function configService(opts, cb) {
 				
 	if (mysql) 
 		DSVAR.config({   // establish the db agnosticator 
-			//io: TOTEM.IO,   // can setup its socketio only after server defined by startService
+			//io: TOTEM.IO,   // cant set socketio until after server defined by startService
 
+			getdb: function (sql,cb) {
+				sql.query("SELECT * FROM openv.apps WHERE ? LIMIT 0,1",{Nick:name})
+				.on("result", function (app) {
+					Trace("USING DB "+app.DB);
+					cb(app.DB);
+				});
+			},
+			
 			mysql: Copy({ 
 				opts: {
-					host: mysql.host,
-					user: mysql.user,
+					host: mysql.host,   // hostname 
+					user: mysql.user, 	// username
 					password : mysql.pass,				// passphrase
 					connectionLimit : mysql.sessions || 100, 		// max simultaneous connections
 					//acquireTimeout : 10000, 			// connection acquire timer
@@ -2508,10 +2523,21 @@ function routeNode(req, res) {
 	
 	else
 	if ( route = TOTEM.reader[type] ) 
-		if ( route = route[action] )
-			followRoute(route,req,res);
-		else
-			res( TOTEM.errors.noRoute );
+		followRoute(route,req,res);
+	
+	else
+	if ( route = TOTEM.runner ) 
+		route[action](req, function (ack) { 
+			if (ack.constructor == Error)
+				if ( route = TOTEM[action] )
+					followRoute(route,req,res);
+
+				else 
+					res( TOTEM.errors.noRoute );
+
+			else 
+				res( ack );
+		});	
 	
 	else
 	if ( route = TOTEM[action] )

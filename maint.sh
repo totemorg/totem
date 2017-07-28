@@ -234,7 +234,7 @@ checkpoint.)  # export db to admins
 
 	cd $ADMIN/db
 		mysqldump -u$MYSQL_USER -p$MYSQL_PASS openv >admins/db/openv.sql
-		mysqldump -u$MYSQL_USER -p$MYSQL_PASS app1 >admins/db/app1.sql
+		mysqldump -u$MYSQL_USER -p$MYSQL_PASS app >admins/db/app.sql
 		#mysqldump -u$MYSQL_USER -p$MYSQL_PASS --events mysql >admins/db/mysql.sql
 		#mysqldump -u$MYSQL_USER -p$MYSQL_PASS jou >admins/db/jou.sql
 
