@@ -941,9 +941,13 @@ var
  * @param {Function} res Totem's response callback
  * */
 function dataSelect(req,res) {	//< Default virtual table logic is real table
-	req.sql.query("SELECT * FROM ??", req.table, function (err,data) {
-		res(err || data);
-	});
+	if (DSVAR.db)
+		req.sql.query("SELECT * FROM ?.?", [DSVAR.db,req.table], function (err,data) {
+			res(err || data);
+		});
+	
+	else
+		res(TOTEM.errors.noDB);
 }
 /**
  * @method dataUpdate
@@ -1651,6 +1655,7 @@ function createCert(owner,pass,cb) {
 
 	var 
 		name = TOTEM.paths.certs.server + owner, 
+		truststore = TOTEM.paths.certs.server + "truststore",
 		pfx = name + ".pfx",
 		key = name + ".key",
 		crt = name + ".crt",
@@ -1663,11 +1668,16 @@ function createCert(owner,pass,cb) {
 		function () {
 		
 	traceExecute(
+		`cp ${crt} ${truststore}`,
+		function () {
+			
+	traceExecute(
 		`puttygen ${owner}.key -N ${pass} -o ${ppk}`, 	
 		function () {
 		
-		Trace("IGNORE puttygen ERRORS IF NOT INSTALLED"); 
+		Trace("IGNORE PREVIOUS PUTTYGEN ERRORS IF NOT INSTALLED"); 
 		cb();
+	});
 	});
 	});
 	});
@@ -1762,7 +1772,7 @@ function validateCert(req,res) {
 					return res( TOTEM.errors.rejectedCert );
 
 		}
-	
+			
 		if (profile.Banned)  // block client if banned
 			res( new Error(profile.Banned) );
 			
@@ -1795,7 +1805,7 @@ function validateCert(req,res) {
 						session: ses.Count ? Copy(ses,{}) : {},
 						//clientip: req.clientip || "unknown",
 						//location: null,
-						group	: profile.Group || TOTEM.site.db, 
+						group	: profile.Group, // || TOTEM.site.db, 
 						profile	: Copy(profile,{}),
 						journal : true,				// journal db actions
 						//joined	: now, 				// time joined
@@ -1844,8 +1854,14 @@ function validateCert(req,res) {
 	if (TOTEM.encrypt)
 		res( TOTEM.errors.noDB );
 	
-	else
+	else {
+		req.connection = null;
+		req.cert = cert;
+		req.client = client;
+		req.profile = TOTEM.guestProfile;
+		req.group = req.profile.Group,
 		res( null );
+	}
 }
 
 //=============================================
@@ -2945,8 +2961,8 @@ function sesThread(Req,Res) {
 									res( TOTEM.errors.badGroup );
 								
 								else
-								if (TOTEM.validator) 
-									TOTEM.validator(req, res);
+								if (validator = TOTEM.validator) 
+									validator(req, res);
 								
 								else
 									res(err);
@@ -2954,8 +2970,8 @@ function sesThread(Req,Res) {
 							});
 
 						else
-						if (TOTEM.validator) 
-							TOTEM.validator(req, res);
+						if (validator = TOTEM.validator) 
+							validator(req, res);
 
 						else
 							res( null );

@@ -37,7 +37,7 @@ with 2 cores and the default endpoint routes` );
 			nofaults: true,
 			cores: 2
 		}, function (err) {
-			Trace(err || "Ok - Im started and ready to rock!");
+			Trace(err || "Ok - Im started and ready to rock - but no DB!");
 		});
 		
 	},
