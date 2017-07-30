@@ -941,8 +941,8 @@ var
  * @param {Function} res Totem's response callback
  * */
 function dataSelect(req,res) {	//< Default virtual table logic is real table
-	if (DSVAR.db)
-		req.sql.query("SELECT * FROM ?.?", [DSVAR.db,req.table], function (err,data) {
+	if (TOTEM.mysql)
+		req.sql.query("SELECT * FROM ??.??", [req.group,req.table], function (err,data) {
 			res(err || data);
 		});
 	
@@ -1050,14 +1050,6 @@ function configService(opts, cb) {
 		DSVAR.config({   // establish the db agnosticator 
 			//io: TOTEM.IO,   // cant set socketio until after server defined by startService
 
-			getdb: function (sql,cb) {
-				sql.query("SELECT * FROM openv.apps WHERE ? LIMIT 0,1",{Nick:name})
-				.on("result", function (app) {
-					Trace("USING DB "+app.DB);
-					cb(app.DB);
-				});
-			},
-			
 			mysql: Copy({ 
 				opts: {
 					host: mysql.host,   // hostname 

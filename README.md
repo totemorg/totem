@@ -2,12 +2,12 @@
 @class totem [![Forked from SourceForge](https://sourceforge.net)]
 # TOTEM
 
-TOTEM provides an HTTP service with the following optional features:
+TOTEM replaces a slew of god-awful NodeJS middleware (like Express) by providing the following selectable features:
   
 	+ routing methods for table, engine, and file objects
-	+ Denial-of-Service protection
+	+ denial-of-service protection
 	+ web sockets for inter-client communications
-	+ client profiles (e.g. banning, journalling, hawking, challenge tags and polling)
+	+ client profiles (e.g. banning, journalling, hawking, challenging and polling)
 	+ account management by priviledged hawks and normal users
 	+ hyper-threading in a master-worker or master-only relationship
 	+ PKI channel encryption and authentication
@@ -17,22 +17,21 @@ TOTEM provides an HTTP service with the following optional features:
 	+ syncronized crude operations on mutiple endpoints
 	+ database agnosticator (default MySQL-Cluster)
 	+ poll files and services
+	+ automattic server cert generation
   
-TOTEM thus replaces a slew of god-awful NodeJS middleware (like Express).
-
 TOTEM provides SUDI endpoints to synchronize dataset NODES:
   
-	(select) GET 	 /NODE $$ NODE ...
-	(update) PUT 	 /NODE $$ NODE ...
-	(insert) POST 	 /NODE $$ NODE ...
-	(delete) DELETE /NODE $$ NODE ...
+	(select) GET 	 / NODE $$ NODE ...
+	(update) PUT 	 / NODE $$ NODE ...
+	(insert) POST 	 / NODE $$ NODE ...
+	(delete) DELETE / NODE $$ NODE ...
   
 where a NODE:
 
-  	DATASET.TYPE?PARMS
-	ENGINE.TYPE?PARMS
-	AREA/PATH.TYPE?PARMS
-	FILE.TYPE?PARMS
+  	DATASET.TYPE ? PARMS
+	ENGINE.TYPE ? PARMS
+	AREA/PATH.TYPE ? PARMS
+	FILE.TYPE ? PARMS
 
 addresses a [FLEX dataset](https://github.com/acmesds/flex), a [compute ENGINE](https://github.com/acmesds/engine),
 a static file, or a [READER file](https://github.com/acmesds/reader) to parse.  The dataset TYPE:
@@ -77,40 +76,37 @@ endpoints can be overriden with the config() options:
 	
 	// NODE endpoint routers
 
-	reader: {		// endpoints to readers and engines
-		TYPE: {			// index (scan, parse etc) files
-			select: cb(req,res),	
-		}, ...
-		
-		TYPE: {  		 // execute engine
-			select: cb(req,res), 
-			update: cb(req,res),
-			delete: cb(req,res),
-			update: cb(req,res)
-		}, ...
+	reader: {		// by-type endpoints to file readers / parsers
+		TYPE: cb(req,res),	
+		...
 	},
 
-	emulator: {		// endpoints to virtual datasets
+	emulator: {		// by-action endpoints to virtual datasets
 		select: {
-			DATASET: cb(req,res),
 			DATASET: cb(req,res),
 			...		
 		},
 		...	
 	},
 
-	sender: {		// endpoints to send cached files
-		AREA: cb(req,res),
+	sender: {		// by-area endpoints to send cached files
 		AREA: cb(req,res),
 		...		
 	},
 
-	worker: {		// endpoints to workers and data fetcher
+	worker: {		// by-table endpoints to workers and data fetcher
 		wget: cb(req,res),	// data fetch service
 		curl: cb(req,res),	// data fetch service
 		http: cb(req,res), // data fetch service
 		riddle: cb(req,res) // antibot protection interface
 		...
+	},
+	
+	runner: {		// by-action endpoints to engines
+		select: cb(req,res),
+		insert: cb(req,res),
+		delete: cb(req,res),
+		update: cb(req,res)
 	},
 	
 	// server specific
@@ -187,6 +183,13 @@ TOTEM options use the [ENUM copy()](https://github.com/acmesds/enum) conventions
 Download the latest version with
 
 	git clone https://github.com/acmesds/totem
+
+## Databases
+
+openv.profiles Reads and populates when clients arrive
+openv.sessions Reads and populates when client sessions are established
+openv.riddles Builds on config() and reads when clients arrive
+openv.apps Reads on start() to define site context parameters
 
 ## Examples
 
