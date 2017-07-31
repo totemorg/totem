@@ -793,7 +793,7 @@ var
 		rejectedCert: new Error("cert rejected"),
 		tooBusy: new Error("too busy - try again later"),
 		noFile: new Error("file not found"),
-		noIndex: new Error("index not found"),
+		noIndex: new Error("no file indexer"),
 		badType: new Error("bad presentation type"),
 		badReturn: new Error("response fault"),
 		noSockets: new Error("scoket.io failed"),
@@ -1869,18 +1869,14 @@ MIME static file indexing and uploading
 * @param {Object} path file path
 * @param {Function} cb totem response
 */
-function indexFile(path,cb) {
-	
+function indexFile(path,cb) {	
 	var files = [];
 	
 	findFile(path, function (n,file) {
-		
 		files.push( file );
-		
 	});
 	
 	cb( files );
-	
 }	
 
 /**
@@ -1889,7 +1885,6 @@ function indexFile(path,cb) {
 * @param {Function} cb totem response
 */
 function findFile(path,cb) {
-	
 	try {
 		FS.readdirSync(path).each( function (n,file) {
 			if (n > MAXFILES) return true;
@@ -1899,8 +1894,7 @@ function findFile(path,cb) {
 		});
 	}
 	catch (err) {
-			return;
-		}
+	}
 }
 
 /**
@@ -2390,7 +2384,7 @@ function parseNode(req) {
 		table = req.table = parts[0] || "",
 		area = req.area = areas[1] || "";
 		
-	if ( req.path = TOTEM.paths.mime[req.area] )
+	if ( req.path = req.area ? TOTEM.paths.mime[req.area] || req.area : "" )
 		req.path += node.pathname;
 		
 	else
@@ -2676,8 +2670,10 @@ function sesThread(Req,Res) {
 	
 	function sendCache(path,file,type,area) { // Cache and send file to client
 		
-		var mime = MIME[type] || MIME.html  || "text/plain",
+		var 
+			mime = MIME[type] || MIME.html  || "text/plain",
 			paths = TOTEM.paths;
+			index = paths.mime.index;
 		
 		//Trace(`SENDING ${path} AS ${mime} ${file} ${type} ${area}`);
 		//Res.setHeader("Content-Type", mime );
@@ -2708,8 +2704,7 @@ function sesThread(Req,Res) {
 		}
 		
 		else
-		if ( 	( index = paths.mime.index ) && ( indexer = index[area] ) ) { // index files
-
+		if ( indexer = index[area] ) { // index files
 			TOTEM[indexer](path, function (files) { // use configured indexer
 				sendFileIndex(`Index of ${path}`, files);
 			});
@@ -2806,14 +2801,14 @@ function sesThread(Req,Res) {
 				
 				case Function: 			// send file via search or direct
 				
-					if (search = req.query.search && paths.mysql.search) 		// search for file via nlp/etc
+					if ( (search = req.query.search) && paths.mysql.search) 		// search for file via nlp/etc
 						sql.query(paths.mysql.search, {FullSearch:search}, function (err, files) {
 							
 							if (err) 
 								sendError( TOTEM.errors.noFile );
 								
 							else
-								sendError( TOTEM.errors.noFile );
+								sendError( TOTEM.errors.noFile );  // reserved functionality
 								
 						});
 					
