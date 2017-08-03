@@ -2516,15 +2516,15 @@ function routeNode(req, res) {
 		followRoute( route = TOTEM.sender[area] || sendFile, req, res );
 
 	else
+	if ( route = TOTEM.reader[type] ) 
+		followRoute(route,req,res);
+	
+	else
 	if ( route = TOTEM.emulator[action][table])
 		followRoute(route,req,res);
 	
 	else
 	if ( route = TOTEM.worker[table] ) 
-		followRoute(route,req,res);
-	
-	else
-	if ( route = TOTEM.reader[type] ) 
 		followRoute(route,req,res);
 	
 	else
