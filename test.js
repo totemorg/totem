@@ -389,7 +389,7 @@ function faces(tau,parms) { return 102; }
 
 		var DEBE = require("../debe").config({
 			name: ENV.SERVICE_NAME,
-			encrypt: ENV.SERVICE_PASS,
+			//encrypt: ENV.SERVICE_PASS,
 			mysql: {
 				host: ENV.MYSQL_HOST,
 				user: ENV.MYSQL_USER,

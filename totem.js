@@ -1501,7 +1501,7 @@ function insertUser (req,res) {
 				var init = Copy({	
 					Approved: new Date(),
 					Banned: url.resetpass
-						? "Please "+"s your password".tag("a", {href:url.resetpass})+" to access"
+						? "Please "+"reset your password".tag("a", {href:url.resetpass})+" to access"
 						: "",
 
 					Client: user.User,					
