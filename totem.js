@@ -730,8 +730,6 @@ var
 	Default paths to service files
 	*/		
 	paths: { 			
-		render: "public/jade/",
-		
 		default: "/",
 		
 		url: {
@@ -751,9 +749,8 @@ var
 		
 		mysql: {
 			users: "SELECT 'user' AS Role, group_concat(DISTINCT dataset SEPARATOR ';') AS Contact FROM app.dblogs WHERE instr(dataset,'@')",
-			derive: "SELECT * FROM openv.apps WHERE ?",
+			derive: "SELECT * FROM openv.apps WHERE ? LIMIT 0,1",
 			record: "INSERT INTO app.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
-			engine: "SELECT *,count(ID) as Count FROM engines WHERE least(?,1)",
 			search: "SELECT * FROM files HAVING Score > 0.1",
 			credit: "SELECT * FROM files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 0,1",
 			session: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1,?",
@@ -859,30 +856,32 @@ var
 			});
 
 		if (derive = mysql.derive)  // derive site context vars
-			sql.indexJsons( "openv.apps", {}, function (jsons) {	// get site json vars
-			
-				sql.query(derive, {Nick:TOTEM.name})
-				.on("result", function (opts) {
+			sql.query(derive, {Nick:TOTEM.name})
+			.on("result", function (opts) {
 
-					Each(opts, function (key,val) {
-						key = key.toLowerCase();
+				Each(opts, function (key,val) {
+					key = key.toLowerCase();
+					site[key] = val;
 
-						if (def = jsons[key])
-							site[key] = (val+"").parse(def);
-						
-						else
-							site[key] = val;
-
-						if (key in TOTEM) 
-							TOTEM[key] = val;
-					});
-
-					if (cb) cb();
-				})
-				.on("error", function (err) {
-					Trace( "CANT DERIVE "+err );
+					try {
+						if (val.constructor == String)
+							site[key] = JSON.parse( val );
+					}
+					catch (err) {
+					}
+					
+					if (key in TOTEM) 
+						TOTEM[key] = site[key];
 				});
+
+				if (cb) cb();
+			})
+			.on("error", function (err) {
+				Trace( "DERIVE "+err );
 			});
+			/*
+			sql.indexJsons( "openv.apps", {}, function (jsons) {	// get site json vars
+			}); */
 		
 		else 
 		if (cb) cb();
