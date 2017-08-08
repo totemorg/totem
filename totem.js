@@ -792,7 +792,7 @@ var
 		noFile: new Error("file not found"),
 		noIndex: new Error("no file indexer"),
 		badType: new Error("bad presentation type"),
-		badReturn: new Error("response fault"),
+		badReturn: new Error("no response"),
 		noSockets: new Error("scoket.io failed"),
 		noService: new Error("no service  to start"),
 		badData: new Error("data has circular reference")
@@ -2052,16 +2052,53 @@ function curlFetch(url,cb) {
 	retryFetch(
 		transport[opts.protocol],
 		opts, 
-		
 		function (err,out) {
-			cb( err || (out||"").parse(new Error(err)) );
+			try {
+				cb( JSON.parse(out));
+			}
+			catch (err) {
+				cb( null );
+			}
 	});
 
 }
 
 function wgetFetch(url,cb) { 
 		
-	var opts = URL.parse(url),
+	function retryFetch(cmd,opts,cb) {
+
+		function trycmd(cmd,cb) {
+
+			if (TOTEM.notify)
+				Trace(`TRY[${opts.retry}] ${cmd}`);
+
+			CP.exec(cmd, function (err,stdout,stderr) {
+				if (err) {
+					if (opts.retry) {
+						opts.retry--;
+
+						trycmd(cmd,cb);
+					}
+					else
+						cb( new Error("Retries exceeded") );
+				}
+				else
+				if (cb) cb(null, stdout);
+			});
+		}
+
+		opts.retry = TOTEM.retries;
+
+		if (opts.retry) 
+			trycmd(cmd,cb);
+		else
+			CP.exec(cmd, function (err,stdout,stderr) {			
+				cb( err , stdout );
+			});
+	}
+
+	var 
+		opts = URL.parse(url),
 		certs = TOTEM.cache.certs,
 		transport = {
 			"http:": `wget -O ${TOTEM.fetchers.plugin.wgetout} "${url}"`,
@@ -2071,9 +2108,8 @@ function wgetFetch(url,cb) {
 	retryFetch(
 		transport[opts.protocol],
 		opts, 
-
 		function (err) {
-			cb( err || TOTEM.fetchers.plugin.wgetout);
+			cb( err ? null : TOTEM.fetchers.plugin.wgetout);
 	});
 	
 }
@@ -2101,6 +2137,8 @@ function httpFetch(url,cb) {
 		opts.method = "POST";
 	}*/
 	
+	//console.log(opts);
+	
 	if (opts.protocol) {
 		var req = transport[opts.protocol].request(opts, function(res) {
 			res.setEncoding('utf-8');
@@ -2115,15 +2153,14 @@ function httpFetch(url,cb) {
 					cb( JSON.parse(atext) );
 				}
 				catch (err) {
-					cb( atext );
+					cb( null );
 				}					
 			});
 
 		});
 
 		req.on('error', function(err) {
-			Trace(`RETRYING(${opts.retry} ${err}`);
-			if (opts.retry) opts.retry--;
+			cb( null );
 		});
 
 		/*if (opts.soap)
@@ -2131,40 +2168,9 @@ function httpFetch(url,cb) {
 
 		req.end();
 	}
-	else
-		cb( TOTEM.errors.noProtocol );
-}
-
-function retryFetch(cmd,opts,cb) {
-		
-	function trycmd(cmd,cb) {
-
-		if (TOTEM.notify)
-			Trace(`TRY[${opts.retry}] ${cmd}`);
-
-		CP.exec(cmd, function (err,stdout,stderr) {
-			if (err) {
-				if (opts.retry) {
-					opts.retry--;
-					
-					trycmd(cmd,cb);
-				}
-				else
-					cb( new Error(`Halted ${cmd}`) );
-			}
-			else
-			if (cb) cb(stdout);
-		});
-	}
 	
-	opts.retry = TOTEM.retries;
-
-	if (opts.retry) 
-		trycmd(cmd,cb);
 	else
-		CP.exec(cmd, function (err,stdout,stderr) {			
-			cb( err ? opts.halted : stdout );
-		});
+		cb( null );
 }
 
 /**
@@ -2529,7 +2535,7 @@ function routeNode(req, res) {
 	else
 	if ( route = TOTEM.runner ) 
 		route[action](req, function (ack) { 
-			if (ack.constructor == Error)
+			if ( (ack||0).constructor == Error)
 				if ( route = TOTEM[action] )
 					followRoute(route,req,res);
 
