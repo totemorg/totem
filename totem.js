@@ -792,7 +792,7 @@ var
 		noFile: new Error("file not found"),
 		noIndex: new Error("no file indexer"),
 		badType: new Error("bad presentation type"),
-		badReturn: new Error("no response"),
+		badReturn: new Error("nothing returned"),
 		noSockets: new Error("scoket.io failed"),
 		noService: new Error("no service  to start"),
 		badData: new Error("data has circular reference")
@@ -2532,7 +2532,8 @@ function routeNode(req, res) {
 	if ( route = TOTEM.worker[table] ) 
 		followRoute(route,req,res);
 	
-	else
+	/*
+	else  // attempt to route to engines then to database
 	if ( route = TOTEM.runner ) 
 		route[action](req, function (ack) { 
 			if ( (ack||0).constructor == Error)
@@ -2545,6 +2546,7 @@ function routeNode(req, res) {
 			else 
 				res( ack );
 		});	
+	*/
 	
 	else
 	if ( route = TOTEM[action] )
