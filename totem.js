@@ -1792,7 +1792,7 @@ function validateCert(req,res) {
 						cert	: cert,
 						client	: client,
 						org		: cert.subject.O || "unknown",
-						serverip: "redacted", //con.address().address || "unknown",
+						serverip: con.address().address || "unknown",
 						session: ses.Count ? Copy(ses,{}) : {},
 						group	: profile.Group, // || TOTEM.site.db, 
 						profile	: Copy(profile,{}),
@@ -2384,7 +2384,7 @@ function parseNode(req) {
 		query = req.query = search.parse({}),
 		areas = node.pathname.split("/"),
 		file = req.file = areas.pop() || (areas[1] ? "" : TOTEM.paths.default),
-		parts = file.split("."),
+		parts = req.parts = file.split("."),
 		type = req.type = parts[1] || "",
 		table = req.table = parts[0] || "",
 		area = req.area = areas[1] || "";
