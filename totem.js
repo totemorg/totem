@@ -730,7 +730,7 @@ var
 	Default paths to service files
 	*/		
 	paths: { 			
-		default: "/",
+		default: "files/",
 		
 		url: {
 			//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
@@ -1776,31 +1776,31 @@ function validateCert(req,res) {
 				.on("result", function (ses) {
 					Copy({  // add session metric logs and session parms
 						log: {  								// potential session metrics to log
-							//Cores: site.Cores, 					// number of safety core hyperthreads
-							//VMs: 1,								// number of VMs
 							Event: now,		 					// start time
 							Action: req.action, 				// db action
-							//Client: client, 				// client id
-							//Table: req.table, 					// db target
 							ThreadsRunning: stats[3].Value,		// sql threads running
 							ThreadsConnected: stats[1].Value,	// sql threads connected
-							//RecID: req.query.ID || 0,			// sql recID
 							Stamp: TOTEM.name,					// site name
 							Fault: "isp"						// fault codes
+							//Cores: site.Cores, 					// number of safety core hyperthreads
+							//VMs: 1,								// number of VMs
+							//Client: client, 				// client id
+							//Table: req.table, 					// db target
+							//RecID: req.query.ID || 0,			// sql recID
 						},
 
 						cert	: cert,
 						client	: client,
 						org		: cert.subject.O || "unknown",
-						serverip: con.address().address || "unknown",
+						serverip: "redacted", //con.address().address || "unknown",
 						session: ses.Count ? Copy(ses,{}) : {},
-						//clientip: req.clientip || "unknown",
-						//location: null,
 						group	: profile.Group, // || TOTEM.site.db, 
 						profile	: Copy(profile,{}),
 						journal : true,				// journal db actions
-						//joined	: now, 				// time joined
+						joined	: now, 				// time joined
 						email	: client 			// email address from pki
+						//clientip: req.clientip || "unknown",
+						//location: null,
 						//source	: req.table 		// db source dataset, view or engine
 						//hawk	: site.Hawks[client] // client ui change-tracking (M=mod,U=nonmod,P=proxy)
 					}, req);
