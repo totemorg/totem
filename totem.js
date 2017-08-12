@@ -1021,11 +1021,10 @@ function configService(opts, cb) {
 					Trace("WATCHING "+path);
 					FS.watch(path, function (ev, file) {  //{persistent: false, recursive: false}, 
 
-						//console.log([ev,file, FLEX.thread]);
+						Trace(ev+" "+file);
 
 						if (TOTEM.thread)
 						if (file)
-						if (file.indexOf(".swp") < 0)
 						switch (ev) {
 							case "change":
 								TOTEM.thread( function (sql) {
@@ -1033,7 +1032,13 @@ function configService(opts, cb) {
 										console.log(["keys",keys]);
 									});
 									*/
-									cb(path, ev, sql);
+									if (file.charAt(0) == ".") { // swp being updated
+										path = folder+"/"+file.substr(1).replace(".swp","");
+										cb(path, ev, sql);
+									}
+									
+									else
+										cb(path, ev, sql);
 								});
 
 								break;

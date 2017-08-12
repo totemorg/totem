@@ -10,12 +10,7 @@
  * */
 
 var 
-	ENV = process.env;
-
-var
-	FS = require("fs");
-
-var 
+	ENV = process.env,
 	ENUM = require("enum");
 
 ENUM.test({
@@ -403,21 +398,9 @@ function faces(tau,parms) { return 102; }
 			
 			watch: {
 				"./public/uploads": function (path,ev,sql) {
-					Trace(ev.toUpperCase()+" "+path);
-					var stream = FS.createReadStream(path);
+					Trace("INGEST "+ev.toUpperCase()+" "+path);
 					
-					stream.on("open", function () {
-						/*stream.pipe( function (buf) {
-							console.log(buf);
-						});*/
-					});
-					stream.on("data", function (buf) {
-						buf.toString
-						console.log(">>>"+buf.toString());
-					});
-					stream.on("error", function (err) {
-						Trace(err);
-					});
+					DEBE.ingestFile(path, sql);
 					
 					sql.release();
 				}
