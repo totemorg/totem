@@ -263,7 +263,7 @@ var
 										rtn[key] = unescape(val);
 									}
 						
-								else 		// store "key RELATION val"
+								else 		// store key relationship (e.g. key<val or simply key)
 									rtn[parm] = null;
 							});
 					});
@@ -863,12 +863,12 @@ var
 					key = key.toLowerCase();
 					site[key] = val;
 
-					try {
-						if (val.constructor == String)
+					if ( (val||0).constructor == String)
+						try {
 							site[key] = JSON.parse( val );
-					}
-					catch (err) {
-					}
+						}
+						catch (err) {
+						}
 					
 					if (key in TOTEM) 
 						TOTEM[key] = site[key];
@@ -930,16 +930,15 @@ var
 });
 
 /**
- * @class support.data
- * Default CRUDE interface for datasets
+ * @class Dataset CRUDE interface
  **/
 
+function dataSelect(req,res) {	//< Default virtual table logic is real table
 /**
  * @method dataSelect
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
-function dataSelect(req,res) {	//< Default virtual table logic is real table
 	if (TOTEM.mysql)
 		req.sql.query("SELECT * FROM ??.??", [req.group,req.table], function (err,data) {
 			res(err || data);
@@ -948,50 +947,53 @@ function dataSelect(req,res) {	//< Default virtual table logic is real table
 	else
 		res(TOTEM.errors.noDB);
 }
+
+function dataUpdate(req,res) {
 /**
  * @method dataUpdate
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
-function dataUpdate(req,res) {
 	res( TOTEM.paths.TOTEM.errors.noRoute );
 }
+
+function dataInsert(req,res) {
 /**
  * @method dataInsert
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
-function dataInsert(req,res) {
 	res( TOTEM.paths.TOTEM.errors.noRoute );
 }
+
+function dataDelete(req,res) {
 /**
  * @method dataDelete
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
-function dataDelete(req,res) {
 	res( TOTEM.paths.TOTEM.errors.noRoute );
 }
+
+function dataExecute(req,res) {
 /**
  * @method dataExecute
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
-function dataExecute(req,res) {
 	res( TOTEM.paths.TOTEM.errors.noRoute );
 }
 
 /**
- * @class support.service
- * Service methods.
+ * @class service maintenance
  **/
 
+function configService(opts, cb) {
 /**
  * @method configService
  * Start this server with the desired options.
  * @param {Object} opts configuration options
  * */
-function configService(opts, cb) {
 
 	TOTEM.extend(opts);
 	
@@ -1020,18 +1022,18 @@ function configService(opts, cb) {
 					FS.watch(path, function (ev, file) {  //{persistent: false, recursive: false}, 
 
 						//console.log([ev,file, FLEX.thread]);
-						Trace(ev.toUpperCase()+" "+file);
 
-						if (file && FLEX.thread)
+						if (TOTEM.thread)
+						if (file)
+						if (file.indexOf(".swp") < 0)
 						switch (ev) {
 							case "change":
-								FLEX.thread( function (sql) {
+								TOTEM.thread( function (sql) {
 									/*READ.reader(sql, path+file, function (keys) {
 										console.log(["keys",keys]);
 									});
 									*/
-									cb(path);
-									sql.release();
+									cb(path, ev, sql);
 								});
 
 								break;
@@ -1084,13 +1086,13 @@ function configService(opts, cb) {
 	return TOTEM;
 }
 
+function startService(server,cb) {
 /**
  * @method startService
  * Attach the responder to this server then initialized.
  * @param {Object} server HTTP/HTTP server
  * @param {Function} cb callback() when service initialized.
  * */
-function startService(server,cb) {
 	
 	var 
 		name = TOTEM.name,
@@ -1254,15 +1256,14 @@ function startService(server,cb) {
 			
 }
 		
+function connectService(cb) {
 /**
  * @method connectService
  * If the TOTEM server already connected, inherit the server; otherwise
  * define an the apprpriate http interface (https if encrypted, 
  * http if unencrypted), then start the server.
  * @param {Function} cb callback when done
- *
  * */
-function connectService(cb) {
 	
 	var 
 		port = TOTEM.port,
@@ -1307,6 +1308,7 @@ function connectService(cb) {
 	
 }
 
+function protectService(cb) {
 /**
  * @method protectService
  * Create the server's PKI certs (if they dont exist), then setup
@@ -1314,7 +1316,6 @@ function connectService(cb) {
  * @param {Function} cb callback when done
  * 
  * */
-function protectService(cb) {
 	
 	var 
 		encrypt = TOTEM.encrypt,
@@ -1350,12 +1351,12 @@ function protectService(cb) {
 		connectService(cb);
 }
 
+function stopService() {
 /**
  * @method stopService
  * 
  * Stop the server.
  * */
-function stopService() {
 		
 	var server = TOTEM.server;
 			
@@ -1365,21 +1366,17 @@ function stopService() {
 		});
 }
 
-//============================================
-// User maintenance CRUDE interface
-
 /**
-@class support.user
-CRUDE interface to user profiles
+@class user profile maintenance
  */
 
+function selectUser(req,res) {
 /**
 @method selectUser
 Return user profile information
 @param {Object} req Totem request 
 @param {Function} res Totem response
  */
-function selectUser(req,res) {
 	
 	var sql = req.sql, query = req.query || 1, isHawk = req.cert.isHawk;
 			
@@ -1405,13 +1402,13 @@ function selectUser(req,res) {
 		});
 }
 
+function updateUser(req,res) {
 /**
 @method updateUser
 Update user profile information
 @param {Object} req Totem request 
 @param {Function} res Totem response
  */
-function updateUser(req,res) {
 			
 	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk; 
 	
@@ -1440,13 +1437,13 @@ function updateUser(req,res) {
 			
 }
 
+function deleteUser(req,res) {
 /**
 @method deleteUser
 Remove user profile.
 @param {Object} req Totem request 
 @param {Function} res Totem response
  */
-function deleteUser(req,res) {
 			
 	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk;  
 
@@ -1476,13 +1473,13 @@ function deleteUser(req,res) {
 		res( TOTEM.errors.failedUser );
 }
 			
+function insertUser (req,res) {
 /**
 @method insertUser
 Create user profile, associated certs and distribute info to user
 @param {Object} req Totem request 
 @param {Function} res Totem response
  */
-function insertUser (req,res) {
 			
 	var sql = req.sql, query = req.query || {}, isHawk = req.cert.isHawk; 
 	
@@ -1584,13 +1581,13 @@ To connect to ${site.Nick} from Windows:
 		});
 }
 
+function fetchUser(req,res) {	
 /**
 @method fetchUser
 Fetch user profile for processing
 @param {Object} req Totem request 
 @param {Function} res Totem response
  */
-function fetchUser(req,res) {	
 	var access = TOTEM.user,
 		query = req.query;
 		
@@ -1612,21 +1609,17 @@ function fetchUser(req,res) {
 	res( TOTEM.errors.failedUser );
 }
 
-//=============================================
-// PKI support
-
 /**
-@class support.cert
-PKI cert utilitities
+@class PKI cert utilitities
  */
 
+function createCert(owner,pass,cb) {
 /**
  * @method createCert
  * 
  * Create a cert for the desired owner with the desired passphrase with callback 
  * to cb when complete.
  * */
-function createCert(owner,pass,cb) {
 
 	function traceExecute(cmd,cb) {
 
@@ -1675,6 +1668,7 @@ function createCert(owner,pass,cb) {
 
 }
 
+function validateCert(req,res) {
 /**
 * @method validateCert
 * @param {Object} con http connection
@@ -1687,7 +1681,6 @@ function createCert(owner,pass,cb) {
 * on-input req = {action, socketio, query, body, flags, joins}
 * on-output req = adds {log, cert, session, client, org, group, profile, journal, email}
  * */
-function validateCert(req,res) {
 				
 	function getCert() {
 		var cert = {						//< Guest cert
@@ -1845,7 +1838,7 @@ function validateCert(req,res) {
 	if (TOTEM.encrypt)
 		res( TOTEM.errors.noDB );
 	
-	else {
+	else {  // setup guest connection
 		req.connection = null;
 		req.cert = cert;
 		req.client = client;
@@ -1855,20 +1848,16 @@ function validateCert(req,res) {
 	}
 }
 
-//=============================================
-// Static file indexing and uploading
-
 /**
-@class support.file
-MIME static file indexing and uploading
+@class MIME static file indexing and uploading
  */
 
+function indexFile(path,cb) {	
 /**
 * @method indexFile
 * @param {Object} path file path
 * @param {Function} cb totem response
 */
-function indexFile(path,cb) {	
 	var files = [];
 	
 	findFile(path, function (n,file) {
@@ -1878,12 +1867,12 @@ function indexFile(path,cb) {
 	cb( files );
 }	
 
+function findFile(path,cb) {
 /**
 * @method findFile
 * @param {Object} path file path
 * @param {Function} cb totem response
 */
-function findFile(path,cb) {
 	try {
 		FS.readdirSync(path).each( function (n,file) {
 			if (n > MAXFILES) return true;
@@ -1896,6 +1885,7 @@ function findFile(path,cb) {
 	}
 }
 
+function uploadFile( files, area, cb) {
 /**
 * @method uploadFile
 * @param {Object} sql sql connector
@@ -1903,7 +1893,6 @@ function findFile(path,cb) {
 * @param {String} area area to upload files into
 * @param {Function} res totem response
 */
-function uploadFile( files, area, cb) {
 
 	function copyFile(source, target, cb) {
 	  var cbCalled = false;
@@ -2014,12 +2003,8 @@ function uploadFile( files, area, cb) {
 	});
 }
 
-//========================================
-// External data fetchers
-
 /**
-@class support.fetch
-External data fetchers
+@class External data fetchers
  */
 
 function fetchWget(req,res) {	//< wget endpoint
@@ -2174,9 +2159,9 @@ function httpFetch(url,cb) {
 }
 
 /**
-@class support.templates
- Default send and read methods
+@class Default send and read methods
  */
+
 function readTemplate(req,res) {
 	
 	var	sql = req.sql,
@@ -2196,12 +2181,8 @@ function sendFile(req,res) {
 	res( function () {return req.path; } );
 }
 
-//==========================================
-// Antibot protection
- 
 /**
-@class support.antibot
- Antibot protection
+@class Antibot protection
  */
 
 function getRiddle(req,res) {	//< request riddle endpoint
@@ -2358,8 +2339,9 @@ function challengeClient(client, prof) {
 		});
 }
 
-//============================================
-// Initalization
+/**
+@class Initalization
+*/
 
 function Initialize () {
 	
@@ -2369,13 +2351,9 @@ function Initialize () {
 	
 }
 
-//============================================
-// Node routing and tracing
-
 /**
-@class support.routing
-Totem routing methods
- */
+@class Routing methods
+*/
 function parseNode(req) {
 	
 	var
@@ -2472,11 +2450,11 @@ function parseNode(req) {
 		});
 }						
 
+function syncNodes(nodes, acks, req, res) {
 /**
 Submit nodes=[/dataset.type, /dataset.type ...]  on the current request thread req to the routeNode() 
 method, aggregate results, then send with supplied response().
 */
-function syncNodes(nodes, acks, req, res) {
 	
 	if ( node = req.node = nodes.pop() )  	// grab last node
 		routeNode( req, function (ack) { 	// route it and intercept its ack
@@ -2492,6 +2470,7 @@ function syncNodes(nodes, acks, req, res) {
 		res(acks);
 }
 
+function routeNode(req, res) {
 /*
 Parse the node=/dataset.type on the current req thread, then route it to the approprate sender, 
 reader, emulator, engine or file indexer according to 
@@ -2502,7 +2481,6 @@ reader, emulator, engine or file indexer according to
 	file		reader[type]
 	table		emulator[action][table] 
 */
-function routeNode(req, res) {
 	
 	parseNode(req);
 
@@ -2556,11 +2534,11 @@ function routeNode(req, res) {
 		res( TOTEM.errors.noRoute );
 }
 
+function followRoute(route,req,res) {
 /*
 Log session metrics, trace the current route, then callback route on the supplied 
 request-response thread
 */
-function followRoute(route,req,res) {
 
 	function logMetrics() { // log session metrics 
 		
@@ -2629,18 +2607,11 @@ function followRoute(route,req,res) {
 	route(req, res);
 }
 
-function isError(arg) {
-	return arg ? arg.constructor == Error : false;
-}
-
-//===============================================
-// Thread processing
-
 /**
-@class support
-Thread processing
- */
+@class Thread processing
+*/
 
+function sesThread(Req,Res) {	
 /**
  * @method sesThread
  * @param {Object} Req http/https request
@@ -2648,7 +2619,6 @@ Thread processing
  *
  * Holds a HTTP/HTTPS request-repsonse session thread.
  * */
-function sesThread(Req,Res) {	
 	
 	// Session terminating functions to respond with a string, file, db structure, or error message.
 	
@@ -2923,6 +2893,7 @@ function sesThread(Req,Res) {
 			cb();
 	}
 	
+	function conThread(req, res) {
 	/**
 	 * Start a connection thread cb(err) containing a Req.req.sql connector,
 	 * a validated Req.req.cert certificate, and set appropriate Res headers. 
@@ -2934,7 +2905,6 @@ function sesThread(Req,Res) {
 	 * on-output req =  adds {log, cert, client, org, serverip, session, group, profile, journal, 
 	 * joined, email and STATICS}
 	 * */
-	function conThread(req, res) {
 
 		var con = req.connection = Req.connection;
 
@@ -3032,6 +3002,7 @@ function sesThread(Req,Res) {
 	});
 }
 
+function resThread(req, cb) {
 /**
  * @method resThread
  * @param {Object} req Totem request
@@ -3039,19 +3010,18 @@ function sesThread(Req,Res) {
  *
  * Callback with request set to sql conector
  * */
-function resThread(req, cb) {
 	sqlThread( function (sql) {
 		cb( req.sql = sql );
 	});
 }
 
+function sqlThread(cb) {
 /**
  * @method sqlThread
  * @param {Function} cb sql connector callback(sql)
  *
  * Callback with sql connector
  * */
-function sqlThread(cb) {
 	DSVAR.thread(cb);
 }
 

@@ -1,6 +1,6 @@
 // UNCLASSIFIED
 /**
- * Test/run a Totem configuration CONFIG using 
+ * Unit test (aka run) a Totem configuration CONFIG using one the following methods:
  * 
  * 		. maint.sh CONFIG			# with new environment variables
  * 		node test.js CONFIG			# with current environment variables
@@ -9,9 +9,14 @@
  * A null CONFIG will return a list of available configurations.
  * */
 
-var ENV = process.env;
+var 
+	ENV = process.env;
 
-var ENUM = require("enum");
+var
+	FS = require("fs");
+
+var 
+	ENUM = require("enum");
 
 ENUM.test({
 
@@ -396,13 +401,25 @@ function faces(tau,parms) { return 102; }
 				pass: ENV.MYSQL_PASS
 			},
 			
-			cycles: {
-				billing: 60e3,
-				diag: 60e3
-			},
-			
 			watch: {
-				"./uploads": function (file) {
+				"./public/uploads": function (path,ev,sql) {
+					Trace(ev.toUpperCase()+" "+path);
+					var stream = FS.createReadStream(path);
+					
+					stream.on("open", function () {
+						/*stream.pipe( function (buf) {
+							console.log(buf);
+						});*/
+					});
+					stream.on("data", function (buf) {
+						buf.toString
+						console.log(">>>"+buf.toString());
+					});
+					stream.on("error", function (err) {
+						Trace(err);
+					});
+					
+					sql.release();
 				}
 			}
 			
