@@ -1036,7 +1036,7 @@ function configService(opts, cb) {
 										path = folder+"/"+file.substr(1).replace(".swp","");
 										cb(path, ev, sql);
 									}
-									
+
 									else
 										cb(path, ev, sql);
 								});

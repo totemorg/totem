@@ -253,7 +253,7 @@ archive.) 	# archive service to archive area
 	;;
 
 snap.)
-	zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/admins/*/* debe/public/*/* totem/certs/* engine/ifs/*.cpp engine/ifs/*/*.cpp engine/ifs/*/*.h
+	zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* engine/ifs/*.cpp engine/ifs/*/*.cpp engine/ifs/*/*.h
 	;;
 
 sync.)   # special forced code syncs
