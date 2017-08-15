@@ -387,28 +387,67 @@ function faces(tau,parms) { return 102; }
 	
 	D1: function () {
 
-		var DEBE = require("../debe").config({
-			name: ENV.SERVICE_NAME,
-			//encrypt: ENV.SERVICE_PASS,
-			mysql: {
-				host: ENV.MYSQL_HOST,
-				user: ENV.MYSQL_USER,
-				pass: ENV.MYSQL_PASS
-			},
-			
-			watch: {
-				"./public/uploads": function (path,ev,sql) {
-					Trace("INGEST "+ev.toUpperCase()+" "+path);
-					
-					DEBE.ingestFile(path, sql);
-					
-					sql.release();
+		var 
+			ingests = 0,
+			DEBE = require("../debe").config({
+				name: ENV.SERVICE_NAME,
+				//encrypt: ENV.SERVICE_PASS,
+				mysql: {
+					host: ENV.MYSQL_HOST,
+					user: ENV.MYSQL_USER,
+					pass: ENV.MYSQL_PASS
+				},
+
+				watch: {
+					"./public/events": function (path,ev,sql) {
+						Trace("INGEST EVENTS "+path+" ON "+ev.toUpperCase());
+
+						DEBE.ingestEvents(path, sql, function (aoi) {
+							
+							var 
+								TL = [aoi.xMin, aoi.yMax],
+								TR = [aoi.xMax, aoi.yMax],
+								BR = [aoi.xMax, aoi.yMin],
+								BL = [aoi.xMin, aoi.yMin],
+								ring = [ TL, TR, BR, BL, TL ];
+							
+							sql.query(
+								"INSERT INTO haar (size,pixels,scale,step,range,detects,limit,name,job) "
+								+ "SELECT size,pixels,scale,step,range,detects,limit, ? AS name, ? AS job FROM haar WHEREname='ingest'", [
+									"ingest" + (++ingests),
+									JSON.stringify(ring)
+							]);
+							
+							sql.query(
+								"INSERT INTO gaussmix (mixes,refs,name,job) "
+								+ "SELECT mixes,refs, ? AS name, ? AS job FROM gaussmix WHERE name='ingest'", [
+									"ingest" + (++ingests),
+									JSON.stringify(ring)
+							]);
+							
+						});
+
+						sql.release();
+					},
+
+					"./public/js": function (path,ev,sql) {
+						Trace("INGEST JS "+path+" ON "+ev.toUpperCase());
+
+						sql.release();
+					},
+
+					"./public/py": function (path,ev,sql) {
+						Trace("INGEST PYTHON "+path+" ON "+ev.toUpperCase());
+
+						sql.release();
+					}
+
+
 				}
-			}
-			
-		}, function (err) {
-			Trace( err || "Yowzers - An encrypted DEBE service, a upload file watcher, billing jobs and self diags every minute" );
-		});
+
+			}, function (err) {
+				Trace( err || "Yowzers - An encrypted DEBE service, a upload file watcher, billing jobs and self diags every minute" );
+			});
 
 	},
 	
