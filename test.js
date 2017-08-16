@@ -409,7 +409,7 @@ function faces(tau,parms) { return 102; }
 								TR = [aoi.xMax, aoi.yMax],
 								BR = [aoi.xMax, aoi.yMin],
 								BL = [aoi.xMin, aoi.yMin],
-								ring = {ring:[ TL, TR, BR, BL, TL ]};
+								ring = {evring:[ TL, TR, BR, BL, TL ]};
 							
 							console.log(ring);
 							sql.eachTable( group, function (table) {
@@ -471,7 +471,6 @@ function faces(tau,parms) { return 102; }
 
 						sql.release();
 					}
-
 
 				}
 

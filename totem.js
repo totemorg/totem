@@ -1033,12 +1033,14 @@ function configService(opts, cb) {
 									});
 									*/
 									if (file.charAt(0) == ".") { // swp being updated
-										//path = folder+"/"+file.substr(1).replace(".swp","");
-										//cb(path, ev, sql);
+										path = folder+"/"+file.substr(1).replace(".swp","");
+										cb(path, ev, sql);
 									}
 
+									/*
 									else
 										cb(path, ev, sql);
+									*/
 								});
 
 								break;
