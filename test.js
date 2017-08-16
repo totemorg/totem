@@ -388,7 +388,6 @@ function faces(tau,parms) { return 102; }
 	D1: function () {
 
 		var 
-			ingests = 0,
 			DEBE = require("../debe").config({
 				name: ENV.SERVICE_NAME,
 				//encrypt: ENV.SERVICE_PASS,
@@ -402,52 +401,59 @@ function faces(tau,parms) { return 102; }
 					"./public/events": function (path,ev,sql) {
 						Trace("INGEST EVENTS "+path+" ON "+ev.toUpperCase());
 
-						DEBE.ingestEvents(path, sql, function (aoi) {
+						DEBE.ingestEvents(path, sql, function (aoi, cb) {
 							
 							var 
+								group = "app",
 								TL = [aoi.xMin, aoi.yMax],
 								TR = [aoi.xMax, aoi.yMax],
 								BR = [aoi.xMax, aoi.yMin],
 								BL = [aoi.xMin, aoi.yMin],
-								ring = [ TL, TR, BR, BL, TL ];
+								ring = {ring:[ TL, TR, BR, BL, TL ]};
 							
-							sql.eachTable( function (table) {
-								var tarkeys = [], srckeys = [];
+							console.log(ring);
+							sql.eachTable( group, function (table) {
+								var tarkeys = [], srckeys = [], hasJob = false;
 								
-								sql.query("SHOW FIELDS FROM ??.?? WHERE Field != 'ID' ", [ req.group, table ], function (err,keys) {
+								sql.query("SHOW FIELDS FROM ??.?? WHERE Field != 'ID' ", [ group, table ], function (err,keys) {
 									keys.each( function (n,key) {
-										tarkeys.push(key.Field);
+										var keyesc = "`" + key.Field + "`";
 										switch (key.Field) {
-											case "Name":
+											case "Save":
+												break;
 											case "Job":
-												srckeys.push("? AS "+key.Field);
+												hasJob = true;
+											case "Name":
+												srckeys.push("? AS "+keyesc);
+												tarkeys.push(keyesc);
 												break;
 											default:
-												srckeys.push(key.Field);
+												srckeys.push(keyesc);
+												tarkeys.push(keyesc);
 										}
 									});
 									
-									sql.query(
-										"INSERT INTO ?? ("+tarkeys.join()+") SELECT "+srckeys.join()+" WHERE name='ingest' ", [
-											"ingest" + (++ingests),
-											JSON.stringify(ring) 
-									]);
-									
+									if (hasJob) 
+										sql.query(
+											"INSERT INTO ??.?? ("+tarkeys.join()+") SELECT "+srckeys.join()+" FROM ??.?? WHERE name='ingest' ", [
+												group, table,
+												"ingest " + new Date(),
+												JSON.stringify(ring),
+												group, table
+										], function (err, info) {
+											if ( !err )
+												if ( info.insertId )
+													cb( table, info.insertId );
+										});
 								});
-									/*
-							sql.query(
-								"INSERT INTO haar (size,pixels,scale,step,range,detects,limit,name,job) "
-								+ "SELECT size,pixels,scale,step,range,detects,limit, ? AS name, ? AS job FROM haar WHEREname='ingest'", [
-									"ingest" + (++ingests),
-									JSON.stringify(ring)
-							]);
-							
-							sql.query(
-								"INSERT INTO gaussmix (mixes,refs,name,job) "
-								+ "SELECT mixes,refs, ? AS name, ? AS job FROM gaussmix WHERE name='ingest'", [
-									"ingest" + (++ingests),
-									JSON.stringify(ring)
-							]);*/
+								/*
+								sql.query(
+									"INSERT INTO haar (size,pixels,scale,step,range,detects,limit,name,job) "
+									+ "SELECT size,pixels,scale,step,range,detects,limit, ? AS name, ? AS job FROM haar WHEREname='ingest'", [
+										"ingest" + (++ingests),
+										JSON.stringify(ring)
+								]);
+							*/
 							});
 						});
 
