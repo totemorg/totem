@@ -411,6 +411,30 @@ function faces(tau,parms) { return 102; }
 								BL = [aoi.xMin, aoi.yMin],
 								ring = [ TL, TR, BR, BL, TL ];
 							
+							sql.eachTable( function (table) {
+								var tarkeys = [], srckeys = [];
+								
+								sql.query("SHOW FIELDS FROM ??.?? WHERE Field != 'ID' ", [ req.group, table ], function (err,keys) {
+									keys.each( function (n,key) {
+										tarkeys.push(key.Field);
+										switch (key.Field) {
+											case "Name":
+											case "Job":
+												srckeys.push("? AS "+key.Field);
+												break;
+											default:
+												srckeys.push(key.Field);
+										}
+									});
+									
+									sql.query(
+										"INSERT INTO ?? ("+tarkeys.join()+") SELECT "+srckeys.join()+" WHERE name='ingest' ", [
+											"ingest" + (++ingests),
+											JSON.stringify(ring) 
+									]);
+									
+								});
+									/*
 							sql.query(
 								"INSERT INTO haar (size,pixels,scale,step,range,detects,limit,name,job) "
 								+ "SELECT size,pixels,scale,step,range,detects,limit, ? AS name, ? AS job FROM haar WHEREname='ingest'", [
@@ -423,8 +447,8 @@ function faces(tau,parms) { return 102; }
 								+ "SELECT mixes,refs, ? AS name, ? AS job FROM gaussmix WHERE name='ingest'", [
 									"ingest" + (++ingests),
 									JSON.stringify(ring)
-							]);
-							
+							]);*/
+							});
 						});
 
 						sql.release();
