@@ -398,25 +398,30 @@ function faces(tau,parms) { return 102; }
 				},
 
 				watch: {
-					"./public/events": function (path,ev,sql) {
+					"./public/events": function (path,ev,sql) {  // watch changes to the files in the events area
 						Trace("INGEST EVENTS "+path+" ON "+ev.toUpperCase());
 
-						DEBE.ingestEvents(path, sql, function (aoi, cb) {
+						DEBE.ingestEvents(path, sql, function (aoi, cb) {  // ingest event file then handle ingested aoi (min-max bounds)
 							
 							var 
 								group = "app",
-								TL = [aoi.xMin, aoi.yMax],
-								TR = [aoi.xMax, aoi.yMax],
-								BR = [aoi.xMax, aoi.yMin],
-								BL = [aoi.xMin, aoi.yMin],
+								TL = [aoi.yMax, aoi.xMin],   // [lon,lat] degs
+								TR = [aoi.yMax, aoi.xMax],
+								BL = [aoi.yMin, aoi.xMin],
+								BR = [aoi.yMin, aoi.xMax], 
 								ring = {evring:[ TL, TR, BR, BL, TL ]};
 							
 							console.log(ring);
-							sql.eachTable( group, function (table) {
+							// add this aoi as a usecase to all plugins by cloning the plugin's Name="ingest" usecase
+							sql.eachTable( group, function (table) {  // look for plugins with a Job key
 								var tarkeys = [], srckeys = [], hasJob = false;
 								
-								sql.query("SHOW FIELDS FROM ??.?? WHERE Field != 'ID' ", [ group, table ], function (err,keys) {
-									keys.each( function (n,key) {
+								sql.query(  // get plugin keys
+									"SHOW FIELDS FROM ??.?? WHERE Field != 'ID' ", 
+									[ group, table ], 
+									function (err,keys) {
+										
+									keys.each( function (n,key) { // look for Job key
 										var keyesc = "`" + key.Field + "`";
 										switch (key.Field) {
 											case "Save":
@@ -434,15 +439,16 @@ function faces(tau,parms) { return 102; }
 									});
 									
 									if (hasJob) 
-										sql.query(
+										sql.query( // add usecase to plugin by cloning its Name="ingest" usecase
 											"INSERT INTO ??.?? ("+tarkeys.join()+") SELECT "+srckeys.join()+" FROM ??.?? WHERE name='ingest' ", [
 												group, table,
 												"ingest " + new Date(),
 												JSON.stringify(ring),
 												group, table
 										], function (err, info) {
+											
 											if ( !err )
-												if ( info.insertId )
+												if ( info.insertId )  // relay back the usecase that was added to this plugin
 													cb( table, info.insertId );
 										});
 								});

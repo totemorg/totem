@@ -1930,9 +1930,12 @@ function uploadFile( files, area, cb) {
 	var arrived = new Date();
 	
 	files.each( function (n,file) {
-		var name = file.filename;
-		var target = TOTEM.paths.mime[area]+"/"+area+"/"+name;
+		var 
+			name = file.filename,
+			target = TOTEM.paths.mime[area]+"/"+area+"/"+name;
 
+		//console.log([name, target, file]);
+		
 		cb( file );
 		
 		if ( file.image ) {
