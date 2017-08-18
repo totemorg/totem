@@ -114,6 +114,7 @@ endpoints can be overriden with the config() options:
 	port	: number of this http/https (0 disables listening),
 	host	: "domain name" of http/https service,
 	encrypt	: "passphrase" for a https server ("" for http),
+	sockets : switch to enable web socket.io support
 	cores	: number of cores in master-worker relationship (0 for master only),
 
 	paths	: {  // paths to various things
@@ -162,9 +163,9 @@ endpoints can be overriden with the config() options:
 		// sets mysql name.table for guest clients,
 		// identifies server cert name.pfx file
 
+	admitGuests: true, //< enable to admit guest clients making https requests
 	started: // start time
-	site: {db parameters} // loaded for specified opts.name,
-	url : {master,worker} // urls for specified opts.cores,
+	site: {db parameters} // derived for given site name opts.name,
 
 TOTEM options use the [ENUM copy()](https://github.com/acmesds/enum) conventions:
 
