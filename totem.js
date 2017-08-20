@@ -1913,7 +1913,7 @@ function indexFile(path,cb) {
 	var files = [];
 	
 	findFile(path, function (n,file) {
-		files.push( file );
+		files.push( (file.indexOf(".")>=0) ? file : file+"/" );
 	});
 	
 	cb( files );

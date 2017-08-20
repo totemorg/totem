@@ -194,6 +194,7 @@ docget.)
 	getduck totem
 	getduck debe
 	getduck enum
+	;;
 
 docall.)
 	for mod in "${MODULES[@]}"; do
