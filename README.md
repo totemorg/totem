@@ -1,8 +1,14 @@
 /**
-@class totem [![Forked from SourceForge](https://sourceforge.net)]
+@class TOTEM
+	[SourceForge](https://sourceforge.net) 
+	[github](https://github.com/acmesds/totem.git) 
+	[geointapps](https://git.geointapps.org/acmesds/totem)
+	[gitlab](https://gitlab.weat.nga.ic.gov/acmesds/totem.git)
+	
 # TOTEM
 
-TOTEM replaces a slew of god-awful NodeJS middleware (like Express) by providing the following selectable features:
+TOTEM replaces a slew of god-awful NodeJS middleware (like Express) by providing the 
+following selectable features:
   
 	+ routing methods for table, engine, and file objects
 	+ denial-of-service protection
@@ -19,7 +25,7 @@ TOTEM replaces a slew of god-awful NodeJS middleware (like Express) by providing
 	+ poll files and services
 	+ automattic server cert generation
   
-TOTEM provides SUDI endpoints to synchronize dataset NODES:
+TOTEM provides CRUD endpoints to synchronize dataset NODES:
   
 	(select) GET 	 / NODE $$ NODE ...
 	(update) PUT 	 / NODE $$ NODE ...
@@ -28,173 +34,58 @@ TOTEM provides SUDI endpoints to synchronize dataset NODES:
   
 where a NODE:
 
-  	DATASET.TYPE ? PARMS
-	ENGINE.TYPE ? PARMS
-	AREA/PATH.TYPE ? PARMS
-	FILE.TYPE ? PARMS
+  	DATASET.TYPE ? QUERY
+	ENGINE.TYPE ? QUERY
+	AREA/PATH.TYPE ? QUERY
+	FILE.TYPE ? QUERY
 
-addresses a [FLEX dataset](https://github.com/acmesds/flex), a [compute ENGINE](https://github.com/acmesds/engine),
-a static file, or a [READER file](https://github.com/acmesds/reader) to parse.  The dataset TYPE:
+references a [FLEX dataset](https://github.com/acmesds/flex), a [compute ENGINE](https://github.com/acmesds/engine),
+a static file, or a [READER file](https://github.com/acmesds/reader) to parse.  TOTEM provides
+the following dataset TYPEs:
 
 	db | xml | csv
 	
-qualifies how datasets are rendered.
+to qualify how datasets are to be rendered when accessed at its endpoint.
  
-TOTEM is configured and started like this:
-
-	var TOTEM = require("../totem").config( {options...}, function (err) {
-		// the callback when service has been started
-	});
-	
-Its default service
+When started, TOTEM provides default service endpoints:
 
 	help, stop, alert, codes, ping, bit, config
 	
-data fetching and antibot protection
+and default data fetching and antibot protection endpoints:
 
 	wget, curl, http, riddle
 	
-endpoints can be overriden with the config() options:
-  
-	// SUDIE interface
-
-	select: cb(req,res),
-	update: cb(req,res),
-	delete: cb(req,res),
-	insert: cb(req,res),
-	execute: cb(req,res),
-
-	converters: {  // NODE.TYPE converters to callback cb(ack data as string || error)
-		TYPE: function (ack,req,cb),
-		...
-	},
-	
-	watch: { // file watchers
-		FOLDER: cb(file),
-		...
-	},
-	
-	// NODE endpoint routers
-
-	reader: {		// by-type endpoints to file readers / parsers
-		TYPE: cb(req,res),	
-		...
-	},
-
-	emulator: {		// by-action endpoints to virtual datasets
-		select: {
-			DATASET: cb(req,res),
-			...		
-		},
-		...	
-	},
-
-	sender: {		// by-area endpoints to send cached files
-		AREA: cb(req,res),
-		...		
-	},
-
-	worker: {		// by-table endpoints to workers and data fetcher
-		wget: cb(req,res),	// data fetch service
-		curl: cb(req,res),	// data fetch service
-		http: cb(req,res), // data fetch service
-		riddle: cb(req,res) // antibot protection interface
-		...
-	},
-	
-	runner: {		// by-action endpoints to engines
-		select: cb(req,res),
-		insert: cb(req,res),
-		delete: cb(req,res),
-		update: cb(req,res)
-	},
-	
-	// server specific
-	
-	port	: number of this http/https (0 disables listening),
-	host	: "domain name" of http/https service,
-	encrypt	: "passphrase" for a https server ("" for http),
-	sockets : switch to enable web socket.io support
-	cores	: number of cores in master-worker relationship (0 for master only),
-
-	paths	: {  // paths to various things
-		... },
-
-	site	: {  // vars and methods assessible to jade skins
-		... },
-
-	stop() 		: stop the service,
-	thread(cb) 	: provide sql connection to cb(sql) with agnosticator extensions,
-
-	// antibot protection
-
-	nofaults: switch to enable/disabled server fault protection,
-	busy	: number of millisecs to check busyness (0 disables),
-
-	riddles	: number of riddles to create for anti-bot protection (0 disables)
-
-	map		: {	 // map riddle DIGIT to JPEG files
-		DIGIT:["JPEG1","JPEG2", ...],
-		DIGIT:["JPEG1","JPEG2", ...],
-		...	},
-
-	// User administration 
-
-	guest	: {	 // default guest profile 
-		... },
-
-	create(owner,pass,cb) 	: makes a cert with callback cb,
-	validator(req,res) 		: validate cert during each request,
-	emitter(socket) 		: communicate with users over web sockets,
-
-	// Data fetching services
-
-	retries	: count for failed fetches (0 no retries)
-	notify	: switch to trace every fetch
-
-	// MySQL db service
-
-	mysql	: {host,user,pass,...} db connection parameters (null for no db),
-
-	// Derived parameters
-
-	name	: "service name"
-		// derives site parms from mysql openv.apps by Nick=name
-		// sets mysql name.table for guest clients,
-		// identifies server cert name.pfx file
-
-	admitGuests: true, //< enable to admit guest clients making https requests
-	started: // start time
-	site: {db parameters} // derived for given site name opts.name,
-
-TOTEM options use the [ENUM copy()](https://github.com/acmesds/enum) conventions:
-
-	options =  {
-		key: value, 						// set 
-		"key.key": value, 					// index and set
-		"key.key.": value,					// index and append
-		OBJECT: [ function (){}, ... ], 	// add prototypes
-		Function: function () {} 			// add callback
-		:
-		:
-	}
-
 ## Installation
 
-Download the latest version with
-
-	git clone https://github.com/acmesds/totem
+Clone from one of the repos. 
 
 ## Databases
 
 openv.profiles Reads and populates when clients arrive
 openv.sessions Reads and populates when client sessions are established
 openv.riddles Builds on config() and reads when clients arrive
-openv.apps Reads on start() to define site context parameters
+openv.apps Reads on config() to override TOTEM options and define site context parameters
 
-## Examples
+## Use
 
-Below sample are from the totem/test.js unit tester.  See Totem's [DEBE](https://github.com/acmesds/debe) 
+TOTEM is configured and started like this:
+
+	var TOTEM = require("../totem").config({
+			key: value, 						// set key
+			"key.key": value, 					// indexed set
+			"key.key.": value,					// indexed append
+			OBJECT: [ function (){}, ... ], 	// add OBJECT prototypes 
+			Function: function () {} 			// add chained initializer callback
+			:
+			:
+		}, function (err) {
+		console.log( err ? "something evil happended" : "Im running");
+	});
+
+where its configuration keys follow the [ENUM copy()](https://github.com/acmesds/enum) conventions and
+are described in its [PRM](/shares/prm/totem/index.html).
+  
+The examples below are from TOTEM's test.js unit tester.  See [DEBE](https://github.com/acmesds/debe) 
 for a far more complex use-case.  You may  also find Totem's [DSVAR](https://github.com/acmesds/dsvar) 
 useful, if you wish to learn more about its database agnosticator.
 
@@ -245,7 +136,6 @@ useful, if you wish to learn more about its database agnosticator.
 ### N4 - Encrypted with some endpoints
 
 	var TOTEM = require("../totem").config({
-			encrypt: ENV.SERVICE_PASS,
 			mysql: {
 				host: ENV.MYSQL_HOST,
 				user: ENV.MYSQL_USER,
@@ -286,6 +176,8 @@ useful, if you wish to learn more about its database agnosticator.
 ### N5 - Unencrypted but has an anti-bot shield
 
 	var TOTEM = require("../totem").config({
+		name: "allmine",
+		
 		mysql: {
 			host: ENV.MYSQL_HOST,
 			user: ENV.MYSQL_USER,

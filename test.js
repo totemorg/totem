@@ -21,7 +21,7 @@ ENUM.test({
 
 		Trace(
 			"Im simply a Totem interface so Im not running any service", {
-			default_fetcher_endpts: TOTEM.reader,
+			default_fetcher_endpts: TOTEM.byType,
 			default_protect_mode: TOTEM.nofaults,
 			default_cores_used: TOTEM.cores
 		});
@@ -72,7 +72,7 @@ options from openv.apps.nick = TOTEM.name = "Totem"`, {
 				user: ENV.MYSQL_USER,
 				pass: ENV.MYSQL_PASS
 			},
-			reader: {
+			byType: {
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 					res( "123" );
 					
@@ -101,7 +101,7 @@ options from openv.apps.nick = TOTEM.name = "Totem"`, {
 Ive only requested 1 core, and Im unprotected, with a mysql database.  
 If my client.pfx does not already exists, Totem will create the client.pfx 
 and associated pems (public client.crt and private client.key).` , {
-				my_endpoints: TOTEM.reader
+				my_endpoints: TOTEM.byType
 			});
 		});
 		
@@ -115,7 +115,9 @@ and associated pems (public client.crt and private client.key).` , {
 				pass: ENV.MYSQL_PASS
 			},
 	
-			riddles: 10
+			name: "allmine",
+			
+			riddles: 20
 		}, function (err) {
 			Trace( err ||
 `I am Totem client, with no cores but I do have mysql database and
@@ -133,7 +135,7 @@ I have an anti-bot shield!!`, {
 		Trace( "A Totem+Engine client has been created", {
 			a_tau_template: ENGINE.tau("somejob.pdf"),
 			engine_errors: ENGINE.error,
-			get_endpts: TOTEM.reader,
+			get_endpts: TOTEM.byType,
 			my_paths: TOTEM.paths
 		});
 		
@@ -157,7 +159,7 @@ I have an anti-bot shield!!`, {
 	E3: function () {
 
 		var TOTEM = require("../totem").config({
-			"reader.": {
+			"byType.": {
 				chipper: function Chipper(req,res) {				
 					res( 123 );
 				}
@@ -179,7 +181,7 @@ I have an anti-bot shield!!`, {
 	E4: function () {
 		
 		var TOTEM = require("../totem").config({
-			"reader.": {
+			"byType.": {
 				test: function Chipper(req,res) {
 					
 					var itau = [ENGINE.tau()];
@@ -353,7 +355,7 @@ function faces(tau,parms) { return 102; }
 		var CHIPPER = require("../chipper");
 		
 		var TOTEM = require("../totem").config({
-			"reader.": {
+			"byType.": {
 				chip: CHIPPER.chippers,
 
 				wfs: function (req,res) {
@@ -374,7 +376,7 @@ function faces(tau,parms) { return 102; }
 			}
 		}, function (err) {
 			Trace( err || "Go ahead and test my default /chip and /wfs endpoints", {
-				my_readers: TOTEM.reader
+				my_readers: TOTEM.byType
 			});
 		});
 		
@@ -495,7 +497,7 @@ function faces(tau,parms) { return 102; }
 				user: ENV.MYSQL_USER,
 				pass: ENV.MYSQL_PASS
 			},
-			"reader.": {
+			"byType.": {
 				wfs: function (req,res) {
 					res("here i go again");
 					

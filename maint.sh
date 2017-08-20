@@ -181,11 +181,19 @@ restyle.)
 	echo "to be developed"
 	;;
 
-doc.)
+docprep.)
 	# doxygen config.oxy
-	npm run $1  	# pass1 use babel to convert ES2015 JS to older JS
-	npm run $2 		# pass2 use jsduck to produces html
+	cd /local/babel
+	prep totem 
+	prep debe
+	prep enum
 	;;
+
+docget.)
+	cd /local/babel
+	getduck totem
+	getduck debe
+	getduck enum
 
 docall.)
 	for mod in "${MODULES[@]}"; do

@@ -1,7 +1,7 @@
 // UNCLASSIFIED 
 
 /**
-@class totem
+@class TOTEM
 
 @requires http
 @requires https
@@ -50,23 +50,34 @@ var 											// shortcuts
 	Copy = ENUM.copy,
 	Each = ENUM.each;
 
-var 											// globals
-	MULTINODES = "$$", 				//< node divider
-	MAXFILES = 100;						//< max files to index
-	
 var
 	TOTEM = module.exports = ENUM.extend({
 
 	/**
+	@cfg {String}
+	@member TOTEM
+	Node divider NODE $$ NODE ....  ("" disables dividing).
+	*/
+	nodeDivider: "$$", 				//< node divider
+	
+	/**
+	@cfg {Number}
+	@member TOTEM
+	Max files to index by the indexer() method (0 disables).
+	*/
+	maxFiles: 100,						//< max files to index
+
+	/**
 	@cfg {Object}
-	@member totem
+	@private
+	@member TOTEM
 	Reserved for socket.io support to multiple clients
 	*/
 	IO: null, 
 
 	/**
 	@cfg {Object}
-	@member totem
+	@member TOTEM
 	Reserved for dataset attributes derived by DSVAR.config
 	*/
 	dsAttrs: {
@@ -74,13 +85,13 @@ var
 		
 	Array: [ 			//< Array prototypes
 		
+		function hyper(refs, arg) {
 		/**
-		@method hyper
+		@private
 		@member Array
 		Returns list containing hyperlink list joined by an arg spearator.
 		@param {Function} cb callback(val) returns item for join
 		*/		
-		function hyper(refs, arg) {
 			var rtns = [], ref = ref[0];
 			this.each( function (n,lab) {
 				rtns.push( lab.hyper(refs[n] || ref) );
@@ -88,13 +99,13 @@ var
 			return rtns.join(arg);
 		},
 						  
+		function joinify(cb) {
 		/**
-		@methjod joinify
+		@private
 		@member Array
 		Return list joined under control by an optional callback.
 		@param {Function} cb callback(val) returns item for join
 		*/
-		function joinify(cb) {
 			
 			var rtn = [];
 
@@ -104,7 +115,9 @@ var
 			return rtn.join(",");
 		},
 							
+		function treeify(idx,kids,level,piv,wt) {
 		/**
+		@private
 		@method treeify
 		@member Array
 		Returns list as a tree containing children,weight,name leafs.
@@ -114,7 +127,6 @@ var
 		@param [Array] piv pivots
 		@param [String] wt key name that contains leaf weight (defaults to "size")
 		*/		
-		function treeify(idx,kids,level,piv,wt) {
 			
 			if (!wt) 
 				return this.treeify(0,recs.length,0,idx,"size");
@@ -168,15 +180,15 @@ var
 	],
 
 	String: [ 			//< String prototypes
+		function each(pat, rtn, cb) {
 		/**
-		@method each
+		@private
 		@member String
 		Enumerate over pattern found in a string.
 		@param {String} pat pattern to find
 		@param {Array} rtn list being extended by callback
 		@param {Function} cb callback(rtn)
 		*/
-		function each(pat, rtn, cb) {
 			
 			var msg = this;
 			
@@ -189,20 +201,18 @@ var
 			return msg;
 		},
 
+		function format(req,plugin) {
 		/**
-		@method format
+		@private
 		@member String
 		Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
 		*/
-		function format(req,plugin) {
 			
-			/**
-			 * @method Format
-			 * 
+			function Format(X,S) {
+			/*
 			 * Format a string S containing ${X.key} tags.  The String wrapper for this
 			 * method extends X with optional plugins like X.F = {fn: function (X){}, ...}.
-			 * */
-			function Format(X,S) {
+			 */
 
 				try {
 					var rtn = eval("`" + S + "`");
@@ -218,13 +228,13 @@ var
 			return Format(req,this);
 		},
 	
+		function parse(rtn) { 
 		/**
-		@method parse
+		@private
 		@member String
 		Parse a JSON string or parse a "&key=val&key=val?query&relation& ..." string into 
 		the default rtn = {key:val, key=val?query, relation:null, key:json, ...} hash.
 		*/
-		function parse(rtn) { 
 			
 			if (this)
 				try {  // could be json string
@@ -276,22 +286,23 @@ var
 			
 		},
 		
-		/**
-		@method xmlParse
-		@member String
-		*/
 		function xmlParse(def, cb) {
+		/**
+		@private
+		@member String
+		Callback cb(xml parsed) string
+		*/
 			XML2JS.parseString(this, function (err,json) {				
 				cb( err ? def : json );
 			});
 		},
 						
+		function hyper(ref) {
 		/**
-		@method hyper
+		@private
 		@member String
 		Return a hyperlink of given label string.
 		*/
-		function hyper(ref) {
 			if (ref)
 				if (ref.charAt(0) == ":")
 					return this.link( "/"+(ref.substr(1)||this.toLowerCase())+".view" );
@@ -304,29 +315,35 @@ var
 	],
 	
 	/**
-	@method
-	@member totem
-	Configure and start the service
+	@cfg {Function}
+	@member TOTEM
+	@method config
+	Configure and start the service with options and optional callback when started.
+	@param {Object} opts configuration options following ENUM.Copy() conventions
+	@param {Function} cb callback(err) when service started
 	*/
 	config: configService,	
 	
 	/**
-	@method
-	@member totem
-	Stop the service
-	 * */
+	@cfg {Function}
+	@member TOTEM	
+	@method stop
+	Stop the server.
+	*/
 	stop: stopService,
 	
 	/**
-	@method
-	@member totem
+	@private
+	@member TOTEM	
+	@method thread
 	Thread a new sql connection to a callback.  Unless overridden, will default to the DSVAR thread method.
+	@param {Function} cb callback(sql connector)
 	 * */
 	thread: DSVAR.thread,
 		
 	/**
 	@cfg {Object}  
-	@member totem
+	@member TOTEM
 	REST-to-CRUD translations
 	*/
 	crud: {
@@ -338,13 +355,12 @@ var
 	
 	/**
 	@cfg {Object} 
-	@member totem
+	@member TOTEM
 	Options to parse request flags
 	
 			traps: { flag:cb(query,flags), ...} // sets trap cb for a _flag=list to reorganize the query and flags hash,
 			edits: { flag:cb(list,data,req), ...} // sets data conversion cb for a _flag=list,
 			prefix:  "_" 	// sets flag prefix
-	
 	*/
 	reqflags: {				//< Properties for request flags
 		strips:	 			//< Flags to strips from request
@@ -363,7 +379,7 @@ var
 
 	/**
 	@cfg {Object} 
-	@member totem
+	@member TOTEM
 	Data fetcher X is used when a GET on X is requested.  Fetchers feed data pulled from the
 	TOTEM.paths.url[req.table] URL (formatted by an optional plugin context) to its callback:
 	
@@ -394,7 +410,7 @@ var
 
 	/**
 	@cfg {Object} 
-	@member totem
+	@member TOTEM
 	Mysql connection options: 
 	
 		host: name
@@ -407,7 +423,7 @@ var
 	
 	/**
 	@cfg {String} [encrypt=""]
-	@member totem
+	@member TOTEM
 	Cert passphrase to start encrypted service
 	*/		
 	encrypt: "",		//< passphrase when service encypted 
@@ -415,47 +431,54 @@ var
 
 	/**
 	@cfg {Number} [cores=0]
-	@member totem	
+	@member TOTEM	
 	Number of worker cores (0 for master-only startup)
 	*/				
-	cores: 0,	
+	cores: 0,	//< Number of worker cores (0 for master-only startup)
 		
 	/**
 	@cfg {Number} [port=8080]
+	@member TOTEM	
 	Service port number
 	*/				
-	port: 8080,				
+	port: 8080,				  //< Service port number
 		
 	/**
 	@cfg {String} [host="localhost"]
+	@member TOTEM	
 	Service host name 
 	*/		
-	host: "localhost", 		
+	host: "localhost", 		//< Service host name 
 
 	/**
 	@cfg {Obect}
+	@member TOTEM	
 	Folder watching callbacks cb(path) 
 	*/				
-	watch: {
+	watch: {		//< Folder watching callbacks cb(path) 
 	},
 		
 	/**
 	@cfg {Boolean} [proxy=false]
+	@member TOTEM	
 	Enable if https server being proxied
 	*/				
-	proxy: false,
+	proxy: false,		//< Enable if https server being proxied
 
 	/**
 	@cfg {String} [name="Totem"]
+	@member TOTEM	
 	Name of this service used to
 		1) derive site parms from mysql openv.apps by Nick=name
 		2) set mysql name.table for guest clients,
 		3) identify server cert name.pfx file.
+	If the Nick=name is not located in openv.apps, the supplied	config() options are not overridden.
 	*/	
 	name: "Totem",
 
 	/**
 	@cfg {Object} 
+	@member TOTEM	
 	Site context extended by the mysql derived query when service starts
 	*/
 	site: {  	// reserved for derived context vars		
@@ -463,6 +486,7 @@ var
 
 	/**
 	@cfg {Object} 
+	@member TOTEM	
 	Endpoint converters cb(ack data as string || error)
 	*/
 	converters: {  
@@ -527,9 +551,10 @@ var
 
 	/**
 	@cfg {Object} 
-	By-table endpoint routers for data fetchers and user management
+	@member TOTEM	
+	By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
 	*/				
-	worker: {				
+	byTable: {				
 		wget: fetchWget,
 		curl: fetchCurl,
 		http: fetchHttp,
@@ -538,45 +563,63 @@ var
 		
 	/**
 	@cfg {Object} 
+	@member TOTEM	
 	By-action endpoint routers for accessing engines
 	*/				
-	runner: null,
+	byAction: {
+	},
 
 	/**
 	@cfg {Object} 
-	By-type endpoint routers for accessing readers
+	@member TOTEM	
+	By-type endpoint routers  {type: method(req,res), ... } for accessing dataset readers
 	*/				
-	reader: {
+	byType: {
 	},
 
 	/**
 	@cfg {Object} 
-	By-area endpoint routers for sending/cacheing files
+	@member TOTEM	
+	By-area endpoint routers {area: method(req,res), ... } for sending/cacheing files
 	*/		
-	sender: {	
+	byArea: {	
 	},
-	
+
 	/**
 	@cfg {Object} 
-	By-action-table endpoint routers for access to virtual tables
+	@member TOTEM	
+	By-action-table endpoint routers {action: {table: method(req,res), ...}, ... } for accessing virtual tables
 	*/		
-	emulator: {	
-		select: {},
-		delete: {},
-		update: {},
-		insert: {},
-		execute: {}
+	byActionTable: {	
+		select: {
+			user: selectUser
+		},
+		delete: {
+			user: deleteUser
+		},
+		update: {
+			user: updateUser
+		},
+		insert: {
+			user: insertUser
+		},
+		execute: {
+			user: executeUser
+		}
 	},
 	
 	/**
 	@cfg {Object} 
 	@private
+	@member TOTEM	
 	Trust store extened with certs in the certs.truststore folder when the service starts in encrypted mode
 	*/		
 	trust: [ ],   
 		
 	/**
 	@cfg {Object} 
+	@private
+	@member TOTEM	
 	CRUDE (req,res) method to respond to Totem request
 	*/				
 	server: null,
@@ -585,40 +628,46 @@ var
 	// CRUDE interface
 		
 	/**
+	@cfg {Function}
 	@method select
+	@member TOTEM	
+	CRUDE (req,res) method to respond to a Totem request
 	@param {Object} req Totem request
 	@param {Function} res Totem responder
-	CRUDE (req,res) method to respond to a Totem request
 	*/				
-	select: dataSelect,	
+	select: selectDS,	
 	/**
+	@cfg {Function}	
 	@method update
+	CRUDE (req,res) method to respond to a Totem request
 	@param {Object} req Totem request
 	@param {Function} res Totem responder
-	CRUDE (req,res) method to respond to a Totem request
 	*/				
-	update: null,
+	update: updateDS,
 	/**
+	@cfg {Function}	
 	@method delete
+	CRUDE (req,res) method to respond to a Totem request
 	@param {Object} req Totem request
 	@param {Function} res Totem responder
-	CRUDE (req,res) method to respond to a Totem request
 	*/				
-	delete: null,
+	delete: deleteDS,
 	/**
+	@cfg {Function}
 	@method insert
+	CRUDE (req,res) method to respond to a Totem request
 	@param {Object} req Totem request
 	@param {Function} res Totem responder
-	CRUDE (req,res) method to respond to a Totem request
 	*/				
-	insert: null,
+	insert: insertDS,
 	/**
+	@cfg {Function}
 	@method execute
+	CRUDE (req,res) method to respond to a Totem request
 	@param {Object} req Totem request
 	@param {Function} res Totem responder
-	CRUDE (req,res) method to respond to a Totem request
 	*/				
-	execute: null,
+	execute: executeDS,
 
 	//======================================
 		
@@ -627,25 +676,25 @@ var
 	@private
 	totem start time
 	*/		
-	started: null, 
+	started: null, //< totem start time
 		
 	/**
 	@cfg {Number} [retries=5]
 	Maximum number of retries the data fetcher will user
 	*/				
-	retries: 5,	
+	retries: 5,			//< Maximum number of retries the data fetcher will user
 		
 	/**
 	@cfg {Boolean} [notify=true]
 	Enable/disable tracing of data fetchers
 	*/		
-	notify: true, 	
+	notify: true, 	//< Enable/disable tracing of data fetchers
 
 	/**
 	@cfg {Boolean} [nofaults=false]
 	Enable/disable service protection mode
 	*/		
-	nofaults: false,
+	nofaults: false,		//< Enable/disable service protection mode
 		
 	/**
 	@cfg {Object} 
@@ -751,7 +800,7 @@ var
 		
 		mysql: {
 			users: "SELECT 'user' AS Role, group_concat(DISTINCT dataset SEPARATOR ';') AS Contact FROM app.dblogs WHERE instr(dataset,'@')",
-			derive: "SELECT * FROM openv.apps WHERE ? LIMIT 0,1",
+			derive: "SELECT *, count(ID) AS Count FROM openv.apps WHERE ? LIMIT 0,1",
 			record: "INSERT INTO app.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
 			search: "SELECT * FROM files HAVING Score > 0.1",
 			credit: "SELECT * FROM files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 0,1",
@@ -799,35 +848,33 @@ var
 		badReturn: new Error("nothing returned"),
 		noSockets: new Error("scoket.io failed"),
 		noService: new Error("no service  to start"),
-		badData: new Error("data has circular reference")
+		badData: new Error("data has circular reference"),
+		retryFetch: new Error("data fecth retries exceeded"),
+		cantConfig: new Error("cant derive config options")
 	},
 
 	/**
 	@method 
+	@config {Function}
  	File indexer
 	*/		
 	indexer: indexFile,
 
 	/**
-	@method 
+	@cfg {Function}
+	@method uploader
 	File uploader 
 	*/			
 	uploader: uploadFile,	
 	
 	/**
-	@cfg {Number} [busy=300]
-	Server toobusy check period in milliseconds
+	@cfg {Number}
+	Server toobusy check period in seconds
 	*/		
-	busy: 3000,				
-	
+	busycycle: 3,  //< site too-busy check interval [s] (0 disables)
+			
 	/**
-	@cfg {Object} 
-	@private
-	*/		
-	sendFile: sendFile,
-	
-	/**
-	@method
+	@cfg {Function}
 	@private
 	Sets the site context parameters available in TOTEM.site.
 	*/		
@@ -864,20 +911,21 @@ var
 			sql.query(derive, {Nick:TOTEM.name})
 			.on("result", function (opts) {
 
-				Each(opts, function (key,val) {
-					key = key.toLowerCase();
-					site[key] = val;
+				if ( opts.Count )
+					Each(opts, function (key,val) {
+						key = key.toLowerCase();
+						site[key] = val;
 
-					if ( (val||0).constructor == String)
-						try {
-							site[key] = JSON.parse( val );
-						}
-						catch (err) {
-						}
-					
-					if (key in TOTEM) 
-						TOTEM[key] = site[key];
-				});
+						if ( (val||0).constructor == String)
+							try {
+								site[key] = JSON.parse( val );
+							}
+							catch (err) {
+							}
+
+						if (key in TOTEM) 
+							TOTEM[key] = site[key];
+					});
 
 				// establish site urls
 				site.urls = {
@@ -889,7 +937,7 @@ var
 				if (cb) cb();
 			})
 			.on("error", function (err) {
-				Trace( "DERIVE "+err );
+				Trace( TOTEM.errors.cantConfig );
 			});
 			/*
 			sql.indexJsons( "openv.apps", {}, function (jsons) {	// get site json vars
@@ -942,12 +990,13 @@ var
 });
 
 /**
- * @class Dataset CRUDE interface
+ * @class TOTEM
  **/
 
-function dataSelect(req,res) {	//< Default virtual table logic is real table
+function selectDS(req,res) {	//< Default virtual table logic is real table
 /**
- * @method dataSelect
+ * @private
+ * @method deleteDS
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
@@ -960,36 +1009,40 @@ function dataSelect(req,res) {	//< Default virtual table logic is real table
 		res(TOTEM.errors.noDB);
 }
 
-function dataUpdate(req,res) {
+function updateDS(req,res) {
 /**
- * @method dataUpdate
+ * @private
+ * @method updateDS
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
 	res( TOTEM.paths.TOTEM.errors.noRoute );
 }
 
-function dataInsert(req,res) {
+function insertDS(req,res) {
 /**
- * @method dataInsert
+ * @private
+ * @method insertDS
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
 	res( TOTEM.paths.TOTEM.errors.noRoute );
 }
 
-function dataDelete(req,res) {
+function deleteDS(req,res) {
 /**
- * @method dataDelete
+ * @private
+ * @method deleteDS
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
 	res( TOTEM.paths.TOTEM.errors.noRoute );
 }
 
-function dataExecute(req,res) {
+function executeDS(req,res) {
 /**
- * @method dataExecute
+ * @private
+ * @method executeDS
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
@@ -997,25 +1050,25 @@ function dataExecute(req,res) {
 }
 
 /**
- * @class service maintenance
+ * @class TOTEM
  **/
 
-function configService(opts, cb) {
+function configService(opts,cb) {
 /**
+ * @private
  * @method configService
- * Start this server with the desired options.
- * @param {Object} opts configuration options
+ * Configure and start this server.
+ * @param {Object} opts configuration options following the ENUM.Copy() conventions.
+ * @param {Function} cb callback() after service configured
  * */
 
 	TOTEM.extend(opts);
-	
 	
 	var
 		name  = TOTEM.name,
 		mysql = TOTEM.mysql,
 		paths = TOTEM.paths,
 		site = TOTEM.site;
-		//cb = null; //additional Initialize;
 
 	Trace(`CONFIGURING ${name}`); 
 	
@@ -1035,32 +1088,31 @@ function configService(opts, cb) {
 
 						Trace(ev+" "+file);
 
-						if (TOTEM.thread)
-						if (file)
-						switch (ev) {
-							case "change":
-								TOTEM.thread( function (sql) {
-									/*READ.reader(sql, path+file, function (keys) {
-										console.log(["keys",keys]);
+						if (TOTEM.thread && file)
+							switch (ev) {
+								case "change":
+									TOTEM.thread( function (sql) {
+										/*READ.byType(sql, path+file, function (keys) {
+											console.log(["keys",keys]);
+										});
+										*/
+										if (file.charAt(0) == ".") { // swp being updated
+											path = folder+"/"+file.substr(1).replace(".swp","");
+											cb(path, ev, sql);
+										}
+
+										/*
+										else
+											cb(path, ev, sql);
+										*/
 									});
-									*/
-									if (file.charAt(0) == ".") { // swp being updated
-										path = folder+"/"+file.substr(1).replace(".swp","");
-										cb(path, ev, sql);
-									}
 
-									/*
-									else
-										cb(path, ev, sql);
-									*/
-								});
+									break;
 
-								break;
+								case "x":
+								default:
 
-							case "x":
-							default:
-
-						}
+							}
 					});
 				});
 		});	
@@ -1107,10 +1159,11 @@ function configService(opts, cb) {
 
 function startService(server,cb) {
 /**
+ * @private
  * @method startService
  * Attach the responder to this server then initialized.
  * @param {Object} server HTTP/HTTP server
- * @param {Function} cb callback() when service initialized.
+ * @param {Function} cb callback(err) when service initialized.
  * */
 	
 	var 
@@ -1131,14 +1184,13 @@ function startService(server,cb) {
 	
 	if (server && name) 			// attach responder
 		server.on("request", sesThread);
+	
 	else
 		return cb( TOTEM.errors.noService );
 
 	TOTEM.flush();  		// init of client callstack via its Function key
 
-	// (TOTEM.init) TOTEM.init();  // legacy init
-	
-	if (TOTEM.encrypt && site.urls.socketio) {   // attach "/socket.io" to SIO and setup connection challenges
+	if (TOTEM.encrypt && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
 		var 
 			IO = TOTEM.IO = DSVAR.io = SIO(server, { // use defaults but can override ...
 				//serveClient: true, // default true to prevent server from intercepting path
@@ -1147,7 +1199,7 @@ function startService(server,cb) {
 			HUBIO = TOTEM.HUBIO = new (SIOHUB); 		//< Hub fixes socket.io+cluster bug	
 			
 		if (IO) { 							// Setup client web-socket support
-			Trace("ATTACHING CLIENTS AT "+IO.path());
+			Trace("ATTACHING CLIENT SOCKETS AT "+IO.path());
 			
 			IO.on("connection", function (socket) {  // Trap every connect				
 				//Trace(">ALLOW CLIENT CONNECTIONS");
@@ -1194,6 +1246,7 @@ function startService(server,cb) {
 		else 
 			return cb( TOTEM.errors.noSockets );	
 	}
+	
 	else
 		cb( null );
 		
@@ -1201,8 +1254,8 @@ function startService(server,cb) {
 	// service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
 	// service attacks.  (Alas latest versions do not compile in latest NodeJS.)
 	
-	if (BUSY && TOTEM.busy) 
-		BUSY.maxLag(TOTEM.busy);
+	if (BUSY && TOTEM.busycycle) 
+		BUSY.maxLag(TOTEM.busycycle);
 	
 	// listening on-routes message
 
@@ -1267,6 +1320,7 @@ function startService(server,cb) {
 		
 function connectService(cb) {
 /**
+ * @private
  * @method connectService
  * If the TOTEM server already connected, inherit the server; otherwise
  * define an the apprpriate http interface (https if encrypted, 
@@ -1319,6 +1373,7 @@ function connectService(cb) {
 
 function protectService(cb) {
 /**
+ * @private
  * @method protectService
  * Create the server's PKI certs (if they dont exist), then setup
  * its master-worker urls and callback the service initializer.
@@ -1362,8 +1417,8 @@ function protectService(cb) {
 
 function stopService() {
 /**
+ * @private
  * @method stopService
- * 
  * Stop the server.
  * */
 		
@@ -1376,11 +1431,12 @@ function stopService() {
 }
 
 /**
-@class user profile maintenance
+@class USER maintenance of users and their profiles
  */
 
 function selectUser(req,res) {
 /**
+@private
 @method selectUser
 Return user profile information
 @param {Object} req Totem request 
@@ -1413,6 +1469,7 @@ Return user profile information
 
 function updateUser(req,res) {
 /**
+@private
 @method updateUser
 Update user profile information
 @param {Object} req Totem request 
@@ -1448,6 +1505,7 @@ Update user profile information
 
 function deleteUser(req,res) {
 /**
+@private
 @method deleteUser
 Remove user profile.
 @param {Object} req Totem request 
@@ -1484,6 +1542,7 @@ Remove user profile.
 			
 function insertUser (req,res) {
 /**
+@private
 @method insertUser
 Create user profile, associated certs and distribute info to user
 @param {Object} req Totem request 
@@ -1590,9 +1649,10 @@ To connect to ${site.Nick} from Windows:
 		});
 }
 
-function fetchUser(req,res) {	
+function executeUser(req,res) {	
 /**
-@method fetchUser
+@private
+@method executeUser
 Fetch user profile for processing
 @param {Object} req Totem request 
 @param {Function} res Totem response
@@ -1619,7 +1679,7 @@ Fetch user profile for processing
 }
 
 /**
-@class PKI cert utilitities
+@class PKI utilities to create and manage PKI certs
  */
 
 function createCert(owner,pass,cb) {
@@ -1679,85 +1739,77 @@ function createCert(owner,pass,cb) {
 
 function validateCert(req,res) {
 /**
-* @method validateCert
-* @param {Object} con http connection
-* @param {Object} req totem request
-* @param {Function} res totem response
-*
-* Get, default, cache and validate the clients cert, then use this cert to prime the totem
-* request (client, group, log, and profile).  Responds will null (valid session) or an Error (invalid session).
-* 
-* on-input req = {action, socketio, query, body, flags, joins}
-* on-output req = adds {log, cert, session, client, org, group, profile, journal, email}
+@method validateCert
+@param {Object} req totem request
+@param {Function} res totem response
+
+Responds will res(null) if session is valid or res(err) if session invalid.  Adds the client's session metric log, 
+org, serverip, group, profile, db journalling flag, time joined, email and client ID to this req request.  
  * */
 				
 	function getCert() {
-		
-		var con = req.connection;
-		
-		if ( TOTEM.encrypt && con && con.getPeerCertificate ) {  // get PKI cert info when server providing encrypted channel
-			
-			var cert =  con.getPeerCertificate();
-			
-			if (TOTEM.proxy) {  // when going through a proxy, must update cert with originating cert info that was placed in header
-				var 
-					NA = Req.headers.ssl_client_notafter,
-					NB = Req.headers.sll_client_notbefore,
-					DN = Req.headers.ssl_client_s_dn;
-					
-				if (NA) cert.valid_to = new Date(
-						[NA.substr(2,2),NA.substr(4,2),NA.substr(0,2)].join("/")+" "+
-						[NA.substr(6,2),NA.substr(8,2),NA.substr(10,2)].join(":")
-					);
-					
-				if (NB) cert.valid_to = new Date(
-						[NB.substr(2,2),NB.substr(4,2),NB.substr(0,2)].join("/")+" "+
-						[NB.substr(6,2),NB.substr(8,2),NB.substr(10,2)].join(":")
-					);
-				
-				if (DN)
-					Each(DN.split("/"), function (n,hdr) {
-						if (hdr) {
-							var sub = hdr.split("=");
-							cert.subject[sub[0]] += sub[1];
-						}
-					});
-					
-				var CN = cert.subject.CN;
-				
-				if (CN) {
-					CN = CN.split(" ");
-					cert.subject.CN = CN[CN.length-1] + "@coe.ic.gov";
-				}
-			}
-
-		}
-		
-		else 
-			var cert = {		//< default cert
+	/*
+	Return a suitable cert for https or http connections for this req.connection.  If we are going through a
+	proxy, cert information is derived from the request headers.
+	*/
+	
+		var 
+			con = req.connection,
+			cert =  (con ? con.getPeerCertificate() : null) || {		//< default cert
 				issuer: {O:"xx"},
 				subjectaltname: "",
 				subject: {C:"xx",ST:"xx",L:"xx",O:"xx",OU:"",CN:"",emailAddress:""},
 				valid_to: null,
 				valid_from: null
-			};
+			};			
+		
+		if (TOTEM.proxy) {  // when going through a proxy, must update cert with originating cert info that was placed in header
+			var 
+				NA = Req.headers.ssl_client_notafter,
+				NB = Req.headers.sll_client_notbefore,
+				DN = Req.headers.ssl_client_s_dn;
+
+			if (NA) cert.valid_to = new Date(
+					[NA.substr(2,2),NA.substr(4,2),NA.substr(0,2)].join("/")+" "+
+					[NA.substr(6,2),NA.substr(8,2),NA.substr(10,2)].join(":")
+				);
+
+			if (NB) cert.valid_to = new Date(
+					[NB.substr(2,2),NB.substr(4,2),NB.substr(0,2)].join("/")+" "+
+					[NB.substr(6,2),NB.substr(8,2),NB.substr(10,2)].join(":")
+				);
+
+			if (DN)
+				Each(DN.split("/"), function (n,hdr) {
+					if (hdr) {
+						var sub = hdr.split("=");
+						cert.subject[sub[0]] += sub[1];
+					}
+				});
+
+			var CN = cert.subject.CN;
+
+			if (CN) {
+				CN = CN.split(" ");
+				cert.subject.CN = CN[CN.length-1] + "@coe.ic.gov";
+			}
+		}
 		
 		return cert;
 	}
 				
 	function admitClient(req, res, profile, cert, client) {
-		
-		var 
-			now = new Date(),		
-			admitRule = TOTEM.admitRule,
-			site = TOTEM.site;
-
+	/* 
+	If the client's cert is good,respond with res(null), then add the client's session metric log, org, serverip, 
+	group, profile, db journalling flag, time joined, email and client ID to this req request.  The cert is also
+	cached for future data fetching to https sites.  If the cert is bad, then resond res(err).
+	*/
 		if (TOTEM.encrypt) {  // validate client's cert
 
 			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
 				return res( TOTEM.errors.expiredCert );
 
-			if (admitRule)
+			if (admitRule = TOTEM.admitRule)
 				if ( !(cert.issuer.O.toLowerCase() in admitRule && cert.subject.C.toLowerCase() in admitRule) ) 
 					return res( TOTEM.errors.rejectedCert );
 
@@ -1803,6 +1855,7 @@ function validateCert(req,res) {
 	var 
 		sql = req.sql,
 		cert = getCert(),
+		now = new Date(),		
 		client = (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || TOTEM.guestProfile.Client).split(",")[0].replace("email:","");
 
 	TOTEM.cache.certs[client] = new Object(cert);
@@ -1872,25 +1925,31 @@ function findFile(path,cb) {
 * @param {Object} path file path
 * @param {Function} cb totem response
 */
-	try {
-		FS.readdirSync(path).each( function (n,file) {
-			if (n > MAXFILES) return true;
+	if (maxFiles = TOTEM.maxFiles)
+		try {
+			FS.readdirSync(path).each( function (n,file) {
+				if (n > maxFiles) return true;
 
-			if (file.charAt(0) != "_" && file.charAt(file.length-1) != "~") 
-				cb(n,file);
-		});
-	}
-	catch (err) {
-	}
+				if (file.charAt(0) != "_" && file.charAt(file.length-1) != "~") 
+					cb(n,file);
+			});
+		}
+		catch (err) {
+		}
+	
+	else
+		cb( [] );
+	
 }
 
 function uploadFile( files, area, cb) {
 /**
-* @method uploadFile
-* @param {Object} sql sql connector
-* @param {Array} files files to upload
-* @param {String} area area to upload files into
-* @param {Function} res totem response
+@private
+@method uploadFile
+@param {Object} sql sql connector
+@param {Array} files files to upload
+@param {String} area area to upload files into
+@param {Function} res totem response
 */
 
 	function copyFile(source, target, cb) {
@@ -2006,7 +2065,7 @@ function uploadFile( files, area, cb) {
 }
 
 /**
-@class External data fetchers
+@class FETCH method to pull external data
  */
 
 function fetchWget(req,res) {	//< wget endpoint
@@ -2067,7 +2126,7 @@ function wgetFetch(url,cb) {
 						trycmd(cmd,cb);
 					}
 					else
-						cb( new Error("Retries exceeded") );
+						cb( TOTEM.errors.retryFetch );
 				}
 				else
 				if (cb) cb(null, stdout);
@@ -2160,10 +2219,7 @@ function httpFetch(url,cb) {
 		cb( null );
 }
 
-/**
-@class Default send and read methods
- */
-
+/*
 function readTemplate(req,res) {
 	
 	var	sql = req.sql,
@@ -2178,17 +2234,20 @@ function readTemplate(req,res) {
 function sendTemplate(req,res) {
 	res( "there you go");
 }
-
-function sendFile(req,res) {
-	res( function () {return req.path; } );
-}
+*/
 
 /**
-@class Antibot protection
+@class ANTIBOT data theft protection
  */
 
 function checkRiddle(req,res) {	//< endpoint to check clients response to a riddle
-	
+/**
+@private
+@method checkRiddle
+Endpoint to check clients response req.query to a riddle created by challengeClient.
+@param {Object} req http request
+@param {Function} res Totem response callback
+*/
 	var 
 		query = req.query,
 		sql = req.sql;
@@ -2223,7 +2282,11 @@ console.log([rid,query]);
 }
 
 function initChallenger() {
-
+/**
+@private
+@method initChallenger
+Create a set of TOTEM.riddles challenges.
+*/
 	function Riddle(map, ref) {
 		var 
 			Q = {
@@ -2255,7 +2318,14 @@ function initChallenger() {
 }
 
 function makeRiddles(msg,rid,ids) {
-
+/**
+@private
+@method checkRiddle
+Endpoint to check clients response req.query to a riddle created by challengeClient.
+@param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
+@param {Array} rid List of riddles returned
+@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
+*/
 	var 
 		riddles = TOTEM.riddle,
 		N = riddles.length;
@@ -2312,7 +2382,13 @@ function makeRiddles(msg,rid,ids) {
 }
 
 function challengeClient(client, prof) {
-			
+/**
+@private
+@method challengeClient
+Challenge a client with specified profile parameters
+@param {String} client name of client being challenged
+@param {Object} prof client's profile .Message = riddle mask, .IDs = {id:value, ...}
+*/
 	var 
 		rid = [],
 		reply = (TOTEM.riddleMap && TOTEM.riddles)
@@ -2344,11 +2420,13 @@ function challengeClient(client, prof) {
 		});
 }
 
-/**
-@class Initalization
-*/
-
 function Initialize () {
+/**
+@private
+@member TOTEM
+@method 
+Initialize TOTEM.
+*/
 	
 	Trace(`INITIALIZED WITH ${TOTEM.riddles} RIDDLES`);
 	
@@ -2357,10 +2435,16 @@ function Initialize () {
 }
 
 /**
-@class Routing methods
+@class ROUTING methods to route notes byType, byAction, byTable, byActionTable, byArea.
 */
+
 function parseNode(req) {
-	
+/**
+@private
+@method parseNode
+Parse node request to define req.table, .path, .area, .query, .search, .type, .file, .flags, and .body.
+@param {Object} req http session
+*/
 	var
 		node = URL.parse(req.node),
 		search = req.search = node.query || "",
@@ -2457,6 +2541,8 @@ function parseNode(req) {
 
 function syncNodes(nodes, acks, req, res) {
 /**
+@private
+@method syncNodes
 Submit nodes=[/dataset.type, /dataset.type ...]  on the current request thread req to the routeNode() 
 method, aggregate results, then send with supplied response().
 */
@@ -2476,18 +2562,18 @@ method, aggregate results, then send with supplied response().
 }
 
 function routeNode(req, res) {
-/*
-Parse the node=/dataset.type on the current req thread, then route it to the approprate sender, 
-reader, emulator, engine or file indexer according to 
-
-	dataset	route to TOTEM.method
-	=============================
-	area 	sender[area]
-	file		reader[type]
-	table		emulator[action][table] 
+/**
+@private
+@method routeNode
+Parse the node=/dataset.type on the current req thread, then route it to the approprate TOTEM byArea, 
+byType, byActionTable, engine or file indexer (see config documentation).
 */
 	
 	parseNode(req);
+
+	function sendFile(req,res) {
+		res( function () {return req.path; } );
+	}
 
 	var
 		sql = req.sql,
@@ -2501,23 +2587,23 @@ reader, emulator, engine or file indexer according to
 	//console.log([action,req.path,area,table,type]);
 	
 	if (req.path) 
-		followRoute( route = TOTEM.sender[area] || sendFile, req, res );
+		followRoute( route = TOTEM.byArea[area] || sendFile, req, res );
 
 	else
-	if ( route = TOTEM.reader[type] ) 
+	if ( route = TOTEM.byType[type] ) 
 		followRoute(route,req,res);
 	
 	else
-	if ( route = TOTEM.emulator[action][table])
+	if ( route = TOTEM.byActionTable[action][table])
 		followRoute(route,req,res);
 	
 	else
-	if ( route = TOTEM.worker[table] ) 
+	if ( route = TOTEM.byTable[table] ) 
 		followRoute(route,req,res);
 	
 	/*
 	else  // attempt to route to engines then to database
-	if ( route = TOTEM.runner ) 
+	if ( route = TOTEM.byAction ) 
 		route[action](req, function (ack) { 
 			if ( (ack||0).constructor == Error)
 				if ( route = TOTEM[action] )
@@ -2540,7 +2626,9 @@ reader, emulator, engine or file indexer according to
 }
 
 function followRoute(route,req,res) {
-/*
+/**
+@private
+@method followRoute
 Log session metrics, trace the current route, then callback route on the supplied 
 request-response thread
 */
@@ -2613,7 +2701,7 @@ request-response thread
 }
 
 /**
-@class Thread processing
+@class THREAD sql and session thread processing
 */
 
 function sesThread(Req,Res) {	
@@ -2889,6 +2977,12 @@ function sesThread(Req,Res) {
 	}
 		
 	function startSession( cb ) { // Combat denial of service attacks by checking if session is too busy.
+	/**
+	@private
+	@method startSession
+	Start session and protect from denial of service attacks.
+	@param {Function} callback() when completed
+	*/
 		
 		if (BUSY && (busy = TOTEM.errors.tooBusy) )	
 			if ( BUSY() )
@@ -2901,6 +2995,8 @@ function sesThread(Req,Res) {
 	
 	function conThread(req, res) {
 	/**
+	 * @private
+	 * @method conThread
 	 * Start a connection thread cb(err) containing a Req.req.sql connector,
 	 * a validated Req.req.cert certificate, and set appropriate Res headers. 
 	 * 
@@ -2981,7 +3077,9 @@ function sesThread(Req,Res) {
 				url = req.url = unescape(Req.url),
 
 				// get a list of all nodes
-				nodes = url ? url.split(MULTINODES) : [];
+				nodes = (nodeDivider = TOTEM.nodeDivider)
+					? url ? url.split(nodeDivider) : []
+					: url ? [url] : [];
 
 			conThread( req, function (err) { 	// start session with client
 
@@ -3010,6 +3108,7 @@ function sesThread(Req,Res) {
 
 function resThread(req, cb) {
 /**
+ * @private
  * @method resThread
  * @param {Object} req Totem request
  * @param {Function} cb sql connector callback(sql)
@@ -3023,6 +3122,7 @@ function resThread(req, cb) {
 
 function sqlThread(cb) {
 /**
+ * @private
  * @method sqlThread
  * @param {Function} cb sql connector callback(sql)
  *
