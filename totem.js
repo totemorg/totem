@@ -9,6 +9,7 @@
 @requires constants
 @requires clusters
 @requires child-process
+@requires os
 
 @requires mime
 @requires enum
@@ -30,7 +31,8 @@ var												// NodeJS modules
 	FS = require("fs"),							//< NodeJs module
 	CONS = require("constants"),				//< NodeJs module
 	CLUSTER = require("cluster"),				//< NodeJs module
-	URL = require("url");						//< NodeJs module
+	URL = require("url"),						//< NodeJs module
+	OS = require('os');					// OS utilitites
 
 var 											// 3rd party modules
 	SIO = require('socket.io'), 			//< Socket.io client mesh
@@ -639,6 +641,7 @@ var
 	/**
 	@cfg {Function}	
 	@method update
+	@member TOTEM	
 	CRUDE (req,res) method to respond to a Totem request
 	@param {Object} req Totem request
 	@param {Function} res Totem responder
@@ -647,6 +650,7 @@ var
 	/**
 	@cfg {Function}	
 	@method delete
+	@member TOTEM	
 	CRUDE (req,res) method to respond to a Totem request
 	@param {Object} req Totem request
 	@param {Function} res Totem responder
@@ -655,6 +659,7 @@ var
 	/**
 	@cfg {Function}
 	@method insert
+	@member TOTEM	
 	CRUDE (req,res) method to respond to a Totem request
 	@param {Object} req Totem request
 	@param {Function} res Totem responder
@@ -663,6 +668,7 @@ var
 	/**
 	@cfg {Function}
 	@method execute
+	@member TOTEM	
 	CRUDE (req,res) method to respond to a Totem request
 	@param {Object} req Totem request
 	@param {Function} res Totem responder
@@ -674,24 +680,28 @@ var
 	/**
 	@cfg {Date} 
 	@private
+	@member TOTEM	
 	totem start time
 	*/		
 	started: null, //< totem start time
 		
 	/**
 	@cfg {Number} [retries=5]
+	@member TOTEM	
 	Maximum number of retries the data fetcher will user
 	*/				
 	retries: 5,			//< Maximum number of retries the data fetcher will user
 		
 	/**
 	@cfg {Boolean} [notify=true]
+	@member TOTEM	
 	Enable/disable tracing of data fetchers
 	*/		
 	notify: true, 	//< Enable/disable tracing of data fetchers
 
 	/**
 	@cfg {Boolean} [nofaults=false]
+	@member TOTEM	
 	Enable/disable service protection mode
 	*/		
 	nofaults: false,		//< Enable/disable service protection mode
@@ -699,6 +709,7 @@ var
 	/**
 	@cfg {Object} 
 	@private
+	@member TOTEM	
 	Service protections when in nofaults mode
 	*/		
 	protect: {				
@@ -715,6 +726,7 @@ var
 	
 	/**
 	@cfg {Function} 
+	@member TOTEM	
 	Additional session validator(req,res) responds will null if client validated, otherwise
 	responds with an error.
 	*/		
@@ -722,6 +734,7 @@ var
 	
 	/**
 	@cfg {Object} 
+	@member TOTEM	
 	Null to admitRule all clients, or {X:"required", Y: "optional", ...} to admitRule clients with cert organizational
 	credentials X.
 	*/		
@@ -732,6 +745,7 @@ var
 
 	/**
 	@cfg {Object}
+	@member TOTEM	
 	Default guest profile (unencrypted or client profile not found)
 	*/		
 	guestProfile: {				
@@ -753,6 +767,7 @@ var
 	/**
 	@cfg {Object} 
 	@private
+	@member TOTEM	
 	Riddle digit-to-jpeg map (null to disable riddles)
 	*/		
 	riddleMap: { 					
@@ -770,6 +785,7 @@ var
 
 	/**
 	@cfg {Number} [riddles=0]
+	@member TOTEM	
 	Number of riddles to protect site (0 to disable anti-bot)
 	*/		
 	riddles: 0, 			
@@ -777,6 +793,7 @@ var
 	/**
 	@cfg {Object} 
 	@private
+	@member TOTEM	
 	Default paths to service files
 	*/		
 	paths: { 			
@@ -810,8 +827,6 @@ var
 			pocs: "SELECT lower(Hawk) AS Role, group_concat(DISTINCT Client SEPARATOR ';') AS Contact FROM openv.roles GROUP BY hawk",
 		},
 		
-		admitGuests: true, //< enable to admit guest clients making https requests
-		
 		mime: { // default static file areas
 			files: ".", // path to shared files 
 			captcha: ".",  // path to antibot captchas
@@ -822,8 +837,16 @@ var
 	},
 
 	/**
+	@cfg {Boolean} 
+	@member TOTEM	
+	Enable to admit guest clients making https requests
+	*/		
+	admitGuests: true, //< enable to admit guest clients making https requests
+		
+	/**
 	@cfg {Object} 
 	@private
+	@member TOTEM	
 	Error messages
 	*/		
 	errors: {
@@ -856,6 +879,7 @@ var
 	/**
 	@method 
 	@config {Function}
+	@member TOTEM	
  	File indexer
 	*/		
 	indexer: indexFile,
@@ -863,12 +887,14 @@ var
 	/**
 	@cfg {Function}
 	@method uploader
+	@member TOTEM	
 	File uploader 
 	*/			
 	uploader: uploadFile,	
 	
 	/**
 	@cfg {Number}
+	@member TOTEM	
 	Server toobusy check period in seconds
 	*/		
 	busycycle: 3,  //< site too-busy check interval [s] (0 disables)
@@ -876,6 +902,7 @@ var
 	/**
 	@cfg {Function}
 	@private
+	@member TOTEM	
 	Sets the site context parameters available in TOTEM.site.
 	*/		
 	setContext: function (sql,cb) { 
@@ -950,6 +977,7 @@ var
 
 	/**
 	@cfg {Object} 
+	@member TOTEM	
 	@private
 	*/		
 	cache: { 				//< by-area cache
@@ -983,6 +1011,7 @@ var
 	/**
 	@cfg {Object} 
 	@private
+	@member TOTEM	
 	ENUM will callback this initializer when the service is started
 	*/		
 	Function: Initialize  //< added to ENUM callback stack
@@ -1145,7 +1174,7 @@ function configService(opts,cb) {
 					});
 				});
 
-			TOTEM.dsAttrs = DSVAR.attrs;
+			TOTEM.dsAttrs = DSVAR.dsAttrs;
 			//sql.release();
 		});	
 
@@ -1802,8 +1831,21 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 	/* 
 	If the client's cert is good,respond with res(null), then add the client's session metric log, org, serverip, 
 	group, profile, db journalling flag, time joined, email and client ID to this req request.  The cert is also
-	cached for future data fetching to https sites.  If the cert is bad, then resond res(err).
+	cached for future data fetching to https sites.  If the cert is bad, then respond with res(err).
 	*/
+		
+		function cpuavgutil() {				// compute average cpu utilization
+			var avgUtil = 0;
+			var cpus = OS.cpus();
+
+			cpus.each(function (n,cpu) {
+				idle = cpu.times.idle;
+				busy = cpu.times.nice + cpu.times.sys + cpu.times.irq + cpu.times.user;
+				avgUtil += busy / (busy + idle);
+			});
+			return avgUtil / cpus.length;
+		}		
+		
 		if (TOTEM.encrypt) {  // validate client's cert
 
 			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
@@ -1830,6 +1872,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 					ThreadsRunning: stats[3].Value,		// sql threads running
 					ThreadsConnected: stats[1].Value,	// sql threads connected
 					Stamp: TOTEM.name,					// site name
+					Util : cpuavgutil(),				// cpu utilization
 					Fault: "isp"						// fault codes
 					//Cores: site.Cores, 					// number of safety core hyperthreads
 					//VMs: 1,								// number of VMs
@@ -1847,7 +1890,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 				email	: client, 			// email address from pki
 				client	: client			// client ID
 			}, req);
-			
+
 			res(null);
 		});	
 	}

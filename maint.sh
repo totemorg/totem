@@ -181,19 +181,19 @@ restyle.)
 	echo "to be developed"
 	;;
 
-docprep.)
+duckpush.)
 	# doxygen config.oxy
 	cd /local/babel
-	prep totem 
-	prep debe
-	prep enum
+	duckpush totem 
+	duckpush debe
+	duckpush enum
 	;;
 
-docget.)
+duckpull.)
 	cd /local/babel
-	getduck totem
-	getduck debe
-	getduck enum
+	duckpull totem
+	duckpull debe
+	duckpull enum
 	;;
 
 docall.)

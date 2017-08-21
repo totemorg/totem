@@ -34,10 +34,11 @@ ENUM.test({
 with 2 cores and the default endpoint routes` );
 
 		var TOTEM = require("../totem").config({
+			name: "iamwhoiam",
 			nofaults: true,
 			cores: 2
 		}, function (err) {
-			Trace(err || "Ok - Im started and ready to rock - but no DB!");
+			Trace(err || "Ok - Im started with my own config parms and am ready to rock - but no DB!");
 		});
 		
 	},
@@ -54,7 +55,7 @@ with 2 cores and the default endpoint routes` );
 			}
 		},  function (err) {				
 			Trace( err ||
-`I **have become** a Totem client, with no cores, but 
+`I used the default openv.apps config options for the Nick="Totem" app, and **have become** a Totem client with no cores, but 
 I do have mysql database from which I've derived my start() 
 options from openv.apps.nick = TOTEM.name = "Totem"`, {
 

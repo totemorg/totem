@@ -27,9 +27,9 @@ following selectable features:
   
 TOTEM provides CRUD endpoints to synchronize dataset NODES:
   
-	(select) GET 	 / NODE $$ NODE ...
-	(update) PUT 	 / NODE $$ NODE ...
-	(insert) POST 	 / NODE $$ NODE ...
+	(select) GET/ NODE $$ NODE ...
+	(update) PUT / NODE $$ NODE ...
+	(insert) POST / NODE $$ NODE ...
 	(delete) DELETE / NODE $$ NODE ...
   
 where a NODE:
@@ -41,11 +41,11 @@ where a NODE:
 
 references a [FLEX dataset](https://github.com/acmesds/flex), a [compute ENGINE](https://github.com/acmesds/engine),
 a static file, or a [READER file](https://github.com/acmesds/reader) to parse.  TOTEM provides
-the following dataset TYPEs:
+several dataset TYPEs:
 
-	db | xml | csv
+	db | xml | csv | json
 	
-to qualify how datasets are to be rendered when accessed at its endpoint.
+to specify how datasets are rendered when accessed at an endpoint.
  
 When started, TOTEM provides default service endpoints:
 
@@ -61,10 +61,10 @@ Clone from one of the repos.
 
 ## Databases
 
-openv.profiles Reads and populates when clients arrive
-openv.sessions Reads and populates when client sessions are established
-openv.riddles Builds on config() and reads when clients arrive
-openv.apps Reads on config() to override TOTEM options and define site context parameters
+* openv.profiles Reads and populates when clients arrive  
+* openv.sessions Reads and populates when client sessions are established  
+* openv.riddles Builds on config() and reads when clients arrive  
+* openv.apps Reads on config() to override TOTEM options and define site context parameters
 
 ## Use
 
@@ -79,7 +79,7 @@ TOTEM is configured and started like this:
 			:
 			:
 		}, function (err) {
-		console.log( err ? "something evil happended" : "Im running");
+		console.log( err ? "something evil is lurking" : "look mom - Im running!");
 	});
 
 where its configuration keys follow the [ENUM copy()](https://github.com/acmesds/enum) conventions and
@@ -92,10 +92,10 @@ useful, if you wish to learn more about its database agnosticator.
 ### N1 - Just an interface
 
 	var TOTEM = require("../totem");
-	
+
 	Trace(
 		"Im simply a Totem interface so Im not running any service", {
-		default_fetcher_endpts: TOTEM.reader,
+		default_fetcher_endpts: TOTEM.byType,
 		default_protect_mode: TOTEM.nofaults,
 		default_cores_used: TOTEM.cores
 	});
@@ -103,35 +103,36 @@ useful, if you wish to learn more about its database agnosticator.
 ### N2 - 2 cores in fault protection mode
 
 	Trace(
-	`I **will become** a Totem client running in fault protection mode, no database yet, but I am running
-	with 2 cores and the default endpoint routes` );
+`I **will become** a Totem client running in fault protection mode, no database yet, but I am running
+with 2 cores and the default endpoint routes` );
 
 	var TOTEM = require("../totem").config({
+		name: "iamwhoiam",
 		nofaults: true,
 		cores: 2
 	}, function (err) {
-		Trace(err || "Ok - Im started and ready to rock!");
+		Trace(err || "Ok - Im started with my own config parms and am ready to rock - but no DB!");
 	});
 	
 ### N3 - No cores but a database
 
 	var TOTEM = require("../totem").config({
-		name: "Totem",
+			name: "Totem",
+			
+			mysql: {
+				host: ENV.MYSQL_HOST,
+				user: ENV.MYSQL_USER,
+				pass: ENV.MYSQL_PASS
+			}
+		},  function (err) {				
+			Trace( err ||
+`I used the default openv.apps config options for the Nick="Totem" app, and **have become** a Totem client 
+with no cores, but I do have mysql database from which I've derived my start() 
+options from openv.apps.nick = TOTEM.name = "Totem"`, {
 
-		mysql: {
-			host: ENV.MYSQL_HOST,
-			user: ENV.MYSQL_USER,
-			pass: ENV.MYSQL_PASS
-		}
-	},  function (err) {				
-		Trace( err ||
-			`I **have become** a Totem client, with no cores, but 
-			I do have mysql database from which I've derived my start() 
-			options from openv.apps.nick = TOTEM.name = "Totem"`, {
-
-			mysql_derived_site_parms: TOTEM.site
+				mysql_derived_site_parms: TOTEM.site
+			});
 		});
-	});
 
 ### N4 - Encrypted with some endpoints
 
@@ -141,7 +142,7 @@ useful, if you wish to learn more about its database agnosticator.
 				user: ENV.MYSQL_USER,
 				pass: ENV.MYSQL_PASS
 			},
-			reader: {
+			byType: {
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 					res( "123" );
 
@@ -157,7 +158,8 @@ useful, if you wish to learn more about its database agnosticator.
 					else
 						res( new Error("We have a problem huston") );
 
-					Trace( `Like dothis, but needs an ?x=value query`, {
+					Trace(
+	`Like dothis, but needs an ?x=value query`, {
 						or_query: req.query,
 						or_user: [req.client,req.group]
 					});
@@ -165,31 +167,31 @@ useful, if you wish to learn more about its database agnosticator.
 			}
 		}, function (err) {
 			Trace( err || 
-				`Now stronger and **encrypted** -- try my https /dothis and /orthis endpoints.
-				Ive only requested 1 core, and Im unprotected, with a mysql database.  
-				If my client.pfx does not already exists, Totem will create the client.pfx 
-				and associated pems (public client.crt and private client.key).` , {
-					my_endpoints: TOTEM.reader
+	`Now stronger and **encrypted** -- try my https /dothis and /orthis endpoints.
+	Ive only requested 1 core, and Im unprotected, with a mysql database.  
+	If my client.pfx does not already exists, Totem will create the client.pfx 
+	and associated pems (public client.crt and private client.key).` , {
+				my_endpoints: TOTEM.byType
 			});
 		});
 		
 ### N5 - Unencrypted but has an anti-bot shield
 
 	var TOTEM = require("../totem").config({
-		name: "allmine",
-		
 		mysql: {
 			host: ENV.MYSQL_HOST,
 			user: ENV.MYSQL_USER,
 			pass: ENV.MYSQL_PASS
 		},
 
-		riddles: 10
+		name: "allmine",
+
+		riddles: 20
 	}, function (err) {
 		Trace( err ||
-			`I am Totem client, with no cores but I do have mysql database and
-			I have an anti-bot shield!!`, {
-				mysql_derived_parms: TOTEM.site
+`I am Totem client, with no cores but I do have mysql database and
+I have an anti-bot shield!!`, {
+			mysql_derived_parms: TOTEM.site
 		});
 	});
 
