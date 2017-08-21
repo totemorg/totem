@@ -819,8 +819,8 @@ var
 			users: "SELECT 'user' AS Role, group_concat(DISTINCT dataset SEPARATOR ';') AS Contact FROM app.dblogs WHERE instr(dataset,'@')",
 			derive: "SELECT *, count(ID) AS Count FROM openv.apps WHERE ? LIMIT 0,1",
 			record: "INSERT INTO app.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
-			search: "SELECT * FROM files HAVING Score > 0.1",
-			credit: "SELECT * FROM files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 0,1",
+			search: "SELECT * FROM app.files HAVING Score > 0.1",
+			credit: "SELECT * FROM app.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 0,1",
 			upsession: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1,?",
 			challenge: "SELECT *,count(ID) as Count FROM openv.profiles WHERE least(?) LIMIT 0,1",
 			guest: "SELECT * FROM openv.profiles WHERE Client='guest' LIMIT 0,1",
@@ -858,7 +858,7 @@ var
 		badQuery: new Error("invalid query"),
 		badGroup: new Error("invalid group requested"),
 		lostConnection: new Error("client connection lost"),
-		noDB: new Error("database not configured"),
+		noDB: new Error("no database available"),
 		noProfile: new Error("user profile could not be determined"),
 		failedUser: new Error("failed modification of user profile"),
 		missingPass: new Error("missing initial user password"),
@@ -866,13 +866,13 @@ var
 		rejectedCert: new Error("cert rejected"),
 		tooBusy: new Error("too busy - try again later"),
 		noFile: new Error("file not found"),
-		noIndex: new Error("no file indexer"),
-		badType: new Error("bad presentation type"),
+		noIndex: new Error("no file indexer provider"),
+		badType: new Error("bad dataset presentation type"),
 		badReturn: new Error("nothing returned"),
-		noSockets: new Error("scoket.io failed"),
+		noSockets: new Error("socket.io failed"),
 		noService: new Error("no service  to start"),
 		badData: new Error("data has circular reference"),
-		retryFetch: new Error("data fecth retries exceeded"),
+		retryFetch: new Error("data fetch retries exceeded"),
 		cantConfig: new Error("cant derive config options")
 	},
 
@@ -954,13 +954,6 @@ var
 							TOTEM[key] = site[key];
 					});
 
-				// establish site urls
-				site.urls = {
-					socketio:TOTEM.sockets ? paths.url.socketio : "",
-					master: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + (TOTEM.cores ? TOTEM.port+1 : TOTEM.port) + "/",
-					worker: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/"					
-				};
-				
 				if (cb) cb();
 			})
 			.on("error", function (err) {
@@ -1086,7 +1079,7 @@ function configService(opts,cb) {
 /**
  * @private
  * @method configService
- * Configure and start this server.
+ * Configure, protect, connect, then start this server.
  * @param {Object} opts configuration options following the ENUM.Copy() conventions.
  * @param {Function} cb callback() after service configured
  * */
@@ -1236,26 +1229,32 @@ function startService(server,cb) {
 					
 					Trace(`>CONNECTING ${req.client}`);
 					
-					sqlThread( function (sql) {
+					sqlThread( function (sql) {	
+
+						var ses = {
+							Client	: req.client,
+							Location: req.location,
+							Connects: 1,
+							ipAddress: req.ip,
+							Joined: new Date(),
+							Message: req.message
+						};
+						
 						if (upsession = paths.mysql.upsession) 
-							sql.query(upsession, [{
-									Client	: req.client,
-									Location: `${req.ip}(${req.location})`,
-									Connects: 1,
-									Joined: new Date(),
-									Message: req.message
-								}, {
-									Location: `${req.ip}(${req.location})`
-								}]);
-					
+							sql.query(upsession, [ses, {
+								Location: req.location,
+								ipAddress: req.ip,
+								Joined: new Date()
+							}]);
+
 						if (challenge = paths.mysql.challenge)
 							sql.query(challenge, {Client:req.client, Challenge:1})
-							.on("result", function (prof) {
+							.on("result", function (profile) {
 
-								if (prof.Count) challengeClient(req.client, prof);	
+								if (profile.Count) challengeClient(req.client, profile);	
 
 							});
-						
+
 						sql.release();
 					});
 				});
@@ -1288,9 +1287,7 @@ function startService(server,cb) {
 	
 	// listening on-routes message
 
-	var endpts = [];	
-	for (var n in TOTEM.select || {}) endpts.push(n);
-	endpts = "["+endpts.join()+"]";
+	var endpts = Object.keys( TOTEM.select ).join();
 
 	if (TOTEM.cores) 					// Establish master and worker cores
 		if (CLUSTER.isMaster) {			// Establish master
@@ -1299,7 +1296,7 @@ function startService(server,cb) {
 				Trace(`SERVING ${site.urls.master} AT [${endpts}]`);
 			});
 			
-			if (TOTEM.nofaults) {
+			if ( TOTEM.nofaults) {
 				process.on("uncaughtException", function (err) {
 					console.warn(`SERVICE FAULTED ${err}`);
 				});
@@ -1330,11 +1327,11 @@ function startService(server,cb) {
 		
 		else {								// Establish worker cores
 			server.listen(TOTEM.port, function() {
-				Trace(`CORE${CLUSTER.worker.id} ROUTING ${site.urls.worker} AT ${endpts}`);
+				Trace(`CORE${CLUSTER.worker.id} ROUTING ${site.urls.worker} AT [${endpts}]`);
 				//cb(null);
 			});
 			
-			if (TOTEM.nofaults)
+			if ( TOTEM.nofaults)
 				CLUSTER.worker.process.on("uncaughtException", function (err) {
 					console.warn(`CORE${CLUSTER.worker.id} FAULTED ${err}`);
 				});	
@@ -1404,8 +1401,7 @@ function protectService(cb) {
 /**
  * @private
  * @method protectService
- * Create the server's PKI certs (if they dont exist), then setup
- * its master-worker urls and callback the service initializer.
+ * Create the server's PKI certs (if they dont exist), setup its urls, then connect the service.
  * @param {Function} cb callback when done
  * 
  * */
@@ -1417,6 +1413,12 @@ function protectService(cb) {
 
 	Trace(`PROTECTING ${name}`);
 	
+	TOTEM.site.urls = {  // establish site urls
+		socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
+		master: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + (TOTEM.cores ? TOTEM.port+1 : TOTEM.port) + "/",
+		worker: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/"					
+	};
+					
 	TOTEM.cache.certs = {		// cache data fetching certs 
 		pfx: FS.readFileSync(`${certs.server}fetch.pfx`),
 		crt: `${certs.server}fetch.crt`,
@@ -1784,10 +1786,10 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 	
 		var 
 			con = req.connection,
-			cert =  (con ? con.getPeerCertificate() : null) || {		//< default cert
-				issuer: {O:"xx"},
+			cert =  (con ? con.getPeerCertificate ? con.getPeerCertificate() : null : null) || {		//< default cert
+				issuer: {},
 				subjectaltname: "",
-				subject: {C:"xx",ST:"xx",L:"xx",O:"xx",OU:"",CN:"",emailAddress:""},
+				subject: {},
 				valid_to: null,
 				valid_from: null
 			};			
@@ -1860,8 +1862,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 		if (profile.Banned)  // block client if banned
 			return res( new Error(profile.Banned) );
 			
-		// start session metric logging
-		sql.query("show session status like 'Thread%'", function (err,stats) {
+		sql.query("show session status like 'Thread%'", function (err,stats) {  		// start session metric logging
 			if (err)
 				stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
 
@@ -1882,7 +1883,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 				},
 
 				org		: cert.subject.O || "unknown",  // cert organization 
-				serverip: req.connection.address().address || "unknown",
+				serverip: req.connection ? req.connection.address().address : "unknown",
 				group	: profile.Group, // || TOTEM.site.db, 
 				profile	: new Object(profile),  // complete profile
 				journal : true,				// journal db actions
@@ -1893,6 +1894,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 
 			res(null);
 		});	
+		
 	}
 	
 	var 
@@ -2424,19 +2426,19 @@ Endpoint to check clients response req.query to a riddle created by challengeCli
 	return msg;
 }
 
-function challengeClient(client, prof) {
+function challengeClient(client, profile) {
 /**
 @private
 @method challengeClient
 Challenge a client with specified profile parameters
 @param {String} client name of client being challenged
-@param {Object} prof client's profile .Message = riddle mask, .IDs = {id:value, ...}
+@param {Object} profile client's profile .Message = riddle mask, .IDs = {id:value, ...}
 */
 	var 
 		rid = [],
 		reply = (TOTEM.riddleMap && TOTEM.riddles)
-				? makeRiddles( prof.Message, rid, (prof.IDs||"").parse({}) )
-				: prof.Message;
+				? makeRiddles( profile.Message, rid, (profile.IDs||"").parse({}) )
+				: profile.Message;
 
 	if (reply && TOTEM.IO) 
 		sqlThread( function (sql) {
@@ -2445,15 +2447,15 @@ Challenge a client with specified profile parameters
 				Client: client,
 				Made: new Date(),
 				Attempts: 0,
-				maxAttempts: prof.Retries
+				maxAttempts: profile.Retries
 			}, function (err,info) {
 
 				TOTEM.IO.emit("select", {
 					message: reply,
 					riddles: rid.length,
 					rejected: false,
-					retries: prof.Retries,
-					timeout: prof.Timeout,
+					retries: profile.Retries,
+					timeout: profile.Timeout,
 					ID: client, //info.insertId,
 					callback: TOTEM.paths.url.riddler
 				});
@@ -3059,22 +3061,32 @@ function sesThread(Req,Res) {
 					if (err)
 						res(err);
 
-					else {
+					else {						
 						Res.setHeader("Set-Cookie", 
 							["client="+req.client, "service="+TOTEM.name]);		
 
 						if (TOTEM.mysql)
-							sql.query("USE ??", req.group, function (err) {
+							sql.query("SELECT * FROM openv.sessions WHERE ?", {Client: req.client}, function (err,ses) {
 								
-								if (err)
-									res( TOTEM.errors.badGroup );
+								if ( err )
+									return res(err);
+								
+								if ( !ses.length)
+									req.session = {
+										Client: "guest",
+										ipAddress : "unknown",
+										Location: "unknown",
+										Joined: new Date()
+									};
 								
 								else
+									req.session = new Object(ses[0]);
+									
 								if (validator = TOTEM.validator) 
 									validator(req, res);
 								
 								else
-									res(err);
+									res(null);
 								
 							});
 
