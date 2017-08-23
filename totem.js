@@ -700,17 +700,17 @@ var
 	notify: true, 	//< Enable/disable tracing of data fetchers
 
 	/**
-	@cfg {Boolean} [nofaults=false]
+	@cfg {Boolean} [faultless=false]
 	@member TOTEM	
 	Enable/disable service protection mode
 	*/		
-	nofaults: false,		//< Enable/disable service protection mode
+	faultless: false,		//< Enable/disable service protection mode
 		
 	/**
 	@cfg {Object} 
 	@private
 	@member TOTEM	
-	Service protections when in nofaults mode
+	Service protections when in faultless mode
 	*/		
 	protect: {				
 		SIGUSR1:1,
@@ -1296,7 +1296,7 @@ function startService(server,cb) {
 				Trace(`SERVING ${site.urls.master} AT [${endpts}]`);
 			});
 			
-			if ( TOTEM.nofaults) {
+			if ( TOTEM.faultless) {
 				process.on("uncaughtException", function (err) {
 					console.warn(`SERVICE FAULTED ${err}`);
 				});
@@ -1305,7 +1305,7 @@ function startService(server,cb) {
 					console.warn(`SERVICE EXITED ${code}`);
 				});
 
-				for (var n in TOTEM.nofaults)
+				for (var n in TOTEM.faultless)
 					process.on(n, function () {
 						console.warn(`SERVICE SIGNALED ${n}`);
 					});
@@ -1331,7 +1331,7 @@ function startService(server,cb) {
 				//cb(null);
 			});
 			
-			if ( TOTEM.nofaults)
+			if ( TOTEM.faultless)
 				CLUSTER.worker.process.on("uncaughtException", function (err) {
 					console.warn(`CORE${CLUSTER.worker.id} FAULTED ${err}`);
 				});	
