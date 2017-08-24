@@ -1367,7 +1367,7 @@ function connectService(cb) {
 			key: `${paths.certs}${name}.key`
 		}, certs);
 
-		console.log({certcache: certs});
+		//console.log({certcache: certs});
 		
 		try {  // build the trust strore	
 			Each( FS.readdirSync(paths.certs+"/truststore"), function (n,file) {
@@ -2232,7 +2232,7 @@ function httpFetch(url,cb) {
 		opts.method = "POST";
 	}*/
 	
-	Trace("FETCHING "+url, opts);
+	Trace("FETCHING "+url);
 	
 	if (opts.protocol) {
 		var req = transport[opts.protocol].request(opts, function(res) {
