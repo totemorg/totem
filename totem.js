@@ -182,6 +182,15 @@ var
 	],
 
 	String: [ 			//< String prototypes
+		
+		function goodFile() {
+			var 
+				first = this.charAt(0) ,
+				last = this.charAt(this.length-1) ;
+				
+			return first != "_" && last != "~" ;
+		},
+		
 		function each(pat, rtn, cb) {
 		/**
 		@private
@@ -1975,8 +1984,7 @@ function findFile(path,cb) {
 			FS.readdirSync(path).each( function (n,file) {
 				if (n > maxFiles) return true;
 
-				if (file.charAt(0) != "_" && file.charAt(file.length-1) != "~") 
-					cb(n,file);
+				if ( file.goodFile() ) cb(n,file);
 			});
 		}
 		catch (err) {
@@ -2218,7 +2226,7 @@ function httpFetch(url,cb) {
 	opts.passphrase = TOTEM.encrypt;
 	opts.retry = TOTEM.retries;
 	opts.rejectUnauthorized = false;
-	opts.agent = false;
+	opts.agent = false; 
 
 	/*if (opts.soap) {
 		opts.headers = {
@@ -2228,12 +2236,13 @@ function httpFetch(url,cb) {
 		opts.method = "POST";
 	}*/
 	
-	//console.log(opts);
-	
+	//console.log(opts, transport[opts.protocol].request);
+	Trace("FETCHING "+url);
+
 	if (opts.protocol) {
 		var req = transport[opts.protocol].request(opts, function(res) {
 			res.setEncoding('utf-8');
-
+			
 			var atext = "";
 			res.on('data', function (chunk) {
 				atext += chunk;
