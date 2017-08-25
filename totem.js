@@ -251,35 +251,36 @@ var
 					if (rtn.constructor == Function)  // use supplied parse method
 						return rtn(this);
 					
-					var key = "";
-
-					this.split("?").each( function (m,parms) {
-						
-						if (m && key) 
-							rtn[key] += "?" + escape(parms);
+					var lastkey = "";
 					
-						else
-							parms.split("&").each(function (n,parm) {  // get a key=val parm
-						
-								var	
-									parts = parm.split("="),  // split into key=val
-									val = parts.pop();
+					this.split("?").each( function (qn, query) {
+						query.split("&").each( function (pn,parm) {
+							
+							if (parm) 								
+								if ( qn ) rtn[lastkey] += (pn ? "&" : "?") + parm;
 
-								key = parts.pop(); 
+								else {
+									var	
+										parts = parm.split("="),  // split into key=val
+										key = parts[0],
+										val = parm.substr( key.length+1 );
 
-								if (key)   // key = val used
-									try {  // val could be json 
-										rtn[key] = JSON.parse(val); 
-									}
-									catch (err) { 
-										rtn[key] = unescape(val);
-									}
-						
-								else 		// store key relationship (e.g. key<val or simply key)
-									rtn[parm] = null;
-							});
+									if (key)   // key = val used
+										try {  // val could be json 
+											rtn[lastkey = key] = JSON.parse(val); 
+										}
+										catch (err) { 
+											rtn[lastkey = key] = unescape(val);
+										}
+
+									else 		// store key relationship (e.g. key<val or simply key)
+										rtn[parm] = null;
+								}
+						});
 					});
-
+					
+					//console.log([this, rtn]);
+					
 					return rtn;
 				}
 		
