@@ -182,15 +182,6 @@ var
 	],
 
 	String: [ 			//< String prototypes
-		
-		function goodFile() {
-			var 
-				first = this.charAt(0) ,
-				last = this.charAt(this.length-1) ;
-				
-			return first != "_" && last != "~" ;
-		},
-		
 		function each(pat, rtn, cb) {
 		/**
 		@private
@@ -819,10 +810,7 @@ var
 			riddler: "/riddle"
 		},
 			
-		certs: { 
-			truststore: "certs/truststore/",
-			server: "certs/"
-		},
+		certs: "./certs/", 
 		
 		mysql: {
 			users: "SELECT 'user' AS Role, group_concat(DISTINCT dataset SEPARATOR ';') AS Contact FROM app.dblogs WHERE instr(dataset,'@')",
@@ -1007,7 +995,7 @@ var
 			js: {}
 		},
 		
-		certs: {} 		// reserved for crts in certs area
+		certs: {} 		// reserved for client crts (pfx, crt, and key reserved for server)
 	},
 	
 	/**
@@ -1366,16 +1354,26 @@ function connectService(cb) {
 	var 
 		port = TOTEM.port,
 		name = TOTEM.name,
-		certs = TOTEM.paths.certs;
+		paths = TOTEM.paths,
+		certs = TOTEM.cache.certs;
 	
 	Trace((TOTEM.encrypt?"ENCRYPTED":"UNENCRYPTED")+` CONNECTION ${name} ON PORT ${port}`);
 
-	if (TOTEM.encrypt) {  // build the trust strore
-		try {
-			Each( FS.readdirSync(certs.truststore), function (n,file) {
+	if (TOTEM.encrypt) {  
+
+		Copy({		// cache server data fetching certs 
+			pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
+			crt: `${paths.certs}${name}.crt`,
+			key: `${paths.certs}${name}.key`
+		}, certs);
+
+		//console.log({certcache: certs});
+		
+		try {  // build the trust strore	
+			Each( FS.readdirSync(paths.certs+"/truststore"), function (n,file) {
 				if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
 					Trace("TRUSTING "+file);
-					TOTEM.trust.push( FS.readFileSync(`${certs.truststore}${file}`,"utf-8") );
+					TOTEM.trust.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf-8") );
 				}
 			});
 		}
@@ -1385,7 +1383,7 @@ function connectService(cb) {
 		if (port)
 			startService( HTTPS.createServer({
 				passphrase: TOTEM.encrypt,		// passphrase for pfx
-				pfx: FS.readFileSync(`${certs.server}${name}.pfx`),			// TOTEM.paths's pfx/p12 encoded crt+key TOTEM.paths
+				pfx: certs.pfx,			// TOTEM.paths's pfx/p12 encoded crt+key TOTEM.paths
 				ca: TOTEM.trust,				// list of TOTEM.paths authorities (trusted serrver.trust)
 				crl: [],						// pki revocation list
 				requestCert: true,
@@ -1418,7 +1416,7 @@ function protectService(cb) {
 	var 
 		encrypt = TOTEM.encrypt,
 		name = TOTEM.name,
-		certs = TOTEM.paths.certs;
+		paths = TOTEM.paths;
 
 	Trace(`PROTECTING ${name}`);
 	
@@ -1428,14 +1426,8 @@ function protectService(cb) {
 		worker: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/"					
 	};
 					
-	TOTEM.cache.certs = {		// cache data fetching certs 
-		pfx: FS.readFileSync(`${certs.server}fetch.pfx`),
-		crt: `${certs.server}fetch.crt`,
-		key: `${certs.server}fetch.key`
-	};
-	
 	if (encrypt)   // derive a pfx cert if this is an encrypted service
-		FS.access(`${certs.server}${name}.pfx`, FS.F_OK, function (err) {
+		FS.access(`${paths.certs}${name}.pfx`, FS.F_OK, function (err) {
 
 			if (err) {
 				var owner = TOTEM.name;
@@ -1747,8 +1739,9 @@ function createCert(owner,pass,cb) {
 	}
 
 	var 
-		name = TOTEM.paths.certs.server + owner, 
-		truststore = TOTEM.paths.certs.server + "truststore",
+		paths = TOTEM.paths,
+		name = `${paths.certs}${owner}`, 
+		truststore = `${paths.certs}truststore`,
 		pfx = name + ".pfx",
 		key = name + ".key",
 		crt = name + ".crt",
@@ -1984,7 +1977,8 @@ function findFile(path,cb) {
 			FS.readdirSync(path).each( function (n,file) {
 				if (n > maxFiles) return true;
 
-				if ( file.goodFile() ) cb(n,file);
+				if (file.charAt(0) != "_" && file.charAt(file.length-1) != "~") 
+					cb(n,file);
 			});
 		}
 		catch (err) {
@@ -2141,7 +2135,8 @@ function fetchHttp(req,res) {	//< http endpoint
 
 function curlFetch(url,cb) {
 
-	var opts = URL.parse(url),
+	var 
+		opts = URL.parse(url),
 		certs = TOTEM.cache.certs,
 		transport = {
 			"http:": `curl "${url}"`,
@@ -2217,16 +2212,17 @@ function httpFetch(url,cb) {
 			
 	var 
 		opts = URL.parse(url), 
+		certs = TOTEM.cache.certs,
 		transport = {
 			"http:": HTTP,
 			"https:": HTTPS
 		};
 	
-	opts.pfx = TOTEM.cache.certs.pfx;
+	opts.pfx = certs.pfx;
 	opts.passphrase = TOTEM.encrypt;
 	opts.retry = TOTEM.retries;
 	opts.rejectUnauthorized = false;
-	opts.agent = false; 
+	opts.agent = false;
 
 	/*if (opts.soap) {
 		opts.headers = {
@@ -2236,13 +2232,12 @@ function httpFetch(url,cb) {
 		opts.method = "POST";
 	}*/
 	
-	//console.log(opts, transport[opts.protocol].request);
 	Trace("FETCHING "+url);
-
+	
 	if (opts.protocol) {
 		var req = transport[opts.protocol].request(opts, function(res) {
 			res.setEncoding('utf-8');
-			
+
 			var atext = "";
 			res.on('data', function (chunk) {
 				atext += chunk;
