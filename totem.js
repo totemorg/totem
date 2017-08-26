@@ -230,66 +230,65 @@ var
 			return Format(req,this);
 		},
 	
-		function parse(rtn) { 
+		function parseJSON(def) {
+			try { 
+				return JSON.parse(this);
+			}
+			catch (err) {  
+
+				if ( !def ) // no default method so return null
+					return null;
+
+				else
+				if (def.constructor == Function)  // use supplied parse method
+					return def(this);
+
+				else
+					return def;
+			}
+		},
+		
+		function parseParms(def) { 
 		/**
 		@private
 		@member String
 		Parse a JSON string or parse a "&key=val&key=val?query&relation& ..." string into 
-		the default rtn = {key:val, key=val?query, relation:null, key:json, ...} hash.
+		the default def = {key:val, key=val?query, relation:null, key:json, ...} hash.
 		*/
 			
-			if (this)
-				try {  // could be json string
-					return JSON.parse(this);
-				}
-				catch (err) {  // "&key=val ..." string
-					
-					if ( !rtn ) // no default method so return null
-						return null;
-					
-					else
-					if (rtn.constructor == Function)  // use supplied parse method
-						return rtn(this);
-					
-					var lastkey = "";
-					
-					this.split("?").each( function (qn, query) {
-						query.split("&").each( function (pn,parm) {
-							
-							if (parm) 								
-								if ( qn ) rtn[lastkey] += (pn ? "&" : "?") + parm;
+			var lastkey = "";
 
-								else {
-									var	
-										parts = parm.split("="),  // split into key=val
-										key = parts[0],
-										val = parm.substr( key.length+1 );
+			this.split("?").each( function (qn, query) {
+				query.split("&").each( function (pn,parm) {
 
-									if (key)   // key = val used
-										try {  // val could be json 
-											rtn[lastkey = key] = JSON.parse(val); 
-										}
-										catch (err) { 
-											rtn[lastkey = key] = unescape(val);
-										}
+					if (parm) 								
+						if ( qn ) def[lastkey] += (pn ? "&" : "?") + parm;
 
-									else 		// store key relationship (e.g. key<val or simply key)
-										rtn[parm] = null;
+						else {
+							var	
+								parts = parm.split("="),  // split into key=val
+								key = parts[0],
+								val = parm.substr( key.length+1 );
+
+							if (key)   // key = val used
+								try {  // val could be json 
+									def[lastkey = key] = JSON.parse(val); 
 								}
-						});
-					});
-					
-					//console.log([this, rtn]);
-					
-					return rtn;
-				}
-		
-			else
-				return rtn;
-			
+								catch (err) { 
+									def[lastkey = key] = unescape(val);
+								}
+
+							else 		// store key relationship (e.g. key<val or simply key)
+								def[parm] = null;
+						}
+				});
+			});
+
+			//console.log([this+"", def]);
+			return def;
 		},
 		
-		function xmlParse(def, cb) {
+		function parseXML(def, cb) {
 		/**
 		@private
 		@member String
@@ -971,9 +970,9 @@ var
 	@member TOTEM	
 	@private
 	*/		
-	cache: { 				//< by-area cache
+	cache: { 				//< cacheing options
 		
-		never: {	//< stuff to never cache - useful while debugging client side stuff
+		never: {	//< files to never cache - useful while debugging client side stuff
 			"base.js": 1,
 			"extjs.js": 1,
 			"jquery.js":1,
@@ -986,15 +985,17 @@ var
 			"gif": 1
 		},
 		
-		clients: {  // file types under clients areas being cached
+		clients: {  // byType cache of clients area
 			js: {},
 			css: {},
 			ico: {}
 		},
 		
-		"socket.io": {  // cache js in socketio area 
+		"socket.io": {  // byType cache of socketio area
 			js: {}
 		},
+		
+		learnedTables: true, 
 		
 		certs: {} 		// reserved for client crts (pfx, crt, and key reserved for server)
 	},
@@ -2442,7 +2443,7 @@ Challenge a client with specified profile parameters
 	var 
 		rid = [],
 		reply = (TOTEM.riddleMap && TOTEM.riddles)
-				? makeRiddles( profile.Message, rid, (profile.IDs||"").parse({}) )
+				? makeRiddles( profile.Message, rid, profile.IDs.parseJSON({}) )
 				: profile.Message;
 
 	if (reply && TOTEM.IO) 
@@ -2498,7 +2499,7 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 	var
 		node = URL.parse(req.node),
 		search = req.search = node.query || "",
-		query = req.query = search.parse({}),
+		query = req.query = search.parseParms({}),
 		areas = node.pathname.split("/"),
 		file = req.file = areas.pop() || (areas[1] ? "" : TOTEM.paths.default),
 		parts = req.parts = file.split("."),
@@ -2651,21 +2652,25 @@ byType, byActionTable, engine or file indexer (see config documentation).
 	if ( route = TOTEM.byTable[table] ) 
 		followRoute(route,req,res);
 	
-	/*
 	else  // attempt to route to engines then to database
-	if ( route = TOTEM.byAction ) 
-		route[action](req, function (ack) { 
-			if ( (ack||0).constructor == Error)
-				if ( route = TOTEM[action] )
-					followRoute(route,req,res);
+	if ( route = TOTEM.byAction[action] ) 
+		route(req, function (ack) { 
+			//console.log({engroute: ack});
+			
+			if (ack)
+				res( ack );
+				
+			else
+				if ( route = TOTEM[action] ) 
+					if ( TOTEM.cache.learnedTables )
+						followRoute( TOTEM.byActionTable[action][table] = route,req,res);
+			
+					else
+						followRoute( route,req,res);
 
 				else 
 					res( TOTEM.errors.noRoute );
-
-			else 
-				res( ack );
 		});	
-	*/
 	
 	else
 	if ( route = TOTEM[action] )
@@ -2960,12 +2965,10 @@ function sesThread(Req,Res) {
 					break;
 
 				case String:  			// send message
-					
 					sendString(ack);
 					break;
 			
 				default: 					// send data as-is
-
 					sendData(ack,req,res);
 					break;
 			
@@ -2987,7 +2990,7 @@ function sesThread(Req,Res) {
 		})
 		.on("end", function () {
 			if (body)
-				cb( body.parse( function () {  // yank files if body not json
+				cb( body.parseJSON( function () {  // yank files if body not json
 					
 					var files = [], parms = {};
 					

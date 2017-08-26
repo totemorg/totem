@@ -1,12 +1,26 @@
 // UNCLASSIFIED
 /**
- * Unit test (aka run) a Totem configuration CONFIG using one the following methods:
- * 
- * 		. maint.sh CONFIG			# with new environment variables
- * 		node test.js CONFIG			# with current environment variables
- *		forever start test.js CONFIG  # keep it up forever and ever
- *
- * A null CONFIG will return a list of available configurations.
+Unit test (aka run) a Totem configuration CONFIG using one the following methods:
+ 
+ 		. maint.sh CONFIG			# with new environment variables
+ 		node test.js CONFIG			# with current environment variables
+		forever start test.js CONFIG  # keep it up forever and ever
+
+A null CONFIG will return a list of available configurations.
+
+Trace logs are prefixed by the issuing module:
+
+		U>UNITTEST
+			D>DEBE
+				T>TOTEM
+					V>DSVAR
+				E>ENGINE
+					R>RANDPR
+				X>FLEX
+					S>READER
+				C>CHIPPER
+					E>ENGINE
+ 
  * */
 
 var 
