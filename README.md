@@ -96,7 +96,7 @@ useful, if you wish to learn more about its database agnosticator.
 	Trace(
 		"Im simply a Totem interface so Im not running any service", {
 		default_fetcher_endpts: TOTEM.byType,
-		default_protect_mode: TOTEM.nofaults,
+		default_protect_mode: TOTEM.faultless,
 		default_cores_used: TOTEM.cores
 	});
 	
@@ -108,7 +108,7 @@ with 2 cores and the default endpoint routes` );
 
 	var TOTEM = require("../totem").config({
 		name: "iamwhoiam",
-		nofaults: true,
+		faultless: true,
 		cores: 2
 	}, function (err) {
 		Trace(err || "Ok - Im started with my own config parms and am ready to rock - but no DB!");

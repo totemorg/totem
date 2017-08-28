@@ -434,16 +434,21 @@ var
 	/**
 	@cfg {Number} [cores=0]
 	@member TOTEM	
-	Number of worker cores (0 for master-only startup)
+	Number of worker cores (0 for master-only).  If cores=0, master at port; otherwise master at
+	port+1 and workers at port.  So with cores>0, clients will typically access on port (for typical
+	stateless access to files and db).  Workflow (stateful) clients will access on port+1 to allow the
+	master to allocate its workers.	
 	*/				
-	cores: 0,	//< Number of worker cores (0 for master-only startup)
+	cores: 0,	//< Number of worker cores (0 for master-only)
 		
 	/**
 	@cfg {Number} [port=8080]
 	@member TOTEM	
-	Service port number
+	Service port number. So with cores>0, clients will typically access on port (for typical
+	stateless access to files and db).  Workflow (stateful) clients will access on port+1 to allow the
+	master to allocate its workers.	
 	*/				
-	port: 8080,				  //< Service port number
+	port: 8080,				  //< if cores=0, master at port; otherwise master at port+1 and workers at port
 		
 	/**
 	@cfg {String} [host="localhost"]
@@ -870,7 +875,8 @@ var
 		noService: new Error("no service  to start"),
 		badData: new Error("data has circular reference"),
 		retryFetch: new Error("data fetch retries exceeded"),
-		cantConfig: new Error("cant derive config options")
+		cantConfig: new Error("cant derive config options"),
+		notAllowed: new Error("interface disabled")
 	},
 
 	/**
@@ -1047,7 +1053,7 @@ function insertDS(req,res) {
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
-	res( TOTEM.paths.TOTEM.errors.noRoute );
+	res( TOTEM.paths.TOTEM.errors.notAllowed );
 }
 
 function deleteDS(req,res) {
@@ -1057,7 +1063,7 @@ function deleteDS(req,res) {
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
-	res( TOTEM.paths.TOTEM.errors.noRoute );
+	res( TOTEM.paths.TOTEM.errors.notAllowed );
 }
 
 function executeDS(req,res) {
@@ -1067,7 +1073,7 @@ function executeDS(req,res) {
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
-	res( TOTEM.paths.TOTEM.errors.noRoute );
+	res( TOTEM.paths.TOTEM.errors.notAllowed );
 }
 
 /**
@@ -1227,7 +1233,6 @@ function startService(server,cb) {
 				socket.on("select", function (req) { 		// Trap connect raised on client "select/join request"
 					
 					Trace(`>CONNECTING ${req.client}`);
-					
 					sqlThread( function (sql) {	
 
 						var ses = {
@@ -1869,7 +1874,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 		sql.query("show session status like 'Thread%'", function (err,stats) {  		// start session metric logging
 			if (err)
 				stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
-
+			
 			Copy({  // add session metric logs and session parms
 				log: {  								// potential session metrics to log
 					Event: now,		 					// start time
@@ -3069,10 +3074,7 @@ function sesThread(Req,Res) {
 					if (err)
 						res(err);
 
-					else {						
-						Res.setHeader("Set-Cookie", 
-							["client="+req.client, "service="+TOTEM.name]);		
-
+					else 
 						if (TOTEM.mysql)
 							sql.query("SELECT * FROM openv.sessions WHERE ?", {Client: req.client}, function (err,ses) {
 								
@@ -3104,11 +3106,10 @@ function sesThread(Req,Res) {
 
 						else
 							res( null );
-					}
 				});
 			});
 		
-		else
+		else 
 			res( TOTEM.errors.lostConnection );
 	}
 
@@ -3142,7 +3143,10 @@ function sesThread(Req,Res) {
 				// get a list of all nodes
 				nodes = (nodeDivider = TOTEM.nodeDivider)
 					? url ? url.split(nodeDivider) : []
-					: url ? [url] : [];
+					: url ? [url] : [],
+				
+				acks = {},
+				saved = 0;
 
 			conThread( req, function (err) { 	// start session with client
 
@@ -3153,6 +3157,7 @@ function sesThread(Req,Res) {
 				if (nodes.length == 1) {	// respond with only this node
 					node = req.node = nodes.pop();	
 					routeNode(req, function (ack) {	
+						//Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
 						Res.setHeader("Content-Type", MIME[req.type] || MIME.html || "text/plain");
 						res(ack);
 					});
@@ -3163,7 +3168,7 @@ function sesThread(Req,Res) {
 						Res.setHeader("Content-Type", "application/json");
 						res(ack);
 					});
-
+					
 			});
 		});
 	});
