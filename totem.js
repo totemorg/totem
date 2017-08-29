@@ -1209,8 +1209,16 @@ function startService(server,cb) {
 		}
 	};
 	
-	if (server && name) 			// attach responder
+	if (server && name) {			// attach responder
 		server.on("request", sesThread);
+		server.on("connection", function (sok) { 
+			//Req.setSocketKeepAlive(true);
+			//console.log({ip: Req.socket.remoteAddress, port: Req.socket.remotePort});
+			sok.on("close", function () {
+				//console.log(">>>>>>>>>>>>>>>down");
+			});
+		});
+	}
 	
 	else
 		return cb( TOTEM.errors.noService );
@@ -1429,7 +1437,7 @@ function protectService(cb) {
 	
 	TOTEM.site.urls = {  // establish site urls
 		socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
-		master: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + (TOTEM.cores ? TOTEM.port+1 : TOTEM.port) + "/",
+		master: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/",
 		worker: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/"					
 	};
 					
@@ -2751,11 +2759,12 @@ request-response thread
 		}
 	}
 
-	if ( !req.path ) logMetrics();  // dont log file requests
+	//if ( !req.path ) logMetrics();  // dont log file requests
+	var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
 	
 	Trace( 
 		(route?route.name:"null").toUpperCase() 
-		+ ` ${req.file} FOR ${req.group}.${req.client}`);
+		+ ` ${req.file} FOR ${req.group}.${req.client} ON CORE${myid}`);
 	
 	route(req, res);
 }
@@ -3157,7 +3166,7 @@ function sesThread(Req,Res) {
 				if (nodes.length == 1) {	// respond with only this node
 					node = req.node = nodes.pop();	
 					routeNode(req, function (ack) {	
-						//Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
+						Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
 						Res.setHeader("Content-Type", MIME[req.type] || MIME.html || "text/plain");
 						res(ack);
 					});
@@ -3165,6 +3174,7 @@ function sesThread(Req,Res) {
 
 				else 					// respond with aggregate of all nodes
 					syncNodes(nodes, {}, req, function (ack) {
+						Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
 						Res.setHeader("Content-Type", "application/json");
 						res(ack);
 					});
