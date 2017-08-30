@@ -25,13 +25,14 @@
  */
 
 var												// NodeJS modules
-	HTTP = require("http"),						//< NodeJs module
-	HTTPS = require("https"),					//< NodeJs module
-	CP = require("child_process"),				//< NodeJs module
-	FS = require("fs"),							//< NodeJs module
-	CONS = require("constants"),				//< NodeJs module
-	CLUSTER = require("cluster"),				//< NodeJs module
-	URL = require("url"),						//< NodeJs module
+	HTTP = require("http"),						//< http interface
+	HTTPS = require("https"),					//< https interface
+	CP = require("child_process"),				//< spawn OS shell commands
+	FS = require("fs"),							//< access file system
+	CONS = require("constants"),				//< constants for setting tcp sessions
+	CLUSTER = require("cluster"),				//< multicore  processing
+	URL = require("url"),						//< url parsing
+	NET = require("net"), 				// network interface
 	OS = require('os');					// OS utilitites
 
 var 											// 3rd party modules
@@ -440,7 +441,9 @@ var
 	master to allocate its workers.	
 	*/				
 	cores: 0,	//< Number of worker cores (0 for master-only)
-		
+	
+	stateful: false, 	//< enabled worker port/encrypt at master/master; disabled worker at master+1/unencrypted
+
 	/**
 	@cfg {Number} [port=8080]
 	@member TOTEM	
@@ -1100,50 +1103,6 @@ function configService(opts,cb) {
 	Trace(`CONFIGURING ${name}`); 
 	
 	TOTEM.started = new Date();
-
-	Each(TOTEM.watch, function (folder, cb) {
-		FS.readdir( folder, function (err, files) {
-			if (err) 
-				Trace(err);
-			
-			else
-				files.each(function (n,file) {
-					var path = folder + "/" + file;
-
-					Trace("WATCHING "+path);
-					FS.watch(path, function (ev, file) {  //{persistent: false, recursive: false}, 
-
-						Trace(ev+" "+file);
-
-						if (TOTEM.thread && file)
-							switch (ev) {
-								case "change":
-									TOTEM.thread( function (sql) {
-										/*READ.byType(sql, path+file, function (keys) {
-											console.log(["keys",keys]);
-										});
-										*/
-										if (file.charAt(0) == ".") { // swp being updated
-											path = folder+"/"+file.substr(1).replace(".swp","");
-											cb(path, ev, sql);
-										}
-
-										/*
-										else
-											cb(path, ev, sql);
-										*/
-									});
-
-									break;
-
-								case "x":
-								default:
-
-							}
-					});
-				});
-		});	
-	});
 				
 	if (mysql) 
 		DSVAR.config({   // establish the db agnosticator 
@@ -1196,7 +1155,8 @@ function startService(server,cb) {
 	var 
 		name = TOTEM.name,
 		site = TOTEM.site,
-		paths = TOTEM.paths;
+		paths = TOTEM.paths,
+		isHTTPS = TOTEM.encrypt && CLUSTER.isMaster;
 	
 	Trace(`STARTING ${name}`);
 	
@@ -1225,7 +1185,7 @@ function startService(server,cb) {
 
 	TOTEM.flush();  		// init of client callstack via its Function key
 
-	if (TOTEM.encrypt && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
+	if (isHTTPS && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
 		var 
 			IO = TOTEM.IO = DSVAR.io = SIO(server, { // use defaults but can override ...
 				//serveClient: true, // default true to prevent server from intercepting path
@@ -1301,10 +1261,10 @@ function startService(server,cb) {
 
 	var endpts = Object.keys( TOTEM.select ).join();
 
-	if (TOTEM.cores) 					// Establish master and worker cores
-		if (CLUSTER.isMaster) {			// Establish master
+	if (TOTEM.cores) 					// Start for master-workers
+		if (CLUSTER.isMaster) {			// Establish master port
 			
-			server.listen(TOTEM.port+1, function() {  // Establish master
+			server.listen(TOTEM.port, function() {  // Establish master
 				Trace(`SERVING ${site.urls.master} AT [${endpts}]`);
 			});
 			
@@ -1333,15 +1293,21 @@ function startService(server,cb) {
 			
 			for (var core = 0; core < TOTEM.cores; core++) {  
 				var worker = CLUSTER.fork(); 
-				console.info(`CORE${worker.id} FORKED`);
+				Trace(`FORK CORE${worker.id}`);
 			}
 		}
 		
-		else {								// Establish worker cores
-			server.listen(TOTEM.port, function() {
-				Trace(`CORE${CLUSTER.worker.id} ROUTING ${site.urls.worker} AT [${endpts}]`);
-				//cb(null);
-			});
+		else {								// Establish worker port
+			
+			if ( TOTEM.stateful )
+				server.listen(TOTEM.port+1, function() {
+					Trace(`STATEFUL CORE${CLUSTER.worker.id} ROUTING ${site.urls.worker} AT [${endpts}]`);
+				});
+			
+			else
+				server.listen(TOTEM.port+1, function() {
+					Trace(`STATELESS CORE${CLUSTER.worker.id} ROUTING ${site.urls.worker} AT [${endpts}]`);
+				});
 			
 			if ( TOTEM.faultless)
 				CLUSTER.worker.process.on("uncaughtException", function (err) {
@@ -1349,11 +1315,62 @@ function startService(server,cb) {
 				});	
 		}
 	
-	else 								// Establish worker
+	else 								// Establish master-only
 		server.listen(TOTEM.port, function() {
 			Trace(`SERVING ${site.urls.master} AT ${endpts}`);
 		});
+		
+	// watch files
+	
+	TOTEM.thread( function (sql) {
+		sql.query("UPDATE app.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
 			
+		Each(TOTEM.watch, function (folder, cb) {
+			FS.readdir( folder, function (err, files) {
+				if (err) 
+					Trace(err);
+
+				else
+					files.each(function (n,file) {
+						var path = folder + "/" + file;
+
+						Trace("WATCHING "+path);
+
+						FS.watch(path, function (ev, file) {  //{persistent: false, recursive: false}, 
+
+							Trace(ev+" "+file);
+
+							if (TOTEM.thread && file)
+								switch (ev) {
+									case "change":
+										TOTEM.thread( function (sql) {
+											/*READ.byType(sql, path+file, function (keys) {
+												console.log(["keys",keys]);
+											});
+											*/
+											if (file.charAt(0) == ".") { // swp being updated
+												path = folder+"/"+file.substr(1).replace(".swp","");
+												cb(path, ev, sql);
+											}
+
+											/*
+											else
+												cb(path, ev, sql);
+											*/
+										});
+
+										break;
+
+									case "x":
+									default:
+
+								}
+						});
+					});
+			});	
+		});
+	});
+	
 }
 		
 function connectService(cb) {
@@ -1370,11 +1387,12 @@ function connectService(cb) {
 		port = TOTEM.port,
 		name = TOTEM.name,
 		paths = TOTEM.paths,
-		certs = TOTEM.cache.certs;
-	
-	Trace((TOTEM.encrypt?"ENCRYPTED":"UNENCRYPTED")+` CONNECTION ${name} ON PORT ${port}`);
+		certs = TOTEM.cache.certs,
+		isHTTPS = TOTEM.encrypt && CLUSTER.isMaster;
+		
+	Trace((isHTTPS?"HTTPS":"HTTP")+` CONNECTION ${name} ON PORT ${port}`);
 
-	if (TOTEM.encrypt) {  
+	if ( isHTTPS ) {  
 
 		Copy({		// cache server data fetching certs 
 			pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
@@ -1384,7 +1402,7 @@ function connectService(cb) {
 
 		//console.log({certcache: certs});
 		
-		try {  // build the trust strore	
+		try {  // build the trust strore
 			Each( FS.readdirSync(paths.certs+"/truststore"), function (n,file) {
 				if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
 					Trace("TRUSTING "+file);
@@ -1392,6 +1410,7 @@ function connectService(cb) {
 				}
 			});
 		}
+		
 		catch (err) {
 		}
 
@@ -1429,26 +1448,30 @@ function protectService(cb) {
  * */
 	
 	var 
-		encrypt = TOTEM.encrypt,
+		isHTTPS = TOTEM.encrypt && CLUSTER.isMaster,
 		name = TOTEM.name,
-		paths = TOTEM.paths;
+		paths = TOTEM.paths,
+		pfxfile = `${paths.certs}${name}.pfx`;
 
 	Trace(`PROTECTING ${name}`);
 	
 	TOTEM.site.urls = {  // establish site urls
 		socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
 		master: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/",
-		worker: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/"					
+		worker:  
+			TOTEM.stateful
+				? "http://" + TOTEM.host + ":" + (TOTEM.port+1) + "/"
+				: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/"
 	};
 					
-	if (encrypt)   // derive a pfx cert if this is an encrypted service
-		FS.access(`${paths.certs}${name}.pfx`, FS.F_OK, function (err) {
+	if (isHTTPS)   // derive a pfx cert if this is an encrypted service
+		FS.access( pfxfile, FS.F_OK, function (err) {
 
 			if (err) {
 				var owner = TOTEM.name;
-				Trace(`CREATING SERVER CERTIFICATE FOR ${owner}`);
+				Trace( "CREATING SERVER CERTIFICATE FOR "+owner );
 			
-				createCert(owner,encrypt,function () {
+				createCert(owner,TOTEM.encrypt,function () {
 					connectService(cb);
 				});				
 			}
@@ -1865,7 +1888,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 			return avgUtil / cpus.length;
 		}		
 		
-		if (TOTEM.encrypt) {  // validate client's cert
+		if (TOTEM.encrypt && CLUSTER.isMaster) {  // validate client's cert
 
 			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
 				return res( TOTEM.errors.expiredCert );
