@@ -86,53 +86,6 @@ var
 	dsAttrs: {
 	},
 		
-	sendMessage: function (msg, cb) {
-
-	
-		var 
-			url = "http://localhost:8082/",
-			opts = URL.parse(url);
-		
-		opts.method = "POST";
-		
-		Req = HTTP.request(opts, function(Res) {
-			
-			var body = "";
-			Res.on('data', function (chunk) {
-				body += chunk;
-			});
-
-			Res.on("end", function () {
-				console.log("=========rx "+body);
-				cb(body);
-			});
-		});
-		
-		Req.on('error', function(err) {
-			console.log("=========tx "+err);
-			cb( null );
-		});
-		console.log( "========tx "+JSON.stringify(msg) );
-
-		Req.write( JSON.stringify(msg) );
-		Req.end(  );
-		
-		/*
-		var con = NET.createConnection(8082, "localhost");
-		console.log("=====connect");
-		con.on("error", function (e) {
-			console.log(e);
-		});
-		con.on("data", function (d) {
-			console.log("========== data");
-			console.log("========== "+d.toString());
-		});
-		con.on("end", function () {
-			console.log("========== ending");
-		});
-		worker.send(msg, con);  */
-	},
-		
 	Array: [ 			//< Array prototypes
 		
 		function hyper(refs, arg) {
@@ -514,7 +467,7 @@ var
 	},
 		
 	/**
-	@cfg {Boolean} [proxy=false]
+	@cfg {Boolean} [behindProxy=false]
 	@member TOTEM	
 	Enable if https server being proxied
 	*/				
@@ -843,6 +796,9 @@ var
 	*/		
 	riddles: 0, 			
 	
+	proxy: proxyService,  //< default relay if needed
+	isSecure: false, 	//< enabled by config if service is HTTPS (encrypted and has worker cores)
+		
 	/**
 	@cfg {Object} 
 	@private
@@ -1200,8 +1156,7 @@ function startService(server,cb) {
 	var 
 		name = TOTEM.name,
 		site = TOTEM.site,
-		paths = TOTEM.paths,
-		isHTTPS = TOTEM.encrypt; // && CLUSTER.isMaster;
+		paths = TOTEM.paths;
 	
 	Trace(`STARTING ${name}`);
 	
@@ -1230,7 +1185,7 @@ function startService(server,cb) {
 
 	TOTEM.flush();  		// init of client callstack via its Function key
 
-	if (isHTTPS && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
+	if (TOTEM.isSecure && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
 		var 
 			IO = TOTEM.IO = DSVAR.io = SIO(server, { // use defaults but can override ...
 				//serveClient: true, // default true to prevent server from intercepting path
@@ -1309,51 +1264,27 @@ function startService(server,cb) {
 	if (TOTEM.cores) 					// Start for master-workers
 		if (CLUSTER.isMaster) {			// Establish master port
 			
-			HTTP.createServer().listen(8082, function () {} )
-			.on("request", function (Req,Res) {
-				
-				var body = ""; 
-				Req
-				.on("data", function (chunk) {
-					body += chunk.toString();
-				})
-				.on("end", function () {
-					//body = unescape(Req.url.substr(1));
-					console.log("=====rx "+body);
-					var msg = JSON.parse(body);
-					if (true)
-						Res.end("no one home");
-					else
-					if (false)
-						Req.connection.end("im done w you");
-					else
-					if ( worker = CLUSTER.workers[msg.id] )
-						worker.send(msg, Req.connection);
-				});
-				
-			});
-				
-			server.listen(TOTEM.port+1, function() {  // Establish master
+			server.listen(TOTEM.port + 1, function() {  // Establish master
 				Trace(`SERVING ${site.urls.master} AT [${endpts}]`);
 			});
 			
 			CLUSTER.on('exit', function(worker, code, signal) {
-				console.error(`CORE${worker.id} TERMINATED ${code||"ok"}`);
+				Trace(`CORE${worker.id} TERMINATED ${code||"ok"}`);
 			});
 
 			CLUSTER.on('online', function(worker) {
-				console.info(`CORE${worker.id} CONNECTED`);
+				Trace(`CORE${worker.id} CONNECTED`);
 			});
 			
 			for (var core = 0; core < TOTEM.cores; core++) {  
 				var worker = CLUSTER.fork(); 
-				Trace(`FORK CORE${worker.id}`);
+				Trace(`CORE${worker.id} FORKED`);
 			}
 		}
 		
 		else 								// Establish worker port			
 			server.listen(TOTEM.port, function() {
-				Trace(`STATELESS CORE${CLUSTER.worker.id} ROUTING ${site.urls.worker} AT [${endpts}]`);
+				Trace(`CORE${CLUSTER.worker.id} SERVING ${site.urls.worker} AT [${endpts}]`);
 			});
 	
 	else 								// Establish master-only
@@ -1442,12 +1373,9 @@ function connectService(cb) {
 		port = TOTEM.port,
 		name = TOTEM.name,
 		paths = TOTEM.paths,
-		certs = TOTEM.cache.certs,
-		isHTTPS = TOTEM.encrypt; // && CLUSTER.isMaster;
+		certs = TOTEM.cache.certs;
 		
-	Trace((isHTTPS?"HTTPS":"HTTP")+` CONNECTION ${name} ON PORT ${port}`);
-
-	if ( isHTTPS ) {  
+	if ( TOTEM.isSecure ) {  
 
 		Copy({		// cache server data fetching certs 
 			pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
@@ -1461,7 +1389,7 @@ function connectService(cb) {
 			Each( FS.readdirSync(paths.certs+"/truststore"), function (n,file) {
 				if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
 					Trace("TRUSTING "+file);
-					TOTEM.trust.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf-8") );
+					TOTEM.trust.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf8") );
 				}
 			});
 		}
@@ -1469,27 +1397,19 @@ function connectService(cb) {
 		catch (err) {
 		}
 
-		if (port)
-			startService( HTTPS.createServer({
-				passphrase: TOTEM.encrypt,		// passphrase for pfx
-				pfx: certs.pfx,			// TOTEM.paths's pfx/p12 encoded crt+key TOTEM.paths
-				ca: TOTEM.trust,				// list of TOTEM.paths authorities (trusted serrver.trust)
-				crl: [],						// pki revocation list
-				requestCert: true,
-				rejectUnauthorized: true
-				//secureProtocol: CONS.SSL_OP_NO_TLSv1_2
-			}) , cb );
-
-		else 
-			startService( null, cb );
+		startService( HTTPS.createServer({
+			passphrase: TOTEM.encrypt,		// passphrase for pfx
+			pfx: certs.pfx,			// TOTEM.paths's pfx/p12 encoded crt+key TOTEM.paths
+			ca: TOTEM.trust,				// list of TOTEM.paths authorities (trusted serrver.trust)
+			crl: [],						// pki revocation list
+			requestCert: true,
+			rejectUnauthorized: true
+			//secureProtocol: CONS.SSL_OP_NO_TLSv1_2
+		}) , cb );
 	}
 	
 	else
-	if (port)
 		startService( HTTP.createServer(), cb );
-	
-	else 
-		startService( null, cb );
 	
 }
 
@@ -1503,25 +1423,26 @@ function protectService(cb) {
  * */
 	
 	var 
-		isHTTPS = TOTEM.encrypt, // && CLUSTER.isMaster,
 		name = TOTEM.name,
 		paths = TOTEM.paths,
 		pfxfile = `${paths.certs}${name}.pfx`;
 
 	Trace(`PROTECTING ${name}`);
 	
-	TOTEM.site.urls = {  // establish site urls
-		socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
+	TOTEM.site.urls = TOTEM.cores 
+		? {  // establish site urls
+			socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
+			worker:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.port,
+			master:  "http://" + TOTEM.host + ":" + (TOTEM.port+1)
+		}
 		
-		master: 
-			TOTEM.cores
-				? (isHTTPS ? "https" : "http") + "://" + TOTEM.host + ":" + (TOTEM.port+1) + "/"
-				: (isHTTPS ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/",
-		
-		worker:  (isHTTPS ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/"
-	};
-					
-	if (isHTTPS)   // derive a pfx cert if this is an encrypted service
+		: {
+			socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
+			worker:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.port,
+			master:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.port,
+		};
+
+	if ( TOTEM.isSecure  = TOTEM.encrypt && (CLUSTER.isWorker || !TOTEM.cores) )   // derive a pfx cert if this is an encrypted service
 		FS.access( pfxfile, FS.F_OK, function (err) {
 
 			if (err) {
@@ -1874,7 +1795,6 @@ function validateClient(req,res) {
 Responds will res(null) if session is valid or res(err) if session invalid.  Adds the client's session metric log, 
 org, serverip, group, profile, db journalling flag, time joined, email and client ID to this req request.  
  * */
-	var isHTTPS = TOTEM.encrypt; // && CLUSTER.isMaster;	
 	
 	function getCert() {
 	/*
@@ -1933,7 +1853,6 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 	group, profile, db journalling flag, time joined, email and client ID to this req request.  The cert is also
 	cached for future data fetching to https sites.  If the cert is bad, then respond with res(err).
 	*/
-		
 		function cpuavgutil() {				// compute average cpu utilization
 			var avgUtil = 0;
 			var cpus = OS.cpus();
@@ -1946,7 +1865,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 			return avgUtil / cpus.length;
 		}		
 		
-		if (isHTTPS) {  // validate client's cert
+		if ( TOTEM.isSecure ) {  // validate client's cert
 
 			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
 				return res( TOTEM.errors.expiredCert );
@@ -2322,7 +2241,7 @@ function httpFetch(url,cb) {
 
 	/*if (opts.soap) {
 		opts.headers = {
-			"Content-Type": "application/soap+xml; charset=utf-8",
+			"Content-Type": "application/soap+xml; charset=utf8",
 			"Content-Length": opts.soap.length
 		};
 		opts.method = "POST";
@@ -2331,17 +2250,15 @@ function httpFetch(url,cb) {
 	Trace("FETCHING "+url);
 	
 	if (opts.protocol) {
-		var req = transport[opts.protocol].request(opts, function(res) {
-			res.setEncoding('utf-8');
-
-			var atext = "";
-			res.on('data', function (chunk) {
-				atext += chunk;
+		var Req = transport[opts.protocol].request(opts, function(Res) {
+			var body = "";
+			Res.on('data', function (chunk) {
+				body += chunk.toString();
 			});
 
-			res.on("end", function () {
+			Res.on("end", function () {
 				try {
-					cb( JSON.parse(atext) );
+					cb( JSON.parse(body) );
 				}
 				catch (err) {
 					cb( null );
@@ -2350,14 +2267,14 @@ function httpFetch(url,cb) {
 
 		});
 
-		req.on('error', function(err) {
+		Req.on('error', function(err) {
 			cb( null );
 		});
 
 		/*if (opts.soap)
-			req.write(opts.soap);*/
+			Req.write(opts.soap);*/  // only for put method
 
-		req.end();
+		Req.end();
 	}
 	
 	else
@@ -2592,96 +2509,85 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 */
 	var
 		node = URL.parse(req.node),
+		path = req.path = node.path,
 		search = req.search = node.query || "",
 		query = req.query = search.parseParms({}),
 		areas = node.pathname.split("/"),
-		file = req.file = areas.pop() || (areas[1] ? "" : TOTEM.paths.default),
+		file = req.filename = areas.pop() || (areas[1] ? "" : TOTEM.paths.default),
 		parts = req.parts = file.split("."),
 		type = req.type = parts[1] || "",
 		table = req.table = parts[0] || "",
-		area = req.area = areas[1] || "";
-		
-	if ( req.path = req.area ? TOTEM.paths.mime[req.area] || req.area : "" )
-		req.path += node.pathname;
-		
-	else
-		req.area = "";
+		area = req.filearea = areas[1] || "";
 
-	if (false)
-		console.log({
-			a: req.area,
-			t: req.type,
-			f: req.file,
-			p: req.path,
-			d: req.table});
-	
-	// flags and joins
-	
-	var 
-		reqflags = TOTEM.reqflags,
-		strips = reqflags.strips,
-		prefix = reqflags.prefix,
-		edits = reqflags.edits,
-		traps = reqflags.traps,
-		id = reqflags.id,
-		trace = query[reqflags.trace],
-	
-		body = req.body,
-		flags = req.flags,
-		joins = req.joins;
+	if ( req.filepath = req.filearea ? TOTEM.paths.mime[req.filearea] || req.filearea : "" )
+		req.filepath += node.pathname;
 
-	/*
-	console.log({
-			i: "before",
+	else {
+		req.filearea = "";
+
+		// flags and joins
+
+		var 
+			reqflags = TOTEM.reqflags,
+			strips = reqflags.strips,
+			prefix = reqflags.prefix,
+			edits = reqflags.edits,
+			traps = reqflags.traps,
+			id = reqflags.id,
+			body = req.body,
+			flags = req.flags,
+			joins = req.joins;
+
+		/*
+		console.log({before: {
 			a: req.action,
 			q: query,
 			b: body,
 			f: flags
-		});
-	*/
-	
-	for (var n in query) 		// remove bogus query parameters and remap query flags and joins
-		if ( n in strips ) 				// remove bogus
-			delete query[n];
-		
-		else
-		if (n.charAt(0) == prefix) {  	// remap flag
-			var flag = n.substr(1);
-			flags[flag] = query[n];
-			delete query[n];
-		}
-		
-		else {							// remap join
-			var parts = n.split(".");
-			if (parts.length>1) {
-				joins[parts[0]] = n+"="+query[n];
+		}}); */
+
+		for (var n in query) 		// remove bogus query parameters and remap query flags and joins
+			if ( n in strips ) 				// remove bogus
+				delete query[n];
+
+			else
+			if (n.charAt(0) == prefix) {  	// remap flag
+				var flag = n.substr(1);
+				flags[flag] = query[n];
 				delete query[n];
 			}
-		}	
 
-	for (var n in body) 		// remap body flags
-		if (n.charAt(0) == prefix) {  
-			flags[n.substr(1)] = body[n];
-			delete body[n];
+			else {							// remap join
+				var parts = n.split(".");
+				if (parts.length>1) {
+					joins[parts[0]] = n+"="+query[n];
+					delete query[n];
+				}
+			}	
+
+		for (var n in body) 		// remap body flags
+			if (n.charAt(0) == prefix) {  
+				flags[n.substr(1)] = body[n];
+				delete body[n];
+			}
+
+		if (id in body) {  			// remap body record id
+			query[id] = body[id];
+			delete body[id];
 		}
-	
-	if (id in body) {  			// remap body record id
-		query[id] = body[id];
-		delete body[id];
+
+		for (var n in traps) 		// let traps remap query-flag parms
+			if ( flags[n] )
+				traps[n](req);
+
+		/*
+		console.log({after: {
+			a: req.action,
+			q: query,
+			b: body,
+			f: flags
+		}});*/
 	}
-	
-	for (var n in traps) 		// let traps remap query-flag parms
-		if ( flags[n] )
-			traps[n](req);
-	
-	if (trace)
-		console.log({
-			action: req.action,
-			query: query,
-			body: body,
-			flags: flags,
-			joins: joins
-		});
 }						
 
 function syncNodes(nodes, acks, req, res) {
@@ -2694,7 +2600,7 @@ method, aggregate results, then send with supplied response().
 	
 	if ( node = req.node = nodes.pop() )  	// grab last node
 		routeNode( req, function (ack) { 	// route it and intercept its ack
-			acks[req.file] = ack;
+			acks[req.table] = ack;
 			syncNodes( nodes, acks, Copy(req,{}), res );
 		});
 
@@ -2717,8 +2623,8 @@ byType, byActionTable, engine or file indexer (see config documentation).
 	parseNode(req);
 
 	function sendFile(req,res) {
-		res( function () {return req.path; } );
-	}
+		res( function () {return req.filepath; } );
+	}1
 
 	var
 		sql = req.sql,
@@ -2726,12 +2632,12 @@ byType, byActionTable, engine or file indexer (see config documentation).
 		table = req.table,
 		type = req.type,
 		action = req.action,
-		area = req.area,
+		area = req.filearea,
 		paths = TOTEM.paths;
 
-	//console.log([action,req.path,area,table,type]);
+	//console.log([action,req.filepath,area,table,type]);
 	
-	if (req.path) 
+	if (req.filepath) 
 		followRoute( route = TOTEM.byArea[area] || sendFile, req, res );
 
 	else
@@ -2784,7 +2690,8 @@ request-response thread
 
 	function logMetrics() { // log session metrics 
 		
-		if ((con=req.connection) && (record=TOTEM.paths.mysql.record)) {
+		if ( con=req.connection ) 
+		if ( record=TOTEM.paths.mysql.record ) {
 			var log = req.log;
 		
 			con._started = new Date();
@@ -2840,12 +2747,12 @@ request-response thread
 		}
 	}
 
-	//if ( !req.path ) logMetrics();  // dont log file requests
+	//if ( !req.filepath ) logMetrics();  // dont log file requests
 	var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
 	
 	Trace( 
 		(route?route.name:"null").toUpperCase() 
-		+ ` ${req.file} FOR ${req.group}.${req.client} ON CORE${myid}`);
+		+ ` ${req.filename} FOR ${req.group}.${req.client} ON CORE${myid}`);
 	
 	route(req, res);
 }
@@ -3034,13 +2941,13 @@ function sesThread(Req,Res) {
 					
 					else {		// credit/charge client when file pulled from file system	
 						if (paths.mysql.credit)
-							sql.query( paths.mysql.credit, {Name:req.node,Area:req.area} )
+							sql.query( paths.mysql.credit, {Name:req.node,Area:req.filearea} )
 							.on("result", function (file) {
 								if (file.Client != req.client)
 									sql.query("UPDATE openv.profiles SET Credit=Credit+1 WHERE ?",{Client: file.Client});
 							});
 
-						sendCache( ack(), req.file, req.type, req.area );
+						sendCache( ack(), req.filename, req.type, req.filearea );
 					}
 				
 					break;
@@ -3077,7 +2984,7 @@ function sesThread(Req,Res) {
 
 	function getBody( cb ) { // Feed body and file parameters to callback
 
-		var body = ""; //, file = "filename:";
+		var body = ""; 
 		
 		Req
 		.on("data", function (chunk) {
@@ -3098,7 +3005,7 @@ function sesThread(Req,Res) {
 							else {
 								//Trace("LOAD "+line);
 
-								line.split(";").each(function (n,arg) {
+								line.split(";").each(function (n,arg) {  // process one file at a time
 
 									var tok = arg
 										.replace("Content-Disposition: ","disposition=")
@@ -3204,6 +3111,7 @@ function sesThread(Req,Res) {
 	}
 
 	startSession( function() {  // process if session not busy
+		
 		getBody( function (body) {  // parse body, query and route
 
 			var 
@@ -3212,6 +3120,7 @@ function sesThread(Req,Res) {
 
 				// prime session request hash
 				req = Req.req = {
+					method: Req.method,
 					action: TOTEM.crud[Req.method],
 					socketio: TOTEM.encrypt ? TOTEM.site.urls.socketio : "",
 					query: {},
@@ -3219,7 +3128,7 @@ function sesThread(Req,Res) {
 					flags: {},
 					joins: {},
 					site: TOTEM.site,
-					connection: Req.connection	// engines require for transferring work to workers
+					connection: Req.connection	// required to validate cert and for ENGINE IPC
 				},
 
 				// get a clean url
@@ -3240,6 +3149,12 @@ function sesThread(Req,Res) {
 
 			conThread( req, function (err) { 	// start session with client
 
+				//Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
+				Res.setHeader("Content-Type", MIME[req.type] || MIME.html || "text/plain");
+				//Res.setHeader("Content-Type", "text/plain");
+				Res.writeHead(200, {});
+				Trace(">>>>>>>>>>>>>>>>>>> header set");
+				
 				if (err) 					// session validator rejected (bad cert)
 					res(err);
 
@@ -3247,16 +3162,14 @@ function sesThread(Req,Res) {
 				if (nodes.length == 1) {	// respond with only this node
 					node = req.node = nodes.pop();	
 					routeNode(req, function (ack) {	
-						Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
-						Res.setHeader("Content-Type", MIME[req.type] || MIME.html || "text/plain");
 						res(ack);
 					});
 				}
 
 				else 					// respond with aggregate of all nodes
 					syncNodes(nodes, {}, req, function (ack) {
-						Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
-						Res.setHeader("Content-Type", "application/json");
+						//Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
+						//Res.setHeader("Content-Type", "application/json");
 						res(ack);
 					});
 					
@@ -3294,4 +3207,119 @@ function Trace(msg,arg) {
 	ENUM.trace("T>",msg,arg);
 }
 
+
+function proxyService(req, res) {
+	
+	var 
+		pathto = 
+			TOTEM.site.urls.master + req.path,  
+			// "http://localhost:8081/news",  
+			//"http://localhost:8081" + req.path,
+		
+		proxy = URL.parse( pathto );
+
+	proxy.method = req.method;
+	proxy.headers = {
+		"Content-Type": "text/plain",
+		"Content-Length": 0  // disabled chunking
+	};
+	
+	//proxy["content-length"] = Buffer.bytelength(req.body);
+	//proxy["content-type"] = "text/plain";
+	
+	console.log(proxy, pathto);
+	var Req = HTTP.request( pathto, function(Res) {
+		console.log("res setup", Res.statusCode, Res.headers);
+		
+		var body = "";
+
+		Res.setEncoding("utf8");
+		Res.on('data', function (chunk) {  // will not trigger unless worker fails to end socket
+			body += chunk;
+		});
+
+		Res.on("end", function () {
+			console.log("=========rx "+body);
+			res(body);
+		});
+		
+		Res.on("error", function (err) {
+			console.log("what??? "+err);
+		}); 
+		console.log("tada");
+		
+	}); 
+
+	Req.on('error', function(err) {
+		console.log("=========tx "+err);
+		res("oh well");
+	});
+	
+	/*Req.on("end", function () {
+		setTimeout( function() {
+			console.log("setto " + (Req.connection ? true : false) );
+			if ( Req.connection ) Req.connection.removeListener('error', Req._parserErrorHandler);
+		 }, 2e3);
+	});*/
+
+	//console.log( "RELAY TX "+JSON.stringify( req.body) );
+
+	if (proxy.method == "PUT") 
+		Req.write( JSON.stringify(req.body) );
+
+	Req.end( );
+
+/*  generic
+		var http = require('http');
+
+http.createServer(function(request, response) {
+  var proxy = http.createClient(80, request.headers['host'])
+  var proxy_request = proxy.request(request.method, request.url, request.headers);
+  proxy_request.addListener('response', function (proxy_response) {
+    proxy_response.addListener('data', function(chunk) {
+      response.write(chunk, 'binary');
+    });
+    proxy_response.addListener('end', function() {
+      response.end();
+    });
+    response.writeHead(proxy_response.statusCode, proxy_response.headers);
+  });
+  request.addListener('data', function(chunk) {
+    proxy_request.write(chunk, 'binary');
+  });
+  request.addListener('end', function() {
+    proxy_request.end();
+  });
+}).listen(8080);
+*/
+	
+/*
+var net = require('net');
+
+var LOCAL_PORT  = 6512;
+var REMOTE_PORT = 6512;
+var REMOTE_ADDR = "192.168.1.25";
+
+var server = net.createServer(function (socket) {
+    socket.on('data', function (msg) {
+        console.log('  ** START **');
+        console.log('<< From client to proxy ', msg.toString());
+        var serviceSocket = new net.Socket();
+        serviceSocket.connect(parseInt(REMOTE_PORT), REMOTE_ADDR, function () {
+            console.log('>> From proxy to remote', msg.toString());
+            serviceSocket.write(msg);
+        });
+        serviceSocket.on("data", function (data) {
+            console.log('<< From remote to proxy', data.toString());
+            socket.write(data);
+            console.log('>> From proxy to client', data.toString());
+        });
+    });
+});
+
+server.listen(LOCAL_PORT);
+console.log("TCP server accepting connection on port: " + LOCAL_PORT);
+*/
+	
+}
 // UNCLASSIFIED

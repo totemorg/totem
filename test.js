@@ -73,7 +73,7 @@ with 2 cores and the default endpoint routes` );
 I do have mysql database from which I've derived my start() 
 options from openv.apps.nick = TOTEM.name = "Totem"`, {
 
-				mysql_derived_site_parms: TOTEM.site
+				//mysql_derived_site_parms: TOTEM.site
 			});
 		});
 		
@@ -402,7 +402,6 @@ function faces(tau,parms) { return 102; }
 	},
 	
 	D1: function () {
-
 		var 
 			DEBE = require("../debe").config({
 				name: ENV.SERVICE_NAME,
@@ -414,6 +413,8 @@ function faces(tau,parms) { return 102; }
 				},
 
 				autoIngest: true,
+				
+				faultless: true,
 				
 				watch: {
 					"./public/events": function (path,ev,sql) {  // watch changes to the files in the events area
@@ -441,12 +442,11 @@ function faces(tau,parms) { return 102; }
 			}, function (err) {
 				Trace( err || "Yowzers - An encrypted DEBE service, a upload file watcher, billing jobs and self diags every minute" );
 			});
-
 	},
 	
 	D2: function () {
-		
-		var DEBE = require("../debe").config({
+		var 
+			DEBE = require("../debe").config({
 
 			riddles: 10,
 			mysql: {
@@ -462,14 +462,27 @@ function faces(tau,parms) { return 102; }
 						console.log(data);
 					});
 				}
-
 			}
 		}, function (err) {
 			Trace( "This bad boy in an encrypted service with a database and has an /wfs endpoint" );
 		});
-			
-	}
+	},
 	
+	D3: function () {
+		var 
+			DEBE = require("../debe").config({
+				name: "Flow",
+
+				mysql: {
+					host: ENV.MYSQL_HOST,
+					user: ENV.MYSQL_USER,
+					pass: ENV.MYSQL_PASS
+				}
+			}, function (err) {
+				Trace( err || "Stateful network flow manger started" );
+			});
+	}
+
 });	
 
 function Trace(msg,arg) {
