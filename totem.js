@@ -86,6 +86,53 @@ var
 	dsAttrs: {
 	},
 		
+	sendMessage: function (msg, cb) {
+
+	
+		var 
+			url = "http://localhost:8082/",
+			opts = URL.parse(url);
+		
+		opts.method = "POST";
+		
+		Req = HTTP.request(opts, function(Res) {
+			
+			var body = "";
+			Res.on('data', function (chunk) {
+				body += chunk;
+			});
+
+			Res.on("end", function () {
+				console.log("=========rx "+body);
+				cb(body);
+			});
+		});
+		
+		Req.on('error', function(err) {
+			console.log("=========tx "+err);
+			cb( null );
+		});
+		console.log( "========tx "+JSON.stringify(msg) );
+
+		Req.write( JSON.stringify(msg) );
+		Req.end(  );
+		
+		/*
+		var con = NET.createConnection(8082, "localhost");
+		console.log("=====connect");
+		con.on("error", function (e) {
+			console.log(e);
+		});
+		con.on("data", function (d) {
+			console.log("========== data");
+			console.log("========== "+d.toString());
+		});
+		con.on("end", function () {
+			console.log("========== ending");
+		});
+		worker.send(msg, con);  */
+	},
+		
 	Array: [ 			//< Array prototypes
 		
 		function hyper(refs, arg) {
@@ -442,8 +489,6 @@ var
 	*/				
 	cores: 0,	//< Number of worker cores (0 for master-only)
 	
-	stateful: false, 	//< enabled worker port/encrypt at master/master; disabled worker at master+1/unencrypted
-
 	/**
 	@cfg {Number} [port=8080]
 	@member TOTEM	
@@ -451,7 +496,7 @@ var
 	stateless access to files and db).  Workflow (stateful) clients will access on port+1 to allow the
 	master to allocate its workers.	
 	*/				
-	port: 8080,				  //< if cores=0, master at port; otherwise master at port+1 and workers at port
+	port: 8080,				  //< if cores=0, master at port; otherwise master at port+1. workers always at port
 		
 	/**
 	@cfg {String} [host="localhost"]
@@ -473,7 +518,7 @@ var
 	@member TOTEM	
 	Enable if https server being proxied
 	*/				
-	proxy: false,		//< Enable if https server being proxied
+	behindProxy: false,		//< Enable if https server being proxied
 
 	/**
 	@cfg {String} [name="Totem"]
@@ -1156,7 +1201,7 @@ function startService(server,cb) {
 		name = TOTEM.name,
 		site = TOTEM.site,
 		paths = TOTEM.paths,
-		isHTTPS = TOTEM.encrypt && CLUSTER.isMaster;
+		isHTTPS = TOTEM.encrypt; // && CLUSTER.isMaster;
 	
 	Trace(`STARTING ${name}`);
 	
@@ -1264,25 +1309,34 @@ function startService(server,cb) {
 	if (TOTEM.cores) 					// Start for master-workers
 		if (CLUSTER.isMaster) {			// Establish master port
 			
-			server.listen(TOTEM.port, function() {  // Establish master
+			HTTP.createServer().listen(8082, function () {} )
+			.on("request", function (Req,Res) {
+				
+				var body = ""; 
+				Req
+				.on("data", function (chunk) {
+					body += chunk.toString();
+				})
+				.on("end", function () {
+					//body = unescape(Req.url.substr(1));
+					console.log("=====rx "+body);
+					var msg = JSON.parse(body);
+					if (true)
+						Res.end("no one home");
+					else
+					if (false)
+						Req.connection.end("im done w you");
+					else
+					if ( worker = CLUSTER.workers[msg.id] )
+						worker.send(msg, Req.connection);
+				});
+				
+			});
+				
+			server.listen(TOTEM.port+1, function() {  // Establish master
 				Trace(`SERVING ${site.urls.master} AT [${endpts}]`);
 			});
 			
-			if ( TOTEM.faultless) {
-				process.on("uncaughtException", function (err) {
-					console.warn(`SERVICE FAULTED ${err}`);
-				});
-				
-				process.on("exit", function (code) {
-					console.warn(`SERVICE EXITED ${code}`);
-				});
-
-				for (var n in TOTEM.faultless)
-					process.on(n, function () {
-						console.warn(`SERVICE SIGNALED ${n}`);
-					});
-			}
-
 			CLUSTER.on('exit', function(worker, code, signal) {
 				console.error(`CORE${worker.id} TERMINATED ${code||"ok"}`);
 			});
@@ -1297,35 +1351,36 @@ function startService(server,cb) {
 			}
 		}
 		
-		else {								// Establish worker port
-			
-			if ( TOTEM.stateful )
-				server.listen(TOTEM.port+1, function() {
-					Trace(`STATEFUL CORE${CLUSTER.worker.id} ROUTING ${site.urls.worker} AT [${endpts}]`);
-				});
-			
-			else
-				server.listen(TOTEM.port+1, function() {
-					Trace(`STATELESS CORE${CLUSTER.worker.id} ROUTING ${site.urls.worker} AT [${endpts}]`);
-				});
-			
-			if ( TOTEM.faultless)
-				CLUSTER.worker.process.on("uncaughtException", function (err) {
-					console.warn(`CORE${CLUSTER.worker.id} FAULTED ${err}`);
-				});	
-		}
+		else 								// Establish worker port			
+			server.listen(TOTEM.port, function() {
+				Trace(`STATELESS CORE${CLUSTER.worker.id} ROUTING ${site.urls.worker} AT [${endpts}]`);
+			});
 	
 	else 								// Establish master-only
 		server.listen(TOTEM.port, function() {
 			Trace(`SERVING ${site.urls.master} AT ${endpts}`);
 		});
 		
-	// watch files
-	
+			
+	if ( TOTEM.faultless)  { // catch core faults
+		process.on("uncaughtException", function (err) {
+			console.warn(`SERVICE FAULTED ${err}`);
+		});
+
+		process.on("exit", function (code) {
+			console.warn(`SERVICE EXITED ${code}`);
+		});
+
+		for (var n in TOTEM.faultless)
+			process.on(n, function () {
+				console.warn(`SERVICE SIGNALED ${n}`);
+			});
+	}
+
 	TOTEM.thread( function (sql) {
 		sql.query("UPDATE app.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
 			
-		Each(TOTEM.watch, function (folder, cb) {
+		Each(TOTEM.watch, function (folder, cb) {  // watch file changes
 			FS.readdir( folder, function (err, files) {
 				if (err) 
 					Trace(err);
@@ -1388,7 +1443,7 @@ function connectService(cb) {
 		name = TOTEM.name,
 		paths = TOTEM.paths,
 		certs = TOTEM.cache.certs,
-		isHTTPS = TOTEM.encrypt && CLUSTER.isMaster;
+		isHTTPS = TOTEM.encrypt; // && CLUSTER.isMaster;
 		
 	Trace((isHTTPS?"HTTPS":"HTTP")+` CONNECTION ${name} ON PORT ${port}`);
 
@@ -1448,7 +1503,7 @@ function protectService(cb) {
  * */
 	
 	var 
-		isHTTPS = TOTEM.encrypt && CLUSTER.isMaster,
+		isHTTPS = TOTEM.encrypt, // && CLUSTER.isMaster,
 		name = TOTEM.name,
 		paths = TOTEM.paths,
 		pfxfile = `${paths.certs}${name}.pfx`;
@@ -1457,11 +1512,13 @@ function protectService(cb) {
 	
 	TOTEM.site.urls = {  // establish site urls
 		socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
-		master: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/",
-		worker:  
-			TOTEM.stateful
-				? "http://" + TOTEM.host + ":" + (TOTEM.port+1) + "/"
-				: (TOTEM.encrypt ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/"
+		
+		master: 
+			TOTEM.cores
+				? (isHTTPS ? "https" : "http") + "://" + TOTEM.host + ":" + (TOTEM.port+1) + "/"
+				: (isHTTPS ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/",
+		
+		worker:  (isHTTPS ? "https" : "http") + "://" + TOTEM.host + ":" + TOTEM.port + "/"
 	};
 					
 	if (isHTTPS)   // derive a pfx cert if this is an encrypted service
@@ -1808,16 +1865,17 @@ function createCert(owner,pass,cb) {
 
 }
 
-function validateCert(req,res) {
+function validateClient(req,res) {
 /**
-@method validateCert
+@method validateClient
 @param {Object} req totem request
 @param {Function} res totem response
 
 Responds will res(null) if session is valid or res(err) if session invalid.  Adds the client's session metric log, 
 org, serverip, group, profile, db journalling flag, time joined, email and client ID to this req request.  
  * */
-				
+	var isHTTPS = TOTEM.encrypt; // && CLUSTER.isMaster;	
+	
 	function getCert() {
 	/*
 	Return a suitable cert for https or http connections for this req.connection.  If we are going through a
@@ -1834,7 +1892,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 				valid_from: null
 			};			
 		
-		if (TOTEM.proxy) {  // when going through a proxy, must update cert with originating cert info that was placed in header
+		if (TOTEM.behindProxy) {  // when going through a proxy, must update cert with originating cert info that was placed in header
 			var 
 				NA = Req.headers.ssl_client_notafter,
 				NB = Req.headers.sll_client_notbefore,
@@ -1888,7 +1946,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 			return avgUtil / cpus.length;
 		}		
 		
-		if (TOTEM.encrypt && CLUSTER.isMaster) {  // validate client's cert
+		if (isHTTPS) {  // validate client's cert
 
 			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
 				return res( TOTEM.errors.expiredCert );
@@ -3019,7 +3077,7 @@ function sesThread(Req,Res) {
 
 	function getBody( cb ) { // Feed body and file parameters to callback
 
-		var body = "", file = "filename:";
+		var body = ""; //, file = "filename:";
 		
 		Req
 		.on("data", function (chunk) {
@@ -3099,10 +3157,10 @@ function sesThread(Req,Res) {
 	 * */
 
 		var con = req.connection = Req.connection;
-
+		
 		if (con)
 			resThread( req, function (sql) {
-				validateCert(req, function (err) {
+				validateClient(req, function (err) {
 					if (err)
 						res(err);
 
