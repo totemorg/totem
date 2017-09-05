@@ -23,11 +23,6 @@
 @requires json2csv
 @requires js2xmlparser
 
-Available configurations:
-
-		isMulticore		cores			master					workers
-		false				0				port,http/https		n/a
-		true				>0				port+1,net			port,http/https
  */
 
 var												// NodeJS modules
@@ -441,21 +436,31 @@ var
 	/**
 	@cfg {Number} [cores=0]
 	@member TOTEM	
-	Number of worker cores (0 for master-only).  If cores=0, master at port; otherwise master at
-	port+1 and workers at port.  So with cores>0, clients will typically access on port (for typical
-	stateless access to files and db).  Workflow (stateful) clients will access on port+1 to allow the
-	master to allocate its workers.	
+	Number of worker cores (0 for master-only).  If cores>0, masterPort should != workPort, master becomes HTTP server, and workers
+	become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
+	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerPort, and stateful 
+	workers via the masterPort.	
 	*/				
 	cores: 0,	//< Number of worker cores (0 for master-only)
 		
 	/**
-	@cfg {Number} [port=8080]
+	@cfg {Number} [masterPort=8080]
 	@member TOTEM	
-	Service port number. So with cores>0, clients will typically access on port (for typical
-	stateless access to files and db).  Workflow (stateful) clients will access on port+1 to allow the
-	master to allocate its workers.	
+	Port for master HTTP/HTTPS service.  If cores>0, masterPort should != workPort, master becomes HTTP server, and workers
+	become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
+	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerPort, and stateful 
+	workers via the masterPort.	
 	*/				
-	port: 8080,				  //< if cores=0, master at port; otherwise master at port+1. workers always at port
+	masterPort: 8080,				 //< master port for stateful threads
+	/**
+	@cfg {Number} [workerPort=8443]
+	@member TOTEM	
+	Port for worker HTTP/HTTPS service.  If cores>0, masterPort should != workPort, master becomes HTTP server, and workers
+	become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
+	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerPort, and stateful 
+	workers via the masterPort.	
+	*/				
+	workerPort: 8443, 				//< worker port for stateless threads
 		
 	/**
 	@cfg {String} [host="localhost"]
@@ -1267,7 +1272,7 @@ function startService(server,cb) {
 	if (TOTEM.cores) 					// Start for master-workers
 		if (CLUSTER.isMaster) {			// Establish master port
 			
-			server.listen(TOTEM.port + 1, function() {  // Establish master
+			server.listen(TOTEM.masterPort, function() {  // Establish master
 				Trace(`SERVING ${site.urls.master} AT [${endpts}]`);
 			});
 			
@@ -1286,12 +1291,12 @@ function startService(server,cb) {
 		}
 		
 		else 								// Establish worker port			
-			server.listen(TOTEM.port, function() {
+			server.listen(TOTEM.workerPort, function() {
 				Trace(`CORE${CLUSTER.worker.id} SERVING ${site.urls.worker} AT [${endpts}]`);
 			});
 	
 	else 								// Establish master-only
-		server.listen(TOTEM.port, function() {
+		server.listen(TOTEM.masterPort, function() {
 			Trace(`SERVING ${site.urls.master} AT ${endpts}`);
 		});
 		
@@ -1373,7 +1378,6 @@ function connectService(cb) {
  * */
 	
 	var 
-		port = TOTEM.port,
 		name = TOTEM.name,
 		paths = TOTEM.paths,
 		certs = TOTEM.cache.certs;
@@ -1440,14 +1444,14 @@ function protectService(cb) {
 	TOTEM.site.urls = TOTEM.cores 
 		? {  // establish site urls
 			socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
-			worker:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.port,
-			master:  "http://" + TOTEM.host + ":" + (TOTEM.port+1)
+			worker:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.workerPort,
+			master:  "http://" + TOTEM.host + ":" + TOTEM.masterPort
 		}
 		
 		: {
 			socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
-			worker:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.port,
-			master:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.port,
+			worker:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.workerPort,
+			master:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.masterPort,
 		};
 
 	if ( TOTEM.isEncryptedWorker  = TOTEM.encrypt && CLUSTER.isWorker )   // derive a pfx cert if this is an encrypted service
@@ -1811,7 +1815,6 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 	*/
 	
 		var 
-			sock = req.socket,
 			cert =  (sock ? sock.getPeerCertificate ? sock.getPeerCertificate() : null : null) || {		//< default cert
 				issuer: {},
 				subjectaltname: "",
@@ -1908,9 +1911,10 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 				},
 
 				org		: cert.subject.O || "unknown",  // cert organization 
-				serverip: req.socket ? req.socket.address().address : "unknown",
+				serverip: sock ? sock.address().address : "unknown",
 				group	: profile.Group, // || TOTEM.site.db, 
 				profile	: new Object(profile),  // complete profile
+				onencrypted: CLUSTER.isWorker,  // flag
 				journal : true,				// journal db actions
 				joined	: now, 				// time joined
 				email	: client, 			// email address from pki
@@ -1924,6 +1928,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 	
 	var 
 		sql = req.sql,
+		sock = req.reqSocket,
 		cert = getCert(),
 		now = new Date(),		
 		client = (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || TOTEM.guestProfile.Client).split(",")[0].replace("email:","");
@@ -3084,7 +3089,7 @@ the client is challenged as necessary.
 				return cb();
 				
 			case "OPTIONS":  // client making cross-domain call - must respond with what are valid methods
-				Req.method = Req.headers["access-control-request-method"];
+				//Req.method = Req.headers["access-control-request-method"];
 				Res.writeHead(200, {
 					"access-control-allow-origin": "*", 
 					"access-control-allow-methods": "POST, GET, DELETE, PUT, OPTIONS"
@@ -3121,7 +3126,7 @@ the client is challenged as necessary.
 	 * joined, email and STATICS}
 	 * */
 
-		if (sock = req.socket)
+		if (sock = req.reqSocket )
 			resThread( req, function (sql) {
 				validateClient(req, function (err) {
 					if (err)
@@ -3166,11 +3171,15 @@ the client is challenged as necessary.
 			Res.end( TOTEM.errors.pretty(TOTEM.errors.lostConnection ) );
 	}
 
-	function xdomSocket() {
-		Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
-		Res.socket.write(Res._header);
-		Res._headerSent = true;
-		return Res.socket;
+	function getSocket() {  // returns req/res socket if this isnot/is a xdom session
+		if ( Req.headers.origin ) {  // xdom session is progress from master (http) to its workers (https)
+			Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
+			Res.socket.write(Res._header);
+			Res._headerSent = true;
+			return Res.socket;
+		}
+		else 
+			return Req.socket;
 	}
 		
 	startSession( function() {  // process if session not busy
@@ -3185,15 +3194,14 @@ the client is challenged as necessary.
 				req = Req.req = {
 					method: Req.method,
 					action: TOTEM.crud[Req.method],
-					socket: Req.socket,
-					xdom: xdomSocket,
+					reqSocket: Req.socket,
+					resSocket: getSocket,
 					socketio: TOTEM.encrypt ? TOTEM.site.urls.socketio : "",
 					query: {},
 					body: body,
 					flags: {},
 					joins: {},
-					site: TOTEM.site,
-					socket: Req.socket	// required to validate cert and for ENGINE IPC
+					site: TOTEM.site
 				},
 
 				// get a clean url
