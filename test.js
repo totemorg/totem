@@ -412,26 +412,24 @@ function faces(tau,parms) { return 102; }
 					pass: ENV.MYSQL_PASS
 				},
 
-				autoIngest: true,
-				
-				faultless: true,
+				faultless: false,
 				
 				watch: {
-					"./public/events": function (path,ev,sql) {  // watch changes to the files in the events area
+					"./public/events": function (sql,path,ev) {  // watch changes to the files in the events area
 						Trace("INGEST EVENTS "+path+" ON "+ev.toUpperCase());
 
-						DEBE.ingestEvents(path, sql);
+						DEBE.ingestFile(sql, path, "guest");
 
 						sql.release();
 					},
 
-					"./public/js": function (path,ev,sql) {
+					"./public/js": function (sql,path,ev) {
 						Trace("INGEST JS "+path+" ON "+ev.toUpperCase());
 
 						sql.release();
 					},
 
-					"./public/py": function (path,ev,sql) {
+					"./public/py": function (sql,path,ev) {
 						Trace("INGEST PYTHON "+path+" ON "+ev.toUpperCase());
 
 						sql.release();

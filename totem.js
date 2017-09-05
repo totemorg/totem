@@ -1344,12 +1344,12 @@ function startService(server,cb) {
 											*/
 											if (file.charAt(0) == ".") { // swp being updated
 												path = folder+"/"+file.substr(1).replace(".swp","");
-												cb(path, ev, sql);
+												cb(sql, path, ev);
 											}
 
 											/*
 											else
-												cb(path, ev, sql);
+												cb(sql, path, ev);
 											*/
 										});
 
@@ -1450,7 +1450,7 @@ function protectService(cb) {
 		
 		: {
 			socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
-			worker:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.workerPort,
+			worker:  "nada",
 			master:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.masterPort,
 		};
 
