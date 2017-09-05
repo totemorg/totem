@@ -22,6 +22,12 @@
 @requires toobusy
 @requires json2csv
 @requires js2xmlparser
+
+Available configurations:
+
+		isMulticore		cores			master					workers
+		false				0				port,http/https		n/a
+		true				>0				port+1,net			port,http/https
  */
 
 var												// NodeJS modules
@@ -431,7 +437,7 @@ var
 	*/		
 	encrypt: "",		//< passphrase when service encypted 
 	sockets: false, 	//< enabled to support web sockets
-
+		
 	/**
 	@cfg {Number} [cores=0]
 	@member TOTEM	
@@ -441,7 +447,7 @@ var
 	master to allocate its workers.	
 	*/				
 	cores: 0,	//< Number of worker cores (0 for master-only)
-	
+		
 	/**
 	@cfg {Number} [port=8080]
 	@member TOTEM	
@@ -797,7 +803,8 @@ var
 	riddles: 0, 			
 	
 	proxy: proxyService,  //< default relay if needed
-	isSecure: false, 	//< enabled by config if service is HTTPS (encrypted and has worker cores)
+	isEncryptedWorker: false, 	//< enabled by config if worker service is HTTPS encrypted
+	//workers: [],
 		
 	/**
 	@cfg {Object} 
@@ -859,6 +866,7 @@ var
 		pretty: function (err) { 
 			return (err+"");
 		},
+		badMethod: new Error("unsupported request method"),
 		noProtocol: new Error("no protocol specified to fetch"),
 		noRoute: new Error("no route"),
 		badQuery: new Error("invalid query"),
@@ -1170,14 +1178,9 @@ function startService(server,cb) {
 	};
 	
 	if (server && name) {			// attach responder
+		//server.on("connection", simThread);
+		
 		server.on("request", sesThread);
-		server.on("connection", function (sok) { 
-			//Req.setSocketKeepAlive(true);
-			//console.log({ip: Req.socket.remoteAddress, port: Req.socket.remotePort});
-			sok.on("close", function () {
-				//console.log(">>>>>>>>>>>>>>>down");
-			});
-		});
 	}
 	
 	else
@@ -1185,7 +1188,7 @@ function startService(server,cb) {
 
 	TOTEM.flush();  		// init of client callstack via its Function key
 
-	if (TOTEM.isSecure && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
+	if (TOTEM.isEncryptedWorker && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
 		var 
 			IO = TOTEM.IO = DSVAR.io = SIO(server, { // use defaults but can override ...
 				//serveClient: true, // default true to prevent server from intercepting path
@@ -1277,7 +1280,7 @@ function startService(server,cb) {
 			});
 			
 			for (var core = 0; core < TOTEM.cores; core++) {  
-				var worker = CLUSTER.fork(); 
+				worker = CLUSTER.fork();
 				Trace(`CORE${worker.id} FORKED`);
 			}
 		}
@@ -1375,7 +1378,7 @@ function connectService(cb) {
 		paths = TOTEM.paths,
 		certs = TOTEM.cache.certs;
 		
-	if ( TOTEM.isSecure ) {  
+	if ( TOTEM.isEncryptedWorker ) {  
 
 		Copy({		// cache server data fetching certs 
 			pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
@@ -1408,8 +1411,13 @@ function connectService(cb) {
 		}) , cb );
 	}
 	
-	else
+	//else
+	//if (CLUSTER.isMaster && TOTEM.cores)
+	//	startService( NET.createServer(), cb );
+	
+	else 
 		startService( HTTP.createServer(), cb );
+		
 	
 }
 
@@ -1442,7 +1450,7 @@ function protectService(cb) {
 			master:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.port,
 		};
 
-	if ( TOTEM.isSecure  = TOTEM.encrypt && (CLUSTER.isWorker || !TOTEM.cores) )   // derive a pfx cert if this is an encrypted service
+	if ( TOTEM.isEncryptedWorker  = TOTEM.encrypt && CLUSTER.isWorker )   // derive a pfx cert if this is an encrypted service
 		FS.access( pfxfile, FS.F_OK, function (err) {
 
 			if (err) {
@@ -1798,13 +1806,13 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 	
 	function getCert() {
 	/*
-	Return a suitable cert for https or http connections for this req.connection.  If we are going through a
+	Return a suitable cert for https or http connections for this req.socket.  If we are going through a
 	proxy, cert information is derived from the request headers.
 	*/
 	
 		var 
-			con = req.connection,
-			cert =  (con ? con.getPeerCertificate ? con.getPeerCertificate() : null : null) || {		//< default cert
+			sock = req.socket,
+			cert =  (sock ? sock.getPeerCertificate ? sock.getPeerCertificate() : null : null) || {		//< default cert
 				issuer: {},
 				subjectaltname: "",
 				subject: {},
@@ -1865,7 +1873,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 			return avgUtil / cpus.length;
 		}		
 		
-		if ( TOTEM.isSecure ) {  // validate client's cert
+		if ( TOTEM.isEncryptedWorker ) {  // validate client's cert
 
 			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
 				return res( TOTEM.errors.expiredCert );
@@ -1900,7 +1908,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 				},
 
 				org		: cert.subject.O || "unknown",  // cert organization 
-				serverip: req.connection ? req.connection.address().address : "unknown",
+				serverip: req.socket ? req.socket.address().address : "unknown",
 				group	: profile.Group, // || TOTEM.site.db, 
 				profile	: new Object(profile),  // complete profile
 				journal : true,				// journal db actions
@@ -1956,7 +1964,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 		res( TOTEM.errors.noDB );
 	
 	else {  // setup guest connection
-		req.connection = null;
+		req.socket = null;
 		admitClient(req, res, TOTEM.guestProfile, cert, client);		
 		res( null );
 	}
@@ -2690,23 +2698,23 @@ request-response thread
 
 	function logMetrics() { // log session metrics 
 		
-		if ( con=req.connection ) 
+		if ( sock=req.socket ) 
 		if ( record=TOTEM.paths.mysql.record ) {
 			var log = req.log;
 		
-			con._started = new Date();
+			sock._started = new Date();
 			
 			/*
 			If maxlisteners is not set to infinity=0, the connection becomes sensitive to a sql 
 			connector t/o and there will be random memory leak warnings.
 			*/
 			
-			con.setMaxListeners(0);
-			con.on('close', function () { 		// cb when connection closed
+			sock.setMaxListeners(0);
+			sock.on('close', function () { 		// cb when connection closed
 				
 				var 
-					secs = ((new Date()).getTime() - con._started.getTime()) / 1000,
-					bytes = con.bytesWritten,
+					secs = sock._started ? ((new Date()).getTime() - sock._started.getTime()) / 1000 : 0,
+					bytes = sock.bytesWritten,
 					log = req.log;
 				
 				sqlThread( function (sql) {
@@ -2715,7 +2723,7 @@ request-response thread
 						sql.query(record, [ Copy(log, {
 							Delay: secs,
 							Transfer: bytes,
-							Event: con._started,
+							Event: sock._started,
 							Dataset: req.table,
 							Client: rec.client,
 							Actions: 1
@@ -2725,7 +2733,7 @@ request-response thread
 						sql.query(record, [ Copy(log, {
 							Delay: secs,
 							Transfer: bytes,
-							Event: con._started,
+							Event: sock._started,
 							Dataset: req.table,
 							Actions: 1
 						}), bytes, secs, log.Event  ]);
@@ -2733,7 +2741,7 @@ request-response thread
 						sql.query(record, [ Copy(log, {
 							Delay: secs,
 							Transfer: bytes,
-							Event: con._started,
+							Event: sock._started,
 							Dataset: req.client,
 							Actions: 1
 						}), bytes, secs, log.Event  ]);
@@ -2747,7 +2755,7 @@ request-response thread
 		}
 	}
 
-	//if ( !req.filepath ) logMetrics();  // dont log file requests
+	if ( !req.filepath && TOTEM.isEncryptedWorker ) logMetrics();  // dont log file requests
 	var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
 	
 	Trace( 
@@ -2763,12 +2771,35 @@ request-response thread
 
 function sesThread(Req,Res) {	
 /**
- * @method sesThread
- * @param {Object} Req http/https request
- * @param {Object} Res http/https response
- *
- * Holds a HTTP/HTTPS request-repsonse session thread.
- * */
+ @method sesThread
+ @param {Object} Req http/https request
+ @param {Object} Res http/https response
+ 
+ Created a HTTP/HTTPS request-repsonse session thread.  UsesTOTEM's byTable, byArea, byType, byActionTable to
+ route this thread to the appropriate (req,res)-endpoint, where the newly formed request req contains
+ 
+			method: "GET, ... " 		// http method and its ...
+			action: "select, ...",		// corresponding crude name
+			socketio: "path"  // filepath to client's socketio.js
+			query: {...}, 		// query ke-value parms from url
+			body: {...},		// body key-value parms from request body
+			flags: {...}, 		// _flags key-value parms parsed from url
+			joins: {...}, 		// experimental ds from-to joins
+			files: [...] 		// files uploaded
+			site: {...}			// skinning context keys
+			sql: connector 		// sql database connector (dummy if no mysql config)
+			url	: "url"				// complete "/area/.../name.type?query" url
+			search: "query"		// query part
+			path: "/..."			// path part 
+			filearea: "area"		// area part
+			filename: "name"	// name part
+			type: "type" 			// type part 
+			connection: socket		// http/https socket to retrieve client cert 
+			
+The newly form response res method accepts a string, an objects, an array, an error, or a file-cache function
+to appropriately respond and close this thread and its sql connection.  The session is validated and logged, and 
+the client is challenged as necessary.
+ */
 	
 	// Session terminating functions to respond with a string, file, db structure, or error message.
 	
@@ -2803,7 +2834,6 @@ function sesThread(Req,Res) {
 			index = paths.mime.index;
 		
 		//Trace(`SENDING ${path} AS ${mime} ${file} ${type} ${area}`);
-		//Res.setHeader("Content-Type", mime );
 		
 		if (type) {  // cache and send file
 				
@@ -2907,6 +2937,9 @@ function sesThread(Req,Res) {
 			sql = req.sql,
 			paths = TOTEM.paths;
 
+		Res.setHeader("Content-Type", MIME[req.type] || MIME.html || "text/plain");
+		Res.statusCode = 200;
+		
 		try {		
 			switch (ack.constructor) {  // send ack based on its type
 				case Error: 			// send error message
@@ -3041,11 +3074,36 @@ function sesThread(Req,Res) {
 		
 		if (BUSY && (busy = TOTEM.errors.tooBusy) )	
 			if ( BUSY() )
-				Res.end( TOTEM.errors.pretty( busy ) );
-			else
-				cb();
-		else
-			cb();
+				return Res.end( TOTEM.errors.pretty( busy ) );
+		
+		switch ( Req.method ) {
+			case "PUT":
+			case "GET":
+			case "POST":
+			case "DELETE":
+				return cb();
+				
+			case "OPTIONS":  // client making cross-domain call - must respond with what are valid methods
+				Req.method = Req.headers["access-control-request-method"];
+				Res.writeHead(200, {
+					"access-control-allow-origin": "*", 
+					"access-control-allow-methods": "POST, GET, DELETE, PUT, OPTIONS"
+				});
+				Res.end();
+
+				/*res.header = function () {
+					Res.writeHead(200);
+					Res.socket.write(Res._header);
+					Res.socket.write(Res._header);
+					Res._headerSent = true;
+				}; */
+				
+				break;
+				
+			default:
+				Res.end( TOTEM.errors.pretty(TOTEM.errors.badMethod) );
+		}
+		
 	}
 	
 	function conThread(req, res) {
@@ -3063,9 +3121,7 @@ function sesThread(Req,Res) {
 	 * joined, email and STATICS}
 	 * */
 
-		var con = req.connection = Req.connection;
-		
-		if (con)
+		if (sock = req.socket)
 			resThread( req, function (sql) {
 				validateClient(req, function (err) {
 					if (err)
@@ -3107,9 +3163,16 @@ function sesThread(Req,Res) {
 			});
 		
 		else 
-			res( TOTEM.errors.lostConnection );
+			Res.end( TOTEM.errors.pretty(TOTEM.errors.lostConnection ) );
 	}
 
+	function xdomSocket() {
+		Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
+		Res.socket.write(Res._header);
+		Res._headerSent = true;
+		return Res.socket;
+	}
+		
 	startSession( function() {  // process if session not busy
 		
 		getBody( function (body) {  // parse body, query and route
@@ -3122,13 +3185,15 @@ function sesThread(Req,Res) {
 				req = Req.req = {
 					method: Req.method,
 					action: TOTEM.crud[Req.method],
+					socket: Req.socket,
+					xdom: xdomSocket,
 					socketio: TOTEM.encrypt ? TOTEM.site.urls.socketio : "",
 					query: {},
 					body: body,
 					flags: {},
 					joins: {},
 					site: TOTEM.site,
-					connection: Req.connection	// required to validate cert and for ENGINE IPC
+					socket: Req.socket	// required to validate cert and for ENGINE IPC
 				},
 
 				// get a clean url
@@ -3142,18 +3207,14 @@ function sesThread(Req,Res) {
 				// get a list of all nodes
 				nodes = (nodeDivider = TOTEM.nodeDivider)
 					? url ? url.split(nodeDivider) : []
-					: url ? [url] : [],
-				
-				acks = {},
-				saved = 0;
+					: url ? [url] : [] ;
 
 			conThread( req, function (err) { 	// start session with client
 
-				//Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
-				Res.setHeader("Content-Type", MIME[req.type] || MIME.html || "text/plain");
-				//Res.setHeader("Content-Type", "text/plain");
-				Res.writeHead(200, {});
-				Trace(">>>>>>>>>>>>>>>>>>> header set");
+				// must carefully set appropriate heads to prevent http-parse errors when using master-worker proxy
+				if ( TOTEM.isEncryptedWorker )
+					Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
+
 				
 				if (err) 					// session validator rejected (bad cert)
 					res(err);
@@ -3161,19 +3222,14 @@ function sesThread(Req,Res) {
 				else
 				if (nodes.length == 1) {	// respond with only this node
 					node = req.node = nodes.pop();	
-					routeNode(req, function (ack) {	
-						res(ack);
-					});
+					routeNode(req, res);
 				}
 
 				else 					// respond with aggregate of all nodes
-					syncNodes(nodes, {}, req, function (ack) {
-						//Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
-						//Res.setHeader("Content-Type", "application/json");
-						res(ack);
-					});
-					
+					syncNodes(nodes, {}, req, res);
+
 			});
+
 		});
 	});
 }
@@ -3213,23 +3269,26 @@ function proxyService(req, res) {
 	var 
 		pathto = 
 			TOTEM.site.urls.master + req.path,  
-			// "http://localhost:8081/news",  
+			 //TOTEM.site.urls.master + "/news",  
 			//"http://localhost:8081" + req.path,
 		
 		proxy = URL.parse( pathto );
 
 	proxy.method = req.method;
-	proxy.headers = {
-		"Content-Type": "text/plain",
-		"Content-Length": 0  // disabled chunking
-	};
-	
-	//proxy["content-length"] = Buffer.bytelength(req.body);
-	//proxy["content-type"] = "text/plain";
 	
 	console.log(proxy, pathto);
+	
+	/*
+	var sock = NET.connect( proxy.port );
+	sock.setEncoding("utf8");
+	sock.write("here is some data for u");
+	sock.on("data", function (d) {
+		console.log("sock rx", d);
+		res(d);
+	}); */
+	
 	var Req = HTTP.request( pathto, function(Res) {
-		console.log("res setup", Res.statusCode, Res.headers);
+		console.log("==========SETUP", Res.statusCode, Res.headers);
 		
 		var body = "";
 
@@ -3246,7 +3305,6 @@ function proxyService(req, res) {
 		Res.on("error", function (err) {
 			console.log("what??? "+err);
 		}); 
-		console.log("tada");
 		
 	}); 
 
@@ -3255,13 +3313,6 @@ function proxyService(req, res) {
 		res("oh well");
 	});
 	
-	/*Req.on("end", function () {
-		setTimeout( function() {
-			console.log("setto " + (Req.connection ? true : false) );
-			if ( Req.connection ) Req.connection.removeListener('error', Req._parserErrorHandler);
-		 }, 2e3);
-	});*/
-
 	//console.log( "RELAY TX "+JSON.stringify( req.body) );
 
 	if (proxy.method == "PUT") 
@@ -3269,7 +3320,9 @@ function proxyService(req, res) {
 
 	Req.end( );
 
-/*  generic
+	
+/*  
+generic
 		var http = require('http');
 
 http.createServer(function(request, response) {
@@ -3322,4 +3375,28 @@ console.log("TCP server accepting connection on port: " + LOCAL_PORT);
 */
 	
 }
+
+function simThread(sock) { 
+	//Req.setSocketKeepAlive(true);
+	console.log({ip: sock.remoteAddress, port: sock.remotePort});
+	sock.setEncoding("utf8");
+	/*
+	sock.on("data", function (req) {
+		console.log("sock data>>>>",req);
+		var 
+			Req = Copy({
+				socket: sock  // used if master makes handoff
+			}, JSON.parse(req)),
+			
+			Res = {  // used if master does not makes handoff
+				end: function (ack) {
+					sock.write(ack);
+				}
+			};
+				
+		sesThread(Req,Res);
+	});*/
+}
+
+
 // UNCLASSIFIED
