@@ -3171,7 +3171,7 @@ the client is challenged as necessary.
 			Res.end( TOTEM.errors.pretty(TOTEM.errors.lostConnection ) );
 	}
 
-	function getSocket() {  // returns req/res socket if this isnot/is a xdom session
+	function getSocket() {  // returns req/res socket if this isnt/is a cross domain session
 		if ( Req.headers.origin ) {  // xdom session is progress from master (http) to its workers (https)
 			Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
 			Res.socket.write(Res._header);
@@ -3205,11 +3205,11 @@ the client is challenged as necessary.
 				},
 
 				// get a clean url
-				/* there exists an edge case wherein an html tag within json content, e.g <img src="/ABC">, 
+				/*
+				There exists an edge case wherein an html tag within json content, e.g <img src="/ABC">, 
 				is reflected back the server as a /%5c%22ABC%5c%22 which then unescapes to /\\"ABC\\".
 				This is ok but can be confusing.
-				*/
-				
+				*/				
 				url = req.url = unescape(Req.url),
 
 				// get a list of all nodes
