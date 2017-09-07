@@ -1326,30 +1326,27 @@ function startService(server,cb) {
 
 				else
 					files.each(function (n,file) {
-						var path = folder + "/" + file;
 
-						Trace("WATCHING "+path);
+						Trace("WATCHING "+file);
 
-						FS.watch(path, function (ev, file) {  //{persistent: false, recursive: false}, 
+						FS.watch(folder+"/"+file, function (ev, file) {  //{persistent: false, recursive: false}, 
 
-							Trace(ev+" "+file);
+							var 
+								isSwap = file.charAt(0) == ".",
+								name = isSwap ? file.substr(1).replace(".swp","") : file,
+								path = folder + "/" + name;
+							
+							Trace(ev.toUpperCase()+" "+name);
 
 							if (TOTEM.thread && file)
 								switch (ev) {
 									case "change":
 										TOTEM.thread( function (sql) {
-											/*READ.byType(sql, path+file, function (keys) {
-												console.log(["keys",keys]);
-											});
-											*/
-											if (file.charAt(0) == ".") { // swp being updated
-												path = folder+"/"+file.substr(1).replace(".swp","");
-												cb(sql, path, ev);
-											}
+											if ( isSwap ) cb(sql, path, name, ev);
 
 											/*
 											else
-												cb(sql, path, ev);
+												cb(sql, path, name, ev);
 											*/
 										});
 

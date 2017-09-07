@@ -415,23 +415,17 @@ function faces(tau,parms) { return 102; }
 				faultless: false,
 				
 				watch: {
-					"./public/events": function (sql,path,ev) {  // watch changes to the files in the events area
-						Trace("INGEST EVENTS "+path+" ON "+ev.toUpperCase());
-
-						DEBE.ingestFile(sql, path, "guest");
+					"./public/events": function (sql,path,name,ev) {  // watch changes to the files in the events area
+						DEBE.ingestFile(sql, path, name, "guest");
 
 						sql.release();
 					},
 
-					"./public/js": function (sql,path,ev) {
-						Trace("INGEST JS "+path+" ON "+ev.toUpperCase());
-
+					"./public/js": function (sql,path,name,ev) {
 						sql.release();
 					},
 
-					"./public/py": function (sql,path,ev) {
-						Trace("INGEST PYTHON "+path+" ON "+ev.toUpperCase());
-
+					"./public/py": function (sql,path,name,ev) {
 						sql.release();
 					}
 
