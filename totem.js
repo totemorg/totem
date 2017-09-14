@@ -477,6 +477,9 @@ var
 	watch: {		//< Folder watching callbacks cb(path) 
 	},
 		
+	watchStats: { 	//< List to track changed files as OS will trigger multiple change evented when file changed
+	},
+		
 	/**
 	@cfg {Boolean} [behindProxy=false]
 	@member TOTEM	
@@ -893,7 +896,8 @@ var
 		badData: new Error("data has circular reference"),
 		retryFetch: new Error("data fetch retries exceeded"),
 		cantConfig: new Error("cant derive config options"),
-		notAllowed: new Error("interface disabled")
+		notAllowed: new Error("this dataset interface is disabled"),
+		noAccess: new Error("no access to master from this endpoint")
 	},
 
 	/**
@@ -1319,6 +1323,8 @@ function startService(server,cb) {
 	TOTEM.thread( function (sql) {
 		sql.query("UPDATE app.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
 			
+		var watchStats = TOTEM.watchStats;
+		
 		Each(TOTEM.watch, function (folder, cb) {  // watch file changes
 			FS.readdir( folder, function (err, files) {
 				if (err) 
@@ -1328,31 +1334,34 @@ function startService(server,cb) {
 					files.each(function (n,file) {
 
 						Trace("WATCHING "+file);
-
-						FS.watch(folder+"/"+file, function (ev, file) {  //{persistent: false, recursive: false}, 
+						watchStats[file] = 0; 
+						
+						FS.watch(folder+"/"+file, function (ev, file) {  
 
 							var 
 								isSwap = file.charAt(0) == ".",
-								name = isSwap ? file.substr(1).replace(".swp","") : file,
-								path = folder + "/" + name;
+								path = folder+"/"+file;
 							
-							Trace(ev.toUpperCase()+" "+name);
-
-							if (TOTEM.thread && file)
+							Trace(ev.toUpperCase()+" "+file);
+												
+							if (TOTEM.thread && file && !isSwap)
 								switch (ev) {
 									case "change":
 										TOTEM.thread( function (sql) {
-											if ( isSwap ) cb(sql, path, name, ev);
+											FS.stat(path, function (err, stats) {
 
-											/*
-											else
-												cb(sql, path, name, ev);
-											*/
+												if ( !err && (watchStats[file] - stats.mtime) ) {
+													watchStats[file] = stats.mtime;
+													cb(sql, path, file, ev);
+												}
+
+											});
 										});
 
 										break;
 
-									case "x":
+									case "delete":
+									case "rename":
 									default:
 
 								}
@@ -2757,14 +2766,23 @@ request-response thread
 		}
 	}
 
-	if ( !req.filepath && TOTEM.isEncryptedWorker ) logMetrics();  // dont log file requests
-	var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
+	if ( CLUSTER.isWorker || !TOTEM.cores ) {
+		if ( !req.filepath && TOTEM.isEncryptedWorker ) logMetrics();  // dont log file requests
+		var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
+
+		Trace( 
+			(route?route.name:"null").toUpperCase() 
+			+ ` ${req.filename} FOR ${req.group}.${req.client} ON CORE${myid}`);
 	
-	Trace( 
-		(route?route.name:"null").toUpperCase() 
-		+ ` ${req.filename} FOR ${req.group}.${req.client} ON CORE${myid}`);
+		route(req, res);
+	}
 	
-	route(req, res);
+	else
+	if (route.name == "simThread")
+		route(req,res);
+	
+	else
+		res(TOTEM.errors.noAccess);
 }
 
 /**
@@ -3269,7 +3287,7 @@ function Trace(msg,arg) {
 }
 
 
-function proxyService(req, res) {
+function proxyService(req, res) {  // not presently used but might want to support later
 	
 	var 
 		pathto = 
