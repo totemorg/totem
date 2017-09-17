@@ -48,11 +48,10 @@ var 											// 3rd party modules
 var 											// Totem modules
 	DSVAR = require("dsvar"),				//< DSVAR database agnosticator
 	MIME = require("mime"),						//< MIME content types
-	ENUM = require("enum"); 					//< Basic enumerators
-
-var 											// shortcuts
+	ENUM = require("enum"),					//< Basic enumerators
 	Copy = ENUM.copy,
-	Each = ENUM.each;
+	Each = ENUM.each,
+	Log = console.log;
 
 var
 	TOTEM = module.exports = ENUM.extend({
@@ -149,7 +148,7 @@ var
 					var stop = (idx==end) ? true : (rec[key] != ref);
 					
 					if ( stop ) {
-						//console.log([pos,idx,end,key,ref,recs.length]);
+						//Log([pos,idx,end,key,ref,recs.length]);
 						
 						var node = {
 							name: key+":"+ref, 
@@ -286,7 +285,7 @@ var
 				});
 			});
 
-			//console.log([this+"", def]);
+			//Log([this+"", def]);
 			return def;
 		},
 		
@@ -872,7 +871,7 @@ var
 	*/		
 	errors: {
 		pretty: function (err) { 
-			return (err+"");
+			return (err);
 		},
 		badMethod: new Error("unsupported request method"),
 		noProtocol: new Error("no protocol specified to fetch"),
@@ -895,7 +894,6 @@ var
 		noService: new Error("no service  to start"),
 		badData: new Error("data has circular reference"),
 		retryFetch: new Error("data fetch retries exceeded"),
-		cantConfig: new Error("cant derive config options"),
 		notAllowed: new Error("this dataset interface is disabled"),
 		noAccess: new Error("no access to master from this endpoint")
 	},
@@ -981,7 +979,7 @@ var
 				if (cb) cb();
 			})
 			.on("error", function (err) {
-				Trace( TOTEM.errors.cantConfig );
+				Trace( "CONFIG FAILED" );
 			});
 			/*
 			sql.indexJsons( "openv.apps", {}, function (jsons) {	// get site json vars
@@ -1118,7 +1116,7 @@ function configService(opts,cb) {
 		paths = TOTEM.paths,
 		site = TOTEM.site;
 
-	Trace(`CONFIGURING ${name}`); 
+	Trace(`CONFIG ${name}`); 
 	
 	TOTEM.started = new Date();
 				
@@ -1145,7 +1143,7 @@ function configService(opts,cb) {
 			if (name)	// derive site context
 				TOTEM.setContext(sql, function () {
 					protectService(cb || function (err) {
-						Trace(err || `STARTED ${name} ENCRYPTED`);
+						Trace(err || `STARTED ${name} ENCRYPTED`, sql);
 					});
 				});
 
@@ -1155,7 +1153,7 @@ function configService(opts,cb) {
 
 	else
 		protectService(cb || function (err) {
-			Trace(err || `STARTED ${name} UNENCRYPTED`);			
+			Trace(err || `STARTED ${name} UNENCRYPTED`, sql);			
 		});
 	
 	return TOTEM;
@@ -1175,7 +1173,7 @@ function startService(server,cb) {
 		site = TOTEM.site,
 		paths = TOTEM.paths;
 	
-	Trace(`STARTING ${name}`);
+	Trace(`START ${name}`);
 	
 	TOTEM.server = server || { 	// define server
 		listen: function () {
@@ -1195,7 +1193,7 @@ function startService(server,cb) {
 	else
 		return cb( TOTEM.errors.noService );
 
-	TOTEM.flush();  		// init of client callstack via its Function key
+	TOTEM.flush();  		// flush enum's config callback stack
 
 	if (TOTEM.isEncryptedWorker && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
 		var 
@@ -1206,7 +1204,7 @@ function startService(server,cb) {
 			HUBIO = TOTEM.HUBIO = new (SIOHUB); 		//< Hub fixes socket.io+cluster bug	
 			
 		if (IO) { 							// Setup client web-socket support
-			Trace("ATTACHING CLIENT SOCKETS AT "+IO.path());
+			Trace("ATTACH SOCKETS AT "+IO.path());
 			
 			IO.on("connection", function (socket) {  // Trap every connect				
 				//Trace(">ALLOW CLIENT CONNECTIONS");
@@ -1244,13 +1242,14 @@ function startService(server,cb) {
 				});
 			});	
 
+			/*
 			IO.on("connect_error", function (err) {
-				Trace(err);
+				Log(err);
 			});
 			
 			IO.on("disconnection", function (socket) {
-				Trace(">>DISCONNECT CLIENT");
-			});	
+				Log(">>DISCONNECT CLIENT");
+			});	*/
 			
 			cb( null );
 		}
@@ -1271,37 +1270,35 @@ function startService(server,cb) {
 	
 	// listening on-routes message
 
-	var endpts = Object.keys( TOTEM.select ).join();
-
 	if (TOTEM.cores) 					// Start for master-workers
 		if (CLUSTER.isMaster) {			// Establish master port
 			
 			server.listen(TOTEM.masterPort, function() {  // Establish master
-				Trace(`SERVING ${site.urls.master} AT [${endpts}]`);
+				Trace(`SERVE ${site.urls.master}`);
 			});
 			
 			CLUSTER.on('exit', function(worker, code, signal) {
-				Trace(`CORE${worker.id} TERMINATED ${code||"ok"}`);
+				Trace(`TERMINATE core-${worker.id} ${code||"ok"}`);
 			});
 
 			CLUSTER.on('online', function(worker) {
-				Trace(`CORE${worker.id} CONNECTED`);
+				Trace(`CONNECT core-${worker.id}`);
 			});
 			
 			for (var core = 0; core < TOTEM.cores; core++) {  
 				worker = CLUSTER.fork();
-				Trace(`CORE${worker.id} FORKED`);
+				Trace(`FORK core-${worker.id}`);
 			}
 		}
 		
 		else 								// Establish worker port			
 			server.listen(TOTEM.workerPort, function() {
-				Trace(`CORE${CLUSTER.worker.id} SERVING ${site.urls.worker} AT [${endpts}]`);
+				Trace(`SERVE ${site.urls.worker} ON core-${CLUSTER.worker.id}`);
 			});
 	
 	else 								// Establish master-only
 		server.listen(TOTEM.masterPort, function() {
-			Trace(`SERVING ${site.urls.master} AT ${endpts}`);
+			Trace(`SERVE ${site.urls.master}`);
 		});
 		
 			
@@ -1321,6 +1318,7 @@ function startService(server,cb) {
 	}
 
 	TOTEM.thread( function (sql) {
+		sql.query("DELETE FROM openv.syslogs");
 		sql.query("UPDATE app.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
 			
 		var watchStats = TOTEM.watchStats;
@@ -1333,7 +1331,7 @@ function startService(server,cb) {
 				else
 					files.each(function (n,file) {
 
-						Trace("WATCHING "+file);
+						Trace("WATCH "+file, sql);
 						watchStats[file] = 0; 
 						
 						FS.watch(folder+"/"+file, function (ev, file) {  
@@ -1342,12 +1340,12 @@ function startService(server,cb) {
 								isSwap = file.charAt(0) == ".",
 								path = folder+"/"+file;
 							
-							Trace(ev.toUpperCase()+" "+file);
-												
 							if (TOTEM.thread && file && !isSwap)
 								switch (ev) {
 									case "change":
 										TOTEM.thread( function (sql) {
+											Trace(ev.toUpperCase()+" "+file, sql);
+												
 											FS.stat(path, function (err, stats) {
 
 												if ( !err && (watchStats[file] - stats.mtime) ) {
@@ -1396,7 +1394,7 @@ function connectService(cb) {
 			key: `${paths.certs}${name}.key`
 		}, certs);
 
-		//console.log({certcache: certs});
+		//Log({certcache: certs});
 		
 		try {  // build the trust strore
 			Each( FS.readdirSync(paths.certs+"/truststore"), function (n,file) {
@@ -1445,7 +1443,7 @@ function protectService(cb) {
 		paths = TOTEM.paths,
 		pfxfile = `${paths.certs}${name}.pfx`;
 
-	Trace(`PROTECTING ${name}`);
+	Trace(`PROTECT ${name}`);
 	
 	TOTEM.site.urls = TOTEM.cores 
 		? {  // establish site urls
@@ -1465,7 +1463,7 @@ function protectService(cb) {
 
 			if (err) {
 				var owner = TOTEM.name;
-				Trace( "CREATING SERVER CERTIFICATE FOR "+owner );
+				Trace( "CREATE SERVERCERT FOR "+owner );
 			
 				createCert(owner,TOTEM.encrypt,function () {
 					connectService(cb);
@@ -1492,7 +1490,7 @@ function stopService() {
 			
 	if (server)
 		server.close(function () {
-			Trace(`STOPPED ${TOTEM.name}`);
+			Trace(`STOP ${TOTEM.name}`);
 		});
 }
 
@@ -1518,7 +1516,7 @@ Return user profile information
 			"SELECT * FROM openv.profiles WHERE least(?,1)", 
 			[ query ], 
 			function (err,users) {
-				Trace(q.sql);
+				Log(q.sql);
 
 				res( err || users );
 		});
@@ -1551,7 +1549,7 @@ Update user profile information
 				"UPDATE openv.profiles SET ? WHERE ?", 
 				[ query, {client:query.user} ], 
 				function (err,info) {
-					Trace(q.sql);
+					Log(q.sql);
 
 					res( err || TOTEM.errors.failedUser );
 			});
@@ -1587,7 +1585,7 @@ Remove user profile.
 				"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
 				[ {client:query.user}, req.query ], 
 				function (err,info) {
-					console.log(q.sql);
+					Log(q.sql);
 
 					res( err || TOTEM.errors.failedUser );
 					
@@ -1626,7 +1624,7 @@ Create user profile, associated certs and distribute info to user
 				query.user ? {User: query.user} : 1 )
 				
 			.on("result", function (user) {
-				Trace(q.sql);
+				Log(q.sql);
 				
 				var init = Copy({	
 					Approved: new Date(),
@@ -1679,7 +1677,7 @@ To connect to ${site.Nick} from Windows:
 						
 						createCert(user.User, pass, function () {
 
-							Trace(`Created cert for ${user.User}`);
+							Trace(`CREATE CERT FOR ${user.User}`, sql);
 							
 							CP.exec(
 								`sudo adduser ${user.User} -gid ${user.Group}; sudo id ${user.User}`,
@@ -1690,7 +1688,7 @@ To connect to ${site.Nick} from Windows:
 										[ {uid: out}, {User:user.User} ]
 									);
 
-									console.log( err 
+									Log( err 
 										? `Account failed for ${user.User} - require "sudo adduser" to protect this service`
 										: `Account created and group rights assigned to ${user.User}`
 									);
@@ -1951,7 +1949,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 			else
 			if (TOTEM.admitGuests) {
 				delete TOTEM.guestProfile.ID;
-				Trace("ADMITTING GUEST");
+				Trace("ADMIT GUEST", sql);
 				sql.query(  // prime a profile if it does not already exist
 					"INSERT INTO openv.profiles SET ?", Copy({
 					Client: client,
@@ -2066,7 +2064,7 @@ function uploadFile( files, area, cb) {
 			name = file.filename,
 			target = TOTEM.paths.mime[area]+"/"+area+"/"+name;
 
-		//console.log([name, target, file]);
+		//Log([name, target, file]);
 		
 		cb( file );
 		
@@ -2111,7 +2109,7 @@ function uploadFile( files, area, cb) {
 
 					var buf = new Buffer(file.data, "base64");
 					FS.writeFile(target, buf.toString("binary"), {encodings:"binary"}, function (err) {
-						console.log(err);
+						Log(err);
 					});
 					break;
 				*/
@@ -2122,7 +2120,7 @@ function uploadFile( files, area, cb) {
 				default:
 					var buf = new Buffer(file.data,"base64");
 					FS.writeFile(target, buf,  "base64", function (err) {
-						if (err) console.log(err);
+						if (err) Log(err);
 					});
 			}
 
@@ -2266,7 +2264,7 @@ function httpFetch(url,cb) {
 		opts.method = "POST";
 	}*/
 	
-	Trace("FETCHING "+url);
+	Trace("FETCH "+url);
 	
 	if (opts.protocol) {
 		var Req = transport[opts.protocol].request(opts, function(Res) {
@@ -2340,7 +2338,7 @@ Endpoint to check clients response req.query to a riddle created by challengeCli
 			ID = {Client:rid.ID},
 			guess = (query.guess+"").replace(/ /g,"");
 
-console.log([rid,query]);
+Log([rid,query]);
 
 		if (rid.Count) 
 			if (rid.Riddle == guess) {
@@ -2509,7 +2507,7 @@ function Initialize () {
 Initialize TOTEM.
 */
 	
-	Trace(`INITIALIZED WITH ${TOTEM.riddles} RIDDLES`);
+	Trace(`INIT WITH ${TOTEM.riddles} RIDDLES`);
 	
 	initChallenger();
 	
@@ -2558,7 +2556,7 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 			joins = req.joins;
 
 		/*
-		console.log({before: {
+		Log({before: {
 			a: req.action,
 			q: query,
 			b: body,
@@ -2600,7 +2598,7 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 				traps[n](req);
 
 		/*
-		console.log({after: {
+		Log({after: {
 			a: req.action,
 			q: query,
 			b: body,
@@ -2654,7 +2652,7 @@ byType, byActionTable, engine or file indexer (see config documentation).
 		area = req.filearea,
 		paths = TOTEM.paths;
 
-	//console.log([action,req.filepath,area,table,type]);
+	//Log([action,req.filepath,area,table,type]);
 	
 	if (req.filepath) 
 		followRoute( route = TOTEM.byArea[area] || sendFile, req, res );
@@ -2674,7 +2672,7 @@ byType, byActionTable, engine or file indexer (see config documentation).
 	else  // attempt to route to engines then to database
 	if ( route = TOTEM.byAction[action] ) 
 		route(req, function (ack) { 
-			//console.log({engroute: ack});
+			//Log({engroute: ack});
 			
 			if (ack)
 				res( ack );
@@ -2772,7 +2770,7 @@ request-response thread
 
 		Trace( 
 			(route?route.name:"null").toUpperCase() 
-			+ ` ${req.filename} FOR ${req.group}.${req.client} ON CORE${myid}`);
+			+ ` ${req.filename} FOR ${req.group}.${req.client} ON CORE${myid}`, req.sql);
 	
 		route(req, res);
 	}
@@ -3075,7 +3073,7 @@ the client is challenged as necessary.
 							}
 					});
 
-//console.log(files);
+//Log(files);
 					return {files: files};
 				}) );
 			
@@ -3282,8 +3280,8 @@ function sqlThread(cb) {
 	DSVAR.thread(cb);
 }
 
-function Trace(msg,arg) {
-	ENUM.trace("T>",msg,arg);
+function Trace(msg,sql) {
+	ENUM.trace("T>",msg,sql);
 }
 
 
@@ -3299,19 +3297,19 @@ function proxyService(req, res) {  // not presently used but might want to suppo
 
 	proxy.method = req.method;
 	
-	console.log(proxy, pathto);
+	Log(proxy, pathto);
 	
 	/*
 	var sock = NET.connect( proxy.port );
 	sock.setEncoding("utf8");
 	sock.write("here is some data for u");
 	sock.on("data", function (d) {
-		console.log("sock rx", d);
+		Log("sock rx", d);
 		res(d);
 	}); */
 	
 	var Req = HTTP.request( pathto, function(Res) {
-		console.log("==========SETUP", Res.statusCode, Res.headers);
+		Log("==========SETUP", Res.statusCode, Res.headers);
 		
 		var body = "";
 
@@ -3321,22 +3319,22 @@ function proxyService(req, res) {  // not presently used but might want to suppo
 		});
 
 		Res.on("end", function () {
-			console.log("=========rx "+body);
+			Log("=========rx "+body);
 			res(body);
 		});
 		
 		Res.on("error", function (err) {
-			console.log("what??? "+err);
+			Log("what??? "+err);
 		}); 
 		
 	}); 
 
 	Req.on('error', function(err) {
-		console.log("=========tx "+err);
+		Log("=========tx "+err);
 		res("oh well");
 	});
 	
-	//console.log( "RELAY TX "+JSON.stringify( req.body) );
+	//Log( "RELAY TX "+JSON.stringify( req.body) );
 
 	if (proxy.method == "PUT") 
 		Req.write( JSON.stringify(req.body) );
@@ -3378,34 +3376,34 @@ var REMOTE_ADDR = "192.168.1.25";
 
 var server = net.createServer(function (socket) {
     socket.on('data', function (msg) {
-        console.log('  ** START **');
-        console.log('<< From client to proxy ', msg.toString());
+        Log('  ** START **');
+        Log('<< From client to proxy ', msg.toString());
         var serviceSocket = new net.Socket();
         serviceSocket.connect(parseInt(REMOTE_PORT), REMOTE_ADDR, function () {
-            console.log('>> From proxy to remote', msg.toString());
+            Log('>> From proxy to remote', msg.toString());
             serviceSocket.write(msg);
         });
         serviceSocket.on("data", function (data) {
-            console.log('<< From remote to proxy', data.toString());
+            Log('<< From remote to proxy', data.toString());
             socket.write(data);
-            console.log('>> From proxy to client', data.toString());
+            Log('>> From proxy to client', data.toString());
         });
     });
 });
 
 server.listen(LOCAL_PORT);
-console.log("TCP server accepting connection on port: " + LOCAL_PORT);
+Log("TCP server accepting connection on port: " + LOCAL_PORT);
 */
 	
 }
 
 function simThread(sock) { 
 	//Req.setSocketKeepAlive(true);
-	console.log({ip: sock.remoteAddress, port: sock.remotePort});
+	Log({ip: sock.remoteAddress, port: sock.remotePort});
 	sock.setEncoding("utf8");
 	/*
 	sock.on("data", function (req) {
-		console.log("sock data>>>>",req);
+		Log("sock data>>>>",req);
 		var 
 			Req = Copy({
 				socket: sock  // used if master makes handoff
