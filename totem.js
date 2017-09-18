@@ -3284,7 +3284,6 @@ function Trace(msg,sql) {
 	ENUM.trace("T>",msg,sql);
 }
 
-
 function proxyService(req, res) {  // not presently used but might want to support later
 	
 	var 
@@ -3418,6 +3417,5 @@ function simThread(sock) {
 		sesThread(Req,Res);
 	});*/
 }
-
 
 // UNCLASSIFIED
