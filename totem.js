@@ -1331,39 +1331,41 @@ function startService(server,cb) {
 				else
 					files.each(function (n,file) {
 
-						Trace("WATCH "+file, sql);
-						watchStats[file] = 0; 
-						
-						FS.watch(folder+"/"+file, function (ev, file) {  
+						if (file.charAt(0) != ".") {
+							Trace("WATCH "+file, sql);
+							watchStats[file] = 0; 
 
-							var 
-								isSwap = file.charAt(0) == ".",
-								path = folder+"/"+file;
-							
-							if (TOTEM.thread && file && !isSwap)
-								switch (ev) {
-									case "change":
-										TOTEM.thread( function (sql) {
-											Trace(ev.toUpperCase()+" "+file, sql);
-												
-											FS.stat(path, function (err, stats) {
+							FS.watch(folder+"/"+file, function (ev, file) {  
 
-												if ( !err && (watchStats[file] - stats.mtime) ) {
-													watchStats[file] = stats.mtime;
-													cb(sql, path, file, ev);
-												}
+								var 
+									isSwap = file.charAt(0) == ".",
+									path = folder+"/"+file;
 
+								if (TOTEM.thread && file && !isSwap)
+									switch (ev) {
+										case "change":
+											TOTEM.thread( function (sql) {
+												Trace(ev.toUpperCase()+" "+file, sql);
+
+												FS.stat(path, function (err, stats) {
+
+													if ( !err && (watchStats[file] - stats.mtime) ) {
+														watchStats[file] = stats.mtime;
+														cb(sql, path, file, ev);
+													}
+
+												});
 											});
-										});
 
-										break;
+											break;
 
-									case "delete":
-									case "rename":
-									default:
+										case "delete":
+										case "rename":
+										default:
 
-								}
-						});
+									}
+							});
+						}
 					});
 			});	
 		});
