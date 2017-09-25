@@ -25,7 +25,9 @@ Trace logs are prefixed by the issuing module:
 
 var 
 	ENV = process.env,
-	ENUM = require("enum");
+	ENUM = require("enum"),
+	Copy = ENUM.copy,
+	Log = console.log;
 
 ENUM.test({
 
@@ -415,16 +417,17 @@ function faces(tau,parms) { return 102; }
 				faultless: false,
 				
 				watch: {
-					"./public/events": function (sql,path,name,ev) {  // watch changes to the files in the events area
+					"./public/uploads": function (sql,path,name,ev) {  // watch changes to the files in the events area
 						DEBE.ingestFile(sql, path, name, function (aoi,grade,cb) {
 							var client = "guest";
 
 							Trace( `CREDIT ${client}` );
 							Log(grade);
 
-							sql.query("SELECT group FROM app.profiles WHERE ?", {Client:client}, function (err,profs) {
-								if ( prof = err ? null : profs[0] ) cb( prof.Group );
-							});
+							if (cb)
+								sql.query("SELECT group FROM app.profiles WHERE ?", {Client:client}, function (err,profs) {
+									if ( prof = err ? null : profs[0] ) cb( prof.Group );
+								});
 
 							sql.query("UPDATE app.profiles SET Credit=Credit+? WHERE Client=?", [grade.snr, client]);
 							sql.query("REPLACE INTO app.files SET ? WHERE Name=?", [Copy(grade,{Client:client}), name]);

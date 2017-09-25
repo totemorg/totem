@@ -2034,29 +2034,29 @@ function uploadFile( files, area, cb) {
 */
 
 	function copyFile(source, target, cb) {
-	  var cbCalled = false;
-	  var rd = FS.createReadStream(source);
-	  var wr = FS.createWriteStream(target);
-	  
-	  rd.on("error", function(err) {
-		done(err);
-	  });
-	  
-	  wr.on("error", function(err) {
-		done(err);
-	  });
-	  wr.on("close", function(ex) {
-		done();
-	  });
-	  
-	  rd.pipe(wr);
+		var rs = FS.createReadStream(source);
+		var ws = FS.createWriteStream(target);
 
-	  function done(err) {
-		if (!cbCalled) {
-		  cb(err);
-		  cbCalled = true;
+		/*
+		var cbCalled = false;
+		function done(err) {
+			if (!cbCalled) {
+				cb(err);
+				cbCalled = true;
+			}
 		}
-	  }
+		rs.on("error", function(err) {
+		done(err);
+		});
+
+		ws.on("error", function(err) {
+		done(err);
+		});
+		ws.on("close", function(ex) {
+		done();
+		}); */
+
+		rd.pipe(ws);
 	}
 	
 	var arrived = new Date();
@@ -2066,7 +2066,7 @@ function uploadFile( files, area, cb) {
 			name = file.filename,
 			target = TOTEM.paths.mime[area]+"/"+area+"/"+name;
 
-		//Log([name, target, file]);
+		Trace(`UPLOAD ${name}`);
 		
 		cb( file );
 		
@@ -2077,7 +2077,7 @@ function uploadFile( files, area, cb) {
 			var temp = `tmp/temp.png`;  // many browsers only support png so convert to jpg
 
 			FS.writeFile(temp, buf64.toString("binary"), {encoding:"binary"}, function (err) {
-				console.info("SAVE "+name+" TO "+target+(err?" FAILED":""));
+				Log("SAVE "+name+" TO "+target+(err?" FAILED":""));
 
 				if (!err && cb)
 					LWIP.open(temp, function (err,image) {
