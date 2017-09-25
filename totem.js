@@ -895,7 +895,7 @@ var
 		badData: new Error("data has circular reference"),
 		retryFetch: new Error("data fetch retries exceeded"),
 		notAllowed: new Error("this dataset interface is disabled"),
-		noAccess: new Error("no access to master from this endpoint")
+		noAccess: new Error("no access to master core at this endpoint")
 	},
 
 	/**
