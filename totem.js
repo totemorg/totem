@@ -1456,7 +1456,7 @@ function protectService(cb) {
 		
 		: {
 			socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
-			worker:  "nada",
+			worker:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.masterPort,
 			master:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.masterPort,
 		};
 

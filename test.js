@@ -418,22 +418,54 @@ function faces(tau,parms) { return 102; }
 				
 				watch: {
 					"./public/uploads": function (sql,path,name,ev) {  // watch changes to the files in the events area
-						var client = "guest", group = "app";
+						
+						sql.query("SELECT ID,Client,Added FROM app.files WHERE ? LIMIT 0,1", {Name: name}, function (err,files) {
+							
+							var 
+								file = files[0] || {
+									ID: 0,
+									Client: "guest",
+									Added: new Date()
+								},
+								now = new Date(),
+								client = file.Client,
+								dated = file.Added,
+								site = DEBE.site,
+								url = site.urls.worker,
+								reps = [
+									"quality".tag("a",{href:url+"/randpr.run"}),
+									"clumping".tag("a",{href:url+"/gaussmix.run"}),
+									"loitering".tag("a",{href:url+"/airspace.view?options=briefing"}),
+									"corridors".tag("a",{href:url+"/airspace.view?options=briefing"}),
+									"transportability".tag("a",{href:url+"/airspace.view?options=briefing"}),
+									"patterns".tag("a",{href:url+"/airspace.view?options=briefing"})
+								].join(", "),
+								poc = site.distro.d;
+							
+							sql.query("SELECT `Group` FROM openv.profiles WHERE ? LIMIT 0,1", {Client:client}, function (err, profs) {
+								
+								var prof = profs[0] || {
+									Client: client,
+									Group: "app"
+								},						
+								group = prof.Group,
+								doc = 
+`This ${name} dataset dated ${dated} was (re)submitted by ${client} to ${site.nick}.${group} for a free analysis on ${now}.  If your 
+sample passes initial quality assessments, additional metrics will be available at ${reps}.  Should you wish to remove these quality 
+assessments from our worldwide reporting system, please contact ${poc} for consideration.  
+`;
 
-						DEBE.ingestFile(sql, path, name, group, function (aoi,grade,cb) {
-							Trace( `CREDIT ${client}` );
-							Log(aoi, grade);
+								DEBE.ingestFile(sql, path, name, file.ID, group, file.Client, doc, function (aoi, stats) {
+									Trace( `CREDIT ${client}` );
+									Log(aoi, stats);
 
-							if (cb)
-								sql.query("SELECT group FROM app.profiles WHERE ?", {Client:client}, function (err,profs) {
-									if ( prof = err ? null : profs[0] ) cb( prof.Group );
+									sql.query("UPDATE app.profiles SET Credit=Credit+? WHERE Client=?", [stats.snr, client]);
+									sql.query("REPLACE INTO app.files SET ? WHERE Name=?", [Copy(stats,{Client:client}), name]);
 								});
 
-							sql.query("UPDATE app.profiles SET Credit=Credit+? WHERE Client=?", [grade.snr, client]);
-							sql.query("REPLACE INTO app.files SET ? WHERE Name=?", [Copy(grade,{Client:client}), name]);
+								sql.release();
+							});
 						});
-
-						sql.release();
 					},
 
 					"./public/js": function (sql,path,name,ev) {
