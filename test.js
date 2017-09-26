@@ -418,11 +418,11 @@ function faces(tau,parms) { return 102; }
 				
 				watch: {
 					"./public/uploads": function (sql,path,name,ev) {  // watch changes to the files in the events area
-						DEBE.ingestFile(sql, path, name, function (aoi,grade,cb) {
-							var client = "guest";
+						var client = "guest", group = "app";
 
+						DEBE.ingestFile(sql, path, name, group, function (aoi,grade,cb) {
 							Trace( `CREDIT ${client}` );
-							Log(grade);
+							Log(aoi, grade);
 
 							if (cb)
 								sql.query("SELECT group FROM app.profiles WHERE ?", {Client:client}, function (err,profs) {
