@@ -26,6 +26,7 @@ Trace logs are prefixed by the issuing module:
 var 
 	ENV = process.env,
 	ENUM = require("enum"),
+	CP = require("child_process"),
 	Copy = ENUM.copy,
 	Log = console.log;
 
@@ -461,6 +462,9 @@ assessments from our worldwide reporting system, please contact ${poc} for consi
 
 									sql.query("UPDATE app.profiles SET Credit=Credit+? WHERE Client=?", [stats.snr, client]);
 									sql.query("REPLACE INTO app.files SET ? WHERE Name=?", [Copy(stats,{Client:client}), name]);
+									CP.exec(`rm ${path}; touch ${path}`, function (err) {
+										Trace(`PURGED ${name}`);
+									});
 								});
 
 								sql.release();
