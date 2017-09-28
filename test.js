@@ -461,7 +461,6 @@ assessments from our worldwide reporting system, please contact ${poc} for consi
 									Log(aoi, stats);
 
 									sql.query("UPDATE app.profiles SET Credit=Credit+? WHERE Client=?", [stats.snr, client]);
-									sql.query("REPLACE INTO app.files SET ? WHERE Name=?", [Copy(stats,{Client:client}), name]);
 									CP.exec(`rm ${path}; touch ${path}`, function (err) {
 										Trace(`PURGED ${name}`);
 									});
