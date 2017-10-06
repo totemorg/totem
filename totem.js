@@ -218,11 +218,10 @@ var
 			 */
 
 				try {
-					var rtn = eval("`" + S + "`");
-					return rtn;
+					return eval("`" + S + "`");
 				}
 				catch (err) {
-					return "[bad]";
+					return S;
 				}
 
 			}
