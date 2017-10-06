@@ -420,7 +420,7 @@ function faces(tau,parms) { return 102; }
 				watch: {
 					"./public/uploads": function (sql,path,name,ev) {  // watch changes to the files in the events area
 						
-						sql.query("SELECT ID,Client,Added FROM app.files WHERE ? LIMIT 0,1", {Name: name}, function (err,files) {
+						sql.query("SELECT ID,Client,Added FROM app.files WHERE ? LIMIT 1", {Name: name}, function (err,files) {
 							
 							var 
 								file = files[0] || {
@@ -443,7 +443,7 @@ function faces(tau,parms) { return 102; }
 								].join(", "),
 								poc = site.distro.d;
 							
-							sql.query("SELECT `Group` FROM openv.profiles WHERE ? LIMIT 0,1", {Client:client}, function (err, profs) {
+							sql.query("SELECT `Group` FROM openv.profiles WHERE ? LIMIT 1", {Client:client}, function (err, profs) {
 								
 								var prof = profs[0] || {
 									Client: client,
@@ -451,16 +451,47 @@ function faces(tau,parms) { return 102; }
 								},						
 								group = prof.Group,
 								doc = 
-`This ${name} dataset dated ${dated} was (re)submitted by ${client} to ${site.nick}.${group} for a free analysis on ${now}.  If your 
+`The ${name} dataset owned by ${client} was re/submitted to ${site.nick}.${group} for a free analysis on ${now}.  If your 
 sample passes initial quality assessments, additional metrics will be available at ${reps}.  Should you wish to remove these quality 
-assessments from our worldwide reporting system, please contact ${poc} for consideration.  
+assessments from our worldwide reporting system, please contact ${poc} for consideration.    The following assessment was
+credited to ${client}:
 `;
 
-								DEBE.ingestFile(sql, path, name, file.ID, group, file.Client, doc, function (aoi, stats) {
+								DEBE.ingestFile(sql, path, name, file.ID, group, doc, function (aoi) {
+									
+									var
+										TL = [aoi.yMax, aoi.xMin],   // [lon,lat] degs
+										TR = [aoi.yMax, aoi.xMax],
+										BL = [aoi.yMin, aoi.xMin],
+										BR = [aoi.yMin, aoi.xMax], 
+										Ring = [ TL, TR, BR, BL, TL ];
+									
 									Trace( `CREDIT ${client}` );
-									Log(aoi, stats);
+									Log(aoi);
 
-									sql.query("UPDATE app.profiles SET Credit=Credit+? WHERE Client=?", [stats.snr, client]);
+									sql.query("UPDATE app.profiles SET Credit=Credit+? WHERE Client=?", [aoi.snr, client]);
+									sql.query("UPDATE app.files SET ?,Ring=st_GeomFromText(?) WHERE ?", [{
+											States: aoi.States,
+											Steps: aoi.Steps,
+											Actors: aoi.Actors,
+											Samples: aoi.Samples,
+											coherence_time: aoi.coherence_time,
+											coherence_intervals: aoi.coherence_intervals,
+											mean_jump_rate: aoi.mean_jump_rate,
+											degeneracy: aoi.degeneracy,
+											snr: aoi.snr
+										},
+
+										'POLYGON((' + [  // [lon,lat] degs
+											Ring[0].join(" "),
+											Ring[1].join(" "),
+											Ring[2].join(" "),
+											Ring[3].join(" "),
+											Ring[0].join(" ") ].join(",") +'))' ,
+
+										{ID: file.ID} 
+									], (err) => {Log(err);} );
+									
 									CP.exec(`rm ${path}; touch ${path}`, function (err) {
 										Trace(`PURGED ${name}`);
 									});
