@@ -364,16 +364,10 @@ var
 			edits: { flag:cb(list,data,req), ...} // sets data conversion cb for a _flag=list,
 			prefix:  "_" 	// sets flag prefix
 	*/
-	reqflags: {				//< Properties for request flags
+	reqFlags: {				//< Properties for request flags
 		strips:	 			//< Flags to strips from request
 			{"":1, "_":1, leaf:1, _dc:1, id:1, "=":1, "?":1, "request":1}, 		
 
-		traps: {   			//< Traps to redefine flags
-		},
-		
-		edits: { 			 //< Data convertors
-		},
-		
 		id: "ID", 					//< SQL record id
 		prefix: "_",				//< Prefix that indicates a field is a flag
 		trace: "_trace" 		//< Echo flags before and after parse		
@@ -507,9 +501,9 @@ var
 	/**
 	@cfg {Object} 
 	@member TOTEM	
-	Endpoint converters cb(ack data as string || error)
+	Endpoint reqTypes cb(ack data as string || error)
 	*/
-	converters: {  
+	reqTypes: {  
 		db: function (ack, req, cb) {
 			if ( ack.constructor == Array ) 
 				req.sql.query("select found_rows()")
@@ -2546,12 +2540,11 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 		// flags and joins
 
 		var 
-			reqflags = TOTEM.reqflags,
-			strips = reqflags.strips,
-			prefix = reqflags.prefix,
-			edits = reqflags.edits,
-			traps = reqflags.traps,
-			id = reqflags.id,
+			reqFlags = TOTEM.reqFlags,
+			strips = reqFlags.strips,
+			prefix = reqFlags.prefix,
+			traps = reqFlags.traps,
+			id = reqFlags.id,
 			body = req.body,
 			flags = req.flags,
 			joins = req.joins;
@@ -2594,9 +2587,10 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 			delete body[id];
 		}
 
-		for (var n in traps) 		// let traps remap query-flag parms
-			if ( flags[n] )
-				traps[n](req);
+		if (traps)
+			for (var n in traps) 		// let traps remap query-flag parms
+				if ( flags[n] )
+					traps[n](req);
 
 		/*
 		Log({after: {
@@ -2899,7 +2893,7 @@ the client is challenged as necessary.
 	function sendData(ack, req, res) {  // Send data via converter
 		if (ack)
 			if (req.type)
-				if (conv = TOTEM.converters[req.type])
+				if (conv = TOTEM.reqTypes[req.type])
 					conv(ack, req, function (rtn) {
 						switch (rtn.constructor) {
 							case Error:
@@ -3006,15 +3000,25 @@ the client is challenged as necessary.
 					
 				case Array: 			// send records with applicable conversions
 
-					var flags = req.flags;
-
-					Each( TOTEM.reqflags.edits, function (n, conv) {  // do applicable conversions
-						if (conv) 
-							if (flag = flags[n])  
-								conv(flag.split(","),ack,req);
-					});
-					
-					sendData(ack,req,res);
+					if ( blog = req.flags.blog ) {
+						var keys = blog.split(","), recs = ack;
+						if ( blog = TOTEM.reqFlags.blog ) {
+							recs.each( function (n, rec) {
+								keys.each(function (n,key) {
+									if ( val = rec[key] )
+										if (val.constructor == String)
+											blog( val, rec, req.table, function (html) {
+												rec[key] = html;
+											});
+								});
+							});
+							sendData(ack,req,res);
+						}
+						else
+							sendData(ack,req,res);
+					}
+					else
+						sendData(ack,req,res);
 					
 					break;
 
