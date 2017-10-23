@@ -36,8 +36,8 @@ ENUM.test({
 		
 		var TOTEM = require("../totem");
 
-		Trace(
-			"Im simply a Totem interface so Im not running any service", {
+		Trace({
+			msg: "Im simply a Totem interface so Im not running any service", 
 			default_fetcher_endpts: TOTEM.byType,
 			default_protect_mode: TOTEM.faultless,
 			default_cores_used: TOTEM.cores
@@ -74,10 +74,8 @@ with 2 cores and the default endpoint routes` );
 			Trace( err ||
 `I used the default openv.apps config options for the Nick="Totem" app, and **have become** a Totem client with no cores, but 
 I do have mysql database from which I've derived my start() 
-options from openv.apps.nick = TOTEM.name = "Totem"`, {
-
-				//mysql_derived_site_parms: TOTEM.site
-			});
+options from openv.apps.nick = TOTEM.name = "Totem"`
+			);
 		});
 		
 	},
@@ -106,19 +104,20 @@ options from openv.apps.nick = TOTEM.name = "Totem"`, {
 					else
 						res( new Error("We have a problem huston") );
 						
-					Trace(
-`Like dothis, but needs an ?x=value query`, {
+					Trace({
+						msg: `Like dothis, but needs an ?x=value query`, 
 						or_query: req.query,
 						or_user: [req.client,req.group]
 					});
 				}
 			}
 		}, function (err) {
-			Trace( err || 
+			Trace( err || {
+				msg:
 `Now stronger and **encrypted** -- try my https /dothis and /orthis endpoints.
 Ive only requested 1 core, and Im unprotected, with a mysql database.  
 If my client.pfx does not already exists, Totem will create the client.pfx 
-and associated pems (public client.crt and private client.key).` , {
+and associated pems (public client.crt and private client.key).` , 
 				my_endpoints: TOTEM.byType
 			});
 		});
@@ -137,9 +136,10 @@ and associated pems (public client.crt and private client.key).` , {
 			
 			riddles: 20
 		}, function (err) {
-			Trace( err ||
+			Trace( err || {
+				msg:
 `I am Totem client, with no cores but I do have mysql database and
-I have an anti-bot shield!!`, {
+I have an anti-bot shield!!`, 
 				mysql_derived_parms: TOTEM.site
 			});
 		});
@@ -150,7 +150,8 @@ I have an anti-bot shield!!`, {
 		var ENGINE = require("../engine");
 		var TOTEM = require("../totem");
 
-		Trace( "A Totem+Engine client has been created", {
+		Trace({
+			msg: "A Totem+Engine client has been created", 
 			a_tau_template: ENGINE.tau("somejob.pdf"),
 			engine_errors: ENGINE.error,
 			get_endpts: TOTEM.byType,
@@ -558,8 +559,8 @@ credited to ${client}:
 
 });	
 
-function Trace(msg,arg) {
-	ENUM.trace("U>",msg,arg);	
+function Trace(msg,sql) {
+	ENUM.trace("U>",msg,sql);	
 }
 
 // UNCLASSIFIED

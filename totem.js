@@ -972,7 +972,7 @@ var
 				if (cb) cb();
 			})
 			.on("error", function (err) {
-				Trace( "CONFIG FAILED" );
+				throw new Error("DB failed for setContext");
 			});
 			/*
 			sql.indexJsons( "openv.apps", {}, function (jsons) {	// get site json vars
@@ -1130,7 +1130,9 @@ function configService(opts,cb) {
 			}, mysql)
 		}, function (sql) {  // derive server vars and site context vars
 		
-			for (var n in mysql)  // derive server paths
+			Trace(`DERIVE ${name}`);
+			
+			for (var n in mysql)   // derive server paths
 				if (n in paths) paths[n] = mysql[n];
 
 			if (name)	// derive site context
@@ -1140,7 +1142,7 @@ function configService(opts,cb) {
 					});
 				});
 
-			TOTEM.dsAttrs = DSVAR.dsAttrs;
+			//TOTEM.dsAttrs = DSVAR.dsAttrs;
 			//sql.release();
 		});	
 
@@ -1506,18 +1508,14 @@ Return user profile information
 			
 	isHawk = 1;
 	if (isHawk)
-		// sql.context({users:{table:"openv.profiles",where:query,rec:res}})
-		var q= sql.query(
+		Trace(sql.query(
 			"SELECT * FROM openv.profiles WHERE least(?,1)", 
 			[ query ], 
 			function (err,users) {
-				Log(q.sql);
-
 				res( err || users );
-		});
+		}).sql);
 
 	else
-		// sql.context({users:{table:"openv.profiles",where:[{client:req.client},query],rec:res}})
 		sql.query(
 			"SELECT * FROM openv.profiles WHERE ? AND least(?,1)", 
 			[ {client:req.client}, req.query ], 
@@ -1540,14 +1538,12 @@ Update user profile information
 	if (sql.query)
 		if (isHawk) 
 			// sql.context({users:{table:"openv.profile",where:{client:query.user},rec:query}});
-			var q= sql.query(
+			Trace(sql.query(
 				"UPDATE openv.profiles SET ? WHERE ?", 
 				[ query, {client:query.user} ], 
 				function (err,info) {
-					Log(q.sql);
-
 					res( err || TOTEM.errors.failedUser );
-			});
+			}).sql);
 		
 		else
 			sql.query(
@@ -1576,17 +1572,15 @@ Remove user profile.
 	if (query)
 		if (isHawk)
 			// sql.context({users:{table:"openv.profiles",where:[ {client:query.user}, req.query ],rec:res}});
-			var q = sql.query(
+			Trace(sql.query(
 				"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
 				[ {client:query.user}, req.query ], 
 				function (err,info) {
-					Log(q.sql);
-
 					res( err || TOTEM.errors.failedUser );
 					
 					// res should remove their files and other 
 					// allocated resources
-			});
+			}).sql);
 
 		else
 			sql.query(
@@ -1614,13 +1608,11 @@ Create user profile, associated certs and distribute info to user
 	
 	if (req.cert.isHawk)
 		if (query.pass)
-			var q = sql.query(
+			sql.query(
 				"SELECT * FROM openv.profiles WHERE Requested AND NOT Approved AND least(?,1)", 
 				query.user ? {User: query.user} : 1 )
 				
 			.on("result", function (user) {
-				Log(q.sql);
-				
 				var init = Copy({	
 					Approved: new Date(),
 					Banned: url.resetpass
@@ -1716,7 +1708,8 @@ Fetch user profile for processing
 @param {Object} req Totem request 
 @param {Function} res Totem response
  */
-	var access = TOTEM.user,
+	var 
+		access = TOTEM.user,
 		query = req.query;
 		
 	query.user = query.user || query.select || query.delete || query.update || query.insert;
@@ -2502,7 +2495,7 @@ function Initialize () {
 Initialize TOTEM.
 */
 	
-	Trace(`INIT WITH ${TOTEM.riddles} RIDDLES`);
+	Trace(`INIT ${TOTEM.name} WITH ${TOTEM.riddles} RIDDLES`);
 	
 	initChallenger();
 	
