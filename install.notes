@@ -156,8 +156,9 @@ g++ `pkg-config --cflags opencv` `pkg-config --libs opencv` -o mergevec mergevec
 sudo yum install gtk+-devel gtk2-devel
 
 # install mysql cluster 7.5
+# add a mysql user in a mysql group.  This is optional.
 groupadd mysql
-useradd -g mysql -s /bin/failse mysql
+useradd -g mysql mysql  # ok if /home/mysql does not get created
 
 # install mysql cluster 7.3.6 (or 7.4.8) from generic linux install package (not the .el versions)
 # then add an english errmsg.sys
@@ -167,23 +168,25 @@ cp share/english/errmsg.sys bin/share
 
 # make the db folders (note /home/jamesdb -> /base and data->sqldb)
 cd [mysql] 
-# for 7.5
-#   /scripts -> /bin 
-#   use /bin/mysql --initialize --insecure --user=.... instead of mysql_install 
-#   start with mysqld_safe using --skip-password
+# for >= 7.5
+#   create a my.cnf see below
+#   ./bin/mysqld --initialize --insecure --defaults-file=my.cnf
+#   ./bin/mysqld_safe --defaults-file=my.cnf &
+#   ./bin/mysql -u root --skip-password
 #   alter user "root"@"localhost" identified by "new password" instead of using mysqladmin
 #   set gloval sql_mode = ""  # 7.5 introduced query checks that will interfere with existing queries
 
+# for <= 7.4
 ./scripts/mysql_install_db --user=mysql --datadir=$BASE/sqldb
 
 # make sure my.cnf looks like
 [mysqld_safe]
-datadir=/local/sqldb
+datadir=/local/service/sqldb
 basedir=/local/mysql/bin
 socket=/tmp/mysql.sock
 symbolic-links=0
-log-error=/local/sqldb/mysqld.log
-pid-file=/local/sqldb/mysqld.pid
+log-error=/local/service/sqldb/mysqld.log
+pid-file=/local/service/sqldb/mysqld.pid
 
 # to start use
 cd [mysql]
