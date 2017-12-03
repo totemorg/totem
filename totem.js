@@ -972,7 +972,8 @@ var
 				if (cb) cb();
 			})
 			.on("error", function (err) {
-				throw new Error("DB failed for setContext");
+				Log(err);
+				throw TOTEM.errors.noDB;
 			});
 			/*
 			sql.indexJsons( "openv.apps", {}, function (jsons) {	// get site json vars

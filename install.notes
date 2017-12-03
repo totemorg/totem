@@ -155,31 +155,22 @@ g++ `pkg-config --cflags opencv` `pkg-config --libs opencv` -o mergevec mergevec
 # for gtk support for opencv (needed for graphical/console functions)
 sudo yum install gtk+-devel gtk2-devel
 
-# install mysql cluster 7.5
-# add a mysql user in a mysql group.  This is optional.
-groupadd mysql
-useradd -g mysql mysql  # ok if /home/mysql does not get created
+##### install mysql cluster 
 
-# install mysql cluster 7.3.6 (or 7.4.8) from generic linux install package (not the .el versions)
-# then add an english errmsg.sys
+# tar xvf mysql cluster (7.3.6, 7.4.8, 7.5.5) from generic linux install package (not the .el versions)
+
+# add missing english errmsg.sys
 cd [mysql]
 mkdir bin/share
 cp share/english/errmsg.sys bin/share
 
-# make the db folders (note /home/jamesdb -> /base and data->sqldb)
-cd [mysql] 
-# for >= 7.5
-#   create a my.cnf see below
-#   ./bin/mysqld --initialize --insecure --defaults-file=my.cnf
-#   ./bin/mysqld_safe --defaults-file=my.cnf &
-#   ./bin/mysql -u root --skip-password
-#   alter user "root"@"localhost" identified by "new password" instead of using mysqladmin
-#   set gloval sql_mode = ""  # 7.5 introduced query checks that will interfere with existing queries
+# optional but advised to add a mysql user in a mysql group
+groupadd mysql
+useradd -g mysql mysql  # ok if /home/mysql does not get created
 
-# for <= 7.4
-./scripts/mysql_install_db --user=mysql --datadir=$BASE/sqldb
-
-# make sure my.cnf looks like
+# revise my.cnf as follows
+cd [mysql]
+vi my.cnf
 [mysqld_safe]
 datadir=/local/service/sqldb
 basedir=/local/mysql/bin
@@ -187,8 +178,21 @@ socket=/tmp/mysql.sock
 symbolic-links=0
 log-error=/local/service/sqldb/mysqld.log
 pid-file=/local/service/sqldb/mysqld.pid
+sql-mode=""   # ignored so spec on startup
 
-# to start use
+# create / initialize the sqldb 
+cd [mysql]
+# for >=7.5
+./bin/mysqld --initialize-insecure --defaults-file=my.cnf
+./bin/mysqld_safe --defaults-file=my.cnf &
+./bin/mysql -u root --skip-password
+alter user "root"@"localhost" identified by "new password" # instead of using mysqladmin
+set global sql_mode = ""  # if preferred over mysql_safe startup 
+
+# for <=7.4
+./scripts/mysql_install_db --user=mysql --datadir=/local/service/sqldb
+
+# to start service (7.5+ needs sql-mode="" to revert to traditional error checking)
 cd [mysql]
 ./bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" &
 
@@ -201,6 +205,7 @@ mysql -u root -p 'password'
 select user,host,password from mysql.user;
 update mysql.user set password=password('newpassword');
 
+# add 
 # prime the database ...
 create database openv;
 create database app1;
