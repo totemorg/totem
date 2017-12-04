@@ -56,6 +56,42 @@ var 											// Totem modules
 var
 	TOTEM = module.exports = ENUM.extend({
 
+	watchFile: function (path, cb) { // intelligent file watcher
+		var 
+			watchMods = TOTEM.watchMods;
+		
+		watchMods[path] = 0; 
+
+		FS.watch(path, function (ev, file) {  
+			var 
+				isSwap = file.charAt(0) == ".";
+
+			if (TOTEM.thread && file && !isSwap)
+				switch (ev) {
+					case "change":
+						TOTEM.thread( function (sql) {
+							Trace(ev.toUpperCase()+" "+file, sql);
+
+							FS.stat(path, function (err, stats) {
+
+								if ( !err && (watchMods[path] - stats.mtime) ) {
+									watchMods[path] = stats.mtime;
+									cb(ev, sql);
+								}
+
+							});
+						});
+
+						break;
+
+					case "delete":
+					case "rename":
+					default:
+
+				}
+		});
+	},
+		
 	/**
 	@cfg {String}
 	@member TOTEM
@@ -469,7 +505,7 @@ var
 	watch: {		//< Folder watching callbacks cb(path) 
 	},
 		
-	watchStats: { 	//< List to track changed files as OS will trigger multiple change evented when file changed
+	watchMods: { 	//< List to track changed files as OS will trigger multiple change evented when file changed
 	},
 		
 	/**
@@ -1317,7 +1353,7 @@ function startService(server,cb) {
 		sql.query("DELETE FROM openv.syslogs");
 		sql.query("UPDATE app.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
 			
-		var watchStats = TOTEM.watchStats;
+		var watchMods = TOTEM.watchMods;
 		
 		Each(TOTEM.watch, function (folder, cb) {  // watch file changes
 			FS.readdir( folder, function (err, files) {
@@ -1327,41 +1363,10 @@ function startService(server,cb) {
 				else
 					files.each(function (n,file) {
 
-						if (file.charAt(0) != ".") {
-							Trace("WATCH "+file, sql);
-							watchStats[file] = 0; 
-
-							FS.watch(folder+"/"+file, function (ev, file) {  
-
-								var 
-									isSwap = file.charAt(0) == ".",
-									path = folder+"/"+file;
-
-								if (TOTEM.thread && file && !isSwap)
-									switch (ev) {
-										case "change":
-											TOTEM.thread( function (sql) {
-												Trace(ev.toUpperCase()+" "+file, sql);
-
-												FS.stat(path, function (err, stats) {
-
-													if ( !err && (watchStats[file] - stats.mtime) ) {
-														watchStats[file] = stats.mtime;
-														cb(sql, path, file, ev);
-													}
-
-												});
-											});
-
-											break;
-
-										case "delete":
-										case "rename":
-										default:
-
-									}
+						if (file.charAt(0) != ".") 
+							TOTEM.watchFile( folder+"/"+file, function (ev,sql) {
+								cb(sql, file, ev);
 							});
-						}
 					});
 			});	
 		});

@@ -419,11 +419,12 @@ function faces(tau,parms) { return 102; }
 				faultless: false,
 				
 				watch: {
-					"./public/uploads": function (sql,path,name,ev) {  // watch changes to the files in the events area
+					"./public/uploads": function (sql,name,ev) {  // watch changes to the files in the events area
 						
 						sql.query("SELECT ID,Client,Added FROM app.files WHERE ? LIMIT 1", {Name: name}, function (err,files) {
 							
 							var 
+								path = ".public/uploads/" + name,
 								file = files[0] || {
 									ID: 0,
 									Client: "guest",
@@ -503,11 +504,11 @@ credited to ${client}:
 						});
 					},
 
-					"./public/js": function (sql,path,name,ev) {
+					"./public/js": function (sql,name,ev) {
 						sql.release();
 					},
 
-					"./public/py": function (sql,path,name,ev) {
+					"./public/py": function (sql,name,ev) {
 						sql.release();
 					}
 
