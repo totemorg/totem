@@ -41,7 +41,7 @@ var 											// 3rd party modules
 	SIOHUB = require('socket.io-clusterhub'),	//< Socket.io client mesh for multicore app
 	MYSQL = require("mysql"),					//< mysql conector
 	XML2JS = require("xml2js"),					//< xml to json parser (*)
-	BUSY = null, //require('toobusy'),  		//< denial-of-service protector (cant install on NodeJS 5.x)
+	BUSY = null, //require('toobusy'),  		//< denial-of-service protector (cant install on NodeJS 5.x+)
 	JS2XML = require('js2xmlparser'), 			//< JSON to XML parser
 	JS2CSV = require('json2csv'); 				//< JSON to CSV parser	
 	
@@ -748,17 +748,17 @@ var
 	notify: true, 	//< Enable/disable tracing of data fetchers
 
 	/**
-	@cfg {Boolean} [faultless=false]
+	@cfg {Boolean} [nofaults=false]
 	@member TOTEM	
 	Enable/disable service protection mode
 	*/		
-	faultless: false,		//< Enable/disable service protection mode
+	nofaults: false,		//< Enable/disable service protection mode
 		
 	/**
 	@cfg {Object} 
 	@private
 	@member TOTEM	
-	Service protections when in faultless mode
+	Service protections when in nofaults mode
 	*/		
 	protect: {				
 		SIGUSR1:1,
@@ -1334,7 +1334,7 @@ function startService(server,cb) {
 		});
 		
 			
-	if ( TOTEM.faultless)  { // catch core faults
+	if ( TOTEM.nofaults)  { // catch core faults
 		process.on("uncaughtException", function (err) {
 			console.warn(`SERVICE FAULTED ${err}`);
 		});
@@ -1343,7 +1343,7 @@ function startService(server,cb) {
 			console.warn(`SERVICE EXITED ${code}`);
 		});
 
-		for (var n in TOTEM.faultless)
+		for (var n in TOTEM.nofaults)
 			process.on(n, function () {
 				console.warn(`SERVICE SIGNALED ${n}`);
 			});

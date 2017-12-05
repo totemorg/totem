@@ -416,8 +416,6 @@ function faces(tau,parms) { return 102; }
 					pass: ENV.MYSQL_PASS
 				},
 
-				faultless: false,
-				
 				watch: {
 					"./public/uploads": function (sql,name,ev) {  // watch changes to the files in the events area
 						
