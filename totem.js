@@ -838,7 +838,7 @@ var
 	*/		
 	riddles: 0, 			
 	
-	proxy: proxyService,  //< default relay if needed
+	//proxy: proxyService,  //< default relay if needed
 	isEncryptedWorker: false, 	//< enabled by config if worker service is HTTPS encrypted
 	//workers: [],
 		
@@ -2758,23 +2758,25 @@ request-response thread
 		}
 	}
 
-	if ( CLUSTER.isWorker || !TOTEM.cores ) {
-		if ( !req.filepath && TOTEM.isEncryptedWorker ) logMetrics();  // dont log file requests
-		var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
+	if ( !req.filepath && TOTEM.isEncryptedWorker ) logMetrics();  // dont log file requests
+	var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
 
-		Trace( 
-			(route?route.name:"null").toUpperCase() 
-			+ ` ${req.filename} FOR ${req.group}.${req.client} ON CORE${myid}`, req.sql);
+	Trace( 
+		(route?route.name:"null").toUpperCase() 
+		+ ` ${req.filename} FOR ${req.group}.${req.client} ON CORE${myid}`, req.sql);
+
+	route(req, res);
 	
-		route(req, res);
+	/*
+	if ( CLUSTER.isWorker || !TOTEM.cores ) {
 	}
-	
 	else
 	if (route.name == "simThread")
 		route(req,res);
 	
 	else
 		res(TOTEM.errors.noAccess);
+	*/
 }
 
 /**
@@ -3400,11 +3402,11 @@ Log("TCP server accepting connection on port: " + LOCAL_PORT);
 	
 }
 
+/*
 function simThread(sock) { 
 	//Req.setSocketKeepAlive(true);
 	Log({ip: sock.remoteAddress, port: sock.remotePort});
 	sock.setEncoding("utf8");
-	/*
 	sock.on("data", function (req) {
 		Log("sock data>>>>",req);
 		var 
@@ -3419,7 +3421,7 @@ function simThread(sock) {
 			};
 				
 		sesThread(Req,Res);
-	});*/
-}
+	});
+} */
 
 // UNCLASSIFIED
