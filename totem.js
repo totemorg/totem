@@ -138,22 +138,6 @@ var
 			return rtns.join(arg);
 		},
 						  
-		function joinify(cb) {
-		/**
-		@private
-		@member Array
-		Return list joined under control by an optional callback.
-		@param {Function} cb callback(val) returns item for join
-		*/
-			
-			var rtn = [];
-
-			for (var n=0, N=this.length; n<N; n++) 
-				rtn.push( cb ? cb(this[n]) : this[n] );
-				
-			return rtn.join(",");
-		},
-							
 		function treeify(idx,kids,level,piv,wt) {
 		/**
 		@private
