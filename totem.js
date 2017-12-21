@@ -268,12 +268,12 @@ var
 			}
 		},
 		
-		function parseParms(def) { 
+		function parseQuery(def) { 
 		/**
 		@private
 		@member String
-		Parse a JSON string or parse a "&key=val&key=val?query&relation& ..." string into 
-		the default def = {key:val, key=val?query, relation:null, key:json, ...} hash.
+		Parse a "&key=val&key=val?query&relation& ..." query into 
+		the default hash def = {key:val, key=val?query, relation:null, key:json, ...}.
 		*/
 			
 			var lastkey = "";
@@ -524,62 +524,125 @@ var
 	Endpoint reqTypes cb(ack data as string || error)
 	*/
 	reqTypes: {  
-		db: function (ack, req, cb) {
-			if ( ack.constructor == Array ) 
-				req.sql.query("select found_rows()")
-				.on('result', function (stat) {		// ack from sql				
-
-					cb({ 
-						succcess: true,
-						msg: "",
-						count: stat["found_rows()"] || 0,
-						data: ack
-					});
-
-				})
-				.on("error", function () {  		// ack from virtual table
-
-					cb({ 
-						success: true,
-						msg: "",
-						count: ack.length,
-						data: ack
-					});
-
-				});
-
-			else 
-				cb({ 
+		db: function (ack, req, res) {
+			
+			req.sql.query("select found_rows()")
+			.on('result', function (stat) {		// records sourced from sql				
+				res({ 
 					success: true,
-					msg: "",
-					count: 0,
+					msg: "ok",
+					count: stat["found_rows()"] || 0,
 					data: ack
 				});
+			})
+			.on("error", function () {  		// records sourced from virtual table
+				res({ 
+					success: true,
+					msg: "ok",
+					count: ack.length,
+					data: ack
+				});
+			});
+
+			/*
+			if (ack)
+				switch ( ack.constructor ) {
+					case Array:  // records being returned
+						req.sql.query("select found_rows()")
+						.on('result', function (stat) {		// records sourced from sql				
+							res( JSON.stringify({ 
+								success: true,
+								msg: "ok",
+								count: stat["found_rows()"] || 0,
+								data: ack
+							}));
+						})
+						.on("error", function () {  		// records sourced from virtual table
+							res( JSON.stringify({ 
+								success: true,
+								msg: "ok",
+								count: ack.length,
+								data: ack
+							}));
+						});
+						break;
+			
+					case Object:
+						res( JSON.stringify({ 
+							success: false,
+							msg: "ok",
+							count: 0,
+							data: ack
+						}));
+						break;
+			
+					case Error:
+						res( JSON.stringify({ 
+							success: false,
+							msg: ack+"",
+							count: 0,
+							data: []
+						}));
+						break;
+			
+					case String:
+						res( JSON.stringify({ 
+							success: false,
+							msg: ack,
+							count: 0,
+							data: []
+						}));
+						break;
+			
+					default:
+						res( JSON.stringify({ 
+							success: true,
+							msg: "ok",
+							count: 0,
+							data: ack
+						}));
+				}
+			
+			else
+				res({ 
+					success: false,
+					msg: "nothing returned",
+					count: 0,
+					data: []
+				});
+			
+			res( JSON.stringify(rtn) );
+			*/
+			
 		},
 		
-		csv: function (ack, req, cb) {
+		csv: function (ack, req, res) {
 			JS2CSV({ 
 				data: ack, 
 				fields: Object.keys( ack[0]||{} )
 			} , function (err,csv) {
-				cb( err ? TOTEM.errors.badType : csv );
+					res( err || csv );
 			});
 		},
 		
-		xml: function (ack, req, cb) {
-			cb( JS2XML.parse(req.table, {  
+		"": function (ack,req,res) {
+			res( ack );
+		},
+		
+		xml: function (ack, req, res) {
+			res( JS2XML.parse(req.table, {  
 				count: ack.length,
 				data: ack
 			}) );
 		}
 		
 		/*
-		html: function (ack, req, cb) {
+		html: function (ack, req, res) {
 			var rtn = "";
 			ack.each(function (n,html) {
 				rtn += html;
 			});
-			cb(rtn);
+			res(rtn);
 		}*/
 	},
 
@@ -2009,6 +2072,7 @@ function uploadFile( files, area, cb) {
 @param {Function} res totem response
 */
 
+	Log("*** uploader");
 	function copyFile(source, target, cb) {
 		var rs = FS.createReadStream(source);
 		var ws = FS.createWriteStream(target);
@@ -2506,7 +2570,7 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 		node = URL.parse(req.node),
 		path = req.path = node.path,
 		search = req.search = node.query || "",
-		query = req.query = search.parseParms({}),
+		query = req.query = search.parseQuery({}),
 		areas = node.pathname.split("/"),
 		file = req.filename = areas.pop() || (areas[1] ? "" : TOTEM.paths.default),
 		parts = req.parts = file.split("."),
@@ -2875,57 +2939,36 @@ the client is challenged as necessary.
 		Req.req.sql.release();
 	}
 
-	function sendData(ack, req, res) {  // Send data via converter
+	function sendRecords(ack, req, res) {  // Send records via converter
 		if (ack)
-			if (req.type)
-				if (conv = TOTEM.reqTypes[req.type])
-					conv(ack, req, function (rtn) {
-						switch (rtn.constructor) {
-							case Error:
-								sendError( rtn );
-								break;
+			if (conv = TOTEM.reqTypes[req.type])
+				conv(ack, req, function (rtn) {
+					switch (rtn.constructor) {
+						case Error:
+							sendError( rtn );
+							break;
 
-							case String:
-								sendString( rtn );
-								break;
+						case String:
+							sendString( rtn );
+							break;
 
-							default:
-								try {
-									sendString( JSON.stringify(rtn) );
-								}
-								catch (err) {
-									sendErrror(TOTEM.badData);
-								}
-						}
-					});
+						case Array:
+						case Object:
+						default:
+							try {
+								sendString( JSON.stringify(rtn) );
+							}
+							catch (err) {
+								sendErrror(TOTEM.badData);
+							}
+					} 
+				});
 
-				else
-				if (ack.constructor == String)
-					sendString(ack);
-		
-				else
-					try {
-						sendString(JSON.stringify(ack));
-					}
-					catch (err) {
-						sendErrror(TOTEM.badData);
-					}
-					//sendError( TOTEM.errors.badType );
-
-			else
-			if (ack.constructor == String)
-				sendString(ack);
-		
-			else
-				try {
-					sendString(JSON.stringify(ack));
-				}
-				catch (err) {
-					sendErrror(TOTEM.badData);
-				}
+			else 
+				sendError( new Error("bad type") );
 		
 		else
-			sendErrror(TOTEM.badData);
+			sendErrror(TOTEM.badData); 
 	}
 	
 	function res(ack) {  // Session response callback
@@ -2983,9 +3026,9 @@ the client is challenged as necessary.
 				
 					break;
 					
-				case Array: 			// send records with applicable conversions
+				case Array: 			// send data records 
 
-					if ( blog = req.flags.blog ) {
+					if ( blog = req.flags.blog ) {  // blog back selected keys
 						var keys = blog.split(","), recs = ack;
 						if ( blog = TOTEM.reqFlags.blog ) {
 							recs.each( function (n, rec) {
@@ -2997,13 +3040,14 @@ the client is challenged as necessary.
 											});
 								});
 							});
-							sendData(ack,req,res);
+							sendRecords(ack,req,res);
 						}
 						else
-							sendData(ack,req,res);
+							sendRecords(ack,req,res);
 					}
+					
 					else
-						sendData(ack,req,res);
+						sendRecords(ack,req,res);
 					
 					break;
 
@@ -3011,8 +3055,9 @@ the client is challenged as necessary.
 					sendString(ack);
 					break;
 			
-				default: 					// send data as-is
-					sendData(ack,req,res);
+				case Object:
+				default: 					// send data record
+					sendRecords([ack],req,res);
 					break;
 			
 			}
