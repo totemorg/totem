@@ -135,12 +135,19 @@ help.)	# some help
 # Maintenance cases
 #
 
+mysql.)
+	cd /local/mysql
+	. bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" &
+	cd /local/service/debe
+	;;
+	
 startup.)		# status and start dependent services
 	if P=$(pgrep mysqld); then
 		echo -e "mysql service running: \n$P"
 	else
-		rm /var/lib/mysql/mysql.sock      # in case its hanging around
-		mysqld_safe --defaults-file=/base/mysql/my.cnf --sql-mode="" &
+		#rm /var/lib/mysql/mysql.sock      # in case its hanging around
+		cd /local/mysql
+		. bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" &
 	fi
 
 	if P=$(pgrep cesium); then

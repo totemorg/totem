@@ -448,31 +448,31 @@ var
 	/**
 	@cfg {Number} [cores=0]
 	@member TOTEM	
-	Number of worker cores (0 for master-only).  If cores>0, masterPort should != workPort, master becomes HTTP server, and workers
+	Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
 	become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
-	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerPort, and stateful 
-	workers via the masterPort.	
+	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
+	workers via the masterport.	
 	*/				
 	cores: 0,	//< Number of worker cores (0 for master-only)
 		
 	/**
-	@cfg {Number} [masterPort=8080]
+	@cfg {Number} [masterport=8080]
 	@member TOTEM	
-	Port for master HTTP/HTTPS service.  If cores>0, masterPort should != workPort, master becomes HTTP server, and workers
+	Port for master HTTP/HTTPS service.  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
 	become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
-	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerPort, and stateful 
-	workers via the masterPort.	
+	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
+	workers via the masterport.	
 	*/				
-	masterPort: 8080,				 //< master port for stateful threads
+	masterport: 8080,				 //< master port for stateful threads
 	/**
-	@cfg {Number} [workerPort=8443]
+	@cfg {Number} [workerport=8443]
 	@member TOTEM	
-	Port for worker HTTP/HTTPS service.  If cores>0, masterPort should != workPort, master becomes HTTP server, and workers
+	Port for worker HTTP/HTTPS service.  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
 	become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
-	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerPort, and stateful 
-	workers via the masterPort.	
+	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
+	workers via the masterport.	
 	*/				
-	workerPort: 8443, 				//< worker port for stateless threads
+	workerport: 8443, 				//< worker port for stateless threads
 		
 	/**
 	@cfg {String} [host="localhost"]
@@ -1352,7 +1352,7 @@ function startService(server,cb) {
 	if (TOTEM.cores) 					// Start for master-workers
 		if (CLUSTER.isMaster) {			// Establish master port
 			
-			server.listen(TOTEM.masterPort, function() {  // Establish master
+			server.listen(TOTEM.masterport, function() {  // Establish master
 				Trace(`SERVE ${site.urls.master}`);
 			});
 			
@@ -1371,12 +1371,12 @@ function startService(server,cb) {
 		}
 		
 		else 								// Establish worker port			
-			server.listen(TOTEM.workerPort, function() {
+			server.listen(TOTEM.workerport, function() {
 				Trace(`SERVE ${site.urls.worker} ON core-${CLUSTER.worker.id}`);
 			});
 	
 	else 								// Establish master-only
-		server.listen(TOTEM.masterPort, function() {
+		server.listen(TOTEM.masterport, function() {
 			Trace(`SERVE ${site.urls.master}`);
 		});
 		
@@ -1498,14 +1498,14 @@ function protectService(cb) {
 	TOTEM.site.urls = TOTEM.cores 
 		? {  // establish site urls
 			socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
-			worker:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.workerPort,
-			master:  "http://" + TOTEM.host + ":" + TOTEM.masterPort
+			worker:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.workerport,
+			master:  "http://" + TOTEM.host + ":" + TOTEM.masterport
 		}
 		
 		: {
 			socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
-			worker:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.masterPort,
-			master:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.masterPort,
+			worker:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.masterport,
+			master:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.masterport,
 		};
 
 	if ( TOTEM.isEncryptedWorker  = TOTEM.encrypt && CLUSTER.isWorker )   // derive a pfx cert if this is an encrypted service
