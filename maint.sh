@@ -137,7 +137,7 @@ help.)	# some help
 
 mysql.)
 	cd /local/mysql
-	. bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" &
+	bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" &
 	cd /local/service/debe
 	;;
 	
@@ -147,7 +147,7 @@ startup.)		# status and start dependent services
 	else
 		#rm /var/lib/mysql/mysql.sock      # in case its hanging around
 		cd /local/mysql
-		. bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" &
+		bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" &
 	fi
 
 	if P=$(pgrep cesium); then
