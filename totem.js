@@ -1376,7 +1376,7 @@ function startService(server,cb) {
 			});
 	
 	else 								// Establish master-only
-		server.listen(TOTEM.masterport, function() {
+		server.listen(TOTEM.workerport, function() {
 			Trace(`SERVE ${site.urls.master}`);
 		});
 		
@@ -1490,22 +1490,24 @@ function protectService(cb) {
 	
 	var 
 		name = TOTEM.name,
+		dom = ( TOTEM.encrypt ? "https://" : "http://" ) + TOTEM.host,
 		paths = TOTEM.paths,
+		sock = TOTEM.sockets ? paths.url.socketio : "", 
 		pfxfile = `${paths.certs}${name}.pfx`;
 
 	Trace(`PROTECT ${name}`);
 	
 	TOTEM.site.urls = TOTEM.cores 
 		? {  // establish site urls
-			socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
-			worker:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.workerport,
+			socketio: sock,
+			worker:  dom + ":" + TOTEM.workerport,
 			master:  "http://" + TOTEM.host + ":" + TOTEM.masterport
 		}
 		
 		: {
-			socketio:TOTEM.sockets ? TOTEM.paths.url.socketio : "",
-			worker:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.masterport,
-			master:  (TOTEM.encrypt ? "https://" : "http://") + TOTEM.host + ":" + TOTEM.masterport,
+			socketio: sock,
+			worker:  dom + ":" + TOTEM.workerport,
+			master:  dom + ":" + TOTEM.workerport,
 		};
 
 	if ( TOTEM.isEncryptedWorker  = TOTEM.encrypt && CLUSTER.isWorker )   // derive a pfx cert if this is an encrypted service
