@@ -1510,7 +1510,7 @@ function protectService(cb) {
 			master:  dom + ":" + TOTEM.workerport,
 		};
 
-	if ( TOTEM.isEncryptedWorker  = TOTEM.encrypt && CLUSTER.isWorker )   // derive a pfx cert if this is an encrypted service
+	if ( TOTEM.isEncryptedWorker  = TOTEM.encrypt && (CLUSTER.isWorker || !TOTEM.cores) )   // derive a pfx cert if this is an encrypted service
 		FS.access( pfxfile, FS.F_OK, function (err) {
 
 			if (err) {
