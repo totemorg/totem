@@ -1,28 +1,23 @@
 {
   "name": "totem",
-  "version": "1.0.1",
-  "description": "Provides a configurable http-https web service",
+  "version": "1.0.0",
+  "description": "Basic web service",
   "main": "totem.js",
   "scripts": {
-    "test": "node test.js D1"
+    "test": ". maint.sh N1"
   },
-  "repository": {
-    "type": "git",
-    "url": " git@git.geointapps.org:acme/totem.git"
-  },
-  "keywords": [],
-  "author": "ACME Software Disposal Service",
+  "author": "ACME SDS",
   "license": "ISC",
   "dependencies": {
-    "js2xmlparser": "^2.0.2",
-    "json2csv": "^3.7.0",
-    "lodash": "^4.17.4",
-    "mysql": "^2.11.1",
-    "socket.io": "^1.5.0",
-    "socket.io-client": "file:socket.io",
+    "js2xmlparser": "^3.0.0",
+    "json2csv": "^3.11.5",
+    "mime": "^1.0.0",
+    "mysql": "^2.15.0",
+    "socket.io": "^2.0.4",
     "socket.io-clusterhub": "^0.2.1",
-    "xml2js": "^0.4.17",
-    "xml2json": "^0.10.0"
+    "toobusy-js": "^0.5.1",
+    "xml2js": "^0.4.19",
+    "xml2json": "^0.11.0"
   },
   "devDependencies": {}
 }

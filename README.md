@@ -25,36 +25,36 @@ following selectable features:
 	+ poll files and services
 	+ automattic server cert generation
   
-TOTEM provides CRUD endpoints to synchronize dataset NODES:
-  
-	(select) GET/ NODE $$ NODE ...
-	(update) PUT / NODE $$ NODE ...
-	(insert) POST / NODE $$ NODE ...
-	(delete) DELETE / NODE $$ NODE ...
-  
-where a NODE:
+As documented in its api, TOTEM provides ENDPOINTs:
 
-  	DATASET.TYPE ? QUERY
-	ENGINE.TYPE ? QUERY
-	AREA/PATH.TYPE ? QUERY
-	FILE.TYPE ? QUERY
+	(select) GET 	 /NODE $$ NODE ...
+	(update) PUT 	 /NODE $$ NODE ...
+	(insert) POST 	 /NODE $$ NODE ...
+	(delete) DELETE /NODE $$ NODE ...
 
-references a [FLEX dataset](https://github.com/acmesds/flex), a [compute ENGINE](https://github.com/acmesds/engine),
-a static file, or a [READER file](https://github.com/acmesds/reader) to parse.  TOTEM provides
-several dataset TYPEs:
+ to access a NODE:
+
+	DATASET.TYPE ? QUERY ? QUERY ...
+	ENGINE.TYPE ? QUERY ? QUERY ...
+	FILEPATH.TYPE ? QUERY ? QUERY ...
+	COMMAND.TYPE ? QUERY ? QUERY ...
+
+using an optional QUERY:
+
+	KEY=VALUE & EXPRESSION ...
+
+where the TYPE will format data:
+
+	KEY=VALUE & EXPRESSION ...
+
+TOTEM provides default TYPEs to format data:
 
 	db | xml | csv | json
 	
-to specify how datasets are rendered when accessed at an endpoint.
- 
-When started, TOTEM provides default service endpoints:
+and several data fetching COMMANDs:
 
-	help, stop, alert, codes, ping, bit, config
-	
-and default data fetching and antibot protection endpoints:
+	wget | curl | http | riddle
 
-	wget, curl, http, riddle
-	
 ## Installation
 
 Clone from one of the repos. 

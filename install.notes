@@ -2,6 +2,27 @@
 wget -O /etc/yum.repos.d/sea-devel.repo "http://sea.fedorapeople.org/sea-devel.repo"
 yum install notepadqq
 
+######
+> move from node5 to node8
+
+> npm install lwip fails due to izlib issue https://github.com/EyalAr/lwip/issues/297
+> change zlib VERNUM to 0x1280 in ~/.nodegyp/v8.9.4/include/node/zlib.h and reinstall lwip
+> also installed jimp as potential lwip replacement
+
+> socket.io-clusterhub wont install due to "inherits super constructor" problem.
+> removed include from totem
+
+> rebuilt all node_modules.  integrated graceful_lwip into lwip.  Added jimp.  
+
+> socket.io-clusterhub fails to be required due to misuse of util.inherits.  Changed lib/store/store.js
+under socket.io/clusterhub to "var EventEmitter = require("events").EventEmitter" vs "process.EventEmitter".
+
+> moved sqldb under local and updated my.cnf
+
+>> installed toobusy-js to replace toobusy
+
+######
+
 # initial setup
 git config --global user.name "DEBE"
 git config --global user.email "g5120089@trbvm.com"

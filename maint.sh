@@ -6,7 +6,7 @@
 #
 
 export HERE=`pwd`
-export MODULES=(totem engine chipper flex enum xlwip mime reader debe dsvar)
+export MODULES=(totem engine chipper flex enum lwim mime reader debe dsvar)
 
 case "$1." in
 
@@ -19,7 +19,7 @@ all.)
 			if test -f maint.sh; then
 				source maint.sh "$2" "$3" "$4"
 			fi
-		cd ../transfer
+		cd ../totem
 
 	done
 	;;
@@ -49,7 +49,7 @@ configall.)
 				echo "config $mod"
 				cd ../$mod
 					. config.sh
-				cd ../transfer
+				cd ../totem
 			fi
 
 			let Totem_$mod=1
@@ -269,6 +269,8 @@ archive.) 	# archive service to archive area
 	;;
 
 snap.)
+	mysqldump -u$MYSQL_USER -p$MYSQL_PASS openv >debe/admins/db/openv.sql
+	mysqldump -u$MYSQL_USER -p$MYSQL_PASS app >debe/admins/db/app.sql
 	zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* engine/ifs/*.cpp engine/ifs/*/*.cpp engine/ifs/*/*.h
 	;;
 

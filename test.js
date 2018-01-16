@@ -38,7 +38,7 @@ ENUM.test({
 
 		Trace({
 			msg: "Im simply a Totem interface so Im not running any service", 
-			default_fetcher_endpts: TOTEM.byType,
+			default_fetcher_endpts: TOTEM.byTable,
 			default_protect_mode: TOTEM.faultless,
 			default_cores_used: TOTEM.cores
 		});
@@ -88,7 +88,7 @@ options from openv.apps.nick = TOTEM.name = "Totem"`
 				user: ENV.MYSQL_USER,
 				pass: ENV.MYSQL_PASS
 			},
-			byType: {
+			byTable: {
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 					res( "123" );
 					
@@ -118,7 +118,7 @@ options from openv.apps.nick = TOTEM.name = "Totem"`
 Ive only requested 1 core, and Im unprotected, with a mysql database.  
 If my client.pfx does not already exists, Totem will create the client.pfx 
 and associated pems (public client.crt and private client.key).` , 
-				my_endpoints: TOTEM.byType
+				my_endpoints: TOTEM.byTable
 			});
 		});
 		
@@ -154,7 +154,7 @@ I have an anti-bot shield!!`,
 			msg: "A Totem+Engine client has been created", 
 			a_tau_template: ENGINE.tau("somejob.pdf"),
 			engine_errors: ENGINE.error,
-			get_endpts: TOTEM.byType,
+			get_endpts: TOTEM.byTable,
 			my_paths: TOTEM.paths
 		});
 		
@@ -178,7 +178,7 @@ I have an anti-bot shield!!`,
 	E3: function () {
 
 		var TOTEM = require("../totem").config({
-			"byType.": {
+			"byTable.": {
 				chipper: function Chipper(req,res) {				
 					res( 123 );
 				}
@@ -200,7 +200,7 @@ I have an anti-bot shield!!`,
 	E4: function () {
 		
 		var TOTEM = require("../totem").config({
-			"byType.": {
+			"byTable.": {
 				test: function Chipper(req,res) {
 					
 					var itau = [ENGINE.tau()];
@@ -374,7 +374,7 @@ function faces(tau,parms) { return 102; }
 		var CHIPPER = require("../chipper");
 		
 		var TOTEM = require("../totem").config({
-			"byType.": {
+			"byTable.": {
 				chip: CHIPPER.chippers,
 
 				wfs: function (req,res) {
@@ -395,7 +395,7 @@ function faces(tau,parms) { return 102; }
 			}
 		}, function (err) {
 			Trace( err || "Go ahead and test my default /chip and /wfs endpoints", {
-				my_readers: TOTEM.byType
+				my_readers: TOTEM.byTable
 			});
 		});
 		
@@ -527,7 +527,7 @@ credited to ${client}:
 				user: ENV.MYSQL_USER,
 				pass: ENV.MYSQL_PASS
 			},
-			"byType.": {
+			"byTable.": {
 				wfs: function (req,res) {
 					res("here i go again");
 					

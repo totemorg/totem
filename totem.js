@@ -3,6 +3,7 @@
 /**
 @class TOTEM
 
+nodejs
 @requires http
 @requires https
 @requires fs
@@ -11,10 +12,12 @@
 @requires child-process
 @requires os
 
-@requires mime
+totem
 @requires enum
 @requires dsvar
 
+3rd party
+@requires mime
 @requires socket.io
 @requires socket.io-clusterhub
 @requires mysql
@@ -22,7 +25,7 @@
 @requires toobusy
 @requires json2csv
 @requires js2xmlparser
-
+@requires toobusy-js
  */
 
 var												// NodeJS modules
@@ -37,17 +40,17 @@ var												// NodeJS modules
 	OS = require('os');					// OS utilitites
 
 var 											// 3rd party modules
+	MIME = require("mime"), 			//< file mime types
 	SIO = require('socket.io'), 			//< Socket.io client mesh
 	SIOHUB = require('socket.io-clusterhub'),	//< Socket.io client mesh for multicore app
 	MYSQL = require("mysql"),					//< mysql conector
 	XML2JS = require("xml2js"),					//< xml to json parser (*)
-	BUSY = null, //require('toobusy'),  		//< denial-of-service protector (cant install on NodeJS 5.x+)
+	BUSY = require('toobusy-js'),  		//< denial-of-service protector (cant install on NodeJS 5.x+)
 	JS2XML = require('js2xmlparser'), 			//< JSON to XML parser
 	JS2CSV = require('json2csv'); 				//< JSON to CSV parser	
 	
 var 											// Totem modules
 	DSVAR = require("dsvar"),				//< DSVAR database agnosticator
-	MIME = require("mime"),						//< MIME content types
 	ENUM = require("enum"),					//< Basic enumerators
 	Copy = ENUM.copy,
 	Each = ENUM.each,
@@ -629,6 +632,10 @@ var
 			res( ack );
 		},
 		
+		json: function (ack,req,res) {
+			res( ack );
+		},
+		
 		xml: function (ack, req, res) {
 			res( JS2XML.parse(req.table, {  
 				count: ack.length,
@@ -928,6 +935,8 @@ var
 			captcha: ".",  // path to antibot captchas
 			index: { // indexers
 				files: "indexer"
+			},
+			extensions: {  // extend mime types as needed
 			}
 		}
 	},
@@ -947,7 +956,7 @@ var
 	*/		
 	errors: {
 		pretty: function (err) { 
-			return (err);
+			return err+"";
 		},
 		badMethod: new Error("unsupported request method"),
 		noProtocol: new Error("no protocol specified to fetch"),
@@ -995,7 +1004,7 @@ var
 	@member TOTEM	
 	Server toobusy check period in seconds
 	*/		
-	busycycle: 3,  //< site too-busy check interval [s] (0 disables)
+	busycycle: 5000,  //< site too-busy check interval [ms] (0 disables)
 			
 	/**
 	@cfg {Function}
@@ -1196,7 +1205,9 @@ function configService(opts,cb) {
 	Trace(`CONFIG ${name}`); 
 	
 	TOTEM.started = new Date();
-				
+
+	Copy(paths.mime.extensions, MIME.types);
+
 	if (mysql) 
 		DSVAR.config({   // establish the db agnosticator 
 			//io: TOTEM.IO,   // cant set socketio until after server defined by startService
@@ -2580,6 +2591,8 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 		table = req.table = parts[0] || "",
 		area = req.filearea = areas[1] || "";
 
+	//Log("requset",req);
+	
 	if ( req.filepath = req.filearea ? TOTEM.paths.mime[req.filearea] || req.filearea : "" )
 		req.filepath += node.pathname;
 
@@ -2647,7 +2660,7 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 			q: query,
 			b: body,
 			f: flags
-		}});*/
+		}}); */
 	}
 }						
 
@@ -2684,6 +2697,7 @@ byType, byActionTable, engine or file indexer (see config documentation).
 	parseNode(req);
 
 	function sendFile(req,res) {
+		//Log("send file", req.filepath);
 		res( function () {return req.filepath; } );
 	}1
 
@@ -2698,8 +2712,8 @@ byType, byActionTable, engine or file indexer (see config documentation).
 
 	//Log([action,req.filepath,area,table,type]);
 	
-	if (req.filepath) 
-		followRoute( route = TOTEM.byArea[area] || sendFile, req, res );
+	if (req.filepath && ( route = TOTEM.byArea[area] || sendFile ) )
+		followRoute( route, req, res );
 
 	else
 	if ( route = TOTEM.byType[type] ) 
@@ -2893,7 +2907,7 @@ the client is challenged as necessary.
 	function sendCache(path,file,type,area) { // Cache and send file to client
 		
 		var 
-			mime = MIME[type] || MIME.html  || "text/plain",
+			//mime = MIME[type] || MIME.html  || "text/plain",
 			paths = TOTEM.paths;
 			index = paths.mime.index;
 		
@@ -2978,9 +2992,12 @@ the client is challenged as necessary.
 		var
 			req = Req.req,
 			sql = req.sql,
+			mime = ( (ack||0).constructor == Error) 
+				? MIME.types.html
+				: MIME.types[req.type] || MIME.types.html || "text/plain",
 			paths = TOTEM.paths;
 
-		Res.setHeader("Content-Type", MIME[req.type] || MIME.html || "text/plain");
+		Res.setHeader("Content-Type", mime);
 		Res.statusCode = 200;
 		
 		try {		
