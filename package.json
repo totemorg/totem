@@ -9,6 +9,8 @@
   "author": "ACME SDS",
   "license": "ISC",
   "dependencies": {
+    "dsvar": "^1.0.0",
+    "enum": "^1.0.0",
     "js2xmlparser": "^3.0.0",
     "json2csv": "^3.11.5",
     "mime": "^1.0.0",

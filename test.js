@@ -73,8 +73,8 @@ with 2 cores and the default endpoint routes` );
 		},  function (err) {				
 			Trace( err ||
 `I used the default openv.apps config options for the Nick="Totem" app, and **have become** a Totem client with no cores, but 
-I do have mysql database from which I've derived my start() 
-options from openv.apps.nick = TOTEM.name = "Totem"`
+I do have mysql database from which 've derived my startup options (see the openv.apps table for Nick="Totem").  No endpoints 
+to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index its files. `
 			);
 		});
 		

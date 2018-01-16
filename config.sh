@@ -8,7 +8,7 @@ export HERE=`pwd`
 # initialize dev/prod paths
 export BASE=/local
 export MAP=/media/sf_vmshare
-export TOTEM=$BASE/service
+export SRV=$BASE/service
 export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin
 export LD_LIBRARY_PATH=
 export REPO=git@git.geointapps.org:acmesds
@@ -49,7 +49,7 @@ export RUND="$RUN -d"
 
 #export GEO=". $BASH_SOURCE"
 export REBUILD="node-gyp rebuild --nodedir=$NODE"	# use "node-gyp $GYPTOPS" to override distro ref to inet
-export ENGINES=$TOTEM/engine/engines
+#export ENGINES=$SRV/engine/ifs
 #export GEOBIND="node-gyp rebuild"
 #export LINK=g++ 			# fixes node-gyp flock issue when source files on NFS system
 
@@ -64,8 +64,13 @@ export LIB=$BASE/lib64
 #export GUIHOST=$USER@swag-ws-02
 
 # ILE
+#export USER=jamesbd
+#export GPUHOST=giatstlgui01.innovision.local
+#export GUIHOST=giatstlgui01.innovision.local
+
+# SBU
 export USER=jamesbd
-export GPUHOST=giatstlgui01.innovision.local
-export GUIHOST=giatstlgui01.innovision.local
+export GPUHOST=wsn3303
+export GUIHOST=wsn3303
 
 # UNCLASSIFIED when IP addresses and passwords are undefined

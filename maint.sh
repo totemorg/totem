@@ -28,7 +28,7 @@ zipall.)
 
 	rm ../transfer/totem-project.zip
 	for mod in "${MODULES[@]}"; do
-		zip -r ../transfer/totem-project.zip ../$mod/* -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
+		zip -ry ../transfer/totem-project.zip ../$mod/* -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
 	done
 	;;
 
@@ -39,6 +39,15 @@ clearall.)   # reset env
 	done
 	;;
 
+rebuild.)
+	cd $SRV/engine/ifs/opencv; $REBUILD
+	cd $SRV/engine/ifs/python; $REBUILD
+	cd $SRV/engine/ifs/mac; $REBUILD
+	cd $SRV/engine
+	npm install node-svd
+	npm install lwip
+	;;
+	
 configall.)
 
 	for mod in "${MODULES[@]}"; do
@@ -254,7 +263,7 @@ checkpoint.)  # export db to admins
 		#mysqldump -u$MYSQL_USER -p$MYSQL_PASS --events mysql >admins/db/mysql.sql
 		#mysqldump -u$MYSQL_USER -p$MYSQL_PASS jou >admins/db/jou.sql
 
-		#sudo zip -r /media/sf_archives/sqldb.zip $ADMINS/db
+		#sudo zip -ry /media/sf_archives/sqldb.zip $ADMINS/db
 		git commit -am $2
 		git push origin master
 	cd $HERE
@@ -265,7 +274,7 @@ archive.) 	# archive service to archive area
 
 
 	echo "Archiving to $MAP/archives"
-	zip -r $MAP/archives/totem-N.zip * -x \*.zip \*/dbs/\* \*/clients/\*  \*/captcha/\* \*.git/\*  \*/_\*  _\*
+	zip -ry $MAP/archives/totem-N.zip * -x \*.zip \*/dbs/\* \*/clients/\*  \*/captcha/\* \*.git/\*  \*/_\*  _\*
 	;;
 
 snap.)
