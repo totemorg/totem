@@ -435,8 +435,7 @@ var
 		host: name
 		user: name
 		pass: phrase
-		sessions: number
-		
+		sessions: number	
 	*/		
 	mysql: null,			
 	
@@ -527,8 +526,7 @@ var
 	Endpoint reqTypes cb(ack data as string || error)
 	*/
 	reqTypes: {  
-		db: function (ack, req, res) {
-			
+		db: function (ack, req, res) {			
 			req.sql.query("select found_rows()")
 			.on('result', function (stat) {		// records sourced from sql				
 				res({ 
@@ -546,77 +544,6 @@ var
 					data: ack
 				});
 			});
-
-			/*
-			if (ack)
-				switch ( ack.constructor ) {
-					case Array:  // records being returned
-						req.sql.query("select found_rows()")
-						.on('result', function (stat) {		// records sourced from sql				
-							res( JSON.stringify({ 
-								success: true,
-								msg: "ok",
-								count: stat["found_rows()"] || 0,
-								data: ack
-							}));
-						})
-						.on("error", function () {  		// records sourced from virtual table
-							res( JSON.stringify({ 
-								success: true,
-								msg: "ok",
-								count: ack.length,
-								data: ack
-							}));
-						});
-						break;
-			
-					case Object:
-						res( JSON.stringify({ 
-							success: false,
-							msg: "ok",
-							count: 0,
-							data: ack
-						}));
-						break;
-			
-					case Error:
-						res( JSON.stringify({ 
-							success: false,
-							msg: ack+"",
-							count: 0,
-							data: []
-						}));
-						break;
-			
-					case String:
-						res( JSON.stringify({ 
-							success: false,
-							msg: ack,
-							count: 0,
-							data: []
-						}));
-						break;
-			
-					default:
-						res( JSON.stringify({ 
-							success: true,
-							msg: "ok",
-							count: 0,
-							data: ack
-						}));
-				}
-			
-			else
-				res({ 
-					success: false,
-					msg: "nothing returned",
-					count: 0,
-					data: []
-				});
-			
-			res( JSON.stringify(rtn) );
-			*/
-			
 		},
 		
 		csv: function (ack, req, res) {
@@ -642,15 +569,6 @@ var
 				data: ack
 			}) );
 		}
-		
-		/*
-		html: function (ack, req, res) {
-			var rtn = "";
-			ack.each(function (n,html) {
-				rtn += html;
-			});
-			res(rtn);
-		}*/
 	},
 
 	/**
