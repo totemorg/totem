@@ -19,7 +19,7 @@ following selectable features:
 	+ PKI channel encryption and authentication
 	+ no-faulting (protected) run state
 	+ transfer, indexing, saving and selective cacheing of static mime files
-	+ per-client anti-bot challenges: profile challenges like (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
+	+ per-client antibot challenges: profile challenges like (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
 	+ syncronized crude operations on mutiple endpoints
 	+ database agnosticator (default MySQL-Cluster)
 	+ poll files and services
@@ -51,9 +51,7 @@ TOTEM provides default TYPEs to format data:
 
 	db | xml | csv | json
 	
-and several data fetching COMMANDs:
-
-	wget | curl | http | riddle
+If TOTEM was configured for antibot support, TOTEM will provide a *riddle* endpoint for clients to validate themselves.
 
 ## Installation
 

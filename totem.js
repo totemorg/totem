@@ -577,9 +577,6 @@ var
 	By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
 	*/				
 	byTable: {				
-		wget: fetchWget,
-		curl: fetchCurl,
-		http: fetchHttp,
 		riddle: checkRiddle
 	},
 		
@@ -630,6 +627,12 @@ var
 		}
 	},
 	
+	fetch: {
+		wget: fetchWget,
+		curl: fetchCurl,
+		http: fetchHttp
+	},
+
 	/**
 	@cfg {Object} 
 	@private
