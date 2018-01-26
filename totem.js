@@ -95,6 +95,8 @@ var
 		});
 	},
 		
+	createCert: createCert,
+		
 	/**
 	@cfg {String}
 	@member TOTEM
@@ -611,19 +613,19 @@ var
 	*/		
 	byActionTable: {	
 		select: {
-			user: selectUser
+			//user: selectUser
 		},
 		delete: {
-			user: deleteUser
+			//user: deleteUser
 		},
 		update: {
-			user: updateUser
+			//user: updateUser
 		},
 		insert: {
-			user: insertUser
+			//user: insertUser
 		},
 		execute: {
-			user: executeUser
+			//user: executeUser
 		}
 	},
 	
