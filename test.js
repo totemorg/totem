@@ -417,96 +417,68 @@ function faces(tau,parms) { return 102; }
 				},
 
 				watch: {
-					"./public/uploads": function (sql,name,ev) {  // watch changes to the files in the events area
+					"./public/uploads/": function (sql, name, path) {  // watch changes to a file				
 						
-						sql.query("SELECT ID,Client,Added FROM app.files WHERE ? LIMIT 1", {Name: name}, function (err,files) {
-							
-							var 
-								path = ".public/uploads/" + name,
-								file = files[0] || {
-									ID: 0,
-									Client: "guest",
-									Added: new Date()
-								},
-								now = new Date(),
-								client = file.Client,
-								dated = file.Added,
-								site = DEBE.site,
-								url = site.urls.worker,
-								reps = [
-									"quality".tag("a",{href:url+"/randpr.run"}),
-									"clumping".tag("a",{href:url+"/gaussmix.run"}),
-									"loitering".tag("a",{href:url+"/airspace.view?options=briefing"}),
-									"corridors".tag("a",{href:url+"/airspace.view?options=briefing"}),
-									"transportability".tag("a",{href:url+"/airspace.view?options=briefing"}),
-									"patterns".tag("a",{href:url+"/airspace.view?options=briefing"})
-								].join(", "),
-								poc = site.distro.d;
-							
-							sql.query("SELECT `Group` FROM openv.profiles WHERE ? LIMIT 1", {Client:client}, function (err, profs) {
-								
-								var prof = profs[0] || {
-									Client: client,
-									Group: "app"
-								},						
-								group = prof.Group,
-								doc = 
-`The ${name} dataset owned by ${client} was re/submitted to ${site.nick}.${group} for a free analysis on ${now}.  If your 
-sample passes initial quality assessments, additional metrics will be available at ${reps}.  Should you wish to remove these quality 
-assessments from our worldwide reporting system, please contact ${poc} for consideration.    The following assessment was
-credited to ${client}:
+						sql.first(  // get client for registered file
+							"UPLOAD",
+							"SELECT ID,Client,Added FROM app.files WHERE ? LIMIT 1", 
+							{Name: name}, function (file) {
+
+							if (file) {  // ingest if file was registered
+								var 
+									now = new Date(),
+									client = file.Client,
+									dated = file.Added,
+									site = DEBE.site,
+									url = site.urls.worker,
+									reps = [
+										"quality".tag("a",{href:url+"/randpr.run"}),
+										"clumping".tag("a",{href:url+"/gaussmix.run"}),
+										"loitering".tag("a",{href:url+"/airspace.view?options=briefing"}),
+										"corridors".tag("a",{href:url+"/airspace.view?options=briefing"}),
+										"transportability".tag("a",{href:url+"/airspace.view?options=briefing"}),
+										"patterns".tag("a",{href:url+"/airspace.view?options=briefing"})
+									].join(", "),
+									poc = site.distro.d;
+
+								sql.first(  // credit client for upload
+									"UPLOAD",
+									"SELECT `Group` FROM openv.profiles WHERE ? LIMIT 1", 
+									{Client:client}, 
+									function (prof) {
+
+									if ( prof ) {
+										var 					
+											group = prof.Group,
+											notes = `
+Dataset ${name} owned by ${client} was submitted to ${site.nick}.${group} for a free analysis on ${now}.  If your 
+sample passes initial quality assessments, additional metrics will be available at ${reps}.  Should you wish to 
+remove these quality assessments from our worldwide reporting system, please contact ${poc} for consideration.
 `;
 
-								DEBE.ingestFile(sql, path, name, file.ID, group, doc, function (aoi) {
-									
-									var
-										TL = [aoi.yMax, aoi.xMin],   // [lon,lat] degs
-										TR = [aoi.yMax, aoi.xMax],
-										BL = [aoi.yMin, aoi.xMin],
-										BR = [aoi.yMin, aoi.xMax], 
-										Ring = [ TL, TR, BR, BL, TL ];
-									
-									Trace( `CREDIT ${client}` );
-									Log(aoi);
+										DEBE.ingestFile(sql, path, name, file.ID, group, notes, function (aoi) {
+											//Trace( `CREDIT ${client}` );
 
-									sql.query("UPDATE app.profiles SET Credit=Credit+? WHERE Client=?", [aoi.snr, client]);
-									sql.query("UPDATE app.files SET ?,Ring=st_GeomFromText(?) WHERE ?", [{
-											States: aoi.States,
-											Steps: aoi.Steps,
-											Actors: aoi.Actors,
-											Samples: aoi.Samples,
-											coherence_time: aoi.coherence_time,
-											coherence_intervals: aoi.coherence_intervals,
-											mean_jump_rate: aoi.mean_jump_rate,
-											degeneracy: aoi.degeneracy,
-											snr: aoi.snr
-										},
+											sql.query("UPDATE app.profiles SET Credit=Credit+? WHERE Client=?", [aoi.snr, client]);
 
-										'POLYGON((' + [  // [lon,lat] degs
-											Ring[0].join(" "),
-											Ring[1].join(" "),
-											Ring[2].join(" "),
-											Ring[3].join(" "),
-											Ring[0].join(" ") ].join(",") +'))' ,
+											CP.exec(`zip ${path}.zip ${path}; rm ${path}; touch ${path}`, function (err) {
+												Trace(`PURGED ${name}`);
+											});
+										});
 
-										{ID: file.ID} 
-									], (err) => {Log(err);} );
-									
-									CP.exec(`rm ${path}; touch ${path}`, function (err) {
-										Trace(`PURGED ${name}`);
-									});
+									}
+
+									sql.release();
 								});
-
-								sql.release();
-							});
+							}
 						});
 					},
 
-					"./public/js": function (sql,name,ev) {
+					"./public/js/": function (sql,name,ev) {
 						sql.release();
 					},
 
-					"./public/py": function (sql,name,ev) {
+					"./public/py/": function (sql,name,ev) {
 						sql.release();
 					}
 

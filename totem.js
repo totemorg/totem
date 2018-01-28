@@ -52,6 +52,7 @@ var 											// 3rd party modules
 var 											// Totem modules
 	DSVAR = require("dsvar"),				//< DSVAR database agnosticator
 	ENUM = require("enum"),					//< Basic enumerators
+	sqlThread = DSVAR.thread,
 	Copy = ENUM.copy,
 	Each = ENUM.each,
 	Log = console.log;
@@ -59,27 +60,29 @@ var 											// Totem modules
 var
 	TOTEM = module.exports = ENUM.extend({
 
-	watchFile: function (path, cb) { // intelligent file watcher
+	watchFile: function (area, name, cb) { // callback cb(sql, name, path) when file at path has changed
 		var 
+			path = area + name,
 			watchMods = TOTEM.watchMods;
 		
 		watchMods[path] = 0; 
 
 		FS.watch(path, function (ev, file) {  
 			var 
+				path = area + file,
 				isSwap = file.charAt(0) == ".";
 
-			if (TOTEM.thread && file && !isSwap)
+			if (file && !isSwap)
 				switch (ev) {
 					case "change":
-						TOTEM.thread( function (sql) {
+						sqlThread( function (sql) {
 							Trace(ev.toUpperCase()+" "+file, sql);
 
 							FS.stat(path, function (err, stats) {
 
 								if ( !err && (watchMods[path] - stats.mtime) ) {
 									watchMods[path] = stats.mtime;
-									cb(ev, sql);
+									cb(sql, file, path);
 								}
 
 							});
@@ -366,7 +369,7 @@ var
 	Thread a new sql connection to a callback.  Unless overridden, will default to the DSVAR thread method.
 	@param {Function} cb callback(sql connector)
 	 * */
-	thread: DSVAR.thread,
+	thread: sqlThread,
 		
 	/**
 	@cfg {Object}  
@@ -1142,7 +1145,7 @@ function configService(opts,cb) {
 					password : mysql.pass,				// passphrase
 					connectionLimit : mysql.sessions || 100, 		// max simultaneous connections
 					//acquireTimeout : 10000, 			// connection acquire timer
-					queueLimit: 0,  						// max concections to queue (0=unlimited)
+					queueLimit: 100,  						// max concections to queue (0=unlimited)
 					waitForConnections: true			// allow connection requests to be queued
 				}
 			}, mysql)
@@ -1161,7 +1164,7 @@ function configService(opts,cb) {
 				});
 
 			//TOTEM.dsAttrs = DSVAR.dsAttrs;
-			//sql.release();
+			sql.release();
 		});	
 
 	else
@@ -1330,14 +1333,14 @@ function startService(server,cb) {
 			});
 	}
 
-	TOTEM.thread( function (sql) {
+	sqlThread( function (sql) {
 		sql.query("DELETE FROM openv.syslogs");
 		sql.query("UPDATE app.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
 			
 		var watchMods = TOTEM.watchMods;
 		
-		Each(TOTEM.watch, function (folder, cb) {  // watch file changes
-			FS.readdir( folder, function (err, files) {
+		Each(TOTEM.watch, function (area, cb) {  // callback cb(sql,name,area) when file changed
+			FS.readdir( area, function (err, files) {
 				if (err) 
 					Trace(err);
 
@@ -1345,9 +1348,7 @@ function startService(server,cb) {
 					files.each(function (n,file) {
 
 						if (file.charAt(0) != ".") 
-							TOTEM.watchFile( folder+"/"+file, function (ev,sql) {
-								cb(sql, file, ev);
-							});
+							TOTEM.watchFile( area, file, cb);
 					});
 			});	
 		});
@@ -2008,7 +2009,7 @@ function uploadFile( files, area, cb) {
 @param {Function} res totem response
 */
 
-	Log("*** uploader");
+	//Log("*** uploader");
 	function copyFile(source, target, cb) {
 		var rs = FS.createReadStream(source);
 		var ws = FS.createWriteStream(target);
@@ -3246,16 +3247,17 @@ function resThread(req, cb) {
 	});
 }
 
+/*
 function sqlThread(cb) {
-/**
+**
  * @private
  * @method sqlThread
  * @param {Function} cb sql connector callback(sql)
  *
  * Callback with sql connector
- * */
+ * *
 	DSVAR.thread(cb);
-}
+}*/
 
 function Trace(msg,sql) {
 	ENUM.trace("T>",msg,sql);
