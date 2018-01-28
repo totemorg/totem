@@ -60,7 +60,7 @@ var 											// Totem modules
 var
 	TOTEM = module.exports = ENUM.extend({
 
-	watchFile: function (area, name, cb) { // callback cb(sql, name, path) when file at path has changed
+	watchFile: function (area, name, cb) { //< callback cb(sql, name, path) when file at path has changed
 		var 
 			path = area + name,
 			watchMods = TOTEM.watchMods;
@@ -98,7 +98,7 @@ var
 		});
 	},
 		
-	createCert: createCert,
+	createCert: createCert, //< method to create PKI certificate
 		
 	/**
 	@cfg {String}
