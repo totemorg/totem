@@ -65,6 +65,8 @@ var
 			path = area + name,
 			watchMods = TOTEM.watchMods;
 		
+		Trace("WATCHING " + name);
+		
 		watchMods[path] = 0; 
 
 		FS.watch(path, function (ev, file) {  
@@ -899,11 +901,11 @@ var
 		tooBusy: new Error("too busy - try again later"),
 		noFile: new Error("file not found"),
 		noIndex: new Error("cannot index files here"),
-		badType: new Error("bad dataset presentation type"),
+		badType: new Error("no such dataset type"),
 		badReturn: new Error("nothing returned"),
 		noSockets: new Error("socket.io failed"),
 		noService: new Error("no service  to start"),
-		badData: new Error("data has circular reference"),
+		noData: new Error("no data returned"),
 		retryFetch: new Error("data fetch retries exceeded"),
 		notAllowed: new Error("this dataset interface is disabled"),
 		noAccess: new Error("no access to master core at this endpoint")
@@ -2880,35 +2882,43 @@ the client is challenged as necessary.
 	}
 
 	function sendRecords(ack, req, res) {  // Send records via converter
+		var 
+			reqTypes = TOTEM.reqTypes,
+			errors = TOTEM.errors;
+		
 		if (ack)
-			if (conv = TOTEM.reqTypes[req.type])
+			if ( conv = reqTypes[req.type] || reqTypes.default )
 				conv(ack, req, function (rtn) {
-					switch (rtn.constructor) {
-						case Error:
-							sendError( rtn );
-							break;
+					if (rtn) 
+						switch (rtn.constructor) {
+							case Error:
+								sendError( rtn );
+								break;
 
-						case String:
-							sendString( rtn );
-							break;
+							case String:
+								sendString( rtn );
+								break;
 
-						case Array:
-						case Object:
-						default:
-							try {
-								sendString( JSON.stringify(rtn) );
-							}
-							catch (err) {
-								sendErrror(TOTEM.badData);
-							}
-					} 
+							case Array:
+							case Object:
+							default:
+								try {
+									sendString( JSON.stringify(rtn) );
+								}
+								catch (err) {
+									sendErrror( errors.noData );
+								}
+						} 
+					
+					else
+						sendError( errors.noData );
 				});
 
 			else 
-				sendError( new Error("bad type") );
+				sendError( errors.badType );
 		
 		else
-			sendErrror(TOTEM.badData); 
+			sendErrror( errors. noData ); 
 	}
 	
 	function res(ack) {  // Session response callback
