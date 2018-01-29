@@ -60,6 +60,9 @@ var 											// Totem modules
 var
 	TOTEM = module.exports = ENUM.extend({
 
+	dogs: { //< watchdog functions(sql, lims)
+	},
+		
 	watchFile: function (area, name, cb) { //< callback cb(sql, name, path) when file at path has changed
 		var 
 			path = area + name,
@@ -1336,24 +1339,7 @@ function startService(server,cb) {
 	}
 
 	sqlThread( function (sql) {
-		sql.query("DELETE FROM openv.syslogs");
-		sql.query("UPDATE app.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
-			
-		var watchMods = TOTEM.watchMods;
-		
-		Each(TOTEM.watch, function (area, cb) {  // callback cb(sql,name,area) when file changed
-			FS.readdir( area, function (err, files) {
-				if (err) 
-					Trace(err);
-
-				else
-					files.each(function (n,file) {
-
-						if (file.charAt(0) != ".") 
-							TOTEM.watchFile( area, file, cb);
-					});
-			});	
-		});
+		initializeService(sql);
 	});
 	
 }
@@ -1481,6 +1467,52 @@ function stopService() {
 		server.close(function () {
 			Trace(`STOP ${TOTEM.name}`);
 		});
+}
+
+function initializeService(sql) {
+	
+	// clear system logs
+	
+	sql.query("DELETE FROM openv.syslogs");
+
+	// initialize file watcher
+
+	sql.query("UPDATE app.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
+	
+	var watchMods = TOTEM.watchMods;
+
+	Each(TOTEM.watch, function (area, cb) {  // callback cb(sql,name,area) when file changed
+		FS.readdir( area, function (err, files) {
+			if (err) 
+				Trace(err);
+
+			else
+				files.each(function (n,file) {
+
+					if (file.charAt(0) != ".") 
+						TOTEM.watchFile( area, file, cb);
+				});
+		});	
+	});
+	
+	// start watch dogs
+	
+	Each( TOTEM.dogs, function (key, dog) {
+		if ( dog.cycle ) {
+			Trace("DOGGING "+key);
+			setInterval( function (args) {
+
+				Trace("DOG "+args.name);
+
+				sqlThread( function (sql) {
+					dog(sql, dog);
+				});
+
+			}, dog.cycle*1e3, {
+				name: key
+			});
+		}
+	});
 }
 
 /**
@@ -1782,7 +1814,7 @@ function createCert(owner,pass,cb) {
 
 }
 
-function validateClient(req,res) {
+function validateClient(req,res) {  //< validate client with callback res(null) if client can be admitted otherwise res(error)
 /**
 @method validateClient
 @param {Object} req totem request
@@ -1842,7 +1874,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 		return cert;
 	}
 				
-	function admitClient(req, res, profile, cert, client) {
+	function admitClient(req, res, profile, cert, client) {   // callback res(null) if client can be admited; otherwise res(error)
 	/* 
 	If the client's cert is good,respond with res(null), then add the client's session metric log, org, serverip, 
 	group, profile, db journalling flag, time joined, email and client ID to this req request.  The cert is also
@@ -3070,7 +3102,7 @@ the client is challenged as necessary.
 		});
 	}
 		
-	function startSession( cb ) { // Combat denial of service attacks by checking if session is too busy.
+	function startSession( cb ) { //< callback cb() if not combating denial of service attacks
 	/**
 	@private
 	@method startSession
@@ -3112,7 +3144,7 @@ the client is challenged as necessary.
 		
 	}
 	
-	function conThread(req, res) {
+	function conThread(req, res) {  //< establish request connection with callbacl res(null) if started otherwise res(error)
 	/**
 	 * @private
 	 * @method conThread
@@ -3256,18 +3288,6 @@ function resThread(req, cb) {
 		cb( req.sql = sql );
 	});
 }
-
-/*
-function sqlThread(cb) {
-**
- * @private
- * @method sqlThread
- * @param {Function} cb sql connector callback(sql)
- *
- * Callback with sql connector
- * *
-	DSVAR.thread(cb);
-}*/
 
 function Trace(msg,sql) {
 	ENUM.trace("T>",msg,sql);
