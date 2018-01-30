@@ -145,6 +145,53 @@ I have an anti-bot shield!!`,
 		});
 	},
 	
+	N6: function () { // db maint
+		
+		var TOTEM = require("../totem").config({
+			name: "Totem",
+			
+			mysql: {
+				host: ENV.MYSQL_HOST,
+				user: ENV.MYSQL_USER,
+				pass: ENV.MYSQL_PASS
+			}
+		},  function (err) {				
+			Trace( err || "db maintenance" );
+			
+			TOTEM.thread( function (sql) {
+				
+				switch (2) {
+					case 1: 
+						sql.query( "select voxels.id as voxelID, chips.id as chipID from app.voxels left join app.chips on voxels.Ring = chips.Ring", function (err,recs) {
+							Log(err);
+							recs.each( function (n, rec) {
+								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], function (err) {
+									Log(err);
+								});
+							});
+						});
+						break;
+						
+					case 2:
+						sql.query("select ID, Ring from app.voxels", function (err, recs) {
+							recs.each( function (n, rec) {
+								sql.query(
+									"update app.voxels set Point=geomFromText(?) where ?", 
+									[ `POINT(${rec.Ring[0][0].x} ${rec.Ring[0][0].y})` , {ID: rec.ID} ], 
+									function (err) {
+										Log(err);
+								});
+							});
+						});
+						break;
+				}
+						
+			});
+			
+		});
+		
+	},
+		
 	E1: function () {
 
 		var ENGINE = require("../engine");

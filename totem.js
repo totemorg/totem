@@ -1338,9 +1338,10 @@ function startService(server,cb) {
 			});
 	}
 
-	sqlThread( function (sql) {
-		initializeService(sql);
-	});
+	if (CLUSTER.isMaster)
+		sqlThread( function (sql) {
+			initializeService(sql);
+		});
 	
 }
 		
