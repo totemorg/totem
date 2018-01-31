@@ -184,6 +184,32 @@ I have an anti-bot shield!!`,
 							});
 						});
 						break;
+						
+					case 3:
+						sql.query( "select voxels.id as voxelID, cache.id as chipID from app.voxels left join app.cache on voxels.Ring = cache.geo1", function (err,recs) {
+							Log(err);
+							recs.each( function (n, rec) {
+								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], function (err) {
+									Log(err);
+								});
+							});
+						});
+						break;
+						
+					case 4:
+						sql.query("select ID, geo1 from app.cache where bank='chip'", function (err, recs) {
+							recs.each( function (n, rec) {
+								if (rec.geo1)
+									sql.query(
+										"update app.cache set x1=?, x2=? where ?", 
+										[ rec.geo1[0][0].x, rec.geo1[0][0].y, {ID: rec.ID} ], 
+										function (err) {
+											Log(err);
+									});
+							});
+						});
+						break;
+						
 				}
 						
 			});
