@@ -1143,6 +1143,8 @@ function configService(opts,cb) {
 		DSVAR.config({   // establish the db agnosticator 
 			//io: TOTEM.IO,   // cant set socketio until after server defined by startService
 
+			fetchers: TOTEM.fetchers,
+			
 			mysql: Copy({ 
 				opts: {
 					host: mysql.host,   // hostname 
@@ -2231,6 +2233,7 @@ function wgetFetch(url,cb) {
 
 		if (opts.retry) 
 			trycmd(cmd,cb);
+		
 		else
 			CP.exec(cmd, function (err,stdout,stderr) {			
 				cb( err , stdout );
@@ -2238,18 +2241,22 @@ function wgetFetch(url,cb) {
 	}
 
 	var 
+		parts = url.split(" >> "),
+		url = parts[0],
+		out = parts[1] || "./shares/junk.jpg",		
+	
 		opts = URL.parse(url),
 		certs = TOTEM.cache.certs,
 		transport = {
-			"http:": `wget -O ${TOTEM.fetchers.plugin.wgetout} "${url}"`,
-			"https:": `wget -O ${TOTEM.fetchers.plugin.wgetout} --no-check-certificate --certificate ${certs.crt} --private-key ${certs.key} "${url}"`
+			"http:": `wget -O ${out} "${url}"`,
+			"https:": `wget -O ${out} --no-check-certificate --certificate ${certs.crt} --private-key ${certs.key} "${url}"`
 		};
 	
 	retryFetch(
 		transport[opts.protocol],
 		opts, 
 		function (err) {
-			cb( err ? null : TOTEM.fetchers.plugin.wgetout);
+			cb( err ? null : "ok" );
 	});
 	
 }
@@ -3428,4 +3435,5 @@ function simThread(sock) {
 	});
 } */
 
+							
 // UNCLASSIFIED

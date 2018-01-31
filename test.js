@@ -160,7 +160,7 @@ I have an anti-bot shield!!`,
 			
 			TOTEM.thread( function (sql) {
 				
-				switch (2) {
+				switch (0) {
 					case 1: 
 						sql.query( "select voxels.id as voxelID, chips.id as chipID from app.voxels left join app.chips on voxels.Ring = chips.Ring", function (err,recs) {
 							Log(err);
