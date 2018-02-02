@@ -1,7 +1,7 @@
 {
   "name": "totem",
   "version": "1.0.0",
-  "description": "Basic web service",
+  "description": "bare essentials web service",
   "main": "totem.js",
   "scripts": {
     "test": ". maint.sh N1"
@@ -9,7 +9,7 @@
   "author": "ACME SDS",
   "license": "ISC",
   "dependencies": {
-    "dsvar": "^1.0.0",
+    "jsdb": "^1.0.0",
     "enum": "^1.0.0",
     "js2xmlparser": "^3.0.0",
     "json2csv": "^3.11.5",

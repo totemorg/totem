@@ -14,7 +14,7 @@ nodejs
 
 totem
 @requires enum
-@requires dsvar
+@requires jsdb
 
 3rd party
 @requires mime
@@ -50,9 +50,9 @@ var 											// 3rd party modules
 	JS2CSV = require('json2csv'); 				//< JSON to CSV parser	
 	
 var 											// Totem modules
-	DSVAR = require("dsvar"),				//< DSVAR database agnosticator
+	JSDB = require("jsdb"),				//< JSDB database agnosticator
 	ENUM = require("enum"),					//< Basic enumerators
-	sqlThread = DSVAR.thread,
+	sqlThread = JSDB.thread,
 	Copy = ENUM.copy,
 	Each = ENUM.each,
 	Log = console.log;
@@ -130,7 +130,7 @@ var
 	/**
 	@cfg {Object}
 	@member TOTEM
-	Reserved for dataset attributes derived by DSVAR.config
+	Reserved for dataset attributes derived by JSDB.config
 	*/
 	dsAttrs: {
 	},
@@ -371,7 +371,7 @@ var
 	@private
 	@member TOTEM	
 	@method thread
-	Thread a new sql connection to a callback.  Unless overridden, will default to the DSVAR thread method.
+	Thread a new sql connection to a callback.  Unless overridden, will default to the JSDB thread method.
 	@param {Function} cb callback(sql connector)
 	 * */
 	thread: sqlThread,
@@ -1140,7 +1140,7 @@ function configService(opts,cb) {
 	Copy(paths.mime.extensions, MIME.types);
 
 	if (mysql) 
-		DSVAR.config({   // establish the db agnosticator 
+		JSDB.config({   // establish the db agnosticator 
 			//io: TOTEM.IO,   // cant set socketio until after server defined by startService
 
 			fetchers: TOTEM.fetchers,
@@ -1170,7 +1170,7 @@ function configService(opts,cb) {
 					});
 				});
 
-			//TOTEM.dsAttrs = DSVAR.dsAttrs;
+			//TOTEM.dsAttrs = JSDB.dsAttrs;
 			sql.release();
 		});	
 
@@ -1220,7 +1220,7 @@ function startService(server,cb) {
 
 	if (TOTEM.isEncryptedWorker && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
 		var 
-			IO = TOTEM.IO = DSVAR.io = SIO(server, { // use defaults but can override ...
+			IO = TOTEM.IO = JSDB.io = SIO(server, { // use defaults but can override ...
 				//serveClient: true, // default true to prevent server from intercepting path
 				//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
 			}),
