@@ -210,6 +210,14 @@ I have an anti-bot shield!!`,
 						});
 						break;
 						
+					case 5: 
+						var parms = {
+ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on the earth's surface",
+"chip length": "[m] length of chip across an edge",
+"chip samples": "[pixels] number of pixels across edge of chip"
+						};
+						//get all tables and revise field comments with info data here -  archive parms - /parms in flex will
+						//use getfileds to get comments and return into
 				}
 						
 			});
