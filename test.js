@@ -500,29 +500,29 @@ function faces(tau,parms) { return 102; }
 				watch: {
 					"./public/uploads/": function (sql, name, path) {  // watch changes to a file				
 						
-						sql.first(  // get client for registered file
+						sql.getFirst(  // get client for registered file
 							"UPLOAD",
 							"SELECT ID,Client,Added FROM app.files WHERE ? LIMIT 1", 
 							{Name: name}, function (file) {
 
-							if (file) {  // ingest if file was registered
+							if (file) {  // ingest only registered file
 								var 
 									now = new Date(),
 									client = file.Client,
-									dated = file.Added,
+									added = file.Added,
 									site = DEBE.site,
+									port = name.tag("a",{href:"/files.view"}),
 									url = site.urls.worker,
-									reps = [
-										"quality".tag("a",{href:url+"/randpr.run"}),
-										"clumping".tag("a",{href:url+"/gaussmix.run"}),
-										"loitering".tag("a",{href:url+"/airspace.view?options=briefing"}),
-										"corridors".tag("a",{href:url+"/airspace.view?options=briefing"}),
-										"transportability".tag("a",{href:url+"/airspace.view?options=briefing"}),
-										"patterns".tag("a",{href:url+"/airspace.view?options=briefing"})
+									metrics = [
+										"quality".tag("a",{href:url+"/airspace.view?options=quality"}),
+										"clumping".tag("a",{href:url+"/airspace.view?options=clumping"}),
+										"loitering".tag("a",{href:url+"/airspace.view?options=loitering"}),
+										"corridors".tag("a",{href:url+"/airspace.view?options=corridors"}),
+										"patterns".tag("a",{href:url+"/airspace.view?options=patterns"})
 									].join(", "),
 									poc = site.distro.d;
 
-								sql.first(  // credit client for upload
+								sql.getFirst(  // credit client for upload
 									"UPLOAD",
 									"SELECT `Group` FROM openv.profiles WHERE ? LIMIT 1", 
 									{Client:client}, 
@@ -532,18 +532,21 @@ function faces(tau,parms) { return 102; }
 										var 					
 											group = prof.Group,
 											notes = `
-Dataset ${name} owned by ${client} was submitted to ${site.nick}.${group} for a free analysis on ${now}.  If your 
-sample passes initial quality assessments, additional metrics will be available at ${reps}.  Should you wish to 
+Data port ${port} -- established by ${client} on ${added} -- was updated on ${now}.  If your data sample passes 
+initial quality assessments, additional metrics (${metrics}) will become available.  Should you wish to 
 remove these quality assessments from our worldwide reporting system, please contact ${poc} for consideration.
 `;
 
-										DEBE.ingestFile(sql, path, name, file.ID, group, notes, function (aoi) {
-											//Trace( `CREDIT ${client}` );
+										sql.query("UPDATE app.files SET ? WHERE ?", [{Notes: notes}, {ID: file.ID}], function (err) {
+											DEBE.ingestFile(sql, path, name, file.ID, function (aoi) {
+												//Trace( `CREDIT ${client}` );
 
-											sql.query("UPDATE app.profiles SET Credit=Credit+? WHERE Client=?", [aoi.snr, client]);
+												sql.query("UPDATE app.profiles SET Credit=Credit+? WHERE Client=?", [aoi.snr, client]);
 
-											CP.exec(`zip ${path}.zip ${path}; rm ${path}; touch ${path}`, function (err) {
-												Trace(`PURGED ${name}`);
+												if (false)  // put upload into LTS - move this to file watchDog
+													CP.exec(`zip ${path}.zip ${path}; rm ${path}; touch ${path}`, function (err) {
+														Trace(`PURGED ${name}`);
+													});
 											});
 										});
 

@@ -928,7 +928,7 @@ var
 	@member TOTEM	
 	File uploader 
 	*/			
-	uploader: uploadFile,	
+	uploader: uploadStream,	
 	
 	/**
 	@cfg {Number}
@@ -2036,7 +2036,85 @@ function findFile(path,cb) {
 	
 }
 
-function uploadFile( files, area, cb) {
+function getFile(client, filepath, cb) {  // allocate a file with callback cb(sql, area, fileID) if no errors
+	var
+		parts = filepath.split("/"),
+		name = parts.pop() || "",
+		area = parts[0] || "";
+
+	sqlThread( function (sql) {		
+		sql.getFirst( 
+			"FILE", 
+			"SELECT ID FROM app.files WHERE least(?,1) LIMIT 1", {
+				Name: name,
+				Client: client,
+				Area: area
+			}, 
+			function (file) {
+
+			if ( file )
+				cb( sql, area, file.ID );
+
+			else
+				sql.getAll( 
+					"FILE", 
+					"INSERT INTO app.files SET Added=now(), ?", {
+						Name: name,
+						Client: client,
+						Area: area,
+						Notes: "Please visit " + "here".tag("a", {href:"/files.view"}) + " to manage your files"
+					}, 
+					function (info) {
+						cb( sql, area, info.insertId );
+					});
+
+		});
+	});
+}
+
+function uploadStream( srcStream, client, sinkPath, tags, cb ) {  // callback cb(fileID) if no errors
+	
+	getFile(client, sinkPath, function (sql, area, fileID) {
+		var 
+			notes = "Please visit " + "here".tag("a",{href:"/files.view"}) + " to manage your holdings.",
+			folder = TOTEM.paths.mime[area],
+			sinkStream = FS.createWriteStream( folder + "/" + sinkPath, "utf8")
+				.on("finish", function() {  // establish sink stream for export pipe
+					//Trace("EXPORTED "+sinkPath);
+					Log("totem done uploading");
+					sqlThread( function (sql) {
+
+						//if (cb) cb(fileID);
+
+						sql.query("UPDATE apps.files SET ? WHERE ?", [ Copy( tags || {}, {
+							Notes: "Uploaded on " + new Date() + notes
+						}), {ID: fileID} ] );
+
+						sql.release();
+					});
+				})
+				.on("error", function (err) {
+					Log("totem upload error", err);
+					sqlThread( function (sql) {
+						sql.query("UPDATE app.files SET ? WHERE ?", [ {
+							Notes: "Upload failed: " + err + notes
+						}, {ID: fileID} ] );
+
+						sql.release();
+					});
+				});
+
+		Log("uploading to", folder, sinkPath);
+
+		if (cb) cb(fileID);  // callback if provided
+		
+		if (srcStream)   // if a source stream was provided, start pipe to copy source to sink
+			srcStream.pipe(sinkStream);  
+	});
+
+}
+
+function uploadFile( files, client, area, tags, cb) {
 /**
 @private
 @method uploadFile
@@ -2046,12 +2124,26 @@ function uploadFile( files, area, cb) {
 @param {Function} res totem response
 */
 
-	//Log("*** uploader");
-	function copyFile(source, target, cb) {
-		var rs = FS.createReadStream(source);
-		var ws = FS.createWriteStream(target);
-
-		/*
+	/*
+	function copyFile(srcFile, sinkFile, cb) {
+		var src = FS.createReadStream(srcFile);
+		var sink = FS.createWriteStream(sinkFile);
+		
+		sink		
+			.on("finish", function() {  // establish sink stream for export pipe
+				//Trace("EXPORTED "+filePath);
+				sql.query("UPDATE apps.files SET ? WHERE ?", {
+					Notes: "Exported on " + new Date() + notes
+				}, {ID: fileID} );
+			})
+			.on("error", function (err) {
+				Log("Ingest File Error", err);
+				sql.query("UPDATE app.files SET ? WHERE ?", {
+					Notes: "Export failed: " + err + notes
+				}, {ID: fileID} );
+			});
+		
+		/ *
 		var cbCalled = false;
 		function done(err) {
 			if (!cbCalled) {
@@ -2068,12 +2160,13 @@ function uploadFile( files, area, cb) {
 		});
 		ws.on("close", function(ex) {
 		done();
-		}); */
+		}); * /
 
-		rd.pipe(ws);
+		src.pipe(sink);
 	}
-	
+
 	var arrived = new Date();
+	*/
 	
 	files.each( function (n,file) {
 		var 
@@ -2134,10 +2227,12 @@ function uploadFile( files, area, cb) {
 				case "application/pdf":
 				case "application/javascript":
 				default:
-					var buf = new Buffer(file.data,"base64");
+					var 
+						buf = new Buffer(file.data,"base64");
+					
 					FS.writeFile(target, buf,  "base64", function (err) {
 						if (err) Log(err);
-					});
+					}); 
 			}
 
 		/*
