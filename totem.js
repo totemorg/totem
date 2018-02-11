@@ -216,6 +216,51 @@ var
 	],
 
 	String: [ 			//< String prototypes
+		
+		function tag(el,at) {
+		/**
+		* @method tag
+		* Tag url (el="?") or tag html using specified attributes.
+		* @param {String} el tag element
+		* @param {String} at tag attributes
+		* @return {String} tagged results
+		*/
+
+			if ( el == "?" ) {  // tag a url
+				var rtn = this+"?";
+
+				if (at) for (var n in at) {
+						rtn += n + "=";
+						switch ( (at[n] || 0).constructor ) {
+							//case Array: rtn += at[n].join(",");	break;
+							case Array:
+							case Date:
+							case Object: rtn += JSON.stringify(at[n]); break;
+							default: rtn += at[n];
+						}
+						rtn += "&";
+					}
+				
+				return rtn;				
+			}
+			
+			else {  // tag html
+				var rtn = "<"+el+" ";
+
+				if (at) for (var n in at) rtn += n + "='" + at[n] + "' ";
+
+				switch (el) {
+					case "embed":
+					case "img":
+					case "link":
+					case "input":
+						return rtn+">" + this;
+					default:
+						return rtn+">" + this + "</"+el+">";
+				}
+			}
+		},
+		
 		function each(pat, rtn, cb) {
 		/**
 		@private

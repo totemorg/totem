@@ -37,7 +37,7 @@ ENUM.test({
 		var TOTEM = require("../totem");
 
 		Trace({
-			msg: "Im simply a Totem interface so Im not running any service", 
+			msg: "Im simply a Totem interface so Im not even running as a service", 
 			default_fetcher_endpts: TOTEM.byTable,
 			default_protect_mode: TOTEM.faultless,
 			default_cores_used: TOTEM.cores
@@ -46,16 +46,17 @@ ENUM.test({
 	
 	N2: function () {
 		
-		Trace(
-`I **will become** a Totem client running in fault protection mode, no database yet, but I am running
-with 2 cores and the default endpoint routes` );
 
 		var TOTEM = require("../totem").config({
 			name: "iamwhoiam",
 			faultless: true,
 			cores: 2
 		}, function (err) {
-			Trace(err || "Ok - Im started with my own config parms and am ready to rock - but no DB!");
+		
+			Trace( err || 
+`I'm a Totem service running in fault protection mode, no database, no UI; but I am running
+with 2 cores and the default endpoint routes` );
+			
 		});
 		
 	},
@@ -72,9 +73,10 @@ with 2 cores and the default endpoint routes` );
 			}
 		},  function (err) {				
 			Trace( err ||
-`I used the default openv.apps config options for the Nick="Totem" app, and **have become** a Totem client with no cores, but 
-I do have mysql database from which 've derived my startup options (see the openv.apps table for Nick="Totem").  No endpoints 
-to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index its files. `
+`I'm a Totem service with no cores. I do, however, now have a mysql database from which I've derived 
+my startup options (see the openv.apps table for the Nick="Totem").  
+No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
+these files. `
 			);
 		});
 		
@@ -97,7 +99,7 @@ to speak off (execept for the standard wget, riddle, etc) but you can hit "/file
 					});
 				},
 
-				orthis: function orthis(req,res) {
+				dothat: function dothat(req,res) {
 					
 					if (req.query.x)
 						res( [{x:req.query.x+1,y:req.query.x+2}] );
@@ -114,10 +116,11 @@ to speak off (execept for the standard wget, riddle, etc) but you can hit "/file
 		}, function (err) {
 			Trace( err || {
 				msg:
-`Now stronger and **encrypted** -- try my https /dothis and /orthis endpoints.
-Ive only requested 1 core, and Im unprotected, with a mysql database.  
-If my client.pfx does not already exists, Totem will create the client.pfx 
-and associated pems (public client.crt and private client.key).` , 
+`As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
+and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
+aka core), Im running unprotected, and have a mysql database.  
+[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
+associated public NICK.crt and private NICK.key certs it creates.`,
 				my_endpoints: TOTEM.byTable
 			});
 		});
@@ -138,8 +141,8 @@ and associated pems (public client.crt and private client.key).` ,
 		}, function (err) {
 			Trace( err || {
 				msg:
-`I am Totem client, with no cores but I do have mysql database and
-I have an anti-bot shield!!`, 
+`I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
+shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.`, 
 				mysql_derived_parms: TOTEM.site
 			});
 		});
@@ -513,13 +516,14 @@ function faces(tau,parms) { return 102; }
 									site = DEBE.site,
 									port = name.tag("a",{href:"/files.view"}),
 									url = site.urls.worker,
-									metrics = [
-										"quality".tag("a",{href:url+"/airspace.view?options=quality"}),
-										"clumping".tag("a",{href:url+"/airspace.view?options=clumping"}),
-										"loitering".tag("a",{href:url+"/airspace.view?options=loitering"}),
-										"corridors".tag("a",{href:url+"/airspace.view?options=corridors"}),
-										"patterns".tag("a",{href:url+"/airspace.view?options=patterns"})
-									].join(", "),
+									metrics = "metrics".tag("a", {href:url+"/airspace.view"}),
+										/* [
+											"quality".tag("a",{href:url+"/airspace.view?options=quality"}),
+											"clumping".tag("a",{href:url+"/airspace.view?options=clumping"}),
+											"loitering".tag("a",{href:url+"/airspace.view?options=loitering"}),
+											"corridors".tag("a",{href:url+"/airspace.view?options=corridors"}),
+											"patterns".tag("a",{href:url+"/airspace.view?options=patterns"})
+										].join(", "), */
 									poc = site.distro.d;
 
 								sql.getFirst(  // credit client for upload
@@ -532,9 +536,10 @@ function faces(tau,parms) { return 102; }
 										var 					
 											group = prof.Group,
 											notes = `
-Data port ${port} -- established by ${client} on ${added} -- was updated on ${now}.  If your data sample passes 
-initial quality assessments, additional metrics (${metrics}) will become available.  Should you wish to 
-remove these quality assessments from our worldwide reporting system, please contact ${poc} for consideration.
+Data port ${port} (established ${added} by ${client}) updated ${now}.  If your data sample passes 
+initial quality assessments, additional ${metrics} will become available.  Should you wish to 
+remove these quality assessments from our worldwide reporting system, please contact ${poc} for 
+consideration.
 `;
 
 										sql.query("UPDATE app.files SET ? WHERE ?", [{Notes: notes}, {ID: file.ID}], function (err) {
@@ -569,7 +574,11 @@ remove these quality assessments from our worldwide reporting system, please con
 				}
 
 			}, function (err) {
-				Trace( err || "Yowzers - An encrypted DEBE service, a upload file watcher, billing jobs and self diags every minute" );
+				Trace( err || 
+`Yowzers - this does everything but eat!  An encrypted service, a database, a jade UI for clients,
+usecase-engine plugins, file-upload watchers, and watch dogs that monitor system resources (jobs, files, 
+clients, users, system health, etc).` 
+				);
 			});
 	},
 	
