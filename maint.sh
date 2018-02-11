@@ -6,7 +6,7 @@
 #
 
 export HERE=`pwd`
-export MODULES=(totem engine chipper flex enum lwim mime reader debe dsvar)
+export MODULES=(totem atomic geohack flex enum lwim mime reader debe jsdb)
 
 case "$1." in
 
