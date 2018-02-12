@@ -72,6 +72,7 @@ configall.)
 #
 
 cphash.)
+	echo "`basename $2" >> _filenames
 	echo "cp $2 hashed/`echo "$2" | md5sum | cut -d' ' -f1`" >> cphash.sh
 	echo "cp hashed/`echo "$2" | md5sum | cut -d' ' -f1` $2" >> hashcp.sh
 	;;
