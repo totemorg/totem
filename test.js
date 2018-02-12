@@ -511,6 +511,7 @@ function faces(tau,parms) { return 102; }
 							if (file) {  // ingest only registered file
 								var 
 									now = new Date(),
+									exit = new Date(),
 									client = file.Client,
 									added = file.Added,
 									site = DEBE.site,
@@ -532,17 +533,24 @@ function faces(tau,parms) { return 102; }
 									{Client:client}, 
 									function (prof) {
 
+									exit.offsetDays( 30 );
+										
 									if ( prof ) {
 										var 					
 											group = prof.Group,
+											revised = "revised".tag("a", {href:`/files.view?ID=${file.ID}`} ),
 											notes = `
-Data port ${port} (established ${added} by ${client}) updated ${now}.  If your data sample passes 
-initial quality assessments, additional ${metrics} will become available.  Should you wish to 
-remove these quality assessments from our worldwide reporting system, please contact ${poc} for 
-consideration.
+Thank you ${client} for your sample deposit to ${port} on ${now}.  If your 
+sample passes initial quality assessments, additional ${metrics} will become available.  Unless
+${revised}, these samples will expire on ${exit}.  Should you wish to remove these quality 
+assessments from our worldwide reporting system, please contact ${poc} for consideration.
 `;
-
-										sql.query("UPDATE app.files SET ? WHERE ?", [{Notes: notes}, {ID: file.ID}], function (err) {
+										sql.query("UPDATE app.files SET ? WHERE ?", [{
+												Notes: notes,
+												Added: now,
+												Expires: exit
+											}, {ID: file.ID}
+										], function (err) {
 											DEBE.ingestFile(sql, path, name, file.ID, function (aoi) {
 												//Trace( `CREDIT ${client}` );
 

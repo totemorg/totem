@@ -4,7 +4,7 @@
 	[github](https://github.com/acmesds/totem.git) 
 	[geointapps](https://git.geointapps.org/acmesds/totem)
 	[gitlab](https://gitlab.weat.nga.ic.gov/acmesds/totem.git)
-	
+
 # TOTEM
 
 TOTEM replaces a slew of god-awful NodeJS middleware (like Express) by providing the 
@@ -88,93 +88,94 @@ for a far more complex use-case.  You may  also find Totem's [DSVAR](https://git
 useful, if you wish to learn more about its database agnosticator.
 
 ### N1 - Just an interface
-
+		
 	var TOTEM = require("../totem");
 
-	Trace(
-		"Im simply a Totem interface so Im not running any service", {
-		default_fetcher_endpts: TOTEM.byType,
-		default_protect_mode: TOTEM.nofaults,
+	Trace({
+		msg: "Im simply a Totem interface so Im not even running as a service", 
+		default_fetcher_endpts: TOTEM.byTable,
+		default_protect_mode: TOTEM.faultless,
 		default_cores_used: TOTEM.cores
 	});
 	
-### N2 - 2 cores in fault protection mode
-
-	Trace(
-`I **will become** a Totem client running in fault protection mode, no database yet, but I am running
-with 2 cores and the default endpoint routes` );
+### N2 - Simple running service
 
 	var TOTEM = require("../totem").config({
 		name: "iamwhoiam",
-		nofaults: true,
+		faultless: true,
 		cores: 2
 	}, function (err) {
-		Trace(err || "Ok - Im started with my own config parms and am ready to rock - but no DB!");
+
+		Trace( err || 
+			`I'm a Totem service running in fault protection mode, no database, no UI; but I am running
+			with 2 cores and the default endpoint routes` );
+
 	});
-	
-### N3 - No cores but a database
+
+### N3 - Running service with a database
 
 	var TOTEM = require("../totem").config({
-			name: "Totem",
-			
-			mysql: {
-				host: ENV.MYSQL_HOST,
-				user: ENV.MYSQL_USER,
-				pass: ENV.MYSQL_PASS
-			}
-		},  function (err) {				
-			Trace( err ||
-`I used the default openv.apps config options for the Nick="Totem" app, and **have become** a Totem client 
-with no cores, but I do have mysql database from which I've derived my start() 
-options from openv.apps.nick = TOTEM.name = "Totem"`, {
+		name: "Totem",
 
-				mysql_derived_site_parms: TOTEM.site
-			});
-		});
-
-### N4 - Encrypted with some endpoints
-
-	var TOTEM = require("../totem").config({
-			mysql: {
-				host: ENV.MYSQL_HOST,
-				user: ENV.MYSQL_USER,
-				pass: ENV.MYSQL_PASS
-			},
-			byType: {
-				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
-					res( "123" );
-
-					Trace({
-						do_query: req.query
-					});
-				},
-
-				orthis: function orthis(req,res) {
-
-					if (req.query.x)
-						res( [{x:req.query.x+1,y:req.query.x+2}] );
-					else
-						res( new Error("We have a problem huston") );
-
-					Trace(
-	`Like dothis, but needs an ?x=value query`, {
-						or_query: req.query,
-						or_user: [req.client,req.group]
-					});
-				}
-			}
-		}, function (err) {
-			Trace( err || 
-	`Now stronger and **encrypted** -- try my https /dothis and /orthis endpoints.
-	Ive only requested 1 core, and Im unprotected, with a mysql database.  
-	If my client.pfx does not already exists, Totem will create the client.pfx 
-	and associated pems (public client.crt and private client.key).` , {
-				my_endpoints: TOTEM.byType
-			});
-		});
+		mysql: {
+			host: ENV.MYSQL_HOST,
+			user: ENV.MYSQL_USER,
+			pass: ENV.MYSQL_PASS
+		}
+	},  function (err) {				
+		Trace( err ||
+			`I'm a Totem service with no cores. I do, however, now have a mysql database from which I've derived 
+			my startup options (see the openv.apps table for the Nick="Totem").  
+			No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
+			these files. `
+		);
+	});
 		
-### N5 - Unencrypted but has an anti-bot shield
+### N4 - Custom endpoints
+	
+	var TOTEM = require("../totem").config({
+		mysql: {
+			host: ENV.MYSQL_HOST,
+			user: ENV.MYSQL_USER,
+			pass: ENV.MYSQL_PASS
+		},
+		byTable: {
+			dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
+				res( "123" );
 
+				Trace({
+					do_query: req.query
+				});
+			},
+
+			dothat: function dothat(req,res) {
+
+				if (req.query.x)
+					res( [{x:req.query.x+1,y:req.query.x+2}] );
+				else
+					res( new Error("We have a problem huston") );
+
+				Trace({
+					msg: `Like dothis, but needs an ?x=value query`, 
+					or_query: req.query,
+					or_user: [req.client,req.group]
+				});
+			}
+		}
+	}, function (err) {
+		Trace( err || {
+			msg:
+				`As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
+				and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
+				aka core), Im running unprotected, and have a mysql database.  
+				[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
+				associated public NICK.crt and private NICK.key certs it creates.`,
+			my_endpoints: TOTEM.byTable
+		});
+	});
+		
+### N5 - Running antibot protection
+	
 	var TOTEM = require("../totem").config({
 		mysql: {
 			host: ENV.MYSQL_HOST,
@@ -186,12 +187,14 @@ options from openv.apps.nick = TOTEM.name = "Totem"`, {
 
 		riddles: 20
 	}, function (err) {
-		Trace( err ||
-`I am Totem client, with no cores but I do have mysql database and
-I have an anti-bot shield!!`, {
+		Trace( err || {
+			msg:
+				`I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
+				shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.`, 
 			mysql_derived_parms: TOTEM.site
 		});
 	});
+
 
 ## License
 

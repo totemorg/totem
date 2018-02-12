@@ -3,7 +3,6 @@
 /**
 @class TOTEM
 
-nodejs
 @requires http
 @requires https
 @requires fs
@@ -12,11 +11,9 @@ nodejs
 @requires child-process
 @requires os
 
-totem
 @requires enum
 @requires jsdb
 
-3rd party
 @requires mime
 @requires socket.io
 @requires socket.io-clusterhub
@@ -60,10 +57,23 @@ var 											// Totem modules
 var
 	TOTEM = module.exports = ENUM.extend({
 
+	/**
+	@cfg {Object}
+	Watchdogs {name: dog(sql, lims), ... } run every dog.cycle seconds with a dog.trace message using
+	specified dog.parms.  When the watchdog is invoked it is given a sql connector and its lims attributes.
+	*/		
 	dogs: { //< watchdog functions(sql, lims)
 	},
-		
-	watchFile: function (area, name, cb) { //< callback cb(sql, name, path) when file at path has changed
+	
+	watchFile: function (area, name, cb) { 
+	/**
+	@private
+	@method  watchFile
+	Establish smart file watcher when file at area/name has changed.
+	@param {String} area Name of folder being watched
+	@param {String} name Name of file being watched
+	@param {Function} callback cb(sql, name, path) when file at path has changed
+	*/
 		var 
 			path = area + name,
 			watchMods = TOTEM.watchMods;
@@ -134,6 +144,12 @@ var
 	*/
 	dsAttrs: {
 	},
+		
+	Date: [  //< date prototypes
+		function offsetDays(days) {
+			this.setDate( this.getDate() + days);
+		}
+	],
 		
 	Array: [ 			//< Array prototypes
 		
@@ -413,7 +429,6 @@ var
 	stop: stopService,
 	
 	/**
-	@private
 	@member TOTEM	
 	@method thread
 	Thread a new sql connection to a callback.  Unless overridden, will default to the JSDB thread method.
@@ -712,7 +727,7 @@ var
 	@method select
 	@member TOTEM	
 	CRUDE (req,res) method to respond to a Totem request
-	@param {Object} req Totem request
+	@param {Object} req Totem session request
 	@param {Function} res Totem responder
 	*/				
 	select: selectDS,	
@@ -721,7 +736,7 @@ var
 	@method update
 	@member TOTEM	
 	CRUDE (req,res) method to respond to a Totem request
-	@param {Object} req Totem request
+	@param {Object} req Totem session request
 	@param {Function} res Totem responder
 	*/				
 	update: updateDS,
@@ -730,7 +745,7 @@ var
 	@method delete
 	@member TOTEM	
 	CRUDE (req,res) method to respond to a Totem request
-	@param {Object} req Totem request
+	@param {Object} req Totem session request
 	@param {Function} res Totem responder
 	*/				
 	delete: deleteDS,
@@ -739,7 +754,7 @@ var
 	@method insert
 	@member TOTEM	
 	CRUDE (req,res) method to respond to a Totem request
-	@param {Object} req Totem request
+	@param {Object} req Totem session request
 	@param {Function} res Totem responder
 	*/				
 	insert: insertDS,
@@ -748,7 +763,7 @@ var
 	@method execute
 	@member TOTEM	
 	CRUDE (req,res) method to respond to a Totem request
-	@param {Object} req Totem request
+	@param {Object} req Totem session request
 	@param {Function} res Totem responder
 	*/				
 	execute: executeDS,
@@ -961,7 +976,7 @@ var
 
 	/**
 	@method 
-	@config {Function}
+	@cfg {Function}
 	@member TOTEM	
  	File indexer
 	*/		
@@ -973,7 +988,7 @@ var
 	@member TOTEM	
 	File uploader 
 	*/			
-	uploader: uploadStream,	
+	uploader: pipeFile,	
 	
 	/**
 	@cfg {Number}
@@ -1488,7 +1503,7 @@ function protectService(cb) {
 				var owner = TOTEM.name;
 				Trace( "CREATE SERVERCERT FOR "+owner );
 			
-				createCert(owner,TOTEM.encrypt,function () {
+				createCert(owner,TOTEM.encrypt, function () {
 					connectService(cb);
 				});				
 			}
@@ -1564,7 +1579,7 @@ function initializeService(sql) {
 }
 
 /**
-@class USER maintenance of users and their profiles
+@class USER_MAINT reserved for endpoints to manage users and their profiles.
  */
 
 function selectUser(req,res) {
@@ -1572,7 +1587,7 @@ function selectUser(req,res) {
 @private
 @method selectUser
 Return user profile information
-@param {Object} req Totem request 
+@param {Object} req Totem session request 
 @param {Function} res Totem response
  */
 	
@@ -1601,7 +1616,7 @@ function updateUser(req,res) {
 @private
 @method updateUser
 Update user profile information
-@param {Object} req Totem request 
+@param {Object} req Totem session request 
 @param {Function} res Totem response
  */
 			
@@ -1635,7 +1650,7 @@ function deleteUser(req,res) {
 @private
 @method deleteUser
 Remove user profile.
-@param {Object} req Totem request 
+@param {Object} req Totem session request 
 @param {Function} res Totem response
  */
 			
@@ -1670,7 +1685,7 @@ function insertUser (req,res) {
 @private
 @method insertUser
 Create user profile, associated certs and distribute info to user
-@param {Object} req Totem request 
+@param {Object} req Totem session request 
 @param {Function} res Totem response
  */
 			
@@ -1777,7 +1792,7 @@ function executeUser(req,res) {
 @private
 @method executeUser
 Fetch user profile for processing
-@param {Object} req Totem request 
+@param {Object} req Totem session request 
 @param {Function} res Totem response
  */
 	var 
@@ -1803,16 +1818,18 @@ Fetch user profile for processing
 }
 
 /**
-@class PKI utilities to create and manage PKI certs
+@class PKI_CERTS utilities to create and manage PKI certs
  */
 
-function createCert(owner,pass,cb) {
+function createCert(owner,pass,cb) { 
 /**
- * @method createCert
- * 
- * Create a cert for the desired owner with the desired passphrase with callback 
- * to cb when complete.
- * */
+@private
+@method createCert
+Create a cert for the desired owner with the desired passphrase then callback cb() when complete.
+@param {String} owner userID to own this cert
+@param {String} password for this cert
+@param {Function} cb callback when completed
+*/
 
 	function traceExecute(cmd,cb) {
 
@@ -1862,22 +1879,18 @@ function createCert(owner,pass,cb) {
 
 }
 
-function validateClient(req,res) {  //< validate client with callback res(null) if client can be admitted otherwise res(error)
+function validateClient(req,res) {  
 /**
+@private
 @method validateClient
 @param {Object} req totem request
 @param {Function} res totem response
 
 Responds will res(null) if session is valid or res(err) if session invalid.  Adds the client's session metric log, 
 org, serverip, group, profile, db journalling flag, time joined, email and client ID to this req request.  
- * */
+*/
 	
-	function getCert() {
-	/*
-	Return a suitable cert for https or http connections for this req.socket.  If we are going through a
-	proxy, cert information is derived from the request headers.
-	*/
-	
+	function getCert() {  //< Return cert for https/http connection on this req.socket w or w/o proxy.
 		var 
 			cert =  (sock ? sock.getPeerCertificate ? sock.getPeerCertificate() : null : null) || {		//< default cert
 				issuer: {},
@@ -2040,14 +2053,15 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 }
 
 /**
-@class MIME static file indexing and uploading
+@class FILE_ACCESS file cacheing, indexing and uploading
  */
 
 function indexFile(path,cb) {	
 /**
-* @method indexFile
-* @param {Object} path file path
-* @param {Function} cb totem response
+@private
+@method indexFile
+@param {String} path file path
+@param {Function} cb totem response
 */
 	var files = [];
 	
@@ -2060,9 +2074,10 @@ function indexFile(path,cb) {
 
 function findFile(path,cb) {
 /**
-* @method findFile
-* @param {Object} path file path
-* @param {Function} cb totem response
+@private
+@method findFile
+@param {String} path file path
+@param {Function} cb totem response
 */
 	if (maxFiles = TOTEM.maxFiles)
 		try {
@@ -2081,7 +2096,16 @@ function findFile(path,cb) {
 	
 }
 
-function getFile(client, filepath, cb) {  // allocate a file with callback cb(sql, area, fileID) if no errors
+function getFile(client, filepath, cb) {  
+/**
+@private
+@method getFile
+@param {String} client name of client requesting a data port (aka file)
+@param {String} filepath path to the file
+@param {Function} cb callback(sql, area, fileID) if no errors
+Access (create if needed) a file then callback cb(sql, area, fileID) if no errors
+*/
+	
 	var
 		parts = filepath.split("/"),
 		name = parts.pop() || "",
@@ -2106,8 +2130,7 @@ function getFile(client, filepath, cb) {  // allocate a file with callback cb(sq
 					"INSERT INTO app.files SET Added=now(), ?", {
 						Name: name,
 						Client: client,
-						Area: area,
-						Notes: "Please visit " + "here".tag("a", {href:"/files.view"}) + " to manage your files"
+						Area: area
 					}, 
 					function (info) {
 						cb( sql, area, info.insertId );
@@ -2117,24 +2140,30 @@ function getFile(client, filepath, cb) {  // allocate a file with callback cb(sq
 	});
 }
 
-function uploadStream( srcStream, client, sinkPath, tags, cb ) {  // callback cb(fileID) if no errors
-	
+function pipeFile( srcStream, client, sinkPath, tags, cb ) { 
+/**
+@private
+@method pipeFile
+@param {Stream} source stream
+@param {String} client name of client requesting file upload
+@param {String} sinkPath path to target file
+@param {Object} tags hach of tags to add to file
+@param {Function} cb callback(fileID) if no errors encountered
+*/
 	getFile(client, sinkPath, function (sql, area, fileID) {
 		var 
-			notes = "Please visit " + "here".tag("a",{href:"/files.view"}) + " to manage your holdings.",
 			folder = TOTEM.paths.mime[area],
 			sinkStream = FS.createWriteStream( folder + "/" + sinkPath, "utf8")
 				.on("finish", function() {  // establish sink stream for export pipe
-					//Trace("EXPORTED "+sinkPath);
+
 					Log("totem done uploading");
 					sqlThread( function (sql) {
 
-						//if (cb) cb(fileID);
-
-						sql.query("UPDATE apps.files SET ? WHERE ?", [ Copy( tags || {}, {
-							Notes: "Uploaded on " + new Date() + notes
-						}), {ID: fileID} ] );
-
+						sql.query("UPDATE apps.files SET ? WHERE ?", [{
+							Tag: JSON.stringify(tags || null),
+							Notes: "Please go " + "here".tag("a", {href:"/files.view"}) + " to manage your holdings."
+						}, {ID: fileID} ] );
+						
 						sql.release();
 					});
 				})
@@ -2142,7 +2171,7 @@ function uploadStream( srcStream, client, sinkPath, tags, cb ) {  // callback cb
 					Log("totem upload error", err);
 					sqlThread( function (sql) {
 						sql.query("UPDATE app.files SET ? WHERE ?", [ {
-							Notes: "Upload failed: " + err + notes
+							Notes: "Upload failed: " + err 
 						}, {ID: fileID} ] );
 
 						sql.release();
@@ -2163,10 +2192,11 @@ function uploadFile( files, client, area, tags, cb) {
 /**
 @private
 @method uploadFile
-@param {Object} sql sql connector
 @param {Array} files files to upload
+@param {String} clinet name of client requesting the upload
 @param {String} area area to upload files into
-@param {Function} res totem response
+@param {Object} tags hash of tags to stamp on file
+@param {Function} cb totem response
 */
 
 	/*
@@ -2300,10 +2330,16 @@ function uploadFile( files, client, area, tags, cb) {
 }
 
 /**
-@class FETCH method to pull external data
+@class DATA_FETCHING methods to pull external data from other services
  */
 
 function fetchWget(req,res) {	//< wget endpoint
+/**
+@private
+@method fetchWget
+@param {Object} req totem request
+@param {Function} res totem response
+*/
 	if (req.out) 
 		TOTEM.fetchers.plugin.wgetout = req.out;
 		
@@ -2312,11 +2348,23 @@ function fetchWget(req,res) {	//< wget endpoint
 }
 
 function fetchCurl(req,res) {	//< curl endpoint
+/**
+@private
+@method fetchCurl
+@param {Object} req totem request
+@param {Function} res totem response
+*/	
 	if( url = TOTEM.paths.url[req.table] ) 
 		curlFetch(url.format(req, TOTEM.fetchers.plugin),res);
 }
 
 function fetchHttp(req,res) {	//< http endpoint
+/**
+@private
+@method fetchHttp
+@param {Object} req totem request
+@param {Function} res totem response
+*/	
 	if ( url = TOTEM.paths.url[req.table] )
 		httpFetch(url.format(req, TOTEM.fetchers.plugin),res);
 }
@@ -2477,7 +2525,7 @@ function sendTemplate(req,res) {
 */
 
 /**
-@class ANTIBOT data theft protection
+@class ANTIBOT_PROTECTION data theft protection
  */
 
 function checkRiddle(req,res) {	//< endpoint to check clients response to a riddle
@@ -2485,7 +2533,7 @@ function checkRiddle(req,res) {	//< endpoint to check clients response to a ridd
 @private
 @method checkRiddle
 Endpoint to check clients response req.query to a riddle created by challengeClient.
-@param {Object} req http request
+@param {Object} req Totem session request
 @param {Function} res Totem response callback
 */
 	var 
@@ -2664,7 +2712,7 @@ function Initialize () {
 /**
 @private
 @member TOTEM
-@method 
+@method Initialize
 Initialize TOTEM.
 */
 	
@@ -2675,7 +2723,7 @@ Initialize TOTEM.
 }
 
 /**
-@class ROUTING methods to route notes byType, byAction, byTable, byActionTable, byArea.
+@class ENDPOINT_ROUTING methods to route notes byType, byAction, byTable, byActionTable, byArea.
 */
 
 function parseNode(req) {
@@ -2683,7 +2731,7 @@ function parseNode(req) {
 @private
 @method parseNode
 Parse node request to define req.table, .path, .area, .query, .search, .type, .file, .flags, and .body.
-@param {Object} req http session
+@param {Object} req Totem session request
 */
 	var
 		node = URL.parse(req.node),
@@ -2774,6 +2822,10 @@ function syncNodes(nodes, acks, req, res) {
 /**
 @private
 @method syncNodes
+@param {Array} nodes
+@param {Object} acks
+@param {Object} req Totem session request
+@param {Function} res Totem response callback
 Submit nodes=[/dataset.type, /dataset.type ...]  on the current request thread req to the routeNode() 
 method, aggregate results, then send with supplied response().
 */
@@ -2796,6 +2848,9 @@ function routeNode(req, res) {
 /**
 @private
 @method routeNode
+@param {Object} req Totem session request
+@param {Function} res Totem response callback
+
 Parse the node=/dataset.type on the current req thread, then route it to the approprate TOTEM byArea, 
 byType, byActionTable, engine or file indexer (see config documentation).
 */
@@ -2865,11 +2920,15 @@ function followRoute(route,req,res) {
 /**
 @private
 @method followRoute
+@param {Function} route method endpoint to process session 
+@param {Object} req Totem session request
+@param {Function} res Totem response callback
+
 Log session metrics, trace the current route, then callback route on the supplied 
 request-response thread
 */
 
-	function logMetrics() { // log session metrics 
+	function logMetrics() { //< log session metrics 
 		
 		if ( sock=req.socket ) 
 		if ( record=TOTEM.paths.mysql.record ) {
@@ -2950,36 +3009,36 @@ request-response thread
 }
 
 /**
-@class THREAD sql and session thread processing
+@class THREAD_PROCESSING sql and session thread processing
 */
 
 function sesThread(Req,Res) {	
 /**
- @method sesThread
- @param {Object} Req http/https request
- @param {Object} Res http/https response
- 
- Created a HTTP/HTTPS request-repsonse session thread.  UsesTOTEM's byTable, byArea, byType, byActionTable to
- route this thread to the appropriate (req,res)-endpoint, where the newly formed request req contains
- 
-			method: "GET, ... " 		// http method and its ...
-			action: "select, ...",		// corresponding crude name
-			socketio: "path"  // filepath to client's socketio.js
-			query: {...}, 		// query ke-value parms from url
-			body: {...},		// body key-value parms from request body
-			flags: {...}, 		// _flags key-value parms parsed from url
-			joins: {...}, 		// experimental ds from-to joins
-			files: [...] 		// files uploaded
-			site: {...}			// skinning context keys
-			sql: connector 		// sql database connector (dummy if no mysql config)
-			url	: "url"				// complete "/area/.../name.type?query" url
-			search: "query"		// query part
-			path: "/..."			// path part 
-			filearea: "area"		// area part
-			filename: "name"	// name part
-			type: "type" 			// type part 
-			connection: socket		// http/https socket to retrieve client cert 
-			
+@method sesThread
+@param {Object} Req http/https request
+@param {Object} Res http/https response
+
+Created a HTTP/HTTPS request-repsonse session thread.  UsesTOTEM's byTable, byArea, byType, byActionTable to
+route this thread to the appropriate (req,res)-endpoint, where the newly formed request req contains
+
+		method: "GET, ... " 		// http method and its ...
+		action: "select, ...",		// corresponding crude name
+		socketio: "path"  // filepath to client's socketio.js
+		query: {...}, 		// query ke-value parms from url
+		body: {...},		// body key-value parms from request body
+		flags: {...}, 		// _flags key-value parms parsed from url
+		joins: {...}, 		// experimental ds from-to joins
+		files: [...] 		// files uploaded
+		site: {...}			// skinning context keys
+		sql: connector 		// sql database connector (dummy if no mysql config)
+		url	: "url"				// complete "/area/.../name.type?query" url
+		search: "query"		// query part
+		path: "/..."			// path part 
+		filearea: "area"		// area part
+		filename: "name"	// name part
+		type: "type" 			// type part 
+		connection: socket		// http/https socket to retrieve client cert 
+
 The newly form response res method accepts a string, an objects, an array, an error, or a file-cache function
 to appropriately respond and close this thread and its sql connection.  The session is validated and logged, and 
 the client is challenged as necessary.
@@ -3425,13 +3484,13 @@ the client is challenged as necessary.
 
 function resThread(req, cb) {
 /**
- * @private
- * @method resThread
- * @param {Object} req Totem request
- * @param {Function} cb sql connector callback(sql)
- *
- * Callback with request set to sql conector
- * */
+@private
+@method resThread
+@param {Object} req Totem session request
+@param {Function} cb sql connector callback(sql)
+
+Callback with request set to sql conector
+*/
 	sqlThread( function (sql) {
 		cb( req.sql = sql );
 	});
