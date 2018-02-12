@@ -125,7 +125,7 @@ var
 	/**
 	@cfg {Number}
 	@member TOTEM
-	Max files to index by the indexer() method (0 disables).
+	Max files to index by the indexFile() method (0 disables).
 	*/
 	maxFiles: 100,						//< max files to index
 
@@ -925,7 +925,7 @@ var
 			files: ".", // path to shared files 
 			captcha: ".",  // path to antibot captchas
 			index: { // indexers
-				files: "indexer"
+				files: "indexFile"
 			},
 			extensions: {  // extend mime types as needed
 			}
@@ -978,17 +978,25 @@ var
 	@method 
 	@cfg {Function}
 	@member TOTEM	
- 	File indexer
+ 	File indexFile
 	*/		
-	indexer: indexFile,
+	indexFile: indexFile,
 
 	/**
+	@method 
 	@cfg {Function}
-	@method uploader
 	@member TOTEM	
-	File uploader 
+ 	Get a file - make it if it does not exist
+	*/
+	getFile: getFile,
+		
+	/**
+	@cfg {Function}
+	@method uploadFile
+	@member TOTEM	
+	File uploadFile 
 	*/			
-	uploader: pipeFile,	
+	uploadFile: uploadFile,
 	
 	/**
 	@cfg {Number}
@@ -2100,7 +2108,7 @@ function getFile(client, filepath, cb) {
 /**
 @private
 @method getFile
-@param {String} client name of client requesting a data port (aka file)
+@param {String} client file owner to make new files
 @param {String} filepath path to the file
 @param {Function} cb callback(sql, area, fileID) if no errors
 Access (create if needed) a file then callback cb(sql, area, fileID) if no errors
@@ -2116,7 +2124,7 @@ Access (create if needed) a file then callback cb(sql, area, fileID) if no error
 			"FILE", 
 			"SELECT ID FROM app.files WHERE least(?,1) LIMIT 1", {
 				Name: name,
-				Client: client,
+				//Client: client,
 				Area: area
 			}, 
 			function (file) {
@@ -2140,12 +2148,12 @@ Access (create if needed) a file then callback cb(sql, area, fileID) if no error
 	});
 }
 
-function pipeFile( srcStream, client, sinkPath, tags, cb ) { 
+function uploadFile( client, srcStream, sinkPath, tags, cb ) { 
 /**
 @private
-@method pipeFile
+@method uploadFile
+@param {String} client file owner
 @param {Stream} source stream
-@param {String} client name of client requesting file upload
 @param {String} sinkPath path to target file
 @param {Object} tags hach of tags to add to file
 @param {Function} cb callback(fileID) if no errors encountered
@@ -2188,8 +2196,9 @@ function pipeFile( srcStream, client, sinkPath, tags, cb ) {
 
 }
 
+/*
 function uploadFile( files, client, area, tags, cb) {
-/**
+/ **
 @private
 @method uploadFile
 @param {Array} files files to upload
@@ -2197,53 +2206,9 @@ function uploadFile( files, client, area, tags, cb) {
 @param {String} area area to upload files into
 @param {Object} tags hash of tags to stamp on file
 @param {Function} cb totem response
-*/
+* /
 
-	/*
-	function copyFile(srcFile, sinkFile, cb) {
-		var src = FS.createReadStream(srcFile);
-		var sink = FS.createWriteStream(sinkFile);
-		
-		sink		
-			.on("finish", function() {  // establish sink stream for export pipe
-				//Trace("EXPORTED "+filePath);
-				sql.query("UPDATE apps.files SET ? WHERE ?", {
-					Notes: "Exported on " + new Date() + notes
-				}, {ID: fileID} );
-			})
-			.on("error", function (err) {
-				Log("Ingest File Error", err);
-				sql.query("UPDATE app.files SET ? WHERE ?", {
-					Notes: "Export failed: " + err + notes
-				}, {ID: fileID} );
-			});
-		
-		/ *
-		var cbCalled = false;
-		function done(err) {
-			if (!cbCalled) {
-				cb(err);
-				cbCalled = true;
-			}
-		}
-		rs.on("error", function(err) {
-		done(err);
-		});
-
-		ws.on("error", function(err) {
-		done(err);
-		});
-		ws.on("close", function(ex) {
-		done();
-		}); * /
-
-		src.pipe(sink);
-	}
-
-	var arrived = new Date();
-	*/
-	
-	files.each( function (n,file) {
+	files.each( function (n,file) {  // upload each file in the list
 		var 
 			name = file.filename,
 			target = TOTEM.paths.mime[area]+"/"+area+"/"+name;
@@ -2252,7 +2217,7 @@ function uploadFile( files, client, area, tags, cb) {
 		
 		cb( file );
 		
-		if ( file.image ) {
+		if ( file.image ) {  //  image files can come from html5 canvas snapshots
 
 			var prefix = "data:image/png;base64,";	
 			var buf64 = new Buffer(file.image.substr(prefix.length), 'base64');
@@ -2287,17 +2252,7 @@ function uploadFile( files, client, area, tags, cb) {
 		}
 
 		else
-			switch ( file.type ) { 
-				/*
-				case "image/jpeg":  // legacy
-
-					var buf = new Buffer(file.data, "base64");
-					FS.writeFile(target, buf.toString("binary"), {encodings:"binary"}, function (err) {
-						Log(err);
-					});
-					break;
-				*/
-					
+			switch ( file.type ) {   // for now, all file types are assumed to have been base64 coded
 				case "image/jpeg":
 				case "application/pdf":
 				case "application/javascript":
@@ -2310,24 +2265,9 @@ function uploadFile( files, client, area, tags, cb) {
 					}); 
 			}
 
-		/*
-		copyFile(file.path, target, function (err) {
-
-			console.info("SAVE "+file.path+" TO "+target+(err?" FAILED":""));
-
-			if (cb) cb({
-				Name: name,
-				Area: area,
-				Added: arrived,
-				Size: file.size
-			});
-
-			if (false)
-				APP.NEWREAD.JOB(sql,body.Area,name);
-		});*/
-	
 	});
 }
+*/
 
 /**
 @class DATA_FETCHING methods to pull external data from other services
@@ -2852,7 +2792,7 @@ function routeNode(req, res) {
 @param {Function} res Totem response callback
 
 Parse the node=/dataset.type on the current req thread, then route it to the approprate TOTEM byArea, 
-byType, byActionTable, engine or file indexer (see config documentation).
+byType, byActionTable, engine or file indexFile (see config documentation).
 */
 	
 	parseNode(req);
@@ -3104,8 +3044,8 @@ the client is challenged as necessary.
 		}
 		
 		else
-		if ( indexer = index[area] ) { // index files
-			TOTEM[indexer](path, function (files) { // use configured indexer
+		if ( indexFile = index[area] ) { // index files
+			TOTEM[indexFile](path, function (files) { // use configured indexFile
 				sendFileIndex(`Index of ${path}`, files);
 			});
 		}

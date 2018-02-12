@@ -505,8 +505,8 @@ function faces(tau,parms) { return 102; }
 						
 						sql.getFirst(  // get client for registered file
 							"UPLOAD",
-							"SELECT ID,Client,Added FROM app.files WHERE ? LIMIT 1", 
-							{Name: name}, function (file) {
+							"SELECT ID,Client,Added FROM app.files WHERE least(?) LIMIT 1", 
+							{Name: name, Area:"uploads"}, function (file) {
 
 							if (file) {  // ingest only registered file
 								var 
