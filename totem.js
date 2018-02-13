@@ -153,22 +153,9 @@ var
 		
 	Array: [ 			//< Array prototypes
 		
-		function hyper(refs, arg) {
-		/**
-		@private
-		@member Array
-		Returns list containing hyperlink list joined by an arg spearator.
-		@param {Function} cb callback(val) returns item for join
-		*/		
-			var rtns = [], ref = ref[0];
-			this.each( function (n,lab) {
-				rtns.push( lab.hyper(refs[n] || ref) );
-			});
-			return rtns.join(arg);
-		},
-						  
+		/*
 		function treeify(idx,kids,level,piv,wt) {
-		/**
+		/ **
 		@private
 		@method treeify
 		@member Array
@@ -178,7 +165,7 @@ var
 		@param [Number] level current depth (0 on first call)
 		@param [Array] piv pivots
 		@param [String] wt key name that contains leaf weight (defaults to "size")
-		*/		
+		* /		
 			
 			if (!wt) 
 				return this.treeify(0,recs.length,0,idx,"size");
@@ -227,7 +214,7 @@ var
 				}
 				
 			return tar;
-		}
+		} */
 	
 	],
 
@@ -391,23 +378,8 @@ var
 			XML2JS.parseString(this, function (err,json) {				
 				cb( err ? def : json );
 			});
-		},
-						
-		function hyper(ref) {
-		/**
-		@private
-		@member String
-		Return a hyperlink of given label string.
-		*/
-			if (ref)
-				if (ref.charAt(0) == ":")
-					return this.link( "/"+(ref.substr(1)||this.toLowerCase())+".view" );
-				else
-					return this.link(ref);
-			else
-				return this.link(ref || "/"+this.toLowerCase()+".view");
 		}
-		
+					
 	],
 	
 	/**
