@@ -2092,7 +2092,7 @@ Access (create if needed) a file then callback cb(sql, area, fileID) if no error
 		area = parts[0] || "";
 
 	sqlThread( function (sql) {		
-		sql.getFirst( 
+		sql.forFirst( 
 			"FILE", 
 			"SELECT ID FROM app.files WHERE least(?,1) LIMIT 1", {
 				Name: name,
@@ -2105,7 +2105,7 @@ Access (create if needed) a file then callback cb(sql, area, fileID) if no error
 				cb( sql, area, file.ID );
 
 			else
-				sql.getAll( 
+				sql.forAll( 
 					"FILE", 
 					"INSERT INTO app.files SET Added=now(), ?", {
 						Name: name,
@@ -2114,7 +2114,7 @@ Access (create if needed) a file then callback cb(sql, area, fileID) if no error
 					}, 
 					function (info) {
 						cb( sql, area, info.insertId );
-					});
+				}).end();
 
 		});
 	});
