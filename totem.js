@@ -1547,9 +1547,7 @@ function initializeService(sql) {
 
 				Trace("DOG "+args.name);
 
-				sqlThread( function (sql) {
-					dog(sql, dog);
-				});
+				dog(dog);  // feed dog attributes as parameters
 
 			}, dog.cycle*1e3, {
 				name: key
@@ -2082,7 +2080,7 @@ function getFile(client, filepath, cb) {
 @method getFile
 @param {String} client file owner to make new files
 @param {String} filepath path to the file
-@param {Function} cb callback(sql, area, fileID) if no errors
+@param {Function} cb callback(area, fileID, sql) if no errors
 Access (create if needed) a file then callback cb(sql, area, fileID) if no errors
 */
 	
@@ -2091,32 +2089,30 @@ Access (create if needed) a file then callback cb(sql, area, fileID) if no error
 		name = parts.pop() || "",
 		area = parts[0] || "";
 
-	sqlThread( function (sql) {		
-		sql.forFirst( 
-			"FILE", 
-			"SELECT ID FROM app.files WHERE least(?,1) LIMIT 1", {
-				Name: name,
-				//Client: client,
-				Area: area
-			}, 
-			function (file) {
+	JSDB.forFirst( 
+		"FILE", 
+		"SELECT ID FROM app.files WHERE least(?,1) LIMIT 1", {
+			Name: name,
+			//Client: client,
+			Area: area
+		}, 
+		function (file) {
 
-			if ( file )
-				cb( sql, area, file.ID );
+		if ( file )
+			cb( area, file.ID, sql );
 
-			else
-				sql.forAll( 
-					"FILE", 
-					"INSERT INTO app.files SET Added=now(), ?", {
-						Name: name,
-						Client: client,
-						Area: area
-					}, 
-					function (info) {
-						cb( sql, area, info.insertId );
-				}).end();
+		else
+			sql.forAll( 
+				"FILE", 
+				"INSERT INTO app.files SET Added=now(), ?", {
+					Name: name,
+					Client: client,
+					Area: area
+				}, 
+				function (info) {
+					cb( area, info.insertId, sql );
+			});
 
-		});
 	});
 }
 
@@ -2130,7 +2126,7 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 @param {Object} tags hach of tags to add to file
 @param {Function} cb callback(fileID) if no errors encountered
 */
-	getFile(client, sinkPath, function (sql, area, fileID) {
+	getFile(client, sinkPath, function (area, fileID, sql) {
 		var 
 			folder = TOTEM.paths.mime[area],
 			sinkStream = FS.createWriteStream( folder + "/" + sinkPath, "utf8")
