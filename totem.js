@@ -219,7 +219,7 @@ var
 	],
 
 	String: [ 			//< String prototypes
-		
+
 		function tag(el,at) {
 		/**
 		* @method tag
@@ -349,15 +349,19 @@ var
 							var	
 								parts = parm.split("="),  // split into key=val
 								key = parts[0],
-								val = parm.substr( key.length+1 );
+								val = unescape( parm.substr( key.length+1 ) );
 
 							if (key)   // key = val used
+								/*
 								try {  // val could be json 
 									def[lastkey = key] = JSON.parse(val); 
 								}
 								catch (err) { 
 									def[lastkey = key] = unescape(val);
-								}
+								}*/
+								def[lastkey = key] = ( val.charAt(0) == "[" )
+									? val.substr(1,val.length-2).split(",")
+									: val;
 
 							else 		// store key relationship (e.g. key<val or simply key)
 								def[parm] = null;
@@ -2687,8 +2691,7 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 
 			else
 			if (n.charAt(0) == prefix) {  	// remap flag
-				var flag = n.substr(1);
-				flags[flag] = query[n];
+				flags[n.substr(1)] = query[n];
 				delete query[n];
 			}
 
