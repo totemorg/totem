@@ -25,13 +25,11 @@ export RED=$NODELIB/node-red
 # MYSQL
 export MYSQL=$BASE/mysql
 export PATH=$MYSQL/bin:$PATH
-export MYSQL_PASS=NGA
 export MYSQL_USER=root
 export MYSQL_NAME=app
 export MYSQL_HOST=localhost
 
 # service
-export SERVICE_PASS=test
 export SERVICE_NAME=Totem
 
 # tools
@@ -72,5 +70,8 @@ export LIB=$BASE/lib64
 export USER=jamesbd
 export GPUHOST=wsn3303
 export GUIHOST=wsn3303
+
+# define passwords
+source pass.sh
 
 # UNCLASSIFIED when IP addresses and passwords are undefined

@@ -893,7 +893,7 @@ var
 			derive: "SELECT *, count(ID) AS Count FROM openv.apps WHERE ? LIMIT 0,1",
 			record: "INSERT INTO app.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
 			search: "SELECT * FROM app.files HAVING Score > 0.1",
-			credit: "SELECT * FROM app.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 0,1",
+			//credit: "SELECT * FROM app.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 0,1",
 			upsession: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1,?",
 			challenge: "SELECT *,count(ID) as Count FROM openv.profiles WHERE least(?) LIMIT 0,1",
 			guest: "SELECT * FROM openv.profiles WHERE Client='guest' LIMIT 0,1",
@@ -904,7 +904,7 @@ var
 			files: ".", // path to shared files 
 			captcha: ".",  // path to antibot captchas
 			index: { // indexers
-				files: "indexFile"
+				files: ""
 			},
 			extensions: {  // extend mime types as needed
 			}
@@ -3018,11 +3018,10 @@ the client is challenged as necessary.
 		}
 		
 		else
-		if ( indexFile = index[area] ) { // index files
-			TOTEM[indexFile](path, function (files) { // use configured indexFile
+		if ( area in index )  // index files
+			TOTEM.indexFile(path, function (files) { 
 				sendFileIndex(`Index of ${path}`, files);
 			});
-		}
 		
 		else
 			sendError( TOTEM.errors.noIndex );
@@ -3119,9 +3118,9 @@ the client is challenged as necessary.
 								
 						});
 					
-					else {		// credit/charge client when file pulled from file system	
-						if (paths.mysql.credit)
-							sql.query( paths.mysql.credit, {Name:req.node,Area:req.filearea} )
+					else {			
+						if ( credit = paths.mysql.credit)  // credit/charge client when file pulled from file system
+							sql.query( credit, {Name:req.node,Area:req.filearea} )
 							.on("result", function (file) {
 								if (file.Client != req.client)
 									sql.query("UPDATE openv.profiles SET Credit=Credit+1 WHERE ?",{Client: file.Client});
