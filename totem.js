@@ -439,7 +439,10 @@ var
 
 		id: "ID", 					//< SQL record id
 		prefix: "_",				//< Prefix that indicates a field is a flag
-		trace: "_trace" 		//< Echo flags before and after parse		
+		trace: "_trace",		//< Echo flags before and after parse	
+		blog: function (recs, req, res) {  //< Default blogger
+			res(recs);
+		}
 	},
 
 	/**
@@ -3131,24 +3134,11 @@ the client is challenged as necessary.
 					
 				case Array: 			// send data records 
 
-					if ( blog = req.flags.blog ) {  // blog back selected keys
-						var keys = blog.split(","), recs = ack;
-						if ( blog = TOTEM.reqFlags.blog ) {
-							recs.each( function (n, rec) {
-								keys.each(function (n,key) {
-									if ( val = rec[key] )
-										if (val.constructor == String)
-											blog( val, rec, req.table, function (html) {
-												rec[key] = html;
-											});
-								});
-							});
-							sendRecords(ack,req,res);
-						}
-						else
-							sendRecords(ack,req,res);
-					}
-					
+					if ( req.flags.blog )   // blog back selected keys
+						TOTEM.reqFlags.blog( ack, req, function (recs) {
+							sendRecords(recs,req,res);
+						});
+
 					else
 						sendRecords(ack,req,res);
 					
