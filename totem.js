@@ -229,8 +229,8 @@ var
 		* @return {String} tagged results
 		*/
 
-			if ( el == "?" ) {  // tag a url
-				var rtn = this+"?";
+			if ( el == "?" || el == "&" ) {  // tag a url
+				var rtn = this+el;
 
 				if (at) for (var n in at) {
 						rtn += n + "=";
@@ -285,7 +285,7 @@ var
 			return msg;
 		},
 
-		function format(req,plugin) {
+		function parseReplace(req,plugin) {
 		/**
 		@private
 		@member String
@@ -359,11 +359,12 @@ var
 								catch (err) { 
 									def[lastkey = key] = unescape(val);
 								}*/
-								def[lastkey = key] = ( val.charAt(0) == "[" )
+								def[lastkey = key] = val;
+								/*def[lastkey = key] = ( val.charAt(0) == "[" )
 									? val.substr(1,val.length-2).split(",")
-									: val;
+									: val; */
 
-							else 		// store key relationship (e.g. key<val or simply key)
+							else 		// store key relationship (e.g. key<val)
 								def[parm] = null;
 						}
 				});
@@ -463,10 +464,11 @@ var
 				...
 			}
 	*/
+	/*
 	fetchers: { 			//< data fetchers
 		curl: curlFetch,
 		wget: wgetFetch,
-		http: httpFetch,
+		http: fetchFile,
 		plugin: {			//< example fetch url plugins
 			ex1: function (req) {
 				return req.profile.QoS + req.profile.Credit;
@@ -474,7 +476,7 @@ var
 			ex2: "save.file.jpg",
 			wgetout: "./shares/wget.out"
 		}
-	},
+	}, */
 
 	/**
 	@cfg {Object} 
@@ -494,6 +496,7 @@ var
 	Cert passphrase to start encrypted service
 	*/		
 	encrypt: "",		//< passphrase when service encypted 
+	
 	sockets: false, 	//< enabled to support web sockets
 		
 	/**
@@ -676,11 +679,7 @@ var
 		}
 	},
 	
-	fetch: {
-		wget: fetchWget,
-		curl: fetchCurl,
-		http: fetchHttp
-	},
+	fetcher: fetchFile,
 
 	/**
 	@cfg {Object} 
@@ -948,7 +947,7 @@ var
 		noSockets: new Error("socket.io failed"),
 		noService: new Error("no service  to start"),
 		noData: new Error("no data returned"),
-		retryFetch: new Error("data fetch retries exceeded"),
+		retry: new Error("data fetch retries exceeded"),
 		notAllowed: new Error("this dataset interface is disabled"),
 		noAccess: new Error("no access to master core at this endpoint")
 	},
@@ -1412,7 +1411,11 @@ function connectService(cb) {
 	if ( TOTEM.isEncryptedWorker ) {  
 
 		Copy({		// cache server data fetching certs 
-			pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
+			raw: {
+				pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
+				key: FS.readFileSync(`${paths.certs}${name}.key`),
+				crt: FS.readFileSync(`${paths.certs}${name}.crt`),
+			},
 			crt: `${paths.certs}${name}.crt`,
 			key: `${paths.certs}${name}.key`
 		}, certs);
@@ -1433,7 +1436,7 @@ function connectService(cb) {
 
 		startService( HTTPS.createServer({
 			passphrase: TOTEM.encrypt,		// passphrase for pfx
-			pfx: certs.pfx,			// TOTEM.paths's pfx/p12 encoded crt+key TOTEM.paths
+			pfx: certs.raw.pfx,			// TOTEM.paths's pfx/p12 encoded crt+key TOTEM.paths
 			ca: TOTEM.trust,				// list of TOTEM.paths authorities (trusted serrver.trust)
 			crl: [],						// pki revocation list
 			requestCert: true,
@@ -1537,10 +1540,11 @@ function initializeService(sql) {
 				Trace(err);
 
 			else
-				files.each(function (n,file) {
-
-					if (file.charAt(0) != ".") 
-						TOTEM.watchFile( area, file, cb);
+				files.each( function (n,file) {
+					var first = file.charAt(0);
+					
+					if (first != "." && first != "_") 
+						TOTEM.watchFile( area, file, cb );
 				});
 		});	
 	});
@@ -2247,14 +2251,14 @@ function uploadFile( files, client, area, tags, cb) {
 /**
 @class DATA_FETCHING methods to pull external data from other services
  */
-
+/*
 function fetchWget(req,res) {	//< wget endpoint
-/**
+/ **
 @private
 @method fetchWget
 @param {Object} req totem request
 @param {Function} res totem response
-*/
+* /
 	if (req.out) 
 		TOTEM.fetchers.plugin.wgetout = req.out;
 		
@@ -2263,54 +2267,31 @@ function fetchWget(req,res) {	//< wget endpoint
 }
 
 function fetchCurl(req,res) {	//< curl endpoint
-/**
+/ **
 @private
 @method fetchCurl
 @param {Object} req totem request
 @param {Function} res totem response
-*/	
+* /	
 	if( url = TOTEM.paths.url[req.table] ) 
 		curlFetch(url.format(req, TOTEM.fetchers.plugin),res);
 }
 
 function fetchHttp(req,res) {	//< http endpoint
-/**
+/ **
 @private
 @method fetchHttp
 @param {Object} req totem request
 @param {Function} res totem response
-*/	
+* /	
 	if ( url = TOTEM.paths.url[req.table] )
-		httpFetch(url.format(req, TOTEM.fetchers.plugin),res);
+		fetchFile(url.format(req, TOTEM.fetchers.plugin),res);
 }
+*/
 
-function curlFetch(url,cb) {
-
-	var 
-		opts = URL.parse(url),
-		certs = TOTEM.cache.certs,
-		transport = {
-			"http:": `curl "${url}"`,
-			"https:": `curl -gk --cert ${certs.crt} --key ${certs.key} "${url}"`
-		};
-
-	retryFetch(
-		transport[opts.protocol],
-		opts, 
-		function (err,out) {
-			try {
-				cb( JSON.parse(out));
-			}
-			catch (err) {
-				cb( null );
-			}
-	});
-
-}
-
-function wgetFetch(url,cb) { 
-		
-	function retryFetch(cmd,opts,cb) {
+function fetchFile(url, body, cb) {
+	
+	function retry(cmd,opts,cb) {
 
 		function trycmd(cmd,cb) {
 
@@ -2325,7 +2306,7 @@ function wgetFetch(url,cb) {
 						trycmd(cmd,cb);
 					}
 					else
-						cb( TOTEM.errors.retryFetch );
+						cb( TOTEM.errors.retry );
 				}
 				else
 				if (cb) cb(null, stdout);
@@ -2343,43 +2324,34 @@ function wgetFetch(url,cb) {
 			});
 	}
 
-	var 
-		parts = url.split(" >> "),
-		url = parts[0],
-		out = parts[1] || "./shares/junk.jpg",		
-	
-		opts = URL.parse(url),
-		certs = TOTEM.cache.certs,
-		transport = {
-			"http:": `wget -O ${out} "${url}"`,
-			"https:": `wget -O ${out} --no-check-certificate --certificate ${certs.crt} --private-key ${certs.key} "${url}"`
-		};
-	
-	retryFetch(
-		transport[opts.protocol],
-		opts, 
-		function (err) {
-			cb( err ? null : "ok" );
-	});
-	
-}
+	function getResponse(Res) {
+		var body = "";
+		Res.on("data", function (chunk) {
+			body += chunk.toString();
+		});
 
-function httpFetch(url,cb) {
-			
+		Res.on("end", function () {
+			try {
+				cb( JSON.parse(body) );
+			}
+			catch (err) {
+				cb( body );
+			}
+		});
+	}
+
 	var 
-		opts = URL.parse(url), 
-		certs = TOTEM.cache.certs,
-		transport = {
-			"http:": HTTP,
-			"https:": HTTPS
-		};
-	
-	opts.pfx = certs.pfx;
-	opts.passphrase = TOTEM.encrypt;
+		opts = url.parse(url),
+		certs = TOTEM.cache.certs;
+
 	opts.retry = TOTEM.retries;
 	opts.rejectUnauthorized = false;
 	opts.agent = false;
-
+	opts.method = body ? "PUT" : "GET";
+	opts.port |= (opts.protocol.indexof("s:")>=0) ? 443 : 80;
+	// opts.cipher = " ... "
+	// opts.headers = { ... }
+	// opts.Cookie = ["x=y", ...]
 	/*if (opts.soap) {
 		opts.headers = {
 			"Content-Type": "application/soap+xml; charset=utf8",
@@ -2389,37 +2361,99 @@ function httpFetch(url,cb) {
 	}*/
 	
 	Trace("FETCH "+url);
+		
+	switch (opts.protocol) {
+		case "curl:": 
+			retry(
+				`curl ` + url.replace(opts.protocol, "http:"),
+				opts, 
+				function (err,out) {
+					try {
+						cb( JSON.parse(out) );
+					}
+					catch (err) {
+						cb( out );
+					}
+			});	
+			break;
+			
+		case "curls":
+			retry(
+				`curl -gk --cert ${certs.crt} --key ${certs.key} ` + url.replace(opts.protocol, "https:"),
+				opts, 
+				function (err,out) {
+					try {
+						cb( JSON.parse(out) );
+					}
+					catch (err) {
+						cb( out );
+					}
+			});	
+			break;
+			
+		case "wget:":
+			var 
+				parts = url.split(" >> "),
+				url = parts[0],
+				out = parts[1] || "./shares/junk.jpg";
 	
-	if (opts.protocol) {
-		var Req = transport[opts.protocol].request(opts, function(Res) {
-			var body = "";
-			Res.on('data', function (chunk) {
-				body += chunk.toString();
+			retry(
+				`wget -O ${out} ` + url.replace(opts.protocol, "http:"),
+				opts, 
+				function (err) {
+					cb( err ? null : "ok" );
+			});
+			break;
+			
+		case "wgets:":
+			var 
+				parts = url.split(" >> "),
+				url = parts[0],
+				out = parts[1] || "./shares/junk.jpg";
+	
+			retry(
+				`wget -O ${out} --no-check-certificate --certificate ${certs.crt} --private-key ${certs.key} ` + url.replace(opts.protocol, "https:"),
+				opts, 
+				function (err) {
+					cb( err ? null : "ok" );
+			});
+			break;
+
+		case "http:":
+			var Req = HTTP.request(opts, getResponse);
+			Req.on('error', function(err) {
+				Log(err);
+				cb( null );
 			});
 
-			Res.on("end", function () {
-				try {
-					cb( JSON.parse(body) );
-				}
-				catch (err) {
-					cb( null );
-				}					
+			if ( body )
+				Req.write( JSON.stringify(body) );  // body parms
+
+			Req.end();
+			break;
+
+		case "https:":
+			if ( true ) {
+				opts.pfx = certs.raw.pfx;
+				opts.passphrase = TOTEM.encrypt;
+			}
+			else {
+				opts.key = certs.raw.key;
+				opts.cert = certs.raw.cert;
+			}
+			
+			var Req = HTTPS.request(opts, getResponse);
+			Req.on('error', function(err) {
+				Log(err);
+				cb( null );
 			});
 
-		});
+			if ( body )
+				Req.write( JSON.stringify( body ) );  // body parms
 
-		Req.on('error', function(err) {
-			cb( null );
-		});
-
-		/*if (opts.soap)
-			Req.write(opts.soap);*/  // only for put method
-
-		Req.end();
+			Req.end();
+			break;
 	}
-	
-	else
-		cb( null );
 }
 
 /*
