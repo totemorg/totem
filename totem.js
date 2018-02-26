@@ -146,13 +146,9 @@ var
 	},
 		
 	Date: [  //< date prototypes
-		function offsetDays(days) {
-			this.setDate( this.getDate() + days);
-		}
 	],
 		
 	Array: [ 			//< Array prototypes
-		
 		/*
 		function treeify(idx,kids,level,piv,wt) {
 		/ **
@@ -215,7 +211,6 @@ var
 				
 			return tar;
 		} */
-	
 	],
 
 	String: [ 			//< String prototypes
@@ -223,7 +218,7 @@ var
 		function tag(el,at) {
 		/**
 		* @method tag
-		* Tag url (el="?") or tag html using specified attributes.
+		* Tag url (when element el is "?" or "&"), or tag html with specified attributes.
 		* @param {String} el tag element
 		* @param {String} at tag attributes
 		* @return {String} tagged results
@@ -443,7 +438,12 @@ var
 		trace: "_trace",		//< Echo flags before and after parse	
 		blog: function (recs, req, res) {  //< Default blogger
 			res(recs);
-		}
+		},
+		encap: function (recs,req,res) {  //< dataset.encap to encap records
+			var rtn = {};
+			rtn[req.flags.encap] = recs;
+			res(rtn);
+		}		
 	},
 
 	/**
@@ -754,7 +754,7 @@ var
 	@member TOTEM	
 	totem start time
 	*/		
-	started: null, //< totem start time
+	started: null, 		//< totem start time
 		
 	/**
 	@cfg {Number} [retries=5]
@@ -768,7 +768,7 @@ var
 	@member TOTEM	
 	Enable/disable tracing of data fetchers
 	*/		
-	notify: true, 	//< Enable/disable tracing of data fetchers
+	notify: true, 		//< Enable/disable tracing of data fetchers
 
 	/**
 	@cfg {Boolean} [nofaults=false]
@@ -1189,7 +1189,7 @@ function configService(opts,cb) {
 		JSDB.config({   // establish the db agnosticator 
 			//io: TOTEM.IO,   // cant set socketio until after server defined by startService
 
-			fetchers: TOTEM.fetchers,
+			fetcher: TOTEM.fetcher,
 			
 			mysql: Copy({ 
 				opts: {
@@ -2341,14 +2341,14 @@ function fetchFile(url, body, cb) {
 	}
 
 	var 
-		opts = url.parse(url),
+		opts = URL.parse(url),
 		certs = TOTEM.cache.certs;
 
 	opts.retry = TOTEM.retries;
 	opts.rejectUnauthorized = false;
 	opts.agent = false;
 	opts.method = body ? "PUT" : "GET";
-	opts.port |= (opts.protocol.indexof("s:")>=0) ? 443 : 80;
+	opts.port = opts.port ||  (opts.protocol.endsWith("s:") ? 443 : 80);
 	// opts.cipher = " ... "
 	// opts.headers = { ... }
 	// opts.Cookie = ["x=y", ...]
@@ -2425,7 +2425,8 @@ function fetchFile(url, body, cb) {
 				Log(err);
 				cb( null );
 			});
-
+			Log("http", opts, body);
+			
 			if ( body )
 				Req.write( JSON.stringify(body) );  // body parms
 
@@ -3167,11 +3168,19 @@ the client is challenged as necessary.
 					
 				case Array: 			// send data records 
 
+					var flag = TOTEM.reqFlags;
+					
 					if ( req.flags.blog )   // blog back selected keys
-						TOTEM.reqFlags.blog( ack, req, function (recs) {
+						flag.blog( ack, req, function (recs) {
 							sendRecords(recs,req,res);
 						});
 
+					else
+					if ( req.flags.encap )   // encap selected keys
+						flag.encap( ack, req, function (recs) {
+							sendRecords(recs,req,res);
+						});
+						
 					else
 						sendRecords(ack,req,res);
 					
