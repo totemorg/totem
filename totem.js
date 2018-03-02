@@ -49,6 +49,7 @@ var 											// 3rd party modules
 var 											// Totem modules
 	JSDB = require("jsdb"),				//< JSDB database agnosticator
 	ENUM = require("enum"),					//< Basic enumerators
+	ENV = process.env,
 	sqlThread = JSDB.thread,
 	Copy = ENUM.copy,
 	Each = ENUM.each,
@@ -562,7 +563,7 @@ var
 		3) identify server cert name.pfx file.
 	If the Nick=name is not located in openv.apps, the supplied	config() options are not overridden.
 	*/	
-	name: "Totem",
+	name: ENV.SERVICE_NAME, //"Totem",
 
 	/**
 	@cfg {Object} 
@@ -1022,7 +1023,7 @@ var
 			sql.query(derive, {Nick:TOTEM.name})
 			.on("result", function (opts) {
 
-				if ( opts.Count )
+				if ( opts.Count ) {
 					Each(opts, function (key,val) {
 						key = key.toLowerCase();
 						site[key] = val;
@@ -1037,6 +1038,25 @@ var
 						if (key in TOTEM) 
 							TOTEM[key] = site[key];
 					});
+					
+					sql.query("SELECT count(ID) AS Fails FROM openv.aspreqts WHERE Status LIKE 'fail%'", [], function (err,asp) {
+					sql.query("SELECT count(ID) AS Fails FROM openv.ispreqts WHERE Status LIKE 'fail%'", [], function (err,isp) {
+					sql.query("SELECT count(ID) AS Fails FROM openv.swreqts WHERE Status LIKE 'fail%'", [], function (err,sw) {
+					sql.query("SELECT count(ID) AS Fails FROM openv.hwreqts WHERE Status LIKE 'fail%'", [], function (err,hw) {
+
+						site.warning = [
+							site.warning || "",
+							"ASP".fontcolor(asp[0].Fails ? "red" : "green").tag("a",{href:"/help?from=asp"}),
+							"ISP".fontcolor(isp[0].Fails ? "red" : "green").tag("a",{href:"/help?from=isp"}),
+							"SW".fontcolor(sw[0].Fails ? "red" : "green").tag("a",{href:"/help?from=swap"}),   // mails list of failed swapIDs (and link to all sw reqts) to swap PMO
+							"HW".fontcolor(hw[0].Fails ? "red" : "green").tag("a",{href:"/help?from=pmo"})   // mails list of failed hw reqts (and link to all hw reqts) to pod lead
+						].join(" ");
+						
+					});
+					});
+					});
+					});
+				}
 
 				if (cb) cb();
 			})

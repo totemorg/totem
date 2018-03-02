@@ -48,7 +48,7 @@ ENUM.test({
 		
 
 		var TOTEM = require("../totem").config({
-			name: "iamwhoiam",
+			name: "Totem1",
 			faultless: true,
 			cores: 2
 		}, function (err) {
@@ -64,7 +64,7 @@ with 2 cores and the default endpoint routes` );
 	N3: function () {
 		
 		var TOTEM = require("../totem").config({
-			name: "Totem",
+			name: "Totem1",
 			
 			mysql: {
 				host: ENV.MYSQL_HOST,
@@ -135,7 +135,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 				pass: ENV.MYSQL_PASS
 			},
 	
-			name: "allmine",
+			name: "Totem1",
 			
 			riddles: 20
 		}, function (err) {
@@ -151,7 +151,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 	N6: function () { // db maint
 		
 		var TOTEM = require("../totem").config({
-			name: "Totem",
+			name: "Totem1",
 			
 			mysql: {
 				host: ENV.MYSQL_HOST,
@@ -492,7 +492,7 @@ function faces(tau,parms) { return 102; }
 	D1: function () {
 		var 
 			DEBE = require("../debe").config({
-				name: ENV.SERVICE_NAME,
+				//name: ENV.SERVICE_NAME,
 
 				mysql: {
 					host: ENV.MYSQL_HOST,
@@ -617,7 +617,7 @@ clients, users, system health, etc).`
 	D3: function () {
 		var 
 			DEBE = require("../debe").config({
-				name: "Flow",
+				name: "Totem1",
 
 				mysql: {
 					host: ENV.MYSQL_HOST,
