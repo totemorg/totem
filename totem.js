@@ -2127,7 +2127,7 @@ Access (create if needed) a file then callback cb(sql, area, fileID) if no error
 			//Client: client,
 			Area: area
 		}, 
-		function (file) {
+		function (file, sql) {
 
 		if ( file )
 			cb( area, file.ID, sql );

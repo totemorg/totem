@@ -75,13 +75,13 @@ xdom.)
 	tar cvf $1.tar $1
 	xxd -p $1.tar $1.hex
 	split -b 10m $1.hex _x
-	;
+	;;
 	
 rdom.)
 	cat _x* > $1.hex
 	xxd -r -p $1.hex  $1.tar
 	tar xvf $1.tar
-	;
+	;;
 	
 flatten.)   # legacy
 	source hashem.sh $2
