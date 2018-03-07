@@ -1039,10 +1039,10 @@ var
 							TOTEM[key] = site[key];
 					});
 					
-					sql.query("SELECT count(ID) AS Fails FROM openv.aspreqts WHERE Status LIKE 'fail%'", [], function (err,asp) {
-					sql.query("SELECT count(ID) AS Fails FROM openv.ispreqts WHERE Status LIKE 'fail%'", [], function (err,isp) {
-					sql.query("SELECT count(ID) AS Fails FROM openv.swreqts WHERE Status LIKE 'fail%'", [], function (err,sw) {
-					sql.query("SELECT count(ID) AS Fails FROM openv.hwreqts WHERE Status LIKE 'fail%'", [], function (err,hw) {
+					sql.query("SELECT count(ID) AS Fails FROM openv.aspreqts WHERE Status LIKE '%fail%'", [], function (err,asp) {
+					sql.query("SELECT count(ID) AS Fails FROM openv.ispreqts WHERE Status LIKE '%fail%'", [], function (err,isp) {
+					sql.query("SELECT count(ID) AS Fails FROM openv.swreqts WHERE Status LIKE '%fail%'", [], function (err,sw) {
+					sql.query("SELECT count(ID) AS Fails FROM openv.hwreqts WHERE Status LIKE '%fail%'", [], function (err,hw) {
 
 						site.warning = [
 							site.warning || "",
