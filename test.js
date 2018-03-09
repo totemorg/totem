@@ -500,7 +500,7 @@ function faces(tau,parms) { return 102; }
 					pass: ENV.MYSQL_PASS
 				},
 
-				watch: {
+				onFile: {
 					"./public/uploads/": function (sql, name, path) {  // watch changes to a file				
 						
 						sql.getFirst(  // get client for registered file

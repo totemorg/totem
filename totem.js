@@ -281,17 +281,17 @@ var
 			return msg;
 		},
 
-		function parseReplace(req,plugin) {
+		function parseJS(req,plugin) {
 		/**
 		@private
 		@member String
 		Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
 		*/
 			
-			function Format(X,S) {
+			function Format($,S) {
 			/*
-			 * Format a string S containing ${X.key} tags.  The String wrapper for this
-			 * method extends X with optional plugins like X.F = {fn: function (X){}, ...}.
+			 * Format a string S containing ${$.key} tags.  The String wrapper for this
+			 * method extends $ with optional plugins like $.F = {fn: function (X){}, ...}.
 			 */
 
 				try {
@@ -303,7 +303,7 @@ var
 
 			}
 			
-			req.plugin = req.F = plugin || {};
+			if (plugin) req.plugin = req.F = plugin || {};
 			return Format(req,this);
 		},
 	
@@ -541,7 +541,7 @@ var
 	@member TOTEM	
 	Folder watching callbacks cb(path) 
 	*/				
-	watch: {		//< Folder watching callbacks cb(path) 
+	onFile: {		//< File folder watchers with callbacks cb(path) 
 	},
 		
 	watchMods: { 	//< List to track changed files as OS will trigger multiple change evented when file changed
@@ -1426,22 +1426,26 @@ function connectService(cb) {
 	var 
 		name = TOTEM.name,
 		paths = TOTEM.paths,
-		certs = TOTEM.cache.certs;
-		
+		certs = TOTEM.cache.certs,
+		cert = certs.totem = {  // cache server data fetching certs 
+			pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
+			key: FS.readFileSync(`${paths.certs}${name}.key`),
+			crt: FS.readFileSync(`${paths.certs}${name}.crt`),
+			_pfx: `${paths.certs}${name}.pfx`,
+			_crt: `${paths.certs}${name}.crt`,
+			_key: `${paths.certs}${name}.key`
+		};
+
+	certs.admin = {
+			pfx: FS.readFileSync(`${paths.certs}admin.pfx`),
+			key: FS.readFileSync(`${paths.certs}admin.key`),
+			crt: FS.readFileSync(`${paths.certs}admin.crt`),
+			_pfx: `${paths.certs}admin.pfx`,
+			_crt: `${paths.certs}admin.crt`,
+			_key: `${paths.certs}admin.key`
+	};
+	
 	if ( TOTEM.isEncryptedWorker ) {  
-
-		Copy({		// cache server data fetching certs 
-			raw: {
-				pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
-				key: FS.readFileSync(`${paths.certs}${name}.key`),
-				crt: FS.readFileSync(`${paths.certs}${name}.crt`),
-			},
-			crt: `${paths.certs}${name}.crt`,
-			key: `${paths.certs}${name}.key`
-		}, certs);
-
-		//Log({certcache: certs});
-		
 		try {  // build the trust strore
 			Each( FS.readdirSync(paths.certs+"/truststore"), function (n,file) {
 				if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
@@ -1456,7 +1460,7 @@ function connectService(cb) {
 
 		startService( HTTPS.createServer({
 			passphrase: TOTEM.encrypt,		// passphrase for pfx
-			pfx: certs.raw.pfx,			// TOTEM.paths's pfx/p12 encoded crt+key TOTEM.paths
+			pfx: cert.pfx,			// pfx/p12 encoded crt and key 
 			ca: TOTEM.trust,				// list of TOTEM.paths authorities (trusted serrver.trust)
 			crl: [],						// pki revocation list
 			requestCert: true,
@@ -1554,7 +1558,7 @@ function initializeService(sql) {
 	
 	var watchMods = TOTEM.watchMods;
 
-	Each(TOTEM.watch, function (area, cb) {  // callback cb(sql,name,area) when file changed
+	Each(TOTEM.onFile, function (area, cb) {  // callback cb(sql,name,area) when file changed
 		FS.readdir( area, function (err, files) {
 			if (err) 
 				Trace(err);
@@ -2362,7 +2366,7 @@ function fetchFile(url, body, cb) {
 
 	var 
 		opts = URL.parse(url),
-		certs = TOTEM.cache.certs;
+		cert = TOTEM.cache.certs.admin;
 
 	opts.retry = TOTEM.retries;
 	opts.rejectUnauthorized = false;
@@ -2399,7 +2403,7 @@ function fetchFile(url, body, cb) {
 			
 		case "curls":
 			retry(
-				`curl -gk --cert ${certs.crt} --key ${certs.key} ` + url.replace(opts.protocol, "https:"),
+				`curl -gk --cert ${cert._crt} --key ${cert._key} ` + url.replace(opts.protocol, "https:"),
 				opts, 
 				function (err,out) {
 					try {
@@ -2432,7 +2436,7 @@ function fetchFile(url, body, cb) {
 				out = parts[1] || "./shares/junk.jpg";
 	
 			retry(
-				`wget -O ${out} --no-check-certificate --certificate ${certs.crt} --private-key ${certs.key} ` + url.replace(opts.protocol, "https:"),
+				`wget -O ${out} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + url.replace(opts.protocol, "https:"),
 				opts, 
 				function (err) {
 					cb( err ? null : "ok" );
@@ -2445,7 +2449,7 @@ function fetchFile(url, body, cb) {
 				Log(err);
 				cb( null );
 			});
-			Log("http", opts, body);
+			//Log("http", opts, body);
 			
 			if ( body )
 				Req.write( JSON.stringify(body) );  // body parms
@@ -2454,13 +2458,13 @@ function fetchFile(url, body, cb) {
 			break;
 
 		case "https:":
-			if ( true ) {
-				opts.pfx = certs.raw.pfx;
+			if ( false ) {
+				opts.pfx = cert.pfx;
 				opts.passphrase = TOTEM.encrypt;
 			}
 			else {
-				opts.key = certs.raw.key;
-				opts.cert = certs.raw.cert;
+				opts.key = cert.key;
+				opts.cert = cert.crt;
 			}
 			
 			var Req = HTTPS.request(opts, getResponse);

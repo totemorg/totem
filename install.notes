@@ -1,3 +1,12 @@
+# PKI certs
+## converting pfx to crt-key
+openssl pkcs12 -in keyStore.pfx -out keyStore.crt -nodes --nokeys
+openssl pkcs12 -in keyStore.pfx -out keyStore.key -nodes --nocerts
+
+# check that crt-key match
+openssl x509 -noout -modulus -in certificate.crt | openssl md5
+openssl rsa -noout -modulus -in privateKey.key | openssl md5
+
 # notepadqq
 wget -O /etc/yum.repos.d/sea-devel.repo "http://sea.fedorapeople.org/sea-devel.repo"
 yum install notepadqq
