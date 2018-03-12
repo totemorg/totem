@@ -41,17 +41,15 @@ As documented in its api, TOTEM provides ENDPOINTs:
 
 using an optional QUERY:
 
-	KEY=VALUE & EXPRESSION ...
+	KEY [OP] = VALUE & ...
+	KEY [OP] :  VALUE & ...
 
-where the TYPE will format data:
-
-	KEY=VALUE & EXPRESSION ...
-
-TOTEM provides default TYPEs to format data:
+where the TYPE data formetters include:
 
 	db | xml | csv | json
 	
-If TOTEM was configured for antibot support, TOTEM will provide a *riddle* endpoint for clients to validate themselves.
+If TOTEM was configured for antibot support via its *riddles* configuration parameter, TOTEM will provide a *riddle* endpoint for clients to 
+validate themselves.
 
 ## Installation
 
