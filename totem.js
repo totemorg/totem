@@ -332,37 +332,52 @@ var
 		Parse a "&key=val&key=val?query&relation& ..." query into 
 		the default hash def = {key:val, key=val?query, relation:null, key:json, ...}.
 		*/
-			
-			var lastkey = "";
+			function parseParm(parm, op, cb) {
+				var	
+					parts = parm.split(op),  
+					key = parts[0],
+					val = parts[1] ;
 
+				if (val)   // key = val 
+					if ( ops.indexOf( key.substr(-1) ) >= 0 )   
+						tests[key+op] = val;
+
+					else
+						try {
+							def[lastkey = key] = JSON.parse(val);
+						}
+						catch (err) {
+							def[lastkey = key] = val;
+						}
+
+				else 
+					cb();
+			}
+			
+			var lastkey = "", ops = TOTEM.reqFlags.ops, tests = def._tests = {};
+
+			/*
+			Log({
+				t0: TOTEM.mysql.pool.escape( [] ),
+				t1: TOTEM.mysql.pool.escape( {a:1,b:2, c:[1,2,3], d:["x","y","z"] } ),
+				t2: TOTEM.mysql.pool.escape( [1,2,'abc', {x:1}, {y:2}, new SQLOP("!","y","a test")] ),
+				t3: TOTEM.mysql.pool.escape( new SQLOP("<","x",10) ),
+				t4: TOTEM.mysql.pool.escapeId( ["a","b"] ),
+				t5: TOTEM.mysql.pool.escapeId( "a,b,c" )
+			});   */
+			
 			this.split("?").each( function (qn, query) {
 				query.split("&").each( function (pn,parm) {
 
 					if (parm) 								
 						if ( qn ) def[lastkey] += (pn ? "&" : "?") + parm;
 
-						else {
-							var	
-								parts = parm.split("="),  // split into key=val
-								key = parts[0],
-								val = unescape( parm.substr( key.length+1 ) );
-
-							if (key)   // key = val used
-								/*
-								try {  // val could be json 
-									def[lastkey = key] = JSON.parse(val); 
-								}
-								catch (err) { 
-									def[lastkey = key] = unescape(val);
-								}*/
-								def[lastkey = key] = val;
-								/*def[lastkey = key] = ( val.charAt(0) == "[" )
-									? val.substr(1,val.length-2).split(",")
-									: val; */
-
-							else 		// store key relationship (e.g. key<val)
-								def[parm] = null;
-						}
+						else 
+							parseParm( parm, "=", function () {
+								parseParm( parm, ":", function () {
+									def[parm] = null;
+								});
+							});
 				});
 			});
 
@@ -434,6 +449,7 @@ var
 		strips:	 			//< Flags to strips from request
 			{"":1, "_":1, leaf:1, _dc:1, id:1, "=":1, "?":1, "request":1}, 		
 
+		ops: "<>!*$|%/~",
 		id: "ID", 					//< SQL record id
 		prefix: "_",				//< Prefix that indicates a field is a flag
 		trace: "_trace",		//< Echo flags before and after parse	
@@ -3601,5 +3617,4 @@ function simThread(sock) {
 	});
 } */
 
-							
 // UNCLASSIFIED

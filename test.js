@@ -500,6 +500,26 @@ function faces(tau,parms) { return 102; }
 					pass: ENV.MYSQL_PASS
 				},
 
+				onIngest: {
+					missiles: function (data, cb) {
+						var evs = [];
+						if ( recs = data.trks ) {
+							recs.forEach( function (rec, idx) {
+								var pos = rec.latLonAlt;
+								evs.push({ 
+									x: pos.lat,
+									y: pos.lon,
+									z: pos.alt,
+									t: idx,
+									s: idx,
+									n: rec.trackNum
+								});
+							});
+							cb( evs );
+						}
+					}
+				},
+					
 				onFile: {
 					"./public/uploads/": function (sql, name, path) {  // watch changes to a file				
 						
