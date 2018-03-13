@@ -288,7 +288,7 @@ var
 		Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
 		*/
 			
-			function Format($,S) {
+			function Format($, _, ds, S) {
 			/*
 			 * Format a string S containing ${$.key} tags.  The String wrapper for this
 			 * method extends $ with optional plugins like $.F = {fn: function (X){}, ...}.
@@ -304,7 +304,7 @@ var
 			}
 			
 			if (plugin) req.plugin = req.F = plugin || {};
-			return Format(req,this);
+			return Format(req, req, req, this);
 		},
 	
 		function parseJSON(def) {
