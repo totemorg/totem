@@ -325,7 +325,7 @@ var
 			}
 		},
 		
-		function parsePath(op, defs) { 
+		function parsePath(defs) { 
 			/**
 			@private
 			@member String
@@ -359,7 +359,7 @@ var
 				parts = this.split("?"),
 				pathname = parts[0],
 				query = parts[1],
-				parms = query ? query.split(op) : [],
+				parms = query ? query.split("&") : [],
 				tests = defs._tests = {}, 
 				ops = TOTEM.reqFlags.ops;
 		
@@ -2733,7 +2733,7 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 		type = req.type = parts[1] || "",
 		area = req.filearea = areas[1] || "",
 		query = req.query = {},
-		src = node.path.parsePath("&",query);
+		src = node.path.parsePath(query);
 	
 	//Log(">>>>>", src, ">>>>", query);
 	
