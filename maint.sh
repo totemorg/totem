@@ -166,7 +166,7 @@ help.)	# some help
 
 mysql.)
 	cd /local/mysql
-	bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" &
+	bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" --max_allowed_packet=64M &
 	cd /local/service/debe
 	;;
 	
