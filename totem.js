@@ -325,13 +325,14 @@ var
 			}
 		},
 		
-		function parseQuery(def) { 
-		/**
-		@private
-		@member String
-		Parse a "&key=val&key=val?query&relation& ..." query into 
-		the default hash def = {key:val, key=val?query, relation:null, key:json, ...}.
-		*/
+		function parsePath(defs) { 
+			/**
+			@private
+			@member String
+			Parse a "&key=val&key=val?query&relation& ..." query into 
+			the default hash def = {key:val, key=val?query, relation:null, key:json, ...}.
+			*/
+			
 			function parseParm(parm, op, cb) {
 				var	
 					parts = parm.split(op),  
@@ -344,18 +345,24 @@ var
 
 					else
 						try {
-							def[lastkey = key] = JSON.parse(val);
+							defs[key] = JSON.parse(val);
 						}
 						catch (err) {
-							def[lastkey = key] = val;
+							defs[key] = val;
 						}
 
 				else 
 					cb();
 			}
 			
-			var lastkey = "", ops = TOTEM.reqFlags.ops, tests = def._tests = {};
-
+			var 
+				parts = this.replace(/&amp;/g,"&").split("?"),
+				pathname = parts[0],
+				query = parts[1],
+				parms = query ? query.split("&") : [],
+				tests = defs._tests = {}, 
+				ops = TOTEM.reqFlags.ops;
+		
 			/*
 			Log({
 				t0: TOTEM.mysql.pool.escape( [] ),
@@ -366,23 +373,16 @@ var
 				t5: TOTEM.mysql.pool.escapeId( "a,b,c" )
 			});   */
 			
-			this.split("?").each( function (qn, query) {
-				query.split("&").each( function (pn,parm) {
-
-					if (parm) 								
-						if ( qn ) def[lastkey] += (pn ? "&" : "?") + parm;
-
-						else 
-							parseParm( parm, "=", function () {
-								parseParm( parm, ":", function () {
-									def[parm] = null;
-								});
-							});
-				});
+			parms.forEach( function (parm) {
+				if (parm) 
+					parseParm( parm, "=", function () {
+						parseParm( parm, ":", function () {
+							defs[parm] = null;
+						});
+					});
 			});
-
-			//Log([this+"", def]);
-			return def;
+				
+			return pathname;
 		},
 		
 		function parseXML(def, cb) {
@@ -449,7 +449,7 @@ var
 		strips:	 			//< Flags to strips from request
 			{"":1, "_":1, leaf:1, _dc:1, id:1, "=":1, "?":1, "request":1}, 		
 
-		ops: "<>!*$|%/~",
+		ops: "<>!*$|%/^~",
 		id: "ID", 					//< SQL record id
 		prefix: "_",				//< Prefix that indicates a field is a flag
 		trace: "_trace",		//< Echo flags before and after parse	
@@ -2726,16 +2726,16 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 	var
 		node = URL.parse(req.node),
 		path = req.path = node.path,
-		search = req.search = node.query || "",
-		query = req.query = search.parseQuery({}),
 		areas = node.pathname.split("/"),
-		file = req.filename = areas.pop() || (areas[1] ? "" : TOTEM.paths.default),
+		file = req.filename = areas.pop() || "", //(areas[1] ? "" : TOTEM.paths.default),
 		parts = req.parts = file.split("."),
-		type = req.type = parts[1] || "",
 		table = req.table = parts[0] || "",
-		area = req.filearea = areas[1] || "";
-
-	//Log("requset",req);
+		type = req.type = parts[1] || "",
+		area = req.filearea = areas[1] || "",
+		query = req.query = {},
+		src = node.path.parsePath(query);
+	
+	//Log(">>>>>", src, ">>>>", query);
 	
 	if ( req.filepath = req.filearea ? TOTEM.paths.mime[req.filearea] || req.filearea : "" )
 		req.filepath += node.pathname;
