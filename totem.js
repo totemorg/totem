@@ -3394,14 +3394,14 @@ the client is challenged as necessary.
 			Res.end( TOTEM.errors.pretty(TOTEM.errors.lostConnection ) );
 	}
 
-	function getSocket() {  // returns req/res socket if this isnt/is a cross domain session
-		if ( Req.headers.origin ) {  // xdom session is progress from master (http) to its workers (https)
+	function getSocket() {  // returns suitable response socket depending on cross/same domain session
+		if ( Req.headers.origin ) {  // cross domain session is in progress from master (on http) to its workers (on https)
 			Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
 			Res.socket.write(Res._header);
 			Res._headerSent = true;
 			return Res.socket;
 		}
-		else 
+		else   // same domain (http-to-http or https-to-https) so must use the request socket
 			return Req.socket;
 	}
 		
