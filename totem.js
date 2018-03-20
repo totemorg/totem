@@ -534,7 +534,7 @@ var
 	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
 	workers via the masterport.	
 	*/				
-	masterport: 8080,				 //< master port for stateful threads
+	//masterport: 8080,				 //< master port for stateful threads
 	/**
 	@cfg {Number} [workerport=8443]
 	@member TOTEM	
@@ -543,7 +543,7 @@ var
 	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
 	workers via the masterport.	
 	*/				
-	workerport: 8443, 				//< worker port for stateless threads
+	//workerport: 8443, 				//< worker port for stateless threads
 		
 	/**
 	@cfg {String} [host="localhost"]
@@ -1378,7 +1378,7 @@ function startService(server,cb) {
 	if (TOTEM.cores) 					// Start for master-workers
 		if (CLUSTER.isMaster) {			// Establish master port
 			
-			server.listen(TOTEM.masterport, function() {  // Establish master
+			server.listen(TOTEM.doms.master.port, function() {  // Establish master  TOTEM.masterport
 				Trace(`SERVE ${site.urls.master}`);
 			});
 			
@@ -1397,12 +1397,12 @@ function startService(server,cb) {
 		}
 		
 		else 								// Establish worker port			
-			server.listen(TOTEM.workerport, function() {
+			server.listen(TOTEM.doms.worker.port , function() {  //TOTEM.workerport
 				Trace(`SERVE ${site.urls.worker} ON core-${CLUSTER.worker.id}`);
 			});
 	
 	else 								// Establish master-only
-		server.listen(TOTEM.workerport, function() {
+		server.listen(TOTEM.doms.worker.port , function() {  //TOTEM.workerport
 			Trace(`SERVE ${site.urls.master}`);
 		});
 		
@@ -1506,24 +1506,29 @@ function protectService(cb) {
 	
 	var 
 		name = TOTEM.name,
-		dom = ( TOTEM.encrypt ? "https://" : "http://" ) + TOTEM.host,
+		//dom = ( TOTEM.encrypt ? "https://" : "http://" ) + TOTEM.host,
 		paths = TOTEM.paths,
 		sock = TOTEM.sockets ? paths.url.socketio : "", 
-		pfxfile = `${paths.certs}${name}.pfx`;
+		pfxfile = `${paths.certs}${name}.pfx`,
+		doms = TOTEM.doms = {
+			master: URL.parse(ENV.MASTER),
+			worker: URL.parse(ENV.WORKER)
+		};
 
 	Trace(`PROTECT ${name}`);
+	//Log(doms);
 	
 	TOTEM.site.urls = TOTEM.cores 
 		? {  // establish site urls
 			socketio: sock,
-			worker:  dom + ":" + TOTEM.workerport,
-			master:  "http://" + TOTEM.host + ":" + TOTEM.masterport
+			worker:  ENV.WORKER, //dom + ":" + TOTEM.workerport,
+			master:  ENV.MASTER //"http://" + TOTEM.host + ":" + TOTEM.masterport
 		}
 		
 		: {
 			socketio: sock,
-			worker:  dom + ":" + TOTEM.workerport,
-			master:  dom + ":" + TOTEM.workerport,
+			worker:  ENV.MASTER, //dom + ":" + TOTEM.workerport,
+			master:  ENV.MASTER //dom + ":" + TOTEM.workerport,
 		};
 
 	if ( TOTEM.isEncryptedWorker  = TOTEM.encrypt && (CLUSTER.isWorker || !TOTEM.cores) )   // derive a pfx cert if this is an encrypted service

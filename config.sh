@@ -12,6 +12,8 @@ export SRV=$BASE/service
 export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin
 export LD_LIBRARY_PATH=
 export REPO=git@git.geointapps.org:acmesds
+export MASTER=http://localhost:8080
+export WORKER=https://localhost:8081
 
 # JSDUCK
 export PATH=$PATH:/usr/local/share/gems/gems/jsduck-5.3.4/bin
