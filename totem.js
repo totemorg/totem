@@ -1511,8 +1511,8 @@ function protectService(cb) {
 		sock = TOTEM.sockets ? paths.url.socketio : "", 
 		pfxfile = `${paths.certs}${name}.pfx`,
 		doms = TOTEM.doms = {
-			master: URL.parse(ENV.MASTER),
-			worker: URL.parse(ENV.WORKER)
+			master: URL.parse(ENV.TOTEM_MASTER),
+			worker: URL.parse(ENV.TOTEM_WORKER)
 		};
 
 	Trace(`PROTECT ${name}`);
@@ -1521,14 +1521,14 @@ function protectService(cb) {
 	TOTEM.site.urls = TOTEM.cores 
 		? {  // establish site urls
 			socketio: sock,
-			worker:  ENV.WORKER, //dom + ":" + TOTEM.workerport,
-			master:  ENV.MASTER //"http://" + TOTEM.host + ":" + TOTEM.masterport
+			worker:  ENV.TOTEM_WORKER, //dom + ":" + TOTEM.workerport,
+			master:  ENV.TOTEM_MASTER //"http://" + TOTEM.host + ":" + TOTEM.masterport
 		}
 		
 		: {
 			socketio: sock,
-			worker:  ENV.MASTER, //dom + ":" + TOTEM.workerport,
-			master:  ENV.MASTER //dom + ":" + TOTEM.workerport,
+			worker:  ENV.TOTEM_MASTER, //dom + ":" + TOTEM.workerport,
+			master:  ENV.TOTEM_MASTER //dom + ":" + TOTEM.workerport,
 		};
 
 	if ( TOTEM.isEncryptedWorker  = TOTEM.encrypt && (CLUSTER.isWorker || !TOTEM.cores) )   // derive a pfx cert if this is an encrypted service
