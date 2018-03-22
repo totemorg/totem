@@ -24,13 +24,14 @@ following selectable features:
 	+ database agnosticator (default MySQL-Cluster)
 	+ poll files and services
 	+ automattic server cert generation
+	+ parallel tasking
   
 As documented in its api, TOTEM provides ENDPOINTs:
 
-	(select) GET 	 /NODE $$ NODE ...
-	(update) PUT 	 /NODE $$ NODE ...
-	(insert) POST 	 /NODE $$ NODE ...
-	(delete) DELETE /NODE $$ NODE ...
+	(select) GET 	 /NODE ?? NODE ...
+	(update) PUT 	 /NODE ?? NODE ...
+	(insert) POST 	 /NODE ?? NODE ...
+	(delete) DELETE /NODE ?? NODE ...
 
  to access a NODE:
 
@@ -193,7 +194,41 @@ useful, if you wish to learn more about its database agnosticator.
 		});
 	});
 
+### N6 - Parallel tasking
 
+	var TOTEM = require("../totem").config({
+		name: "Totem1",
+		cores: 3,
+		mysql: {
+			host: ENV.MYSQL_HOST,
+			user: ENV.MYSQL_USER,
+			pass: ENV.MYSQL_PASS
+		},
+		"byTable.": {
+			test: function (req,res) {
+				res(" here we go");
+				switch (req.query.opt || 1) {
+					case 1: 
+						if (CLUSTER.isMaster)
+						TOTEM.tasker({
+							keys: "i,j",
+							i: [1,2,3],
+							j: [4,5]
+						}, 
+							($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
+							(msg) => console.log(msg)
+						);
+						break;
+
+					case 2:
+						break;
+
+					case 3:
+						break;
+				}
+
+			}
+				
 ## License
 
 [MIT](LICENSE)

@@ -27,6 +27,7 @@ var
 	ENV = process.env,
 	ENUM = require("enum"),
 	CP = require("child_process"),
+	CLUSTER = require("cluster"),
 	Copy = ENUM.copy,
 	Log = console.log;
 
@@ -148,87 +149,56 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 		});
 	},
 	
-	N6: function () { // db maint
-		
+	N6: function () { 
 		var TOTEM = require("../totem").config({
 			name: "Totem1",
-			
+			//faultless: true,
+			cores: 3,
 			mysql: {
 				host: ENV.MYSQL_HOST,
 				user: ENV.MYSQL_USER,
 				pass: ENV.MYSQL_PASS
-			}
-		},  function (err) {				
-			Trace( err || "db maintenance" );
+			},
+			"byTable.": {
+				test: function (req,res) {
+					res(" here we go");
+					if (CLUSTER.isMaster)
+						switch (req.query.opt || 1) {
+							case 1: 
+								TOTEM.tasker({
+									keys: "i,j",
+									i: [1,2,3],
+									j: [4,5]
+								}, 
+									($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
+									(msg) => console.log(msg)
+								);
+								break;
+
+							case 2:
+								TOTEM.tasker({
+									qos: 1,
+									keys: "i,j",
+									i: [1,2,3],
+									j: [4,5]
+								}, 
+									($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
+									(msg) => console.log(msg)
+								);
+								break;
+
+							case 3:
+								break;
+						}
 			
-			TOTEM.thread( function (sql) {
-				
-				switch (0) {
-					case 1: 
-						sql.query( "select voxels.id as voxelID, chips.id as chipID from app.voxels left join app.chips on voxels.Ring = chips.Ring", function (err,recs) {
-							Log(err);
-							recs.each( function (n, rec) {
-								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], function (err) {
-									Log(err);
-								});
-							});
-						});
-						break;
-						
-					case 2:
-						sql.query("select ID, Ring from app.voxels", function (err, recs) {
-							recs.each( function (n, rec) {
-								sql.query(
-									"update app.voxels set Point=geomFromText(?) where ?", 
-									[ `POINT(${rec.Ring[0][0].x} ${rec.Ring[0][0].y})` , {ID: rec.ID} ], 
-									function (err) {
-										Log(err);
-								});
-							});
-						});
-						break;
-						
-					case 3:
-						sql.query( "select voxels.id as voxelID, cache.id as chipID from app.voxels left join app.cache on voxels.Ring = cache.geo1", function (err,recs) {
-							Log(err);
-							recs.each( function (n, rec) {
-								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], function (err) {
-									Log(err);
-								});
-							});
-						});
-						break;
-						
-					case 4:
-						sql.query("select ID, geo1 from app.cache where bank='chip'", function (err, recs) {
-							recs.each( function (n, rec) {
-								if (rec.geo1)
-									sql.query(
-										"update app.cache set x1=?, x2=? where ?", 
-										[ rec.geo1[0][0].x, rec.geo1[0][0].y, {ID: rec.ID} ], 
-										function (err) {
-											Log(err);
-									});
-							});
-						});
-						break;
-						
-					case 5: 
-						var parms = {
-ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on the earth's surface",
-"chip length": "[m] length of chip across an edge",
-"chip samples": "[pixels] number of pixels across edge of chip"
-						};
-						//get all tables and revise field comments with info data here -  archive parms - /parms in flex will
-						//use getfileds to get comments and return into
 				}
-						
-			});
+			}
 			
+		}, function (err) {
+			Trace( err || "Testing tasker with database and 3 cores at /test endpoint" );
 		});
-		
 	},
-		
+
 	E1: function () {
 
 		var ENGINE = require("../engine");
@@ -647,8 +617,90 @@ clients, users, system health, etc).`
 			}, function (err) {
 				Trace( err || "Stateful network flow manger started" );
 			});
+	},
+		
+	Z1: function () { // db maint
+		
+		var TOTEM = require("../totem").config({
+			name: "Totem1",
+			
+			mysql: {
+				host: ENV.MYSQL_HOST,
+				user: ENV.MYSQL_USER,
+				pass: ENV.MYSQL_PASS
+			}
+		},  function (err) {				
+			Trace( err || "db maintenance" );
+			
+			TOTEM.thread( function (sql) {
+				
+				switch (0) {
+					case 1: 
+						sql.query( "select voxels.id as voxelID, chips.id as chipID from app.voxels left join app.chips on voxels.Ring = chips.Ring", function (err,recs) {
+							Log(err);
+							recs.each( function (n, rec) {
+								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], function (err) {
+									Log(err);
+								});
+							});
+						});
+						break;
+						
+					case 2:
+						sql.query("select ID, Ring from app.voxels", function (err, recs) {
+							recs.each( function (n, rec) {
+								sql.query(
+									"update app.voxels set Point=geomFromText(?) where ?", 
+									[ `POINT(${rec.Ring[0][0].x} ${rec.Ring[0][0].y})` , {ID: rec.ID} ], 
+									function (err) {
+										Log(err);
+								});
+							});
+						});
+						break;
+						
+					case 3:
+						sql.query( "select voxels.id as voxelID, cache.id as chipID from app.voxels left join app.cache on voxels.Ring = cache.geo1", function (err,recs) {
+							Log(err);
+							recs.each( function (n, rec) {
+								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], function (err) {
+									Log(err);
+								});
+							});
+						});
+						break;
+						
+					case 4:
+						sql.query("select ID, geo1 from app.cache where bank='chip'", function (err, recs) {
+							recs.each( function (n, rec) {
+								if (rec.geo1)
+									sql.query(
+										"update app.cache set x1=?, x2=? where ?", 
+										[ rec.geo1[0][0].x, rec.geo1[0][0].y, {ID: rec.ID} ], 
+										function (err) {
+											Log(err);
+									});
+							});
+						});
+						break;
+						
+					case 5: 
+						var parms = {
+ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on the earth's surface",
+"chip length": "[m] length of chip across an edge",
+"chip samples": "[pixels] number of pixels across edge of chip"
+						};
+						//get all tables and revise field comments with info data here -  archive parms - /parms in flex will
+						//use getfileds to get comments and return into
+				}
+						
+			});
+			
+		});
+		
 	}
-
+	
+	
 });	
 
 function Trace(msg,sql) {

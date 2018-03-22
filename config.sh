@@ -78,4 +78,10 @@ source pass.sh
 export TOTEM_MASTER=http://localhost:8080
 export TOTEM_WORKER=https://localhost:8081
 
+# define tasking node urls
+export NODE0=http://localhost:8080/task
+export NODE1=http://192.1.1.2:8443/task
+export NODE2=http://192.1.1.3:8443/task
+export NODE3=http://192.1.1.4:8443/task
+
 # UNCLASSIFIED when IP addresses and passwords are undefined

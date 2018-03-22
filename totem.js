@@ -10,6 +10,7 @@
 @requires clusters
 @requires child-process
 @requires os
+@requires vm
 
 @requires enum
 @requires jsdb
@@ -34,6 +35,7 @@ var												// NodeJS modules
 	CLUSTER = require("cluster"),				//< multicore  processing
 	URL = require("url"),						//< url parsing
 	NET = require("net"), 				// network interface
+	VM = require("vm"), 					// virtual machines for tasking
 	OS = require('os');					// OS utilitites
 
 var 											// 3rd party modules
@@ -58,6 +60,121 @@ var 											// Totem modules
 var
 	TOTEM = module.exports = ENUM.extend({
 
+	/*
+	@cfg {Object}
+	Plugins for tasker engine context
+	*/
+	plugins: {
+		console: console,
+		log: console.log
+	},
+		
+	/**
+	@cfg {Function}
+	@method tasker
+	@member TOTEM
+	@param {Object} opts tasking options (see example)
+	@param {Function} task tasker of the form ($) => {return msg} where $ contains process info
+	@param {Function} cb callback of the form (msg) => {...} to process msg returned by task
+	Spread one or more tasks to workers residing in a compute node cloud as follows:
+	
+		tasker({  		// example
+			keys: "i,j,k",  	// e.g. array indecies
+			i: [0,1,2,3],  		// domain of index i
+			j: [4,8],				// domain of index j
+			k: [0],					// domain of index k
+			qos: 0,				// regulation time in ms if not zero
+			local: false, 		// enable to run task local, i.e. w/o workers and nodes
+			workers: 4, 		// limit number of workers (aka cores) per node
+			nodes: 3 			// limit number of nodes (ala locales) in the cluster
+		}, 
+			// here, a simple task that returns a message 
+			($) => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
+
+			// here, a simple callback that displays the task results
+			(msg) => console.log(msg) 
+		);
+	
+	*/				
+	tasker: function (opts, task, cb) {
+
+		function genDomain(depth, keys, opts, index, lastIndex, cb) {
+			var
+				key = keys[depth],
+				idxs = opts[key] || [],
+				N = idxs.length;
+
+			//Log(depth,key, index, N, lastIndex);
+			if (key)
+				idxs.forEach( function (idx,n) {
+					index[key] = idx;
+					genDomain(depth+1, keys, opts, index, lastIndex && n==N-1, cb);
+				});
+			
+			else
+				cb( Copy(index,{}), lastIndex);
+		}
+	
+		function nodeCB(err) {
+			if (err) Log(err);
+		}
+		
+		var 
+			paths = TOTEM.paths,
+			fetch = TOTEM.fetcher,
+			fetches = 0, 
+			node = 0,
+			nodeURL = paths.nodes[node],
+			nodeReq = {
+				domain: [],
+				client: opts.client || "guest",
+				credit: opts.credit || 10e3,
+				name: opts.name || "atask",
+				qos: opts.qos || 0,
+				cb: cb+""
+			},
+			dom = nodeReq.domain, 
+			keys = opts.keys || "",
+			cores = opts.cores || opts.workers || 10,
+			shards = opts.shards || 100,
+			nodes = opts.nodes || opts.locales || 50;
+
+		if ( opts.local )
+			genDomain(0, keys.split(","), opts, {}, true, function (index) {
+				cb( task(index) );
+			});
+		
+		else
+			genDomain(0, keys.split(","), opts, {}, true, function (index, isLast) {
+				dom.push( index );
+
+				if ( isLast || (dom.length == shards) ) {
+					if ( ++fetches > cores ) {
+						nodeURL = paths.nodes[++node];
+						if ( !nodeURL) nodeURL = paths.nodes[node = 0];
+						fetches = 0;
+					}
+
+					if (task) 
+						if (task.constructor == Array)
+							task.forEach( function (task) {
+								nodeReq.task = task+"";
+								fetch( nodeURL, nodeReq, nodeCB);
+							});
+
+						else {
+							nodeReq.task = task+"";
+							fetch( nodeURL, nodeReq, nodeCB);
+						}
+
+					else
+						dom.forEach( cb );
+
+					dom.length = 0;
+				}
+			});
+	},
+					
 	/**
 	@cfg {Object}
 	Watchdogs {name: dog(sql, lims), ... } run every dog.cycle seconds with a dog.trace message using
@@ -121,7 +238,7 @@ var
 	@member TOTEM
 	Node divider NODE $$ NODE ....  ("" disables dividing).
 	*/
-	nodeDivider: "$$", 				//< node divider
+	nodeDivider: "??", 				//< node divider
 	
 	/**
 	@cfg {Number}
@@ -419,8 +536,8 @@ var
 	/**
 	@member TOTEM	
 	@method thread
-	Thread a new sql connection to a callback.  Unless overridden, will default to the JSDB thread method.
 	@param {Function} cb callback(sql connector)
+	Thread a new sql connection to a callback.  Unless overridden, will default to the JSDB thread method.
 	 * */
 	thread: sqlThread,
 		
@@ -646,7 +763,8 @@ var
 	By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
 	*/				
 	byTable: {				
-		riddle: checkRiddle
+		riddle: checkRiddle,
+		task: runTask
 	},
 		
 	/**
@@ -916,6 +1034,13 @@ var
 			pocs: "SELECT lower(Hawk) AS Role, group_concat(DISTINCT Client SEPARATOR ';') AS Contact FROM openv.roles GROUP BY hawk"
 		},
 		
+		nodes: {  // available tasking nodes
+			0: ENV.NODE0,
+			1: ENV.NODE0,
+			2: ENV.NODE0,
+			3: ENV.NODE0
+		},
+			
 		mime: { // default static file areas
 			files: ".", // path to shared files 
 			captcha: ".",  // path to antibot captchas
@@ -946,7 +1071,7 @@ var
 		},
 		badMethod: new Error("unsupported request method"),
 		noProtocol: new Error("no protocol specified to fetch"),
-		noRoute: new Error("no endpoint here"),
+		noRoute: new Error("no route"),
 		badQuery: new Error("invalid query"),
 		badGroup: new Error("invalid group requested"),
 		lostConnection: new Error("client connection lost"),
@@ -1161,7 +1286,13 @@ function updateDS(req,res) {
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
-	res( TOTEM.paths.TOTEM.errors.noRoute );
+	Log(req.table, TOTEM.byTable);
+	
+	if ( route = TOTEM.byTable[req.table] )
+		route(req, res);
+	
+	else
+		res( TOTEM.errors.noRoute );
 }
 
 function insertDS(req,res) {
@@ -1171,7 +1302,7 @@ function insertDS(req,res) {
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
-	res( TOTEM.paths.TOTEM.errors.notAllowed );
+	res( TOTEM.errors.notAllowed );
 }
 
 function deleteDS(req,res) {
@@ -1181,7 +1312,7 @@ function deleteDS(req,res) {
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
-	res( TOTEM.paths.TOTEM.errors.notAllowed );
+	res( TOTEM.errors.notAllowed );
 }
 
 function executeDS(req,res) {
@@ -1191,7 +1322,7 @@ function executeDS(req,res) {
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
-	res( TOTEM.paths.TOTEM.errors.notAllowed );
+	res( TOTEM.errors.notAllowed );
 }
 
 /**
@@ -2535,33 +2666,36 @@ Endpoint to check clients response req.query to a riddle created by challengeCli
 		query = req.query,
 		sql = req.sql;
 		
-	sql.query("SELECT *,count(ID) as Count FROM openv.riddles WHERE ? LIMIT 0,1", {Client:query.ID})
-	.on("result", function (rid) {
-		
-		var 
-			ID = {Client:rid.ID},
-			guess = (query.guess+"").replace(/ /g,"");
+	if (query.ID)
+		sql.query("SELECT *,count(ID) as Count FROM openv.riddles WHERE ? LIMIT 0,1", {Client:query.ID})
+		.on("result", function (rid) {
 
-Log([rid,query]);
+			var 
+				ID = {Client:rid.ID},
+				guess = (query.guess+"").replace(/ /g,"");
 
-		if (rid.Count) 
-			if (rid.Riddle == guess) {
-				res( "pass" );
-				//sql.query("DELETE FROM openv.riddles WHERE ?",ID);
-			}
-			else
-			if (rid.Attempts > rid.maxAttempts) {
+	Log([rid,query]);
+
+			if (rid.Count) 
+				if (rid.Riddle == guess) {
+					res( "pass" );
+					//sql.query("DELETE FROM openv.riddles WHERE ?",ID);
+				}
+				else
+				if (rid.Attempts > rid.maxAttempts) {
+					res( "fail" );
+					//sql.query("DELETE FROM openv.riddles WHERE ?",ID);
+				}
+				else {
+					res( "retry" );
+					sql.query("UPDATE openv.riddles SET Attempts=Attempts+1 WHERE ?",ID);
+				}
+			else 
 				res( "fail" );
-				//sql.query("DELETE FROM openv.riddles WHERE ?",ID);
-			}
-			else {
-				res( "retry" );
-				sql.query("UPDATE openv.riddles SET Attempts=Attempts+1 WHERE ?",ID);
-			}
-		else 
-			res( "fail" );
-		
-	});
+
+		});
+	
+	res( TOTEM.errors.notAllowed );
 }
 
 function initChallenger() {
@@ -3621,5 +3755,62 @@ function simThread(sock) {
 		sesThread(Req,Res);
 	});
 } */
+
+function runTask(req,res) {
+	var 
+		query = req.query,
+		body = req.body,
+		sql = req.sql,
+		task = body.task,
+		dom = body.domain,
+		cb = body.cb,
+		$ = JSON.stringify({
+			worker: CLUSTER.isWorker ? CLUSTER.worker.id : 0,
+			node: process.env.HOSTNAME
+		}),
+		engine = `(${cb})( (${task})(${$}) )`,
+		plugins = TOTEM.plugins;
+
+	res( "ok" );
+
+	//Log(body);
+	//Log(engine);
+	
+	if ( task && cb ) 
+		dom.forEach( function (index) {
+
+			function runEngine(idx) {
+				VM.runInContext( engine, VM.createContext( Copy(plugins, idx) ));
+			}
+
+			if (body.qos) 
+				sql.insertJob({ // job descriptor 
+					index: Copy(index,{}),
+					priority: 0,
+					qos: body.qos, 
+					class: req.table,
+					client: body.client,
+					credit: body.credit,
+					name: body.name,
+					task: body.name,
+					notes: [
+							req.table.tag("?",req.query).tag("a", {href:"/" + req.table + ".run"}), 
+							((body.credit>0) ? "funded" : "unfunded").tag("a",{href:req.url}),
+							"RTP".tag("a", {
+								href:`/rtpsqd.view?task=${body.name}`
+							}),
+							"PMR brief".tag("a", {
+								href:`/briefs.view?options=${body.name}`
+							})
+					].join(" || ")
+				}, function (sql,job) {
+					//Log("reg job" , job);
+					runEngine( job.index );
+				});
+		
+			else
+				runEngine( index );
+		});
+}
 
 // UNCLASSIFIED
