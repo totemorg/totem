@@ -1506,9 +1506,10 @@ function startService(server,cb) {
 	
 	// listening on-routes message
 
+	//Log(TOTEM.doms);
+	
 	if (TOTEM.cores) 					// Start for master-workers
 		if (CLUSTER.isMaster) {			// Establish master port
-			
 			server.listen(TOTEM.doms.master.port, function() {  // Establish master  TOTEM.masterport
 				Trace(`SERVE ${site.urls.master}`);
 			});
@@ -1533,7 +1534,7 @@ function startService(server,cb) {
 			});
 	
 	else 								// Establish master-only
-		server.listen(TOTEM.doms.worker.port , function() {  //TOTEM.workerport
+		server.listen(TOTEM.doms.master.port , function() {  //TOTEM.workerport
 			Trace(`SERVE ${site.urls.master}`);
 		});
 		
