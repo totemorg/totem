@@ -471,22 +471,78 @@ function faces(tau,parms) { return 102; }
 				},
 
 				onIngest: {
-					missiles: function (data, cb) {
-						var evs = [];
-						if ( recs = data.trks ) {
-							recs.forEach( function (rec, idx) {
-								var pos = rec.latLonAlt;
-								evs.push({ 
-									x: pos.lat,
-									y: pos.lon,
-									z: pos.alt,
-									t: idx,
-									s: idx,
-									n: rec.trackNum
-								});
+					fraud: function (src, query, cb) {
+						Log(src, query);
+						if ( path = ENV["SRV_"+src.toUpperCase()] ) 
+							DEBE.fetcher( path, {
+								terms: "pakistan",
+								cursors: "*",
+								perPage: 20,
+								page: 1,
+								facet: true
+							}, function (data) {
+								var evs = [];
+								Log("kaching", data);
+								if (data) 
+									if (recs = data) 
+										recs.forEach( function (rec, idx) {
+											/*var pos = rec.latLonAlt;
+											evs.push({ 
+												x: pos.lat,
+												y: pos.lon,
+												z: pos.alt,
+												t: idx,
+												s: idx,
+												n: rec.trackNum
+											});*/
+										});
+								
+								cb(evs);
 							});
-							cb( evs );
-						}
+					},
+								
+					missiles: function (src, query, cb) {
+						if ( path = ENV["SRV_"+src.toUpperCase()] )
+							DEBE.fetcher( path.parseJS(query), null, function (data) {
+								var evs = [];
+								if (data) 
+									if ( recs = data.trks ) 
+										recs.forEach( function (rec, idx) {
+											var pos = rec.latLonAlt;
+											evs.push({ 
+												x: pos.lat,
+												y: pos.lon,
+												z: pos.alt,
+												t: idx,
+												s: idx,
+												n: rec.trackNum
+											});
+										});
+
+								cb( evs );
+							});
+					},
+					
+					artillery: function (src, query, cb) {
+						if ( path = ENV["SRV_"+src.toUpperCase()] )
+							DEBE.fetcher( path.parseJS(query), null, function (data) {
+								var evs = [];
+								if (data) 
+									if ( recs = data.trks ) 
+										recs.forEach( function (rec, idx) {
+											var pos = rec.latLonAlt;
+											evs.push({ 
+												x: pos.lat,
+												y: pos.lon,
+												z: pos.alt,
+												t: idx,
+												s: idx,
+												n: rec.trackNum
+											});
+										});
+
+								cb( evs );
+							});
 					}
 				},
 					
