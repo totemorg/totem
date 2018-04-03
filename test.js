@@ -688,9 +688,10 @@ clients, users, system health, etc).`
 		},  function (err) {				
 			Trace( err || "db maintenance" );
 			
+			if (CLUSTER.isMaster)
 			TOTEM.thread( function (sql) {
 				
-				switch (0) {
+				switch (6.1) {
 					case 1: 
 						sql.query( "select voxels.id as voxelID, chips.id as chipID from app.voxels left join app.chips on voxels.Ring = chips.Ring", function (err,recs) {
 							Log(err);
@@ -748,6 +749,26 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 						};
 						//get all tables and revise field comments with info data here -  archive parms - /parms in flex will
 						//use getfileds to get comments and return into
+						
+					case 6.1:
+						var 
+							RAN = require("../randpr"),
+							N = 20,
+							M = 5,
+							T = 1,
+							ran = new RAN();
+						
+						ran.KL( ran.sinc(T,N,M), function (ed) {
+							Log(ed.values);
+							ed.values.forEach( function (val, idx) {
+								sql.query("INSERT INTO app.ran SET ?", {
+									coherence_intervals: M,
+									eigen_value: val,
+									eigen_index: idx
+								});	
+							});
+						});
+						break;						
 				}
 						
 			});
