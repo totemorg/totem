@@ -952,7 +952,7 @@ var
 	/**
 	@cfg {Object}
 	@member TOTEM	
-	Default guest profile (unencrypted or client profile not found)
+	Default guest profile (unencrypted or client profile not found).  Null to bar guests.
 	*/		
 	guestProfile: {				
 		Banned: "",
@@ -1053,13 +1053,6 @@ var
 	},
 
 	/**
-	@cfg {Boolean} 
-	@member TOTEM	
-	Enable to admit guest clients making https requests
-	*/		
-	admitGuests: true, //< enable to admit guest clients making https requests
-		
-	/**
 	@cfg {Object} 
 	@private
 	@member TOTEM	
@@ -1158,6 +1151,7 @@ var
 			sql.query(guest)
 			.on("result", function (rec) {
 				TOTEM.guestProfile = Copy(rec,{});
+				delete TOTEM.guestProfile.ID;
 			});
 
 		if (derive = mysql.derive)  // derive site context vars
@@ -1745,17 +1739,18 @@ function initializeService(sql) {
 }
 
 /**
-@class USER_MAINT reserved for endpoints to manage users and their profiles.
+@class USER_MAINT legacy endpoints to manage users and their profiles.  Moved to FLEX.
  */
 
+/*
 function selectUser(req,res) {
-/**
+/ **
 @private
 @method selectUser
 Return user profile information
 @param {Object} req Totem session request 
 @param {Function} res Totem response
- */
+ * /
 	
 	var sql = req.sql, query = req.query || 1, isHawk = req.cert.isHawk;
 			
@@ -1778,13 +1773,13 @@ Return user profile information
 }
 
 function updateUser(req,res) {
-/**
+/  **
 @private
 @method updateUser
 Update user profile information
 @param {Object} req Totem session request 
 @param {Function} res Totem response
- */
+ * /
 			
 	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk; 
 	
@@ -1812,13 +1807,13 @@ Update user profile information
 }
 
 function deleteUser(req,res) {
-/**
+/ **
 @private
 @method deleteUser
 Remove user profile.
 @param {Object} req Totem session request 
 @param {Function} res Totem response
- */
+ * /
 			
 	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk;  
 
@@ -1847,17 +1842,15 @@ Remove user profile.
 }
 			
 function insertUser (req,res) {
-/**
+/ **
 @private
 @method insertUser
 Create user profile, associated certs and distribute info to user
 @param {Object} req Totem session request 
 @param {Function} res Totem response
- */
+ * /
 			
-	var sql = req.sql, query = req.query || {}, isHawk = req.cert.isHawk; 
-	
-	var url = TOTEM.paths.url;
+	var sql = req.sql, query = req.query || {}, isHawk = req.cert.isHawk, url = TOTEM.paths.url;
 	
 	if (req.cert.isHawk)
 		if (query.pass)
@@ -1954,13 +1947,13 @@ To connect to ${site.Nick} from Windows:
 }
 
 function executeUser(req,res) {	
-/**
+/ **
 @private
 @method executeUser
 Fetch user profile for processing
 @param {Object} req Totem session request 
 @param {Function} res Totem response
- */
+ * /
 	var 
 		access = TOTEM.user,
 		query = req.query;
@@ -1982,6 +1975,7 @@ Fetch user profile for processing
 	
 	res( TOTEM.errors.failedUser );
 }
+*/
 
 /**
 @class PKI_CERTS utilities to create and manage PKI certs
@@ -2101,10 +2095,10 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 		return cert;
 	}
 				
-	function admitClient(req, res, profile, cert, client) {   // callback res(null) if client can be admited; otherwise res(error)
+	function admitClient(req, res, now, profile, cert, client) {   // callback res(null) if client can be admited; otherwise res(error)
 	/* 
-	If the client's cert is good,respond with res(null), then add the client's session metric log, org, serverip, 
-	group, profile, db journalling flag, time joined, email and client ID to this req request.  The cert is also
+	If the client's cert is admissible, respond with res(null), then add the client's session metric log, org, serverip, 
+	group, profile, db journalling flag, time joined, email and client ID to the req request.  The cert is also
 	cached for future data fetching to https sites.  If the cert is bad, then respond with res(err).
 	*/
 		function cpuavgutil() {				// compute average cpu utilization
@@ -2131,42 +2125,54 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 		}
 
 		if (profile.Banned)  // block client if banned
-			return res( new Error(profile.Banned) );
-			
-		sql.query("show session status like 'Thread%'", function (err,stats) {  		// start session metric logging
-			if (err)
-				stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
-			
-			Copy({  // add session metric logs and session parms
-				log: {  								// potential session metrics to log
-					Event: now,		 					// start time
-					Action: req.action, 				// db action
-					ThreadsRunning: stats[3].Value,		// sql threads running
-					ThreadsConnected: stats[1].Value,	// sql threads connected
-					Stamp: TOTEM.name,					// site name
-					Util : cpuavgutil(),				// cpu utilization
-					Fault: "isp"						// fault codes
-					//Cores: site.Cores, 					// number of safety core hyperthreads
-					//VMs: 1,								// number of VMs
-					//Client: client, 				// client id
-					//Table: req.table, 					// db target
-					//RecID: req.query.ID || 0,			// sql recID
-				},
-
-				org		: cert.subject.O || "unknown",  // cert organization 
-				serverip: sock ? sock.address().address : "unknown",
-				group	: profile.Group, // || TOTEM.site.db, 
-				profile	: new Object(profile),  // complete profile
-				onencrypted: CLUSTER.isWorker,  // flag
-				journal : true,				// journal db actions
-				joined	: now, 				// time joined
-				email	: client, 			// email address from pki
-				client	: client			// client ID
-			}, req);
-
-			res(null);
-		});	
+			res( new Error(profile.Banned) );
 		
+		else
+			sql.query("show session status like 'Thread%'", function (err,stats) {  		// start session metric logging
+				if (err)
+					stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
+
+				Copy({  // add session metric logs and session parms
+					log: {  								// potential session metrics to log
+						Event: now,		 					// start time
+						Action: req.action, 				// db action
+						ThreadsRunning: stats[3].Value,		// sql threads running
+						ThreadsConnected: stats[1].Value,	// sql threads connected
+						Stamp: TOTEM.name,					// site name
+						Util : cpuavgutil(),				// cpu utilization
+						Fault: "isp"						// fault codes
+						//Cores: site.Cores, 					// number of safety core hyperthreads
+						//VMs: 1,								// number of VMs
+						//Client: client, 				// client id
+						//Table: req.table, 					// db target
+						//RecID: req.query.ID || 0,			// sql recID
+					},
+
+					org		: cert.subject.O || "guest",  // cert organization 
+					//serverip: sock ? sock.address().address : "unknown",
+					group	: profile.Group, // || TOTEM.site.db, 
+					profile	: new Object(profile),  // complete profile
+					//onencrypted: CLUSTER.isWorker,  // flag
+					//journal : true,				// journal db actions
+					joined	: now, 				// time joined
+					email	: client, 			// email address from pki
+					client	: client			// client ID
+				}, req);
+
+				res(null);
+			});	
+		
+	}
+	
+	function userID(client) {
+		var 
+			parts = client.toLowerCase().split("@"),
+			parts = (parts[0]+".x.x").split("."),
+			userid = (parts[2]=="x") 
+					? parts[1].substr(0,6) + parts[0].charAt(0) 
+					: parts[2].substr(0,6) + parts[0].charAt(0) + parts[1].charAt(0);
+
+		return userid;
 	}
 	
 	var 
@@ -2174,7 +2180,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 		sock = req.reqSocket,
 		cert = getCert(),
 		now = new Date(),		
-		client = (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || TOTEM.guestProfile.Client).split(",")[0].replace("email:","");
+		client = (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || "guest").split(",")[0].replace("email:","");
 
 	TOTEM.cache.certs[client] = new Object(cert);
 		
@@ -2183,19 +2189,18 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 		.on("result", function (profile) {
 			
 			if (profile.Count)
-				admitClient(req, res, profile, cert, client);
+				admitClient(req, res, now, profile, cert, client);
 				
 			else
-			if (TOTEM.admitGuests) {
-				delete TOTEM.guestProfile.ID;
+			if (TOTEM.guestProfile) {  // create a guest profile is one provided
 				Trace("ADMIT GUEST", sql);
 				sql.query(  // prime a profile if it does not already exist
 					"INSERT INTO openv.profiles SET ?", Copy({
 					Client: client,
-					User: client.replace("ic.gov","").replace(/\./g,"").toLowerCase()
+					User: userID(client) // client.replace("ic.gov","").replace(/\./g,"").toLowerCase()
 				}, TOTEM.guestProfile), function (err) {
 					
-					admitClient(req, res, TOTEM.guestProfile, cert, client);
+					admitClient(req, res, now, TOTEM.guestProfile, cert, client);
 					
 				});
 			}
@@ -3484,9 +3489,8 @@ the client is challenged as necessary.
 	 * @param {Object} req request
 	 * @param {Function} res response
 	 *
-	 * on-input req = {action, socketio, query, body, flags, joins}
-	 * on-output req =  adds {log, cert, client, org, serverip, session, group, profile, journal, 
-	 * joined, email and STATICS}
+	 * input req {action, socketio, query, body, flags}
+	 * output req {log, cert, client, org, session, group, profile, joined, email}
 	 * */
 
 		if (sock = req.reqSocket )
