@@ -753,19 +753,43 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 					case 6.1:
 						var 
 							RAN = require("../randpr"),
-							N = 20,
-							M = 5,
-							T = 1,
-							ran = new RAN();
+							ran = new RAN({
+								getPCs: function (M, cb) {
+									var vals = [], vecs = [];
+									sql.query(
+										"SELECT * FROM app.ran WHERE coherence_intervals BETWEEN ? AND ? AND eigen_value > ? AND correlation_model = ? ORDER BY eigen_index", 
+										[M-0.5, M+0.5, 0.05, "sinc"],
+										function (err, recs) {
+											recs.forEach( function (rec) {
+												vals.push( rec.eigen_value );
+												vecs.push( JSON.parse( rec.eigen_vector ) );
+											});
+											
+											cb({
+												values: vals,
+												vectors: vecs
+											});
+									});
+								}
+							});
 						
-						ran.KL( ran.sinc(T,N,M), function (ed) {
-							Log(ed.values);
+						ran.model( function (ed) {
+							//Log(ed.values);
+							var N = ed.values.length, ref = ed.values[N-1];
+							
+							//Log(N,ref);
 							ed.values.forEach( function (val, idx) {
-								sql.query("INSERT INTO app.ran SET ?", {
-									coherence_intervals: M,
-									eigen_value: val,
-									eigen_index: idx
-								});	
+								var 
+									save = {
+										correlation_model: ed.model,
+										coherence_intervals: ed.M,
+										eigen_value: val / ref,
+										eigen_index: idx,
+										ref_value: ref,
+										eigen_vector: JSON.stringify( ed.vectors[idx] )
+									};
+								
+								sql.query("INSERT INTO app.ran SET ? ON DUPLICATE KEY UPDATE ?", [save,save] );	
 							});
 						});
 						break;						
