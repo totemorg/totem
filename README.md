@@ -97,7 +97,7 @@ useful, if you wish to learn more about its database agnosticator.
 		default_cores_used: TOTEM.cores
 	});
 	
-### N2 - Simple running service
+### N2 - A do-little service
 
 	var TOTEM = require("../totem").config({
 		name: "iamwhoiam",
@@ -111,7 +111,7 @@ useful, if you wish to learn more about its database agnosticator.
 
 	});
 
-### N3 - Running service with a database
+### N3 - A service with a database
 
 	var TOTEM = require("../totem").config({
 		name: "Totem",
@@ -130,7 +130,7 @@ useful, if you wish to learn more about its database agnosticator.
 		);
 	});
 		
-### N4 - Custom endpoints
+### N4 - A service with custom endpoints
 	
 	var TOTEM = require("../totem").config({
 		mysql: {
@@ -173,7 +173,7 @@ useful, if you wish to learn more about its database agnosticator.
 		});
 	});
 		
-### N5 - Running antibot protection
+### N5 - A service with antibot protection
 	
 	var TOTEM = require("../totem").config({
 		mysql: {
@@ -194,40 +194,58 @@ useful, if you wish to learn more about its database agnosticator.
 		});
 	});
 
-### N6 - Parallel tasking
+### N6 - A service with tasking endpoints
 
-	var TOTEM = require("../totem").config({
-		name: "Totem1",
-		cores: 3,
-		mysql: {
+	var TOTEM = require("../totem").config({  // configure the service for tasking
+		name: "Totem1",  // default parms from openv.apps nick=Totem1
+		faultless: false,	// ex override default 
+		cores: 3,		// ex override default
+		mysql: { 		// provide a database
 			host: ENV.MYSQL_HOST,
 			user: ENV.MYSQL_USER,
 			pass: ENV.MYSQL_PASS
 		},
-		"byTable.": {
+		"byTable.": {  // define endpoints
 			test: function (req,res) {
-				res(" here we go");
-				switch (req.query.opt || 1) {
-					case 1: 
-						if (CLUSTER.isMaster)
-						TOTEM.tasker({
-							keys: "i,j",
-							i: [1,2,3],
-							j: [4,5]
-						}, 
-							($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
-							(msg) => console.log(msg)
-						);
-						break;
+				res(" here we go");  // endpoint must always repond to its client 
+				if (CLUSTER.isMaster)  // setup tasking examples on on master
+					switch (req.query.opt || 1) {  // test example tasker
+						case 1: 
+							TOTEM.tasker({  // setup tasking for loops over these keys
+								keys: "i,j",
+								i: [1,2,3],
+								j: [4,5]
+							}, 
+								// define the task which returns a message msg
+								($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
 
-					case 2:
-						break;
+								// define the message msg handler
+								(msg) => console.log(msg)
+							);
+							break;
 
-					case 3:
-						break;
-				}
+						case 2:
+							TOTEM.tasker({
+								qos: 1,
+								keys: "i,j",
+								i: [1,2,3],
+								j: [4,5]
+							}, 
+								($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
+								(msg) => console.log(msg)
+							);
+							break;
+
+						case 3:
+							break;
+					}
 
 			}
+		}
+
+	}, function (err) {
+		Trace( err || "Testing tasker with database and 3 cores at /test endpoint" );
+	});
 				
 ## License
 

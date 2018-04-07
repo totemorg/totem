@@ -151,26 +151,29 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 	
 	N6: function () { 
 		var TOTEM = require("../totem").config({
-			name: "Totem1",
-			//faultless: true,
-			cores: 3,
-			mysql: {
+			name: "Totem1",  // default parms from openv.apps nick=Totem1
+			faultless: false,	// ex override default 
+			cores: 3,		// ex override default
+			mysql: { 		// provide a database
 				host: ENV.MYSQL_HOST,
 				user: ENV.MYSQL_USER,
 				pass: ENV.MYSQL_PASS
 			},
-			"byTable.": {
+			"byTable.": {  // define endpoints
 				test: function (req,res) {
-					res(" here we go");
-					if (CLUSTER.isMaster)
-						switch (req.query.opt || 1) {
+					res(" here we go");  // endpoint must always repond to its client 
+					if (CLUSTER.isMaster)  // setup tasking examples on on master
+						switch (req.query.opt || 1) {  // test example tasker
 							case 1: 
-								TOTEM.tasker({
+								TOTEM.tasker({  // setup tasking for loops over these keys
 									keys: "i,j",
 									i: [1,2,3],
 									j: [4,5]
 								}, 
+									// define the task which returns a message msg
 									($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
+									
+									// define the message msg handler
 									(msg) => console.log(msg)
 								);
 								break;
@@ -190,10 +193,10 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 							case 3:
 								break;
 						}
-			
+
 				}
 			}
-			
+
 		}, function (err) {
 			Trace( err || "Testing tasker with database and 3 cores at /test endpoint" );
 		});
@@ -470,82 +473,6 @@ function faces(tau,parms) { return 102; }
 					pass: ENV.MYSQL_PASS
 				},
 
-				onIngest: {
-					fraud: function (src, query, cb) {
-						Log(src, query);
-						if ( path = ENV["SRV_"+src.toUpperCase()] ) 
-							DEBE.fetcher( path, {
-								terms: "pakistan",
-								cursors: "*",
-								perPage: 20,
-								page: 1,
-								facet: true
-							}, function (data) {
-								var evs = [];
-								Log("kaching", data);
-								if (data) 
-									if (recs = data) 
-										recs.forEach( function (rec, idx) {
-											/*var pos = rec.latLonAlt;
-											evs.push({ 
-												x: pos.lat,
-												y: pos.lon,
-												z: pos.alt,
-												t: idx,
-												s: idx,
-												n: rec.trackNum
-											});*/
-										});
-								
-								cb(evs);
-							});
-					},
-								
-					missiles: function (src, query, cb) {
-						if ( path = ENV["SRV_"+src.toUpperCase()] )
-							DEBE.fetcher( path.parseJS(query), null, function (data) {
-								var evs = [];
-								if (data) 
-									if ( recs = data.trks ) 
-										recs.forEach( function (rec, idx) {
-											var pos = rec.latLonAlt;
-											evs.push({ 
-												x: pos.lat,
-												y: pos.lon,
-												z: pos.alt,
-												t: idx,
-												s: idx,
-												n: rec.trackNum
-											});
-										});
-
-								cb( evs );
-							});
-					},
-					
-					artillery: function (src, query, cb) {
-						if ( path = ENV["SRV_"+src.toUpperCase()] )
-							DEBE.fetcher( path.parseJS(query), null, function (data) {
-								var evs = [];
-								if (data) 
-									if ( recs = data.trks ) 
-										recs.forEach( function (rec, idx) {
-											var pos = rec.latLonAlt;
-											evs.push({ 
-												x: pos.lat,
-												y: pos.lon,
-												z: pos.alt,
-												t: idx,
-												s: idx,
-												n: rec.trackNum
-											});
-										});
-
-								cb( evs );
-							});
-					}
-				},
-					
 				onFile: {
 					"./public/uploads/": function (sql, name, path) {  // watch changes to a file				
 						
@@ -691,7 +618,7 @@ clients, users, system health, etc).`
 			if (CLUSTER.isMaster)
 			TOTEM.thread( function (sql) {
 				
-				switch (6.1) {
+				switch (6) {
 					case 1: 
 						sql.query( "select voxels.id as voxelID, chips.id as chipID from app.voxels left join app.chips on voxels.Ring = chips.Ring", function (err,recs) {
 							Log(err);
@@ -750,28 +677,10 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 						//get all tables and revise field comments with info data here -  archive parms - /parms in flex will
 						//use getfileds to get comments and return into
 						
-					case 6.1:
+					case 6:
 						var 
 							RAN = require("../randpr"),
-							ran = new RAN({
-								getPCs: function (M, cb) {
-									var vals = [], vecs = [];
-									sql.query(
-										"SELECT * FROM app.ran WHERE coherence_intervals BETWEEN ? AND ? AND eigen_value > ? AND correlation_model = ? ORDER BY eigen_index", 
-										[M-0.5, M+0.5, 0.05, "sinc"],
-										function (err, recs) {
-											recs.forEach( function (rec) {
-												vals.push( rec.eigen_value );
-												vecs.push( JSON.parse( rec.eigen_vector ) );
-											});
-											
-											cb({
-												values: vals,
-												vectors: vecs
-											});
-									});
-								}
-							});
+							ran = new RAN();
 						
 						ran.model( function (ed) {
 							//Log(ed.values);
@@ -792,7 +701,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 								sql.query("INSERT INTO app.ran SET ? ON DUPLICATE KEY UPDATE ?", [save,save] );	
 							});
 						});
-						break;						
+						break;	
 				}
 						
 			});

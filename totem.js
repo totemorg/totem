@@ -121,7 +121,7 @@ var
 		
 		var 
 			paths = TOTEM.paths,
-			fetch = TOTEM.fetcher,
+			fetch = TOTEM.fetchData,
 			fetches = 0, 
 			node = 0,
 			nodeURL = paths.nodes[node],
@@ -159,12 +159,12 @@ var
 						if (task.constructor == Array)
 							task.forEach( function (task) {
 								nodeReq.task = task+"";
-								fetch( nodeURL, nodeReq, nodeCB);
+								fetch( nodeURL, null, nodeReq, nodeCB);
 							});
 
 						else {
 							nodeReq.task = task+"";
-							fetch( nodeURL, nodeReq, nodeCB);
+							fetch( nodeURL, null, nodeReq, nodeCB);
 						}
 
 					else
@@ -583,38 +583,6 @@ var
 	/**
 	@cfg {Object} 
 	@member TOTEM
-	Data fetcher X is used when a GET on X is requested.  Fetchers feed data pulled from the
-	TOTEM.paths.url[req.table] URL (formatted by an optional plugin context) to its callback:
-	
-			X: cb(url, res),
-			X: cb(...),
-			...
-			plugin: {
-				var: ...
-				var: ...
-				...
-				method: function () {...}
-				method: function () {...}
-				...
-			}
-	*/
-	/*
-	fetchers: { 			//< data fetchers
-		curl: curlFetch,
-		wget: wgetFetch,
-		http: fetchFile,
-		plugin: {			//< example fetch url plugins
-			ex1: function (req) {
-				return req.profile.QoS + req.profile.Credit;
-			},
-			ex2: "save.file.jpg",
-			wgetout: "./shares/wget.out"
-		}
-	}, */
-
-	/**
-	@cfg {Object} 
-	@member TOTEM
 	Mysql connection options: 
 	
 		host: name
@@ -814,7 +782,13 @@ var
 		}
 	},
 	
-	fetcher: fetchFile,
+	/**
+	@cfg {Function} 
+	@private
+	@member TOTEM	
+	Data fetcher method
+	*/		
+	fetchData: fetchData,
 
 	/**
 	@cfg {Object} 
@@ -1099,7 +1073,7 @@ var
 	@method 
 	@cfg {Function}
 	@member TOTEM	
- 	Get a file - make it if it does not exist
+ 	Get a file and make it if it does not exist
 	*/
 	getFile: getFile,
 		
@@ -1350,7 +1324,7 @@ function configService(opts,cb) {
 		JSDB.config({   // establish the db agnosticator 
 			//io: TOTEM.IO,   // cant set socketio until after server defined by startService
 
-			fetcher: TOTEM.fetcher,
+			fetcher: TOTEM.fetchData,
 			
 			mysql: Copy({ 
 				opts: {
@@ -2357,121 +2331,11 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 
 }
 
-/*
-function uploadFile( files, client, area, tags, cb) {
-/ **
-@private
-@method uploadFile
-@param {Array} files files to upload
-@param {String} clinet name of client requesting the upload
-@param {String} area area to upload files into
-@param {Object} tags hash of tags to stamp on file
-@param {Function} cb totem response
-* /
-
-	files.each( function (n,file) {  // upload each file in the list
-		var 
-			name = file.filename,
-			target = TOTEM.paths.mime[area]+"/"+area+"/"+name;
-
-		Trace(`UPLOAD ${name}`);
-		
-		cb( file );
-		
-		if ( file.image ) {  //  image files can come from html5 canvas snapshots
-
-			var prefix = "data:image/png;base64,";	
-			var buf64 = new Buffer(file.image.substr(prefix.length), 'base64');
-			var temp = `tmp/temp.png`;  // many browsers only support png so convert to jpg
-
-			FS.writeFile(temp, buf64.toString("binary"), {encoding:"binary"}, function (err) {
-				Log("SAVE "+name+" TO "+target+(err?" FAILED":""));
-
-				if (!err && cb)
-					LWIP.open(temp, function (err,image) {
-
-						if (!err) {
-							image.writeFile(target, function (err) {
-								console.info("JPG convert "+(err||"ok"));
-							});
-
-							if (cb)
-								cb({
-									Name: name,
-									Area: area,
-									Added: arrived,
-									Size: file.size,
-									Width: image.width(), 
-									Height: image.height()
-								});
-						}
-
-					});
-
-			});
-
-		}
-
-		else
-			switch ( file.type ) {   // for now, all file types are assumed to have been base64 coded
-				case "image/jpeg":
-				case "application/pdf":
-				case "application/javascript":
-				default:
-					var 
-						buf = new Buffer(file.data,"base64");
-					
-					FS.writeFile(target, buf,  "base64", function (err) {
-						if (err) Log(err);
-					}); 
-			}
-
-	});
-}
-*/
-
 /**
 @class DATA_FETCHING methods to pull external data from other services
  */
-/*
-function fetchWget(req,res) {	//< wget endpoint
-/ **
-@private
-@method fetchWget
-@param {Object} req totem request
-@param {Function} res totem response
-* /
-	if (req.out) 
-		TOTEM.fetchers.plugin.wgetout = req.out;
-		
-	if ( url = TOTEM.paths.url[req.table] )
-		wgetFetch(url.format(req, TOTEM.fetchers.plugin),res);
-}
 
-function fetchCurl(req,res) {	//< curl endpoint
-/ **
-@private
-@method fetchCurl
-@param {Object} req totem request
-@param {Function} res totem response
-* /	
-	if( url = TOTEM.paths.url[req.table] ) 
-		curlFetch(url.format(req, TOTEM.fetchers.plugin),res);
-}
-
-function fetchHttp(req,res) {	//< http endpoint
-/ **
-@private
-@method fetchHttp
-@param {Object} req totem request
-@param {Function} res totem response
-* /	
-	if ( url = TOTEM.paths.url[req.table] )
-		fetchFile(url.format(req, TOTEM.fetchers.plugin),res);
-}
-*/
-
-function fetchFile(url, body, cb) {
+function fetchData(path, query, body, cb) {
 	
 	function retry(cmd,opts,cb) {
 
@@ -2523,6 +2387,7 @@ function fetchFile(url, body, cb) {
 	}
 
 	var 
+		url = query ? path.parseJS(query) : path,
 		opts = URL.parse(url),
 		cert = TOTEM.cache.certs.admin;
 
@@ -2638,23 +2503,6 @@ function fetchFile(url, body, cb) {
 			break;
 	}
 }
-
-/*
-function readTemplate(req,res) {
-	
-	var	sql = req.sql,
-		route = TOTEM.execute[req.table];
-
-	if (route)
-		route(req,res);
-	else
-		res();			
-}
-
-function sendTemplate(req,res) {
-	res( "there you go");
-}
-*/
 
 /**
 @class ANTIBOT_PROTECTION data theft protection
