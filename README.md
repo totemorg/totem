@@ -7,9 +7,8 @@
 
 # TOTEM
 
-TOTEM replaces a slew of god-awful NodeJS middleware (like Express) by providing the 
-following selectable features:
-  
+TOTEM  provides a service with the following selectable features:
+
 	+ routing methods for table, engine, and file objects
 	+ denial-of-service protection
 	+ web sockets for inter-client communications
@@ -26,65 +25,60 @@ following selectable features:
 	+ automattic server cert generation
 	+ parallel tasking
   
-As documented in its api, TOTEM provides ENDPOINTs:
+ thus replacing a slew of god-awful middleware (like Express).  As documented in its api, 
+ TOTEM provides a CRUD-compliant interface to a NODE at the endpoints:
 
-	(select) GET 	 /NODE ?? NODE ...
-	(update) PUT 	 /NODE ?? NODE ...
-	(insert) POST 	 /NODE ?? NODE ...
-	(delete) DELETE /NODE ?? NODE ...
+	POST		/NODE ?? NODE ...
+	GET			/NODE ?? NODE ...
+	PUT			/NODE ?? NODE ...
+	DELETE	/NODE ?? NODE ...
 
- to access a NODE:
+ to access its datasets, engines, files and commands at a NODE:
 
 	DATASET.TYPE ? QUERY ? QUERY ...
 	ENGINE.TYPE ? QUERY ? QUERY ...
 	FILEPATH.TYPE ? QUERY ? QUERY ...
 	COMMAND.TYPE ? QUERY ? QUERY ...
 
-using an optional QUERY:
-
-	KEY [OP] = VALUE & ...
-	KEY [OP] :  VALUE & ...
-
-where the TYPE data formetters include:
+By default, TOTEM is configured with the TYPE formatters:
 
 	db | xml | csv | json
 	
-If TOTEM was configured for antibot support via its *riddles* configuration parameter, TOTEM will provide a *riddle* endpoint for clients to 
-validate themselves.
+If TOTEM was configured for antibot protection, TOTEM will also provide a *riddle* COMAND endpoint
+for clients to validate themselves; aAll other endpoints are established by config().
 
-## Installation
+## Installing
 
-Clone from one of the repos. 
+Clone from one of the repos into your PROJECT/totem.
 
-## Databases
+Dependencies:
 
-* openv.profiles Reads and populates when clients arrive  
-* openv.sessions Reads and populates when client sessions are established  
-* openv.riddles Builds on config() and reads when clients arrive  
-* openv.apps Reads on config() to override TOTEM options and define site context parameters
+* [ENUM basic enumerators](https://github.com/acmesds/enum)
+* [JSDB database agnosticaor](https://github.com/acmesds/jsdb)
+* openv.profiles Updates when a client arrives  
+* openv.sessions Updates when a client session is established  
+* openv.riddles Builds on config() and updates when a client arrives  
+* openv.apps Read on config() to override TOTEM options and define site context parameters
 
-## Use
+## Using
 
-TOTEM is configured and started like this:
+To start TOTEM, simply run the desired test.js configuration:
+	
+	. maint.sh [N1 | N2 | ...]
+	
+Each configuration follow the 
+[ENUM deep copy() conventions](https://github.com/acmesds/enum):
 
-	var TOTEM = require("../totem").config({
-			key: value, 						// set key
-			"key.key": value, 					// indexed set
-			"key.key.": value,					// indexed append
-			OBJECT: [ function (){}, ... ], 	// add OBJECT prototypes 
-			Function: function () {} 			// add chained initializer callback
-			:
-			:
-		}, function (err) {
+	var TOTEM = require("totem").config({
+		key: value, 						// set key
+		"key.key": value, 					// indexed set
+		"key.key.": value					// indexed append
+	}, function (err) {
 		console.log( err ? "something evil is lurking" : "look mom - Im running!");
 	});
 
-where its configuration keys follow the [ENUM copy()](https://github.com/acmesds/enum) conventions and
-are described in its [PRM](/shares/prm/totem/index.html).
-  
-The examples below are from TOTEM's test.js unit tester.  See [DEBE](https://github.com/acmesds/debe) 
-for a far more complex use-case.  You may  also find Totem's [DSVAR](https://github.com/acmesds/dsvar) 
-useful, if you wish to learn more about its database agnosticator.
+where its [key:value options](/shares/prm/totem/index.html) override the defaults
+primed from [nick:"NAME"](/apps.view).
 
 ### N1 - Just an interface
 		
@@ -246,7 +240,12 @@ useful, if you wish to learn more about its database agnosticator.
 	}, function (err) {
 		Trace( err || "Testing tasker with database and 3 cores at /test endpoint" );
 	});
-				
+
+## Contributing
+
+See our [issues](/issues.view), [milestones](/milestones.view), [s/w requirements](/swreqts.view),
+and [h/w requirements](/hwreqts.view).
+
 ## License
 
 [MIT](LICENSE)

@@ -1337,27 +1337,33 @@ function configService(opts,cb) {
 					waitForConnections: true			// allow connection requests to be queued
 				}
 			}, mysql)
-		}, function (sql) {  // derive server vars and site context vars
+		}, function (err) {  // derive server vars and site context vars
 		
-			Trace(`DERIVE ${name}`);
+			if (err)
+				Trace(err);
 			
-			for (var n in mysql)   // derive server paths
-				if (n in paths) paths[n] = mysql[n];
+			else
+				JSDB.thread( function (sql) {
+					Trace(`DERIVE ${name}`);
 
-			if (name)	// derive site context
-				TOTEM.setContext(sql, function () {
-					protectService(cb || function (err) {
-						Trace(err || `STARTED ${name} ENCRYPTED`, sql);
-					});
+					for (var n in mysql)   // derive server paths
+						if (n in paths) paths[n] = mysql[n];
+
+					if (name)	// derive site context
+						TOTEM.setContext(sql, function () {
+							protectService(cb || function (err) {
+								Trace(err || `STARTED ${name} ENCRYPTED`, sql);
+							});
+						});
+
+					//TOTEM.dsAttrs = JSDB.dsAttrs;
+					sql.release();
 				});
-
-			//TOTEM.dsAttrs = JSDB.dsAttrs;
-			sql.release();
 		});	
 
 	else
 		protectService(cb || function (err) {
-			Trace(err || `STARTED ${name} UNENCRYPTED`, sql);			
+			Trace(err || `STARTED ${name} STANDALONE`, sql);			
 		});
 	
 	return TOTEM;

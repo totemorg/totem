@@ -1,6 +1,6 @@
 // UNCLASSIFIED
 /**
-Unit test (aka run) a Totem configuration CONFIG using one the following methods:
+Unit test (or run) a Totem configuration CONFIG using one the following methods:
  
  		. maint.sh CONFIG			# with new environment variables
  		node test.js CONFIG			# with current environment variables
@@ -31,7 +31,7 @@ var
 	Copy = ENUM.copy,
 	Log = console.log;
 
-ENUM.test({
+ENUM.test( process.argv[2], {
 
 	N1: function () {
 		
@@ -465,7 +465,7 @@ function faces(tau,parms) { return 102; }
 	D1: function () {
 		var 
 			DEBE = require("../debe").config({
-				//name: ENV.SERVICE_NAME,
+				name: ENV.SERVICE_NAME,
 
 				mysql: {
 					host: ENV.MYSQL_HOST,
@@ -567,6 +567,7 @@ clients, users, system health, etc).`
 		var 
 			DEBE = require("../debe").config({
 
+			name: ENV.SERVICE_NAME,
 			riddles: 10,
 			mysql: {
 				host: ENV.MYSQL_HOST,
@@ -590,8 +591,8 @@ clients, users, system health, etc).`
 	D3: function () {
 		var 
 			DEBE = require("../debe").config({
-				name: "Totem1",
-
+				name: ENV.SERVICE_NAME,
+				
 				mysql: {
 					host: ENV.MYSQL_HOST,
 					user: ENV.MYSQL_USER,
@@ -709,7 +710,6 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		});
 		
 	}
-	
 	
 });	
 

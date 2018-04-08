@@ -357,13 +357,26 @@ sudo systemctl start xrdp
 echo -e "\nhald_enable='YES'\ndbus_enable='YES'" | sudo tee -a /etc/rc.conf
 ##################
 
+#### selinux
+sestatus  # get status
+setenforce 0  # temp disable - did not work - had to perm disable
+vi /etc/sysconfig/selinux   # perm disable - set "enforcing" to "disabled"
+
 # docker
 sudo yum -y install docker docker-registry 
-sudo systemctl enable docker.service
+sudo systemctl enable docker.service  # start auto on boot
 sudo systemctl start docker.service
 sudo systemctl status docker.service
 sudo docker pull centos
+usermod -aG docker $(whoami)
 
+# docker compose
+sudo yum install epel-release  
+sudo yum install -y python-pip
+
+systemctl start docker  # starts
+
+### dont know why i kept this
 # move install rpms, zips etc to installs folder via winscp eg
 
 # install CUDA toolkit (only)
