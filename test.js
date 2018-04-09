@@ -681,7 +681,10 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 					case 6:
 						var 
 							RAN = require("../randpr"),
-							ran = new RAN();
+							ran = new RAN({
+								Mmax: 150,  // max coherence intervals
+								Mstep: 5 	// step intervals
+							});
 						
 						ran.model( function (ed) {
 							//Log(ed.values);
