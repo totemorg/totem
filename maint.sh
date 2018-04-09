@@ -1,12 +1,12 @@
 #!/bin/bash
-# UNCLASSIFIED when IP addresses and passwords are undefined
+# UNCLASSIFIED
 
 #
 # Setup env
 #
 
 export HERE=`pwd`
-export MODULES=(totem atomic geohack flex enum lwim mime reader debe jsdb)
+export MODULES=(totem atomic geohack flex enum glwip reader debe jsdb jslab)
 
 case "$1." in
 
@@ -14,41 +14,45 @@ all.)
 
 	for mod in "${MODULES[@]}"; do
 
-		cd ../$mod
-			echo ">>>> $mod"
+		cd /local/service/$mod
 			if test -f maint.sh; then
-				source maint.sh "$2" "$3" "$4"
+				echo ">>>> $mod"
+				. maint.sh "$2" "$3" "$4"
 			fi
-		cd ../totem
+		cd ..
 
 	done
 	;;
 
-zipall.)
-
-	rm ../transfer/totem-project.zip
-	for mod in "${MODULES[@]}"; do
-		zip -ry ../transfer/totem-project.zip ../$mod/* -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
-	done
-	;;
-
-clearall.)   # reset env
+_clearall.)   # reset env
 
 	for mod in "${MODULES[@]}"; do
 		let Totem_$mod=0
 	done
 	;;
 
+#
+# C bindings
+# 
+
 rebuild.)
-	cd $SRV/engine/ifs/opencv; $REBUILD
-	cd $SRV/engine/ifs/python; $REBUILD
-	cd $SRV/engine/ifs/mac; $REBUILD
-	cd $SRV/engine
-	npm install node-svd
+	export IFS=$SRV/atomic/ifs
+	cd $IFS/opencv; $REBUILD
+	cd $IFS/python; $REBUILD
+	cd $IFS/mac; $REBUILD
+	#cd $SRV/jslab
+	#npm install node-svd
+	cd $SRV/glwip
 	npm install lwip
 	;;
+
+config.)
+	if test -f ./config.sh; then
+		. config.sh
+	fi
+	;;
 	
-configall.)
+_configall.)
 
 	for mod in "${MODULES[@]}"; do
 
@@ -68,61 +72,31 @@ configall.)
 	;;
 
 #
-# flatten files
+# flatten files for domain xfer
 #
 
-xdom.)
+flatten.)
 	tar cvf $1.tar $1
 	xxd -p $1.tar $1.hex
 	split -b 10m $1.hex _x
 	;;
 	
-rdom.)
+unflatten.)
 	cat _x* > $1.hex
 	xxd -r -p $1.hex  $1.tar
 	tar xvf $1.tar
 	;;
 	
-flatten.)   # legacy
+_flatten.)   # legacy
 	source hashem.sh $2
 	;;
 
 #
-# repo cases
-#		
-
-clone.)	# clone a project
-	echo "Cloning project $2"
-	git clone $REPO/$2.git
-	;;	
-
-baseline.)
-	echo "Baseline project $2"
-	cd $2
-		git init
-		git remote add origin $REPO/$2.git
-		git pull origin master
-	cd ..
-	;;
-
-commit.)   # commit changes
-	git commit -am "$2"
-	;;
-
-push.)   # push code changes to git
-	git push origin master
-	;;
-	
-pull.)	# pull code changes from git
-	git pull origin master
-	;;
-	
-#
-# Special cases
+# other
 #
 
-edit.)
-	geany debe/debe.js totem/totem.js sql/sql.js &
+edit.) 		# startup edits
+	notepadqq debe/debe.js totem/totem.js jsdb/jsdb.js flex/flex.js &
 	;;
 	
 help.)	# some help
@@ -161,7 +135,7 @@ help.)	# some help
 	;;
 	
 #
-# Maintenance cases
+# Maintenance and startups
 #
 
 mysql.)
@@ -208,8 +182,8 @@ startup.)		# status and start dependent services
 
 	;;
 
-config.)	# configure apps
-	echo -e "use the OpEnv db to config the operating env for all apps\nuse the appN db to config the appN service"
+apps.)	# configure apps
+	echo -e "update openv.apps as needed"
 	mysql -u$MYSQL_USER -p$MYSQL_PASS
 	;;
 
@@ -217,22 +191,33 @@ restyle.)
 	echo "to be developed"
 	;;
 
-duckpush.)
-	# doxygen config.oxy
-	cd /local/babel
-	duckpush totem 
-	duckpush debe
-	duckpush enum
+putduck.)
+	npm run $2      # use babel to convert ES6 to ES5 saves to ducksrc area
+	cp ../service/$2/README.md /media/sf_vmshare/ducksrc/readmes/$2.md
+	echo "uploaded $2 to host jsduck.  use 'maint getduck $2' to download results."
 	;;
 
-duckpull.)
+getduck.)
+	cp -r /media/sf_vmshare/ducksrc/output/$2 ../service/debe/shares/prm/
+	echo "downloaded host jsduck $2 results to the shares/prm"
+	;;
+	
+ducksetup.)
+	cd /local/babel
+	# doxygen config.oxy
+	. maint.sh putduck totem 
+	. maint.sh putduck debe
+	. maint.sh putduck enum
+	;;
+
+_duckpull.)
 	cd /local/babel
 	duckpull totem
 	duckpull debe
 	duckpull enum
 	;;
 
-docall.)
+_docall.)
 	for mod in "${MODULES[@]}"; do
 
 		echo ">>>> $mod"
@@ -245,15 +230,15 @@ proxy.)	# establish email proxy
 	ssh jamesdb@54.86.26.118 -L 5200:172.31.76.130:8080 -i ~/.ssh/aws_rsa.pri	
 	;;
 		
-nada.)	# quite mode
+_nada.)	# quite mode
 	;;
 
-notes.)
+notes.) 		# centos install notes
 
-	vi admins/notes*.txt
+	vi $SRV/totem/install.notes
 	;;
 	
-bind.) 	# bind known genode c-modules
+_bind.) 	# bind known genode c-modules
 
 	cd $ENGINES/opencv
 	node-gyp rebuild  $GYPOPTS
@@ -270,10 +255,10 @@ bind.) 	# bind known genode c-modules
 	;;
 
 #
-# Syncing data cases
+# DB maint
 #
 
-checkpoint.)  # export db to admins
+snapdb.)  # snapshot and archive db
 
 	echo "Exporting sqldb to admins/db"
 
@@ -290,14 +275,55 @@ checkpoint.)  # export db to admins
 	
 	;;
 
-archive.) 	# archive service to archive area
-
+_archive.) 	# archive service to archive area
 
 	echo "Archiving to $MAP/archives"
 	zip -ry $MAP/archives/totem-N.zip * -x \*.zip \*/dbs/\* \*/clients/\*  \*/captcha/\* \*.git/\*  \*/_\*  _\*
 	;;
 
-snap.)
+#
+# Local and remote archives
+#
+
+zip.)
+	zip -ry ../transfer/$3.zip * -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
+	;;
+	
+clone.)	# clone a project
+	echo "Cloning project $2"
+	git clone $REPO/$2.git
+	;;	
+
+baseline.)
+	echo "Baseline project $2"
+	cd $2
+		git init
+		git remote add origin $REPO/$2.git
+		git pull origin master
+	cd ..
+	;;
+
+commit.)   # commit changes
+	git commit -am "$2"
+	;;
+
+push.)   # push code changes to git
+	git push origin master
+	;;
+	
+pull.)	# pull code changes from git
+	git pull origin master
+	;;
+	
+_zipall.)
+
+	rm ../transfer/totem-project.zip
+	for mod in "${MODULES[@]}"; do
+		zip -ry ../transfer/totem-project.zip ../$mod/* -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
+	done
+	;;
+
+snap.)		# zip snapshot of projects and db
 	mysqldump -u$MYSQL_USER -p$MYSQL_PASS openv >debe/admins/db/openv.sql
 	mysqldump -u$MYSQL_USER -p$MYSQL_PASS app >debe/admins/db/app.sql
 	zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* engine/ifs/*.cpp engine/ifs/*/*.cpp engine/ifs/*/*.h
@@ -319,17 +345,17 @@ sync.)   # special forced code syncs
 	
 	;;
 		
+_list.)	# list available geonode apps
+	node client.js --help
+	;;
+
 #
-# Run geoclient
+# Start/stop TOTEM
 #
 
 halt.)	# stop and remove GPU-caffe docker instances
 	docker stop `socker ps -qa`
 	docker rm `docker ps -qa`
-	;;
-
-list.)	# list available geonode apps
-	node client.js --help
 	;;
 
 docker.) 
@@ -344,7 +370,6 @@ docker.)
 
 .)
 	echo "See 'setup help' for command options"
-	. maint.sh configall
 	;;
 
 *)  	# start specified totem config
@@ -352,11 +377,11 @@ docker.)
 	node test.js $1 $2 $3 $4 $5 
 	;;
 
-keepup)
+keepup.)
 
 	forever start test.js $2 $3 $4 $5
 	;;
 
 esac
 
-# UNCLASSIFIED when IP addresses and passwords are undefined
+# UNCLASSIFIED

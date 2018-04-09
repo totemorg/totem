@@ -1057,7 +1057,7 @@ var
 		noService: new Error("no service  to start"),
 		noData: new Error("no data returned"),
 		retry: new Error("data fetch retries exceeded"),
-		notAllowed: new Error("this dataset interface is disabled"),
+		notAllowed: new Error("this endpoint is disabled"),
 		noAccess: new Error("no access to master core at this endpoint")
 	},
 
