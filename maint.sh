@@ -7,6 +7,7 @@
 
 export HERE=`pwd`
 export MODULES=(totem atomic geohack flex enum glwip reader debe jsdb jslab)
+export MODULE=`basename $HERE`
 
 case "$1." in
 
@@ -192,22 +193,20 @@ restyle.)
 	;;
 
 putduck.)
-	npm run $2      # use babel to convert ES6 to ES5 saves to ducksrc area
-	cp ../service/$2/README.md /media/sf_vmshare/ducksrc/readmes/$2.md
-	echo "uploaded $2 to host jsduck.  use 'maint getduck $2' to download results."
+	cd /local/babel
+	npm run $MODULE      # use babel to convert ES6 to ES5 saves to ducksrc area
+	cp ../service/$MODULE/README.md /media/sf_vmshare/ducksrc/readmes/$MODULE.md
+	echo "uploaded $MODULE to host jsduck.  use 'maint getduck $MODULE' to download results."
 	;;
 
 getduck.)
-	cp -r /media/sf_vmshare/ducksrc/output/$2 ../service/debe/shares/prm/
-	echo "downloaded host jsduck $2 results to the shares/prm"
+	cp -r /media/sf_vmshare/ducksrc/output/$MODULE ../service/debe/shares/prm/
+	echo "downloaded host jsduck $MODULE results to the shares/prm"
 	;;
 	
-ducksetup.)
-	cd /local/babel
+_duskpush.)
 	# doxygen config.oxy
-	. maint.sh putduck totem 
-	. maint.sh putduck debe
-	. maint.sh putduck enum
+	. maint.sh putduck totem
 	;;
 
 _duckpull.)
@@ -286,7 +285,7 @@ _archive.) 	# archive service to archive area
 #
 
 zip.)
-	zip -ry ../transfer/$3.zip * -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
+	zip -ry ../transfer/$MODULE.zip * -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
 	;;
 	
 clone.)	# clone a project
