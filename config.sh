@@ -76,7 +76,8 @@ source pass.sh
 
 # define server domains
 export TOTEM_MASTER=http://localhost:8080
-export TOTEM_WORKER=https://localhost:8081
+export TOTEM_WORKER=https://localhost:8443
+#export TOTEM_WORKER=http://localhost:8081  # in debug mode
 
 # define tasking node urls
 export NODE0=http://localhost:8080/task

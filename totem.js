@@ -60,13 +60,23 @@ var 											// Totem modules
 var
 	TOTEM = module.exports = ENUM.extend({
 
-	/*
+	/**
 	@cfg {Object}
 	Plugins for tasker engine context
 	*/
 	plugins: {
 		console: console,
 		log: console.log
+	},
+		
+	/**
+	@cfg {Boolean}
+	@member TOTEM
+	Enable to create encrypted service using phasephrase from env SERVICE_PASS
+	*/
+	onEncrypted: {
+		true: false,   // on master 
+		false: false	// on worker
 	},
 		
 	/**
@@ -592,13 +602,6 @@ var
 	*/		
 	mysql: null,			
 	
-	/**
-	@cfg {String} [encrypt=""]
-	@member TOTEM
-	Cert passphrase to start encrypted service
-	*/		
-	encrypt: "",		//< passphrase when service encypted 
-	
 	sockets: false, 	//< enabled to support web sockets
 		
 	/**
@@ -610,25 +613,6 @@ var
 	workers via the masterport.	
 	*/				
 	cores: 0,	//< Number of worker cores (0 for master-only)
-		
-	/**
-	@cfg {Number} [masterport=8080]
-	@member TOTEM	
-	Port for master HTTP/HTTPS service.  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
-	become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
-	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
-	workers via the masterport.	
-	*/				
-	//masterport: 8080,				 //< master port for stateful threads
-	/**
-	@cfg {Number} [workerport=8443]
-	@member TOTEM	
-	Port for worker HTTP/HTTPS service.  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
-	become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
-	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
-	workers via the masterport.	
-	*/				
-	//workerport: 8443, 				//< worker port for stateless threads
 		
 	/**
 	@cfg {String} [host="localhost"]
@@ -971,7 +955,6 @@ var
 	riddles: 0, 			
 	
 	//proxy: proxyService,  //< default relay if needed
-	isEncryptedWorker: false, 	//< enabled by config if worker service is HTTPS encrypted
 	//workers: [],
 		
 	/**
@@ -1405,7 +1388,7 @@ function startService(server,cb) {
 
 	TOTEM.flush();  		// flush enum's config callback stack
 
-	if (TOTEM.isEncryptedWorker && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
+	if (TOTEM.onEncrypted[CLUSTER.isMaster] && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
 		var 
 			IO = TOTEM.IO = JSDB.io = SIO(server, { // use defaults but can override ...
 				//serveClient: true, // default true to prevent server from intercepting path
@@ -1480,51 +1463,50 @@ function startService(server,cb) {
 	
 	// listening on-routes message
 
-	//Log(TOTEM.doms);
+	//Log(TOTEM.cores, TOTEM.doms, CLUSTER.isMaster, server);
 	
 	if (TOTEM.cores) 					// Start for master-workers
 		if (CLUSTER.isMaster) {			// Establish master port
-			server.listen(TOTEM.doms.master.port, function() {  // Establish master  TOTEM.masterport
-				Trace(`SERVE ${site.urls.master}`);
+			server.listen( parseInt(TOTEM.doms.master.port), function() {  // Establish master  TOTEM.masterport
+				Trace(`MASTER AT ${site.urls.master}`);
 			});
 			
 			CLUSTER.on('exit', function(worker, code, signal) {
-				Trace(`TERMINATE core-${worker.id} ${code||"ok"}`);
+				Trace(`CORE-${worker.id} TERMINATED ${code||"ok"}`);
 			});
 
 			CLUSTER.on('online', function(worker) {
-				Trace(`CONNECT core-${worker.id}`);
+				Trace(`CORE-${worker.id} CONNECTED`);
 			});
 			
 			for (var core = 0; core < TOTEM.cores; core++) {  
 				worker = CLUSTER.fork();
-				Trace(`FORK core-${worker.id}`);
+				//Trace(`FORK core-${worker.id}`);
 			}
 		}
 		
 		else 								// Establish worker port			
-			server.listen(TOTEM.doms.worker.port , function() {  //TOTEM.workerport
-				Trace(`SERVE ${site.urls.worker} ON core-${CLUSTER.worker.id}`);
+			server.listen( TOTEM.doms.worker.port , function() {  //TOTEM.workerport
+				Trace(`CORE-${CLUSTER.worker.id} AT ${site.urls.worker}`);
 			});
 	
 	else 								// Establish master-only
-		server.listen(TOTEM.doms.master.port , function() {  //TOTEM.workerport
-			Trace(`SERVE ${site.urls.master}`);
+		server.listen( TOTEM.doms.master.port, function() {  //TOTEM.workerport
+			Trace(`MASTER AT ${site.urls.master}`);
 		});
-		
 			
 	if ( TOTEM.nofaults)  { // catch core faults
 		process.on("uncaughtException", function (err) {
-			console.warn(`SERVICE FAULTED ${err}`);
+			Trace(`FAULTED ${err}`);
 		});
 
 		process.on("exit", function (code) {
-			console.warn(`SERVICE EXITED ${code}`);
+			Trace(`HALTED ${code}`);
 		});
 
 		for (var n in TOTEM.nofaults)
 			process.on(n, function () {
-				console.warn(`SERVICE SIGNALED ${n}`);
+				Trace(`SIGNALED ${n}`);
 			});
 	}
 
@@ -1567,7 +1549,7 @@ function connectService(cb) {
 			_key: `${paths.certs}admin.key`
 	};
 	
-	if ( TOTEM.isEncryptedWorker ) {  
+	if ( TOTEM.onEncrypted[CLUSTER.isMaster] ) {  
 		try {  // build the trust strore
 			Each( FS.readdirSync(paths.certs+"/truststore"), function (n,file) {
 				if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
@@ -1581,7 +1563,7 @@ function connectService(cb) {
 		}
 
 		startService( HTTPS.createServer({
-			passphrase: TOTEM.encrypt,		// passphrase for pfx
+			passphrase: ENV.SERVICE_PASS,		// passphrase for pfx
 			pfx: cert.pfx,			// pfx/p12 encoded crt and key 
 			ca: TOTEM.trust,				// list of TOTEM.paths authorities (trusted serrver.trust)
 			crl: [],						// pki revocation list
@@ -1612,7 +1594,6 @@ function protectService(cb) {
 	
 	var 
 		name = TOTEM.name,
-		//dom = ( TOTEM.encrypt ? "https://" : "http://" ) + TOTEM.host,
 		paths = TOTEM.paths,
 		sock = TOTEM.sockets ? paths.url.socketio : "", 
 		pfxfile = `${paths.certs}${name}.pfx`,
@@ -1624,27 +1605,27 @@ function protectService(cb) {
 	Trace(`PROTECT ${name}`);
 	//Log(doms);
 	
-	TOTEM.site.urls = TOTEM.cores 
-		? {  // establish site urls
+	TOTEM.site.urls = TOTEM.cores   // establish site urls
+		? {  
 			socketio: sock,
-			worker:  ENV.TOTEM_WORKER, //dom + ":" + TOTEM.workerport,
-			master:  ENV.TOTEM_MASTER //"http://" + TOTEM.host + ":" + TOTEM.masterport
+			worker:  ENV.TOTEM_WORKER, 
+			master:  ENV.TOTEM_MASTER
 		}
 		
 		: {
 			socketio: sock,
-			worker:  ENV.TOTEM_MASTER, //dom + ":" + TOTEM.workerport,
-			master:  ENV.TOTEM_MASTER //dom + ":" + TOTEM.workerport,
+			worker:  ENV.TOTEM_MASTER, 
+			master:  ENV.TOTEM_MASTER 
 		};
 
-	if ( TOTEM.isEncryptedWorker  = TOTEM.encrypt && (CLUSTER.isWorker || !TOTEM.cores) )   // derive a pfx cert if this is an encrypted service
+	if ( TOTEM.onEncrypted[CLUSTER.isMaster] )   // derive a pfx cert if this is an encrypted service
 		FS.access( pfxfile, FS.F_OK, function (err) {
 
 			if (err) {
 				var owner = TOTEM.name;
 				Trace( "CREATE SERVERCERT FOR "+owner );
 			
-				createCert(owner,TOTEM.encrypt, function () {
+				createCert(owner,ENV.SERVICE_PASS, function () {
 					connectService(cb);
 				});				
 			}
@@ -2093,7 +2074,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 			return avgUtil / cpus.length;
 		}		
 		
-		if ( TOTEM.isEncryptedWorker ) {  // validate client's cert
+		if ( TOTEM.onEncrypted[CLUSTER.isMaster] ) {  // validate client's cert
 
 			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
 				return res( TOTEM.errors.expiredCert );
@@ -2193,7 +2174,7 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 		});
 	
 	else 
-	if (TOTEM.encrypt)
+	if (TOTEM.onEncrypted[CLUSTER.isMaster])
 		res( TOTEM.errors.noDB );
 	
 	else {  // setup guest connection
@@ -2489,7 +2470,7 @@ function fetchData(path, query, body, cb) {
 		case "https:":
 			if ( false ) {
 				opts.pfx = cert.pfx;
-				opts.passphrase = TOTEM.encrypt;
+				opts.passphrase = ENV.SERVICE_PASS;
 			}
 			else {
 				opts.key = cert.key;
@@ -2975,7 +2956,7 @@ request-response thread
 		}
 	}
 
-	if ( !req.filepath && TOTEM.isEncryptedWorker ) logMetrics();  // dont log file requests
+	if ( !req.filepath && TOTEM.onEncrypted[CLUSTER.isMaster] ) logMetrics();  // dont log file requests
 	var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
 
 	Trace( 
@@ -3417,7 +3398,7 @@ the client is challenged as necessary.
 					action: TOTEM.crud[Req.method],
 					reqSocket: Req.socket,
 					resSocket: getSocket,
-					socketio: TOTEM.encrypt ? TOTEM.site.urls.socketio : "",
+					socketio: TOTEM.onEncrypted[CLUSTER.isMaster] ? TOTEM.site.urls.socketio : "",
 					query: {},
 					body: body,
 					flags: {},
@@ -3441,7 +3422,7 @@ the client is challenged as necessary.
 			conThread( req, function (err) { 	// start session with client
 
 				// must carefully set appropriate heads to prevent http-parse errors when using master-worker proxy
-				if ( TOTEM.isEncryptedWorker )
+				if ( TOTEM.onEncrypted[CLUSTER.isMaster] )
 					Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
 
 				
