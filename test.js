@@ -682,23 +682,23 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 						var 
 							RAN = require("../randpr"),
 							ran = new RAN({
-								Mmax: 20,  // max coherence intervals
+								models: ["sinc"],
+								Mmax: 150,  // max coherence intervals
 								Mstep: 5 	// step intervals
 							});
 						
-						ran.config( function (ed) {
-							//Log(ed.values);
+						ran.config( function (pc) {
 							var 
-								vals = ed.values,
-								vecs = ed.vectors,
+								vals = pc.values,
+								vecs = pc.vectors,
 								N = vals.length, 
 								ref = vals[N-1];
 							
 							vals.forEach( (val, idx) => {
 								var
 									save = {
-										correlation_model: ed.model,
-										coherence_intervals: ed.intervals,
+										correlation_model: pc.model,
+										coherence_intervals: pc.intervals,
 										eigen_value: val,
 										eigen_index: idx,
 										ref_value: ref,
@@ -706,7 +706,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 										eigen_vector: JSON.stringify( vecs[idx] )
 									};
 								
-								sql.query("INSERT INTO app.ran SET ? ON DUPLICATE KEY UPDATE ?", [save,save] );	
+								sql.query("INSERT INTO app.pcs SET ? ON DUPLICATE KEY UPDATE ?", [save,save] );	
 							});
 						});
 						break;	
