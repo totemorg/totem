@@ -1549,6 +1549,8 @@ function connectService(cb) {
 			_key: `${paths.certs}admin.key`
 	};
 	
+	//Log( TOTEM.onEncrypted, CLUSTER.isMaster, CLUSTER.isWorker, TOTEM.onEncrypted[CLUSTER.isMaster]);
+	
 	if ( TOTEM.onEncrypted[CLUSTER.isMaster] ) {  
 		try {  // build the trust strore
 			Each( FS.readdirSync(paths.certs+"/truststore"), function (n,file) {
@@ -1618,6 +1620,13 @@ function protectService(cb) {
 			master:  ENV.TOTEM_MASTER 
 		};
 
+	TOTEM.onEncrypted = {
+		true: doms.master.protocol == "https:",
+		false: doms.worker.protocol == "https:"
+	};
+	
+	//Log(TOTEM.onEncrypted, doms);
+	
 	if ( TOTEM.onEncrypted[CLUSTER.isMaster] )   // derive a pfx cert if this is an encrypted service
 		FS.access( pfxfile, FS.F_OK, function (err) {
 
