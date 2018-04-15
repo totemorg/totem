@@ -50,16 +50,25 @@ var 											// 3rd party modules
 	
 var 											// Totem modules
 	JSDB = require("jsdb"),				//< JSDB database agnosticator
-	ENUM = require("enum"),					//< Basic enumerators
 	ENV = process.env,
-	sqlThread = JSDB.thread,
-	Copy = ENUM.copy,
-	Each = ENUM.each,
-	Log = console.log;
+	sqlThread = JSDB.thread;
+
+const { Copy,Each,Log } = require("enum");
+	
+function Trace(msg,sql) {
+	if (msg.constructor == String)
+		msg.trace("T>",sql);
+	else
+		Log("T>", msg);
+}
 
 var
-	TOTEM = module.exports = ENUM.extend({
+	TOTEM = module.exports = {
 
+	init: function (cb) {
+		cb( null );
+	},
+		
 	/**
 	@cfg {Object}
 	Plugins for tasker engine context
@@ -1208,7 +1217,7 @@ var
 	*/		
 	Function: Initialize  //< added to ENUM callback stack
 	
-});
+};
 
 /**
  * @class TOTEM
@@ -1289,7 +1298,8 @@ function configService(opts,cb) {
  * @param {Function} cb callback() after service configured
  * */
 
-	TOTEM.extend(opts);
+	//TOTEM.extend(opts);
+	if (opts) Copy(opts, TOTEM, ".");
 	
 	var
 		name  = TOTEM.name,
@@ -1346,7 +1356,7 @@ function configService(opts,cb) {
 
 	else
 		protectService(cb || function (err) {
-			Trace(err || `STARTED ${name} STANDALONE`, sql);			
+			Trace(err || `STARTED ${name} STANDALONE`);
 		});
 	
 	return TOTEM;
@@ -1386,7 +1396,7 @@ function startService(server,cb) {
 	else
 		return cb( TOTEM.errors.noService );
 
-	TOTEM.flush();  		// flush enum's config callback stack
+	//TOTEM.flush();  		// flush enum's config callback stack
 
 	if (TOTEM.onEncrypted[CLUSTER.isMaster] && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
 		var 
@@ -1444,7 +1454,7 @@ function startService(server,cb) {
 				Log(">>DISCONNECT CLIENT");
 			});	*/
 			
-			cb( null );
+			TOTEM.init(cb);
 		}
 		
 		else 
@@ -1452,7 +1462,7 @@ function startService(server,cb) {
 	}
 	
 	else
-		cb( null );
+		TOTEM.init(cb);
 		
 	// The BUSY interface provides a mean to limit client connections that would lock the 
 	// service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
@@ -1678,7 +1688,7 @@ function initializeService(sql) {
 	Each(TOTEM.onFile, function (area, cb) {  // callback cb(sql,name,area) when file changed
 		FS.readdir( area, function (err, files) {
 			if (err) 
-				Trace(err);
+				Log(err);
 
 			else
 				files.each( function (n,file) {
@@ -3467,10 +3477,6 @@ Callback with request set to sql conector
 	});
 }
 
-function Trace(msg,sql) {
-	ENUM.trace("T>",msg,sql);
-}
-
 function proxyService(req, res) {  // not presently used but might want to support later
 	
 	var 
@@ -3661,5 +3667,8 @@ function runTask(req,res) {
 				runEngine( index );
 		});
 }
+
+TOTEM.String.extend(String);
+TOTEM.Array.extend(Array);
 
 // UNCLASSIFIED
