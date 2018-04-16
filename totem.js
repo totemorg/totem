@@ -282,258 +282,6 @@ var
 	dsAttrs: {
 	},
 		
-	Date: [  //< date prototypes
-	],
-		
-	Array: [ 			//< Array prototypes
-		/*
-		function treeify(idx,kids,level,piv,wt) {
-		/ **
-		@private
-		@method treeify
-		@member Array
-		Returns list as a tree containing children,weight,name leafs.
-		@param [Number] idx starting index (0 on first call)
-		@param [Number] kids number of leafs following starting index (this.length on first call)
-		@param [Number] level current depth (0 on first call)
-		@param [Array] piv pivots
-		@param [String] wt key name that contains leaf weight (defaults to "size")
-		* /		
-			
-			if (!wt) 
-				return this.treeify(0,recs.length,0,idx,"size");
-
-			var recs = this;
-			var key = piv[level];
-			var levels = piv.length-1;
-			var ref = recs[idx][key];
-			var len = 0;
-			var pos = idx, end = idx+kids;
-			var tar = [];
-			
-			if (level<levels)
-				while (pos<end) {
-					var rec = recs[idx];
-					var stop = (idx==end) ? true : (rec[key] != ref);
-					
-					if ( stop ) {
-						//Log([pos,idx,end,key,ref,recs.length]);
-						
-						var node = {
-							name: key+":"+ref, 
-							weight: len, //wt ? parseInt(rec[wt] || "0") : 0,
-							children: recs.treeify(pos,len,level+1,piv,wt)
-						};
-
-						tar.push( node );
-						pos = idx;
-						len = 0;
-						ref = (idx==end) ? null : recs[idx][key];
-					}
-					else {
-						idx++;
-						len++;
-					}
-				}
-			
-			else
-				while (pos < end) {
-					var rec = recs[pos++];
-					tar.push({
-						name: key+":"+rec[key], 
-						weight: wt ? parseInt(rec[wt] || "1") : 1,
-						doc: rec
-					});
-				}
-				
-			return tar;
-		} */
-	],
-
-	String: [ 			//< String prototypes
-
-		function tag(el,at) {
-		/**
-		@method tag
-		Tag url (el=?|&), list (el=;|,), or tag html using specified attributes.
-		@param {String} el tag element
-		@param {String} at tag attributes
-		@return {String} tagged results
-		*/
-
-			if ( "?&;.".indexOf(el) >= 0 ) {  // tag a url or list
-				var rtn = this+el;
-
-				if (at) for (var n in at) {
-						rtn += n + "=";
-						switch ( (at[n] || 0).constructor ) {
-							//case Array: rtn += at[n].join(",");	break;
-							case Array:
-							case Date:
-							case Object: rtn += JSON.stringify(at[n]); break;
-							default: rtn += at[n];
-						}
-						rtn += "&";
-					}
-				
-				return rtn;				
-			}
-			
-			else {  // tag html
-				var rtn = "<"+el+" ";
-
-				if (at) for (var n in at) rtn += n + "='" + at[n] + "' ";
-
-				switch (el) {
-					case "embed":
-					case "img":
-					case "link":
-					case "input":
-						return rtn+">" + this;
-					default:
-						return rtn+">" + this + "</"+el+">";
-				}
-			}
-		},
-		
-		function each(pat, rtn, cb) {
-		/**
-		@private
-		@member String
-		Enumerate over pattern found in a string.
-		@param {String} pat pattern to find
-		@param {Array} rtn list being extended by callback
-		@param {Function} cb callback(rtn)
-		*/
-			
-			var msg = this;
-			
-			while ( (idx = msg.indexOf(pat) ) >=0 ) {
-				
-				msg = msg.substr(0,idx) + cb(rtn) + msg.substr(idx+pat.length);
-				
-			}
-
-			return msg;
-		},
-
-		function parseJS(req,plugin) {
-		/**
-		@private
-		@member String
-		Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
-		*/
-			
-			function Format($, _, ds, S) {
-			/*
-			 * Format a string S containing ${$.key} tags.  The String wrapper for this
-			 * method extends $ with optional plugins like $.F = {fn: function (X){}, ...}.
-			 */
-
-				try {
-					return eval("`" + S + "`");
-				}
-				catch (err) {
-					return S;
-				}
-
-			}
-			
-			if (plugin) req.plugin = req.F = plugin || {};
-			return Format(req, req, req, this);
-		},
-	
-		function parseJSON(def) {
-			try { 
-				return JSON.parse(this);
-			}
-			catch (err) {  
-
-				if ( !def ) // no default method so return null
-					return null;
-
-				else
-				if (def.constructor == Function)  // use supplied parse method
-					return def(this);
-
-				else
-					return def;
-			}
-		},
-		
-		function parsePath(defs) { 
-			/**
-			@private
-			@member String
-			Parse a "&key=val&key=val?query&relation& ..." query into 
-			the default hash def = {key:val, key=val?query, relation:null, key:json, ...}.
-			*/
-			
-			function parseParm(parm, op, cb) {
-				var	
-					parts = parm.split(op),  
-					key = parts[0],
-					val = parts[1] ;
-
-				if (val)   // key = val 
-					if ( ops.indexOf( key.substr(-1) ) >= 0 )   
-						tests[key+op] = val;
-
-					else
-						try {
-							defs[key] = JSON.parse(val);
-						}
-						catch (err) {
-							defs[key] = val;
-						}
-
-				else 
-					cb();
-			}
-			
-			var 
-				parts = this.split("?"),
-				pathname = parts[0],
-				query = parts[1],
-				parms = query ? query.split("&") : [],
-				tests = defs._tests = {}, 
-				ops = TOTEM.reqFlags.ops;
-		
-			/*
-			Log({
-				t0: TOTEM.mysql.pool.escape( [] ),
-				t1: TOTEM.mysql.pool.escape( {a:1,b:2, c:[1,2,3], d:["x","y","z"] } ),
-				t2: TOTEM.mysql.pool.escape( [1,2,'abc', {x:1}, {y:2}, new SQLOP("!","y","a test")] ),
-				t3: TOTEM.mysql.pool.escape( new SQLOP("<","x",10) ),
-				t4: TOTEM.mysql.pool.escapeId( ["a","b"] ),
-				t5: TOTEM.mysql.pool.escapeId( "a,b,c" )
-			});   */
-			
-			parms.forEach( function (parm) {
-				if (parm) 
-					parseParm( parm, "=", function () {
-						parseParm( parm, ":", function () {
-							defs[parm] = null;
-						});
-					});
-			});
-				
-			return pathname;
-		},
-		
-		function parseXML(def, cb) {
-		/**
-		@private
-		@member String
-		Callback cb(xml parsed) string
-		*/
-			XML2JS.parseString(this, function (err,json) {				
-				cb( err ? def : json );
-			});
-		}
-					
-	],
-	
 	/**
 	@cfg {Function}
 	@member TOTEM
@@ -3668,7 +3416,255 @@ function runTask(req,res) {
 		});
 }
 
-TOTEM.String.extend(String);
-TOTEM.Array.extend(Array);
+[  //< date prototypes
+].extend(Date);
 
+[ 			//< Array prototypes
+	/*
+	function treeify(idx,kids,level,piv,wt) {
+	/ **
+	@private
+	@method treeify
+	@member Array
+	Returns list as a tree containing children,weight,name leafs.
+	@param [Number] idx starting index (0 on first call)
+	@param [Number] kids number of leafs following starting index (this.length on first call)
+	@param [Number] level current depth (0 on first call)
+	@param [Array] piv pivots
+	@param [String] wt key name that contains leaf weight (defaults to "size")
+	* /		
+
+		if (!wt) 
+			return this.treeify(0,recs.length,0,idx,"size");
+
+		var recs = this;
+		var key = piv[level];
+		var levels = piv.length-1;
+		var ref = recs[idx][key];
+		var len = 0;
+		var pos = idx, end = idx+kids;
+		var tar = [];
+
+		if (level<levels)
+			while (pos<end) {
+				var rec = recs[idx];
+				var stop = (idx==end) ? true : (rec[key] != ref);
+
+				if ( stop ) {
+					//Log([pos,idx,end,key,ref,recs.length]);
+
+					var node = {
+						name: key+":"+ref, 
+						weight: len, //wt ? parseInt(rec[wt] || "0") : 0,
+						children: recs.treeify(pos,len,level+1,piv,wt)
+					};
+
+					tar.push( node );
+					pos = idx;
+					len = 0;
+					ref = (idx==end) ? null : recs[idx][key];
+				}
+				else {
+					idx++;
+					len++;
+				}
+			}
+
+		else
+			while (pos < end) {
+				var rec = recs[pos++];
+				tar.push({
+					name: key+":"+rec[key], 
+					weight: wt ? parseInt(rec[wt] || "1") : 1,
+					doc: rec
+				});
+			}
+
+		return tar;
+	} */
+].extend(Array);
+
+[ 			//< String prototypes
+	function tag(el,at) {
+	/**
+	@method tag
+	Tag url (el=?|&), list (el=;|,), or tag html using specified attributes.
+	@param {String} el tag element
+	@param {String} at tag attributes
+	@return {String} tagged results
+	*/
+
+		if ( "?&;.".indexOf(el) >= 0 ) {  // tag a url or list
+			var rtn = this+el;
+
+			if (at) for (var n in at) {
+					rtn += n + "=";
+					switch ( (at[n] || 0).constructor ) {
+						//case Array: rtn += at[n].join(",");	break;
+						case Array:
+						case Date:
+						case Object: rtn += JSON.stringify(at[n]); break;
+						default: rtn += at[n];
+					}
+					rtn += "&";
+				}
+
+			return rtn;				
+		}
+
+		else {  // tag html
+			var rtn = "<"+el+" ";
+
+			if (at) for (var n in at) rtn += n + "='" + at[n] + "' ";
+
+			switch (el) {
+				case "embed":
+				case "img":
+				case "link":
+				case "input":
+					return rtn+">" + this;
+				default:
+					return rtn+">" + this + "</"+el+">";
+			}
+		}
+	},
+
+	function each(pat, rtn, cb) {
+	/**
+	@private
+	@member String
+	Enumerate over pattern found in a string.
+	@param {String} pat pattern to find
+	@param {Array} rtn list being extended by callback
+	@param {Function} cb callback(rtn)
+	*/
+
+		var msg = this;
+
+		while ( (idx = msg.indexOf(pat) ) >=0 ) {
+
+			msg = msg.substr(0,idx) + cb(rtn) + msg.substr(idx+pat.length);
+
+		}
+
+		return msg;
+	},
+
+	function parseJS(req,plugin) {
+	/**
+	@private
+	@member String
+	Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
+	*/
+
+		function Format($, _, ds, S) {
+		/*
+		 * Format a string S containing ${$.key} tags.  The String wrapper for this
+		 * method extends $ with optional plugins like $.F = {fn: function (X){}, ...}.
+		 */
+
+			try {
+				return eval("`" + S + "`");
+			}
+			catch (err) {
+				return S;
+			}
+
+		}
+
+		if (plugin) req.plugin = req.F = plugin || {};
+		return Format(req, req, req, this);
+	},
+
+	function parseJSON(def) {
+		try { 
+			return JSON.parse(this);
+		}
+		catch (err) {  
+
+			if ( !def ) // no default method so return null
+				return null;
+
+			else
+			if (def.constructor == Function)  // use supplied parse method
+				return def(this);
+
+			else
+				return def;
+		}
+	},
+
+	function parsePath(defs) { 
+		/**
+		@private
+		@member String
+		Parse a "&key=val&key=val?query&relation& ..." query into 
+		the default hash def = {key:val, key=val?query, relation:null, key:json, ...}.
+		*/
+
+		function parseParm(parm, op, cb) {
+			var	
+				parts = parm.split(op),  
+				key = parts[0],
+				val = parts[1] ;
+
+			if (val)   // key = val 
+				if ( ops.indexOf( key.substr(-1) ) >= 0 )   
+					tests[key+op] = val;
+
+				else
+					try {
+						defs[key] = JSON.parse(val);
+					}
+					catch (err) {
+						defs[key] = val;
+					}
+
+			else 
+				cb();
+		}
+
+		var 
+			parts = this.split("?"),
+			pathname = parts[0],
+			query = parts[1],
+			parms = query ? query.split("&") : [],
+			tests = defs._tests = {}, 
+			ops = TOTEM.reqFlags.ops;
+
+		/*
+		Log({
+			t0: TOTEM.mysql.pool.escape( [] ),
+			t1: TOTEM.mysql.pool.escape( {a:1,b:2, c:[1,2,3], d:["x","y","z"] } ),
+			t2: TOTEM.mysql.pool.escape( [1,2,'abc', {x:1}, {y:2}, new SQLOP("!","y","a test")] ),
+			t3: TOTEM.mysql.pool.escape( new SQLOP("<","x",10) ),
+			t4: TOTEM.mysql.pool.escapeId( ["a","b"] ),
+			t5: TOTEM.mysql.pool.escapeId( "a,b,c" )
+		});   */
+
+		parms.forEach( function (parm) {
+			if (parm) 
+				parseParm( parm, "=", function () {
+					parseParm( parm, ":", function () {
+						defs[parm] = null;
+					});
+				});
+		});
+
+		return pathname;
+	},
+
+	function parseXML(def, cb) {
+	/**
+	@private
+	@member String
+	Callback cb(xml parsed) string
+	*/
+		XML2JS.parseString(this, function (err,json) {				
+			cb( err ? def : json );
+		});
+	}
+
+].extend(String);
+	
 // UNCLASSIFIED
