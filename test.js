@@ -545,10 +545,12 @@ var
 						},
 
 						"./public/js/": function (sql,name,ev) {
+							// run FLEX.publish on the engine
 							sql.release();
 						},
 
 						"./public/py/": function (sql,name,ev) {
+							// run FLEX.publish on the engine
 							sql.release();
 						}
 

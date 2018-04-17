@@ -2002,7 +2002,7 @@ function getFile(client, filepath, cb) {
 @param {String} client file owner to make new files
 @param {String} filepath path to the file
 @param {Function} cb callback(area, fileID, sql) if no errors
-Access (create if needed) a file then callback cb(sql, area, fileID) if no errors
+Access (create if needed) a file then callback cb(area, fileID, sql) if no errors
 */
 	
 	var
