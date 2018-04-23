@@ -77,15 +77,17 @@ _configall.)
 #
 
 flatten.)
-	tar cvf $1.tar $1
-	xxd -p $1.tar $1.hex
-	split -b 10m $1.hex _x
+	echo "flattening files in $2/* -> $2.tar -> $2.hex -> _x*"
+	tar cvf $2.tar $2
+	xxd -p $2.tar $2.hex
+	split -b 10m $2.hex _x
 	;;
 	
-unflatten.)
-	cat _x* > $1.hex
-	xxd -r -p $1.hex  $1.tar
-	tar xvf $1.tar
+expand.)
+	echo "expanding files in _x* -> $2.hex -> $2.tar -> $2/*"
+	cat _x* > $2.hex
+	xxd -r -p $2.hex  $2.tar
+	tar xvf $2.tar
 	;;
 	
 _flatten.)   # legacy
