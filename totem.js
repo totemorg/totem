@@ -711,7 +711,7 @@ var
 	*/		
 	riddles: 0, 			
 	
-	//proxy: proxyService,  //< default relay if needed
+	//proxy: proxyThread,  //< default relay if needed
 	//workers: [],
 		
 	/**
@@ -721,7 +721,7 @@ var
 	Default paths to service files
 	*/		
 	paths: { 			
-		default: "files/",
+		home: "/home.view",
 		
 		url: {
 			//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
@@ -2471,8 +2471,8 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 @param {Object} req Totem session request
 */
 	var
-		node = URL.parse(req.node),
-		path = req.path = node.path,
+		node = URL.parse( req.node ),
+		path = req.path = node.path || "",
 		areas = node.pathname.split("/"),
 		file = req.filename = areas.pop() || "", //(areas[1] ? "" : TOTEM.paths.default),
 		parts = req.parts = file.split("."),
@@ -3175,12 +3175,12 @@ the client is challenged as necessary.
 
 				// get a clean url
 				/*
-				There exists an edge case wherein an html tag within json content, e.g <img src="/ABC">, 
-				is reflected back the server as a /%5c%22ABC%5c%22 which then unescapes to /\\"ABC\\".
-				This is ok but can be confusing.
+				There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
+				embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
+				unescapes to /\\"ABC\\".  This is ok but can be confusing.
 				*/				
-				url = req.url = unescape(Req.url),
-
+				url = req.url = (Req.url == "/") ? TOTEM.paths.home : unescape(Req.url),
+			
 				// get a list of all nodes
 				nodes = (nodeDivider = TOTEM.nodeDivider)
 					? url ? url.split(nodeDivider) : []
@@ -3225,7 +3225,7 @@ Callback with request set to sql conector
 	});
 }
 
-function proxyService(req, res) {  // not presently used but might want to support later
+function proxyThread(req, res) {  // not presently used but might want to support later
 	
 	var 
 		pathto = 

@@ -40,13 +40,14 @@ TOTEM  provides a service with the following selectable features:
 	FILEPATH.TYPE ? QUERY ? QUERY ...
 	COMMAND.TYPE ? QUERY ? QUERY ...
 
-By default, TOTEM is configured with the TYPE formatters:
+The default TOTEM configure provides TYPE formatters:
 
 	db | xml | csv | json
-	
-If TOTEM was configured for antibot protection, TOTEM will also provide a *riddle* COMAND endpoint
-for clients to validate themselves; aAll other endpoints are established by config().
 
+and COMMAND endpoints:
+
+	riddle | task
+	
 ## Installing
 
 Clone from one of the repos into your PROJECT/totem.
