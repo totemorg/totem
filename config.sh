@@ -28,6 +28,8 @@ export PATH=$MYSQL/bin:$PATH
 export MYSQL_USER=root
 export MYSQL_NAME=app
 export MYSQL_HOST=localhost
+export ODBC_NAME=totem-app
+export ODBC_USER=ileuser
 
 # service
 export SERVICE_NAME=Totem1
