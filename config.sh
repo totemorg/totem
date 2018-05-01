@@ -1,8 +1,7 @@
 #!/bin/bash
 # UNCLASSIFIED when IP addresses and passwords are undefined
 
-export HERE=`pwd`
-
+#export HERE=`pwd`
 #export node_path=./node_modules
 
 # initialize dev/prod paths
@@ -12,9 +11,6 @@ export SRV=$BASE/service
 export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin
 export LD_LIBRARY_PATH=
 export REPO=git@git.geointapps.org:acmesds
-
-# JSDUCK
-export PATH=$PATH:/usr/local/share/gems/gems/jsduck-5.3.4/bin
 
 # NodeJS  
 export NODE=$BASE/nodejs
@@ -31,12 +27,10 @@ export MYSQL_HOST=localhost
 export ODBC_NAME=totem-app
 export ODBC_USER=ileuser
 
-# service
-export SERVICE_NAME=Totem1
-
-# tools
+# doc and dev tools
 export PATH=/opt/cmake:$PATH 			# latest cmake
-export PATH=$BASE/oxygen/bin:$PATH    	# doxygen code documenter
+#export PATH=$BASE/oxygen/bin:$PATH    	# doxygen code documenter if needed (jsduck used)
+export PATH=$PATH:/usr/local/share/gems/gems/jsduck-5.3.4/bin 	# for jsduck
 
 # docker
 export GPU="--device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm"
@@ -45,19 +39,16 @@ export NET="--net host"
 export RUN="run -it $GPU $VOL $NET"
 export RUND="$RUN -d"
 
-# machines and geo shortcuts
-
-#export GEO=". $BASH_SOURCE"
-export REBUILD="node-gyp rebuild --nodedir=$NODE"	# use "node-gyp $GYPTOPS" to override distro ref to inet
-#export ENGINES=$SRV/engine/ifs
-#export GEOBIND="node-gyp rebuild"
-#export LINK=g++ 			# fixes node-gyp flock issue when source files on NFS system
-
 # Devs
 export INCLUDE=$BASE/include
 export LIB=$BASE/lib64
 
-# machines and geo shortcuts
+# binders machines and geo shortcuts
+
+export REBUILD="node-gyp rebuild --nodedir=$NODE"	# use "node-gyp $GYPTOPS" to override distro ref to inet
+#export ENGINES=$SRV/engine/ifs
+#export LINK=g++ 			# fixes node-gyp flock issue when source files on NFS system
+
 # AWS
 #export USER=jamesdb
 #export GPUHOST=$USER@swag-gpu-01
@@ -77,9 +68,10 @@ export GUIHOST=wsn3303
 source pass.sh
 
 # define server domains
-export TOTEM_MASTER=http://localhost:8080
-export TOTEM_WORKER=https://localhost:8443
-#export TOTEM_WORKER=http://localhost:8081  # in debug mode
+export SERVICE_NAME=Totem1
+export SERVICE_MASTER_URL=http://localhost:8080
+export SERVICE_WORKER_URL=https://localhost:8443
+#export SERVICE_WORKER_URL=http://localhost:8081  # in debug mode
 
 # define tasking node urls
 export NODE0=http://localhost:8080/task

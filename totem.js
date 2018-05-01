@@ -1357,35 +1357,30 @@ function protectService(cb) {
 		paths = TOTEM.paths,
 		sock = TOTEM.sockets ? paths.url.socketio : "", 
 		pfxfile = `${paths.certs}${name}.pfx`,
+		urls = TOTEM.site.urls = TOTEM.cores   // establish site urls
+			? {  
+				socketio: sock,
+				worker:  ENV.SERVICE_WORKER_URL, 
+				master:  ENV.SERVICE_MASTER_URL
+			}
+			: {
+				socketio: sock,
+				worker:  ENV.SERVICE_WORKER_URL, 
+				master:  ENV.SERVICE_WORKER_URL 
+			},
 		doms = TOTEM.doms = {
-			master: URL.parse(ENV.TOTEM_MASTER),
-			worker: URL.parse(ENV.TOTEM_WORKER)
+			master: URL.parse(urls.master),
+			worker: URL.parse(urls.worker)
+		},
+		onEncrypted = TOTEM.onEncrypted = {
+			true: doms.master.protocol == "https:",
+			false: doms.worker.protocol == "https:"
 		};
-
+	
+	//Log(onEncrypted, doms);
 	Trace(`PROTECT ${name}`);
-	//Log(doms);
 	
-	TOTEM.site.urls = TOTEM.cores   // establish site urls
-		? {  
-			socketio: sock,
-			worker:  ENV.TOTEM_WORKER, 
-			master:  ENV.TOTEM_MASTER
-		}
-		
-		: {
-			socketio: sock,
-			worker:  ENV.TOTEM_MASTER, 
-			master:  ENV.TOTEM_MASTER 
-		};
-
-	TOTEM.onEncrypted = {
-		true: doms.master.protocol == "https:",
-		false: doms.worker.protocol == "https:"
-	};
-	
-	//Log(TOTEM.onEncrypted, doms);
-	
-	if ( TOTEM.onEncrypted[CLUSTER.isMaster] )   // derive a pfx cert if this is an encrypted service
+	if ( onEncrypted[CLUSTER.isMaster] )   // derive a pfx cert if this is an encrypted service
 		FS.access( pfxfile, FS.F_OK, function (err) {
 
 			if (err) {
