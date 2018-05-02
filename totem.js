@@ -24,6 +24,17 @@
 @requires json2csv
 @requires js2xmlparser
 @requires toobusy-js
+
+Required env vars (see config.sh):
+	SERVICE_NAME, SERVICE_MASTER_URL, SERVICE_WORKER_URL, SERVICE_PASS
+	NODE0, NODE1, ...
+	MYSQL_USER, MYSQL_NAME, MYSQL_HOST
+	
+Required mysql openv.datasets:
+	apps, sessions, profiles, aspreqts, ispreqts, swreqts, hwreqts, riddles, syslogs
+	
+Required mysql app.datasets:
+	dblogs, files
  */
 
 var												// NodeJS modules
