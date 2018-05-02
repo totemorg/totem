@@ -632,28 +632,28 @@ var
 	notify: true, 		//< Enable/disable tracing of data fetchers
 
 	/**
-	@cfg {Boolean} [nofaults=false]
+	@cfg {Boolean} [guard=false]
 	@member TOTEM	
 	Enable/disable service protection mode
 	*/		
-	nofaults: false,		//< Enable/disable service protection mode
+	guard: false,		//< Enable/disable service protection mode
 		
 	/**
 	@cfg {Object} 
 	@private
 	@member TOTEM	
-	Service protections when in nofaults mode
+	Service protections when in guard mode
 	*/		
-	protect: {				
-		SIGUSR1:1,
-		SIGTERM:1,
-		SIGINT:1,
-		SIGPIPE:1,
-		SIGHUP:1,
-		SIGBREAK:1,
-		SIGWINCH:1,
-		SIGKILL:1,
-		SIGSTOP:1
+	guards: {				
+		//SIGUSR1:1,
+		//SIGTERM:1,
+		//SIGINT:1,
+		//SIGPIPE:1,
+		//SIGHUP:1,
+		//SIGBREAK:1,
+		//SIGWINCH:1,
+		//SIGKILL:1,
+		//SIGSTOP:1 
 	},	
 	
 	/**
@@ -1264,7 +1264,7 @@ function startService(server,cb) {
 			Trace(`MASTER AT ${site.urls.master}`);
 		});
 			
-	if ( TOTEM.nofaults)  { // catch core faults
+	if ( TOTEM.guard)  { // catch core faults
 		process.on("uncaughtException", function (err) {
 			Trace(`FAULTED ${err}`);
 		});
@@ -1273,7 +1273,7 @@ function startService(server,cb) {
 			Trace(`HALTED ${code}`);
 		});
 
-		for (var n in TOTEM.nofaults)
+		for (var n in TOTEM.guards)
 			process.on(n, function () {
 				Trace(`SIGNALED ${n}`);
 			});
@@ -1396,7 +1396,7 @@ function protectService(cb) {
 
 			if (err) {
 				var owner = TOTEM.name;
-				Trace( "CREATE SERVERCERT FOR "+owner );
+				Trace( "CREATE SERVER CERT FOR "+owner );
 			
 				createCert(owner,ENV.SERVICE_PASS, function () {
 					connectService(cb);
@@ -1429,6 +1429,20 @@ function stopService() {
 
 function initializeService(sql) {
 	
+	var
+		site = TOTEM.site;
+	
+	Trace([ // splash
+		"HOSTING " + site.nick,
+		"AT "+site.urls.master,
+		"USING " + site.db ,
+		"FROM " + process.cwd(),
+		"RUNNING " + (TOTEM.guard?"PROTECTED":"UNPROTECTED"),
+		"WITH " + (site.urls.socketio||"NO")+" SOCKETS",
+		"AND " + (site.sessions||"UNLIMITED")+" CONNECTIONS",
+		"AND " + (TOTEM.cores ? TOTEM.cores + " WORKERS AT "+site.urls.worker : "NO WORKERS")
+	].join("\n- ")	);
+
 	// clear system logs
 	
 	sql.query("DELETE FROM openv.syslogs");
