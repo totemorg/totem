@@ -473,7 +473,7 @@ var
 						pass: ENV.MYSQL_PASS
 					},
 
-					guard: true,
+					//guard: true,
 					
 					onFile: {
 						"./public/uploads/": function (sql, name, path) {  // watch changes to a file				

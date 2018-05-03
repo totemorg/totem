@@ -76,10 +76,6 @@ function Trace(msg,sql) {
 var
 	TOTEM = module.exports = {
 
-	init: function (cb) {
-		cb( null );
-	},
-		
 	/**
 	@cfg {Object}
 	Plugins for tasker engine context
@@ -690,6 +686,7 @@ var
 		Client: "guest@guest.org",
 		User: "guest@guest",
 		Group: "app",
+		IDs: "{}",
 		Repoll: true,
 		Retries: 5,
 		Timeout: 30,
@@ -697,11 +694,20 @@ var
 	},
 
 	/**
+	@cfg {Number} [riddles=0]
+	@member TOTEM	
+	Number of riddles to protect site (0 to disable anti-bot)
+	*/		
+	riddles: 0, 			
+	
+	riddle: [],  //< reserved for riddles
+		
+	/**
 	@cfg {Object} 
 	@private
 	@member TOTEM	
 	Riddle digit-to-jpeg map (null to disable riddles)
-	*/		
+	*/				
 	riddleMap: { 					
 		0: ["10","210"],
 		1: ["30","60"],
@@ -715,13 +721,6 @@ var
 		9: ["40","190"]
 	},
 
-	/**
-	@cfg {Number} [riddles=0]
-	@member TOTEM	
-	Number of riddles to protect site (0 to disable anti-bot)
-	*/		
-	riddles: 0, 			
-	
 	//proxy: proxyThread,  //< default relay if needed
 	//workers: [],
 		
@@ -966,7 +965,7 @@ var
 		learnedTables: true, 
 		
 		certs: {} 		// reserved for client crts (pfx, crt, and key reserved for server)
-	},
+	}
 	
 	/**
 	@cfg {Object} 
@@ -974,7 +973,7 @@ var
 	@member TOTEM	
 	ENUM will callback this initializer when the service is started
 	*/		
-	Function: Initialize  //< added to ENUM callback stack
+	//Function: Initialize  //< added to ENUM callback stack
 	
 };
 
@@ -1052,9 +1051,9 @@ function configService(opts,cb) {
 /**
  * @private
  * @method configService
- * Configure, protect, connect, then start this server.
+ * Configure JSDB, define site context, then protect, connect, start and initialize this server.
  * @param {Object} opts configuration options following the ENUM.Copy() conventions.
- * @param {Function} cb callback() after service configured
+ * @param {Function} cb callback(err) after service configured
  * */
 
 	//TOTEM.extend(opts);
@@ -1074,7 +1073,7 @@ function configService(opts,cb) {
 
 	if (mysql) 
 		JSDB.config({   // establish the db agnosticator 
-			//io: TOTEM.IO,   // cant set socketio until after server defined by startService
+			//emit: TOTEM.IO.sockets.emit,   // cant set socketio until server started
 
 			fetcher: TOTEM.fetchData,
 			
@@ -1125,9 +1124,9 @@ function startService(server,cb) {
 /**
  * @private
  * @method startService
- * Attach the responder to this server then initialized.
+ * Attach port listener to this server then initialize it.
  * @param {Object} server HTTP/HTTP server
- * @param {Function} cb callback(err) when service initialized.
+ * @param {Function} cb callback(err) when started.
  * */
 	
 	var 
@@ -1159,20 +1158,22 @@ function startService(server,cb) {
 
 	if (TOTEM.onEncrypted[CLUSTER.isMaster] && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
 		var 
-			IO = TOTEM.IO = JSDB.io = SIO(server, { // use defaults but can override ...
+			IO = TOTEM.IO = new SIO(server, { // use defaults but can override ...
 				//serveClient: true, // default true to prevent server from intercepting path
 				//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
 			}),
 			HUBIO = TOTEM.HUBIO = new (SIOHUB); 		//< Hub fixes socket.io+cluster bug	
 			
 		if (IO) { 							// Setup client web-socket support
-			Trace("ATTACH SOCKETS AT "+IO.path());
+			Trace("SOCKETS AT "+IO.path());
+
+			JSDB.emit =	IO.sockets.emit;
 			
-			IO.on("connection", function (socket) {  // Trap every connect				
-				//Trace(">ALLOW CLIENT CONNECTIONS");
+			IO.on("connect", function (socket) {  // Trap every connect				
+				//Trace("ALLOW SOCKETS");
 				socket.on("select", function (req) { 		// Trap connect raised on client "select/join request"
 					
-					Trace(`>CONNECTING ${req.client}`);
+					Trace(`CONNECTING ${req.client}`);
 					sqlThread( function (sql) {	
 
 						var ses = {
@@ -1213,7 +1214,7 @@ function startService(server,cb) {
 				Log(">>DISCONNECT CLIENT");
 			});	*/
 			
-			TOTEM.init(cb);
+			cb(null);
 		}
 		
 		else 
@@ -1221,7 +1222,7 @@ function startService(server,cb) {
 	}
 	
 	else
-		TOTEM.init(cb);
+		cb(null);
 		
 	// The BUSY interface provides a mean to limit client connections that would lock the 
 	// service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
@@ -1282,7 +1283,11 @@ function startService(server,cb) {
 	if (CLUSTER.isMaster)
 		sqlThread( function (sql) {
 			initializeService(sql);
+			sql.release();
 		});
+	
+	else
+	if (TOTEM.riddles) initChallenger();
 	
 }
 		
@@ -1290,10 +1295,9 @@ function connectService(cb) {
 /**
  * @private
  * @method connectService
- * If the TOTEM server already connected, inherit the server; otherwise
- * define an the apprpriate http interface (https if encrypted, 
- * http if unencrypted), then start the server.
- * @param {Function} cb callback when done
+ * If the TOTEM server already connected, inherit the server; otherwise define a suitable http interface (https if encrypted, 
+ * http if unencrypted), then start and initialize the service.
+ * @param {Function} cb callback(err) when connected
  * */
 	
 	var 
@@ -1358,8 +1362,8 @@ function protectService(cb) {
 /**
  * @private
  * @method protectService
- * Create the server's PKI certs (if they dont exist), setup its urls, then connect the service.
- * @param {Function} cb callback when done
+ * Create the server's PKI certs (if they dont exist), setup site urls, then connect, start and initialize this service.  
+ * @param {Function} cb callback(err) when protected
  * 
  * */
 	
@@ -1437,10 +1441,11 @@ function initializeService(sql) {
 		"AT "+site.urls.master,
 		"USING " + site.db ,
 		"FROM " + process.cwd(),
-		"RUNNING " + (TOTEM.guard?"PROTECTED":"UNPROTECTED"),
 		"WITH " + (site.urls.socketio||"NO")+" SOCKETS",
-		"AND " + (site.sessions||"UNLIMITED")+" CONNECTIONS",
-		"AND " + (TOTEM.cores ? TOTEM.cores + " WORKERS AT "+site.urls.worker : "NO WORKERS")
+		"WITH " + (TOTEM.guard?"GUARDED":"UNGUARDED")+" THREADS",
+		"WITH "+ (TOTEM.riddles?"ANTIBOT":"NO ANTIBOT") + " PROTECTION",
+		"WITH " + (site.sessions||"UNLIMITED")+" CONNECTIONS",
+		"WITH " + (TOTEM.cores ? TOTEM.cores + " WORKERS AT "+site.urls.worker : "NO WORKERS")
 	].join("\n- ")	);
 
 	// clear system logs
@@ -1940,15 +1945,15 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 				admitClient(req, res, now, profile, cert, client);
 				
 			else
-			if (TOTEM.guestProfile) {  // create a guest profile is one provided
-				Trace("ADMIT GUEST", sql);
+			if ( guestProfile = TOTEM.guestProfile) {  // create a guest profile is one provided
+				//Trace("ADMIT "+client, sql);
 				sql.query(  // prime a profile if it does not already exist
 					"INSERT INTO openv.profiles SET ?", Copy({
 					Client: client,
 					User: userID(client) // client.replace("ic.gov","").replace(/\./g,"").toLowerCase()
-				}, TOTEM.guestProfile), function (err) {
+				}, guestProfile), function (err) {
 					
-					admitClient(req, res, now, TOTEM.guestProfile, cert, client);
+					admitClient(req, res, now, guestProfile, cert, client);
 					
 				});
 			}
@@ -2353,7 +2358,8 @@ Create a set of TOTEM.riddles challenges.
 		};
 	}
 	
-	var riddle = TOTEM.riddle = [],
+	var 
+		riddle = TOTEM.riddle,
 		N = TOTEM.riddles,
 		map = TOTEM.riddleMap,
 		ref = "/captcha";
@@ -2375,6 +2381,37 @@ Endpoint to check clients response req.query to a riddle created by challengeCli
 		riddles = TOTEM.riddle,
 		N = riddles.length;
 	
+	return msg
+		.replace(/\(riddle\)/g, (pat) => {
+			var QA = riddles[Math.floor( Math.random() * N )];
+			rid.push( QA.A );
+			return QA.Q;
+		})
+		.replace(/\(yesno\)/g, (pat) => {
+			var QA = riddles[Math.floor( Math.random() * N )];
+			rid.push( QA.A );
+			return QA.Q;
+		})
+		.replace(/\(ids\)/g, (pat) => {
+			var rtn = [];
+			Each(ids, function (key, val) {
+				rtn.push( key );
+				rid.push( val );
+			});
+			return rtn.join(", ");
+		})
+		.replace(/\(rand\)/g, (pat) => {
+			rid.push( Math.floor(Math.random()*10) );
+			return "random integer between 0 and 9";		
+		})
+		.replace(/\(card\)/g, (pat) => {
+			return "cac card challenge TBD";
+		})
+		.replace(/\(bio\)/g, (pat) => {
+			return "bio challenge TBD";
+		});
+	
+	/*
 	msg = (msg||"")
 	.each("(riddle)", rid, function (rid) {
 		
@@ -2424,6 +2461,7 @@ Endpoint to check clients response req.query to a riddle created by challengeCli
 	});
 	
 	return msg;
+	*/
 }
 
 function challengeClient(client, profile) {
@@ -2465,19 +2503,19 @@ Challenge a client with specified profile parameters
 		});
 }
 
-function Initialize () {
-/**
+/*function Initialize () {
+/ **
 @private
 @member TOTEM
 @method Initialize
 Initialize TOTEM.
-*/
+* /
 	
 	Trace(`INIT ${TOTEM.name} WITH ${TOTEM.riddles} RIDDLES`);
 	
 	initChallenger();
 	
-}
+}*/
 
 /**
 @class ENDPOINT_ROUTING methods to route notes byType, byAction, byTable, byActionTable, byArea.
@@ -3549,15 +3587,16 @@ function runTask(req,res) {
 		}
 	},
 
+	/*
 	function each(pat, rtn, cb) {
-	/**
+	/ **
 	@private
 	@member String
 	Enumerate over pattern found in a string.
 	@param {String} pat pattern to find
 	@param {Array} rtn list being extended by callback
 	@param {Function} cb callback(rtn)
-	*/
+	* /
 
 		var msg = this;
 
@@ -3568,7 +3607,7 @@ function runTask(req,res) {
 		}
 
 		return msg;
-	},
+	}, */
 
 	function parseJS(req,plugin) {
 	/**
