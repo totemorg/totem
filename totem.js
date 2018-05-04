@@ -1263,13 +1263,13 @@ function startService(server,cb) {
 			});
 	}
 
-	if (CLUSTER.isMaster)
-		sqlThread( function (sql) {
-			initializeService(sql);
-			sql.release();
-		});
-	
 	if (TOTEM.riddles) initChallenger();
+		
+	sqlThread( function (sql) {
+		if (CLUSTER.isMaster) initializeService(sql);
+		TOTEM.init(sql);
+		sql.release();
+	});
 	
 }
 		
@@ -1464,11 +1464,7 @@ function initializeService(sql) {
 				name: key
 			});
 		}
-	});
-	
-	// aux init
-	
-	TOTEM.init(sql);
+	});	
 }
 
 /**
