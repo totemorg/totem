@@ -76,6 +76,8 @@ function Trace(msg,sql) {
 var
 	TOTEM = module.exports = {
 
+	init: function () {},
+		
 	/**
 	@cfg {Object}
 	Plugins for tasker engine context
@@ -88,7 +90,7 @@ var
 	/**
 	@cfg {Boolean}
 	@member TOTEM
-	Enable to create encrypted service using phasephrase from env SERVICE_PASS
+	Enabled when master/workers on encrypted service
 	*/
 	onEncrypted: {
 		true: false,   // on master 
@@ -748,13 +750,13 @@ var
 		
 		mysql: {
 			users: "SELECT 'user' AS Role, group_concat(DISTINCT dataset SEPARATOR ';') AS Contact FROM app.dblogs WHERE instr(dataset,'@')",
-			derive: "SELECT *, count(ID) AS Count FROM openv.apps WHERE ? LIMIT 0,1",
+			derive: "SELECT * FROM openv.apps WHERE ? LIMIT 1",
 			record: "INSERT INTO app.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
 			search: "SELECT * FROM app.files HAVING Score > 0.1",
-			//credit: "SELECT * FROM app.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 0,1",
+			//credit: "SELECT * FROM app.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 1",
 			upsession: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1,?",
-			challenge: "SELECT *,count(ID) as Count FROM openv.profiles WHERE least(?) LIMIT 0,1",
-			guest: "SELECT * FROM openv.profiles WHERE Client='guest' LIMIT 0,1",
+			challenge: "SELECT * FROM openv.profiles WHERE least(?,1) LIMIT 1",
+			guest: "SELECT * FROM openv.profiles WHERE Client='guest' LIMIT 1",
 			pocs: "SELECT lower(Hawk) AS Role, group_concat(DISTINCT Client SEPARATOR ';') AS Contact FROM openv.roles GROUP BY hawk"
 		},
 		
@@ -881,55 +883,42 @@ var
 		if (derive = mysql.derive)  // derive site context vars
 			sql.query(derive, {Nick:TOTEM.name})
 			.on("result", function (opts) {
+				Each(opts, function (key,val) {
+					key = key.toLowerCase();
+					site[key] = val;
 
-				if ( opts.Count ) {
-					Each(opts, function (key,val) {
-						key = key.toLowerCase();
-						site[key] = val;
+					if ( (val||0).constructor == String)
+						try {
+							site[key] = JSON.parse( val );
+						}
+						catch (err) {
+						}
 
-						if ( (val||0).constructor == String)
-							try {
-								site[key] = JSON.parse( val );
-							}
-							catch (err) {
-							}
-
-						if (key in TOTEM) 
-							TOTEM[key] = site[key];
-					});
-					
-					sql.query("SELECT count(ID) AS Fails FROM openv.aspreqts WHERE Status LIKE '%fail%'", [], function (err,asp) {
-					sql.query("SELECT count(ID) AS Fails FROM openv.ispreqts WHERE Status LIKE '%fail%'", [], function (err,isp) {
-					sql.query("SELECT count(ID) AS Fails FROM openv.swreqts WHERE Status LIKE '%fail%'", [], function (err,sw) {
-					sql.query("SELECT count(ID) AS Fails FROM openv.hwreqts WHERE Status LIKE '%fail%'", [], function (err,hw) {
-
-						site.warning = [
-							site.warning || "",
-							"ASP".fontcolor(asp[0].Fails ? "red" : "green").tag("a",{href:"/help?from=asp"}),
-							"ISP".fontcolor(isp[0].Fails ? "red" : "green").tag("a",{href:"/help?from=isp"}),
-							"SW".fontcolor(sw[0].Fails ? "red" : "green").tag("a",{href:"/help?from=swap"}),   // mails list of failed swapIDs (and link to all sw reqts) to swap PMO
-							"HW".fontcolor(hw[0].Fails ? "red" : "green").tag("a",{href:"/help?from=pmo"})   // mails list of failed hw reqts (and link to all hw reqts) to pod lead
-						].join(" ");
-						
-					});
-					});
-					});
-					});
-				}
-
+					if (key in TOTEM) 
+						TOTEM[key] = site[key];
+				});
+				
 				if (cb) cb();
-			})
-			.on("error", function (err) {
-				Log(err);
-				throw TOTEM.errors.noDB;
 			});
-			/*
-			sql.indexJsons( "openv.apps", {}, function (jsons) {	// get site json vars
-			}); */
 		
-		else 
-		if (cb) cb();
-					
+		sql.query("SELECT count(ID) AS Fails FROM openv.aspreqts WHERE Status LIKE '%fail%'", [], function (err,asp) {
+		sql.query("SELECT count(ID) AS Fails FROM openv.ispreqts WHERE Status LIKE '%fail%'", [], function (err,isp) {
+		sql.query("SELECT count(ID) AS Fails FROM openv.swreqts WHERE Status LIKE '%fail%'", [], function (err,sw) {
+		sql.query("SELECT count(ID) AS Fails FROM openv.hwreqts WHERE Status LIKE '%fail%'", [], function (err,hw) {
+
+			site.warning = [
+				site.warning || "",
+				"ASP".fontcolor(asp[0].Fails ? "red" : "green").tag("a",{href:"/help?from=asp"}),
+				"ISP".fontcolor(isp[0].Fails ? "red" : "green").tag("a",{href:"/help?from=isp"}),
+				"SW".fontcolor(sw[0].Fails ? "red" : "green").tag("a",{href:"/help?from=swap"}),   // mails list of failed swapIDs (and link to all sw reqts) to swap PMO
+				"HW".fontcolor(hw[0].Fails ? "red" : "green").tag("a",{href:"/help?from=pmo"})   // mails list of failed hw reqts (and link to all hw reqts) to pod lead
+			].join(" ");
+
+		});
+		});
+		});
+		});
+		
 	},
 
 	/**
@@ -967,14 +956,6 @@ var
 		certs: {} 		// reserved for client crts (pfx, crt, and key reserved for server)
 	}
 	
-	/**
-	@cfg {Object} 
-	@private
-	@member TOTEM	
-	ENUM will callback this initializer when the service is started
-	*/		
-	//Function: Initialize  //< added to ENUM callback stack
-	
 };
 
 /**
@@ -1004,7 +985,7 @@ function updateDS(req,res) {
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
  * */
-	Log(req.table, TOTEM.byTable);
+	//Log(req.table, TOTEM.byTable);
 	
 	if ( route = TOTEM.byTable[req.table] )
 		route(req, res);
@@ -1158,6 +1139,7 @@ function startService(server,cb) {
 
 	if (TOTEM.onEncrypted[CLUSTER.isMaster] && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
 		var 
+			guestProfile = TOTEM.guestProfile,
 			IO = TOTEM.IO = new SIO(server, { // use defaults but can override ...
 				//serveClient: true, // default true to prevent server from intercepting path
 				//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
@@ -1193,11 +1175,12 @@ function startService(server,cb) {
 							}]);
 
 						if (challenge = paths.mysql.challenge)
-							sql.query(challenge, {Client:req.client, Challenge:1})
-							.on("result", function (profile) {
-
-								if (profile.Count) challengeClient(req.client, profile);	
-
+							sql.query(challenge, {Client:req.client}, function (err,recs) {
+								
+								if ( profile = recs[0] || makeGuest(sql, req.client)  )							
+									if ( profile.Challenge)
+										challengeClient(req.client, profile);	
+								
 							});
 
 						sql.release();
@@ -1286,7 +1269,6 @@ function startService(server,cb) {
 			sql.release();
 		});
 	
-	else
 	if (TOTEM.riddles) initChallenger();
 	
 }
@@ -1348,14 +1330,8 @@ function connectService(cb) {
 		}) , cb );
 	}
 	
-	//else
-	//if (CLUSTER.isMaster && TOTEM.cores)
-	//	startService( NET.createServer(), cb );
-	
 	else 
 		startService( HTTP.createServer(), cb );
-		
-	
 }
 
 function protectService(cb) {
@@ -1489,6 +1465,10 @@ function initializeService(sql) {
 			});
 		}
 	});
+	
+	// aux init
+	
+	TOTEM.init(sql);
 }
 
 /**
@@ -1917,17 +1897,6 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 		
 	}
 	
-	function userID(client) {
-		var 
-			parts = client.toLowerCase().split("@"),
-			parts = (parts[0]+".x.x").split("."),
-			userid = (parts[2]=="x") 
-					? parts[1].substr(0,6) + parts[0].charAt(0) 
-					: parts[2].substr(0,6) + parts[0].charAt(0) + parts[1].charAt(0);
-
-		return userid;
-	}
-	
 	var 
 		sql = req.sql,
 		sock = req.reqSocket,
@@ -1938,25 +1907,11 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 	TOTEM.cache.certs[client] = new Object(cert);
 		
 	if (TOTEM.mysql)  // get client's profile
-		sql.query("SELECT *,count(ID) as Count FROM openv.profiles WHERE ? LIMIT 0,1", {client: client})
-		.on("result", function (profile) {
+		sql.query("SELECT * FROM openv.profiles WHERE ? LIMIT 1", {client: client}, function (err,recs) {
 			
-			if (profile.Count)
+			if ( profile = recs[0] || makeGuest(sql, client) )
 				admitClient(req, res, now, profile, cert, client);
 				
-			else
-			if ( guestProfile = TOTEM.guestProfile) {  // create a guest profile is one provided
-				//Trace("ADMIT "+client, sql);
-				sql.query(  // prime a profile if it does not already exist
-					"INSERT INTO openv.profiles SET ?", Copy({
-					Client: client,
-					User: userID(client) // client.replace("ic.gov","").replace(/\./g,"").toLowerCase()
-				}, guestProfile), function (err) {
-					
-					admitClient(req, res, now, guestProfile, cert, client);
-					
-				});
-			}
 			else
 				res( TOTEM.errors.noProfile );
 			
@@ -2300,35 +2255,38 @@ Endpoint to check clients response req.query to a riddle created by challengeCli
 		sql = req.sql;
 		
 	if (query.ID)
-		sql.query("SELECT *,count(ID) as Count FROM openv.riddles WHERE ? LIMIT 0,1", {Client:query.ID})
-		.on("result", function (rid) {
+		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:query.ID}, function (err,rids) {
+			
+			if ( rid = rids[0] ) {
+				var 
+					ID = {Client:rid.ID},
+					guess = (query.guess+"").replace(/ /g,"");
 
-			var 
-				ID = {Client:rid.ID},
-				guess = (query.guess+"").replace(/ /g,"");
+				Log([rid,query]);
 
-	Log([rid,query]);
-
-			if (rid.Count) 
 				if (rid.Riddle == guess) {
 					res( "pass" );
-					//sql.query("DELETE FROM openv.riddles WHERE ?",ID);
+					sql.query("DELETE FROM openv.riddles WHERE ?",ID);
 				}
 				else
 				if (rid.Attempts > rid.maxAttempts) {
 					res( "fail" );
-					//sql.query("DELETE FROM openv.riddles WHERE ?",ID);
+					sql.query("DELETE FROM openv.riddles WHERE ?",ID);
 				}
 				else {
 					res( "retry" );
 					sql.query("UPDATE openv.riddles SET Attempts=Attempts+1 WHERE ?",ID);
 				}
-			else 
-				res( "fail" );
+				
+			}
+			
+			else
+				res( TOTEM.errors.notAllowed  );
 
 		});
 	
-	res( TOTEM.errors.notAllowed );
+	else
+		res( TOTEM.errors.notAllowed );
 }
 
 function initChallenger() {
@@ -2364,7 +2322,7 @@ Create a set of TOTEM.riddles challenges.
 		map = TOTEM.riddleMap,
 		ref = "/captcha";
 	
-	for (var n=0; n<N; n++)
+	for (var n=0; n<N; n++) 
 		riddle.push( Riddle(map,ref) );
 }
 
@@ -2381,87 +2339,39 @@ Endpoint to check clients response req.query to a riddle created by challengeCli
 		riddles = TOTEM.riddle,
 		N = riddles.length;
 	
-	return msg
-		.replace(/\(riddle\)/g, (pat) => {
-			var QA = riddles[Math.floor( Math.random() * N )];
-			rid.push( QA.A );
-			return QA.Q;
-		})
-		.replace(/\(yesno\)/g, (pat) => {
-			var QA = riddles[Math.floor( Math.random() * N )];
-			rid.push( QA.A );
-			return QA.Q;
-		})
-		.replace(/\(ids\)/g, (pat) => {
-			var rtn = [];
-			Each(ids, function (key, val) {
-				rtn.push( key );
-				rid.push( val );
-			});
-			return rtn.join(", ");
-		})
-		.replace(/\(rand\)/g, (pat) => {
-			rid.push( Math.floor(Math.random()*10) );
-			return "random integer between 0 and 9";		
-		})
-		.replace(/\(card\)/g, (pat) => {
-			return "cac card challenge TBD";
-		})
-		.replace(/\(bio\)/g, (pat) => {
+	if (N)
+		return msg
+			.replace(/\(riddle\)/g, (pat) => {
+				var QA = riddles[Math.floor( Math.random() * N )];
+				rid.push( QA.A );
+				return QA.Q;
+			})
+			.replace(/\(yesno\)/g, (pat) => {
+				var QA = riddles[Math.floor( Math.random() * N )];
+				rid.push( QA.A );
+				return QA.Q;
+			})
+			.replace(/\(ids\)/g, (pat) => {
+				var rtn = [];
+				Each(ids, function (key, val) {
+					rtn.push( key );
+					rid.push( val );
+				});
+				return rtn.join(", ");
+			})
+			.replace(/\(rand\)/g, (pat) => {
+				rid.push( Math.floor(Math.random()*10) );
+				return "random integer between 0 and 9";		
+			})
+			.replace(/\(card\)/g, (pat) => {
+				return "cac card challenge TBD";
+			})
+			.replace(/\(bio\)/g, (pat) => {
 			return "bio challenge TBD";
 		});
 	
-	/*
-	msg = (msg||"")
-	.each("(riddle)", rid, function (rid) {
-		
-		var n = Math.floor( Math.random() * N ),
-			QA = riddles[n];
-		
-		rid.push( QA.A );
-		return QA.Q;
-		
-	})
-	.each("(yesno)", rid, function (rid) {
-		
-		rid.push( "yes" );
-		return "yes/no";
-		
-	})
-	.each("(ids)", rid, function (rid) {
-		
-		var rtn = "", pre="";
-		Each(ids, function (n, id) {
-			rtn += pre + "(" + n + ")";
-			pre = ", ";
-		});
-		
-		return rtn;
-	})
-	.each("(rand)", rid, function (rid) {
-		
-		rid.push( val = Math.floor(Math.random()*10) );
-		
-		return "random integer between 0 and 9";
-	})
-	.each("(card)", rid, function (rid) {
-		return "cac card challenge TBD";
-	})
-	.each("(bio)", rid, function (rid) {
-		return "bio challenge TBD";
-	});
-	
-	Each(ids, function (n, id) {
-		
-		msg = msg.each("("+n+")", rid, function (rid) {			
-			rid.push( id );
-			return n;
-		});
-		
-	});
-	
-	return msg;
-	*/
+	else
+		return msg;
 }
 
 function challengeClient(client, profile) {
@@ -2469,13 +2379,13 @@ function challengeClient(client, profile) {
 @private
 @method challengeClient
 Challenge a client with specified profile parameters
-@param {String} client name of client being challenged
-@param {Object} profile client's profile .Message = riddle mask, .IDs = {id:value, ...}
+@param {String} client being challenged
+@param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
 */
 	var 
 		rid = [],
 		reply = (TOTEM.riddleMap && TOTEM.riddles)
-				? makeRiddles( profile.Message, rid, profile.IDs.parseJSON({}) )
+				? makeRiddles( profile.Message, rid, (profile.IDs||"").parseJSON({}) )
 				: profile.Message;
 
 	if (reply && TOTEM.IO) 
@@ -2502,20 +2412,6 @@ Challenge a client with specified profile parameters
 			});
 		});
 }
-
-/*function Initialize () {
-/ **
-@private
-@member TOTEM
-@method Initialize
-Initialize TOTEM.
-* /
-	
-	Trace(`INIT ${TOTEM.name} WITH ${TOTEM.riddles} RIDDLES`);
-	
-	initChallenger();
-	
-}*/
 
 /**
 @class ENDPOINT_ROUTING methods to route notes byType, byAction, byTable, byActionTable, byArea.
@@ -2950,7 +2846,7 @@ the client is challenged as necessary.
 				sendError( errors.badType );
 		
 		else
-			sendErrror( errors. noData ); 
+			sendErrror( errors.noData ); 
 	}
 	
 	function res(ack) {  // Session response callback
@@ -2958,6 +2854,7 @@ the client is challenged as necessary.
 		var
 			req = Req.req,
 			sql = req.sql,
+			error = TOTEM.errors,
 			mime = ( (ack||0).constructor == Error) 
 				? MIME.types.html
 				: MIME.types[req.type] || MIME.types.html || "text/plain",
@@ -2966,7 +2863,7 @@ the client is challenged as necessary.
 		Res.setHeader("Content-Type", mime);
 		Res.statusCode = 200;
 		
-		try {		
+		if (ack)
 			switch (ack.constructor) {  // send ack based on its type
 				case Error: 			// send error message
 					
@@ -2991,10 +2888,10 @@ the client is challenged as necessary.
 						sql.query(paths.mysql.search, {FullSearch:search}, function (err, files) {
 							
 							if (err) 
-								sendError( TOTEM.errors.noFile );
+								sendError( errors.noFile );
 								
 							else
-								sendError( TOTEM.errors.noFile );  // reserved functionality
+								sendError( errors.noFile );  // reserved functionality
 								
 						});
 					
@@ -3041,11 +2938,17 @@ the client is challenged as necessary.
 					break;
 			
 			}
+
+		else
+			sendError( errors.noData );
+		/*
+		try {		
+
 		}
 
 		catch (err) {
 			sendError( TOTEM.errors.badReturn );
-		}
+		}*/
 	}
 
 	function getBody( cb ) { // Feed body and file parameters to callback
@@ -3251,7 +3154,7 @@ the client is challenged as necessary.
 					Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
 
 				
-				if (err) 					// session validator rejected (bad cert)
+				if (err) 					// session rejected (e.g. bad cert)
 					res(err);
 
 				else
@@ -3395,6 +3298,36 @@ Log("TCP server accepting connection on port: " + LOCAL_PORT);
 	
 }
 
+function makeGuest( sql, client ) {
+	
+	function userID(client) {
+		var 
+			parts = client.toLowerCase().split("@"),
+			parts = (parts[0]+".x.x").split("."),
+			userid = (parts[2]=="x") 
+					? parts[1].substr(0,6) + parts[0].charAt(0) 
+					: parts[2].substr(0,6) + parts[0].charAt(0) + parts[1].charAt(0);
+
+		return userid;
+	}
+	
+	if (guestProfile = TOTEM.guestProfile) {
+		var profile = Copy({
+			Client: client,
+			User: userID(client),
+			Login: client,
+			Requested: new Date()
+		}, Copy(guestProfile, {}));
+
+		sql.query( "INSERT INTO openv.profiles SET ?", profile );
+		
+		return profile;
+	}
+					
+	else
+		return null;
+}
+		
 /*
 function simThread(sock) { 
 	//Req.setSocketKeepAlive(true);
