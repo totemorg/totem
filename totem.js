@@ -340,9 +340,9 @@ var
 	*/
 	reqFlags: {				//< Properties for request flags
 		strips:	 			//< Flags to strips from request
-			{"":1, "_":1, leaf:1, _dc:1, id:1, "=":1, "?":1, "request":1}, 		
+			{"":1, "_":1, leaf:1, _dc:1}, 		
 
-		ops: "<>!*$|%/^~",
+		//ops: "<>!*$|%/^~",
 		id: "ID", 					//< SQL record id
 		prefix: "_",				//< Prefix that indicates a field is a flag
 		trace: "_trace",		//< Echo flags before and after parse	
@@ -1225,11 +1225,11 @@ function startService(server,cb) {
 			});
 			
 			CLUSTER.on('exit', function(worker, code, signal) {
-				Trace(`CORE-${worker.id} TERMINATED ${code||"ok"}`);
+				Trace(`CORE${worker.id} TERMINATED ${code||"ok"}`);
 			});
 
 			CLUSTER.on('online', function(worker) {
-				Trace(`CORE-${worker.id} CONNECTED`);
+				Trace(`CORE${worker.id} CONNECTED`);
 			});
 			
 			for (var core = 0; core < TOTEM.cores; core++) {  
@@ -1240,7 +1240,7 @@ function startService(server,cb) {
 		
 		else 								// Establish worker port			
 			server.listen( TOTEM.doms.worker.port , function() {  //TOTEM.workerport
-				Trace(`CORE-${CLUSTER.worker.id} AT ${site.urls.worker}`);
+				Trace(`CORE${CLUSTER.worker.id} AT ${site.urls.worker}`);
 			});
 	
 	else 								// Establish master-only
@@ -2430,7 +2430,8 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 		type = req.type = parts[1] || "",
 		area = req.filearea = areas[1] || "",
 		query = req.query = {},
-		src = node.path.parsePath(query);
+		index = req.index = {},		
+		src = node.path.parsePath(query,index);
 	
 	//Log(">>>>>", src, ">>>>", query);
 	
@@ -3516,28 +3517,6 @@ function runTask(req,res) {
 		}
 	},
 
-	/*
-	function each(pat, rtn, cb) {
-	/ **
-	@private
-	@member String
-	Enumerate over pattern found in a string.
-	@param {String} pat pattern to find
-	@param {Array} rtn list being extended by callback
-	@param {Function} cb callback(rtn)
-	* /
-
-		var msg = this;
-
-		while ( (idx = msg.indexOf(pat) ) >=0 ) {
-
-			msg = msg.substr(0,idx) + cb(rtn) + msg.substr(idx+pat.length);
-
-		}
-
-		return msg;
-	}, */
-
 	function parseJS(req,plugin) {
 	/**
 	@private
@@ -3582,61 +3561,46 @@ function runTask(req,res) {
 		}
 	},
 
-	function parsePath(defs) { 
-		/**
-		@private
-		@member String
-		Parse a "&key=val&key=val?query&relation& ..." query into 
-		the default hash def = {key:val, key=val?query, relation:null, key:json, ...}.
-		*/
+	function parsePath(query,index,trap) { 
+	/**
+	@private
+	@member String
+	Parse a "&key=val&key=val?query&relation& ..." query into 
+	the default hash def = {key:val, key=val?query, relation:null, key:json, ...}.
+	*/
 
-		function parseParm(parm, op, cb) {
+		function parse(parm, op, qual, store, cb) {
 			var	
 				parts = parm.split(op),  
-				key = parts[0],
-				val = parts[1] ;
-
-			if (val)   // key = val 
-				if ( ops.indexOf( key.substr(-1) ) >= 0 )   
-					tests[key+op] = val;
-
-				else
-					try {
-						defs[key] = JSON.parse(val);
-					}
-					catch (err) {
-						defs[key] = val;
-					}
+				key = parts[0] + qual,
+				val = parts[1];
+			
+			if (key && val) 
+				try {
+					store[key] = JSON.parse(val);
+				}
+				catch (err) {
+					store[key] = val;
+				}
 
 			else 
-				cb();
+				if (cb) cb();
 		}
 
 		var 
 			parts = this.split("?"),
 			pathname = parts[0],
-			query = parts[1],
-			parms = query ? query.split("&") : [],
-			tests = defs._tests = {}, 
-			ops = TOTEM.reqFlags.ops;
-
-		/*
-		Log({
-			t0: TOTEM.mysql.pool.escape( [] ),
-			t1: TOTEM.mysql.pool.escape( {a:1,b:2, c:[1,2,3], d:["x","y","z"] } ),
-			t2: TOTEM.mysql.pool.escape( [1,2,'abc', {x:1}, {y:2}, new SQLOP("!","y","a test")] ),
-			t3: TOTEM.mysql.pool.escape( new SQLOP("<","x",10) ),
-			t4: TOTEM.mysql.pool.escapeId( ["a","b"] ),
-			t5: TOTEM.mysql.pool.escapeId( "a,b,c" )
-		});   */
+			parms = parts[1],
+			parms = parms ? parms.split("&") : [];
 
 		parms.forEach( function (parm) {
 			if (parm) 
-				parseParm( parm, "=", function () {
-					parseParm( parm, ":", function () {
-						defs[parm] = null;
-					});
-				});
+				parse( parm, "=", "", query, function () {
+				parse( parm, ":", ":", index || {}, function () {
+				parse( parm, "<", "<$", query, function () {
+				parse( parm, ">", ">$", query, function () {
+					if (trap) trap[parm] = null;
+				}); }); });	});
 		});
 
 		return pathname;
