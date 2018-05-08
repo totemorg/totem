@@ -3473,7 +3473,7 @@ function runTask(req,res) {
 ].extend(Array);
 
 [ 			//< String prototypes
-	function tag(el,at) {
+	function tag(el,at,idx) {
 	/**
 	@method tag
 	Tag url (el=?|&), list (el=;|,), or tag html using specified attributes.
@@ -3483,27 +3483,45 @@ function runTask(req,res) {
 	*/
 
 		if ( "?&;.".indexOf(el) >= 0 ) {  // tag a url or list
-			var rtn = this+el;
+			var rtn = this+el, val = null;
 
-			if (at) for (var n in at) {
-					rtn += n + "=";
-					switch ( (at[n] || 0).constructor ) {
-						//case Array: rtn += at[n].join(",");	break;
+			for (var n in at || {}) {
+				val = at[n];
+				
+				if (val) 
+					switch ( val.constructor ) {
 						case Array:
 						case Date:
-						case Object: rtn += JSON.stringify(at[n]); break;
-						default: rtn += at[n];
+						case Object: rtn += n + "=" + JSON.stringify(val) + "&"; break;
+						default: rtn += n + "=" + val + "&";
 					}
-					rtn += "&";
-				}
+				
+				else
+					rtn += n + "&";
+			}
 
-			return rtn;				
+			for (var n in idx || {}) {
+				val = idx[n];
+				
+				if (val) 
+					switch ( val.constructor ) {
+						case Array:
+						case Date:
+						case Object: rtn += n + ":" + val + "&"; break;
+						default: rtn += n + ":" + val + "&";
+					}
+				
+				else
+					rtn += n + "&";
+			}
+
+			return rtn;	
 		}
 
 		else {  // tag html
 			var rtn = "<"+el+" ";
 
-			if (at) for (var n in at) rtn += n + "='" + at[n] + "' ";
+			for (var n in at) rtn += n + "='" + at[n] + "' ";
 
 			switch (el) {
 				case "embed":
@@ -3581,7 +3599,6 @@ function runTask(req,res) {
 				}
 				catch (err) {
 					store[key] = val;
-					if (!val) Log(">>>>>", key,val);
 				}
 
 			else 
