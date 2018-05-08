@@ -2431,7 +2431,7 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 		area = req.filearea = areas[1] || "",
 		query = req.query = {},
 		index = req.index = {},		
-		src = node.path.parsePath(query,index);
+		src = node.path.parsePath(query,index,query);
 	
 	//Log(">>>>>", src, ">>>>", query);
 	
@@ -3575,12 +3575,13 @@ function runTask(req,res) {
 				key = parts[0] + qual,
 				val = parts[1];
 			
-			if (key && val) 
+			if (val) 
 				try {
 					store[key] = JSON.parse(val);
 				}
 				catch (err) {
 					store[key] = val;
+					if (!val) Log(">>>>>", key,val);
 				}
 
 			else 
