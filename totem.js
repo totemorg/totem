@@ -2417,7 +2417,8 @@ function parseNode(req) {
 /**
 @private
 @method parseNode
-Parse node request to define req.table, .path, .area, .query, .search, .type, .file, .flags, and .body.
+Parse node request req.node = /TABLE?QUERY&INDEX || /FILEAREA/FILENAME to define 
+the req .table, .path, .filearea, .filename, .type and the req .query, .index, .joins and .flags.
 @param {Object} req Totem session request
 */
 	var
@@ -2430,18 +2431,19 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 		type = req.type = parts[1] || "",
 		area = req.filearea = areas[1] || "",
 		query = req.query = {},
-		index = req.index = {},		
+		index = req.index = {},	
+		site = req.site = TOTEM.site,
+		joins = req.joins = {},
+		flags = req.flags = {},
 		src = node.path.parsePath(query,index,query);
 	
 	//Log(">>>>>", src, ">>>>", query);
 	
-	if ( req.filepath = req.filearea ? TOTEM.paths.mime[req.filearea] || req.filearea : "" )
+	if ( req.filepath = req.filearea ? TOTEM.paths.mime[req.filearea] || req.filearea : "" ) 
 		req.filepath += node.pathname;
 
 	else {
 		req.filearea = "";
-
-		// flags and joins
 
 		var 
 			reqFlags = TOTEM.reqFlags,
@@ -2449,9 +2451,7 @@ Parse node request to define req.table, .path, .area, .query, .search, .type, .f
 			prefix = reqFlags.prefix,
 			traps = reqFlags.traps,
 			id = reqFlags.id,
-			body = req.body,
-			flags = req.flags,
-			joins = req.joins;
+			body = req.body;
 
 		/*
 		Log({before: {
@@ -2714,7 +2714,8 @@ route this thread to the appropriate (req,res)-endpoint, where the newly formed 
 		query: {...}, 		// query ke-value parms from url
 		body: {...},		// body key-value parms from request body
 		flags: {...}, 		// _flags key-value parms parsed from url
-		joins: {...}, 		// experimental ds from-to joins
+		index: {...}		// x:EXPR indecies from url
+		joins: {...}, 		// from.to dataset joins from url
 		files: [...] 		// files uploaded
 		site: {...}			// skinning context keys
 		sql: connector 		// sql database connector (dummy if no mysql config)
@@ -3111,8 +3112,17 @@ the client is challenged as necessary.
 		
 	startSession( function() {  // process if session not busy
 		
-		getBody( function (body) {  // parse body, query and route
-
+		getBody( function (body) {  // setup request with body parms 
+		/* 
+		Define request req 
+			.method = GET | PUT | POST | DELETE
+			.action = select | update | insert | delete
+			.reqSocket = socket to complete request
+			.resSocket = socket to complete response
+			socketio: path to client's socketio
+			body = hash of request key:value 
+			url = clean url
+		*/
 			var 
 				// parse request url into /area/nodes
 				paths = TOTEM.paths,
@@ -3124,11 +3134,12 @@ the client is challenged as necessary.
 					reqSocket: Req.socket,
 					resSocket: getSocket,
 					socketio: TOTEM.onEncrypted[CLUSTER.isMaster] ? TOTEM.site.urls.socketio : "",
-					query: {},
 					body: body,
-					flags: {},
-					joins: {},
-					site: TOTEM.site
+					url: (Req.url == "/") ? TOTEM.paths.home : unescape(Req.url)
+					//query: {},
+					//flags: {},
+					//joins: {},
+					//site: TOTEM.site
 				},
 
 				// get a clean url
@@ -3137,14 +3148,14 @@ the client is challenged as necessary.
 				embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
 				unescapes to /\\"ABC\\".  This is ok but can be confusing.
 				*/				
-				url = req.url = (Req.url == "/") ? TOTEM.paths.home : unescape(Req.url),
+				url = req.url,
 			
-				// get a list of all nodes
-				nodes = (nodeDivider = TOTEM.nodeDivider)
-					? url ? url.split(nodeDivider) : []
+				// get a list of all nodes on the url
+				nodes = TOTEM.nodeDivider 
+					? url ? url.split(TOTEM.nodeDivider) : []
 					: url ? [url] : [] ;
 
-			conThread( req, function (err) { 	// start session with client
+			conThread( req, function (err) { 	// start session with client and set the response header
 
 				// must carefully set appropriate heads to prevent http-parse errors when using master-worker proxy
 				if ( TOTEM.onEncrypted[CLUSTER.isMaster] )
