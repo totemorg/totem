@@ -2235,7 +2235,7 @@ function fetchData(path, query, body, cb) {
 }
 
 /**
-@class ANTIBOT_PROTECTION data theft protection
+@class ANTIBOT data theft protection
  */
 
 function checkRiddle(req,res) {	//< endpoint to check clients response to a riddle
@@ -2322,7 +2322,7 @@ Create a set of TOTEM.riddles challenges.
 		riddle.push( Riddle(map,ref) );
 }
 
-function makeRiddles(msg,rid,ids) {
+function makeRiddles(msg,rid,ids) { //< turn msg with riddle markdown into a riddle
 /**
 @private
 @method checkRiddle
@@ -2370,7 +2370,7 @@ Endpoint to check clients response req.query to a riddle created by challengeCli
 		return msg;
 }
 
-function challengeClient(client, profile) {
+function challengeClient(client, profile) { //< create a challenge and rely it to the client
 /**
 @private
 @method challengeClient
@@ -2461,8 +2461,8 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 			f: flags
 		}}); */
 
-		for (var n in query) 		// remove bogus query parameters and remap query flags and joins
-			if ( n in strips ) 				// remove bogus
+		for (var n in query) 		// strip bogus query parameters 
+			if ( n in strips )
 				delete query[n];
 
 			else
@@ -2491,7 +2491,7 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 		}
 
 		if (traps)
-			for (var n in traps) 		// let traps remap query-flag parms
+			for (var n in traps) 		// traps remap query-flag parms
 				if ( flags[n] )
 					traps[n](req);
 
@@ -3306,9 +3306,9 @@ Log("TCP server accepting connection on port: " + LOCAL_PORT);
 	
 }
 
-function makeGuest( sql, client ) {
+function makeGuest( sql, client ) {  // return a suitable guest profile or null
 	
-	function userID(client) {
+	function userID(client) {  // return suitable userID given a client name
 		var 
 			parts = client.toLowerCase().split("@"),
 			parts = (parts[0]+".x.x").split("."),
