@@ -2117,7 +2117,10 @@ function fetchData(path, query, body, cb) {
 	}
 
 	var 
-		url = query ? path.parseJS(query) : path,
+		url = query ? path.parseJS( Copy(query, {
+			degs: (dd) => Math.floor(dd),
+			mins: (dd) => (dd - Math.floor(dd))*60
+		})) : path,
 		opts = URL.parse(url),
 		cert = TOTEM.cache.certs.admin;
 
@@ -3542,18 +3545,22 @@ function runTask(req,res) {
 		}
 	},
 
-	function parseJS(req,plugin) {
 	/**
 	@private
 	@member String
 	Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
 	*/
+	function parseJS(query) {
+		return VM.runInContext( "`" + this + "`" , VM.createContext(query));
+	},
+	/*
+	function parseJS(req,plugin) {
 
 		function Format($, _, ds, S) {
-		/*
+		/ *
 		 * Format a string S containing ${$.key} tags.  The String wrapper for this
 		 * method extends $ with optional plugins like $.F = {fn: function (X){}, ...}.
-		 */
+		 * /
 
 			try {
 				return eval("`" + S + "`");
@@ -3566,7 +3573,7 @@ function runTask(req,res) {
 
 		if (plugin) req.plugin = req.F = plugin || {};
 		return Format(req, req, req, this);
-	},
+	}, */
 
 	function parseJSON(def) {
 		try { 
