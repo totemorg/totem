@@ -3496,7 +3496,7 @@ function runTask(req,res) {
 	@return {String} tagged results
 	*/
 
-		if ( el == "?" ) {  // tag a url
+		if ( el == "?" || el == "&" ) {  // tag a url
 			var rtn = this+el;
 
 			for (var n in at) 
