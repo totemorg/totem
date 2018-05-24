@@ -2119,7 +2119,7 @@ function fetchData(path, query, body, cb) {
 	var 
 		url = query ? path.parseJS( Copy(query, {
 			degs: (dd) => Math.floor(dd),
-			mins: (dd) => (dd - Math.floor(dd))*60
+			mins: (dd) => Math.floor( (dd - Math.floor(dd))*60 )
 		})) : path,
 		opts = URL.parse(url),
 		cert = TOTEM.cache.certs.admin;
