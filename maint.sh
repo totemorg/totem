@@ -259,13 +259,17 @@ _bind.) 	# bind known genode c-modules
 # DB maint
 #
 
+snapfuncs.)
+	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -ndtR app >admins/db/funcs.sql
+	;;
+	
 snapdb.)  # snapshot and archive db
 
 	echo "Exporting sqldb to admins/db"
 
 	cd $ADMIN/db
 		mysqldump -u$MYSQL_USER -p$MYSQL_PASS openv >admins/db/openv.sql
-		mysqldump -u$MYSQL_USER -p$MYSQL_PASS app >admins/db/app.sql
+		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -R app >admins/db/app.sql
 		#mysqldump -u$MYSQL_USER -p$MYSQL_PASS --events mysql >admins/db/mysql.sql
 		#mysqldump -u$MYSQL_USER -p$MYSQL_PASS jou >admins/db/jou.sql
 
@@ -326,7 +330,7 @@ _zipall.)
 
 snap.)		# zip snapshot of projects and db
 	mysqldump -u$MYSQL_USER -p$MYSQL_PASS openv >debe/admins/db/openv.sql
-	mysqldump -u$MYSQL_USER -p$MYSQL_PASS app >debe/admins/db/app.sql
+	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -R app >debe/admins/db/app.sql
 	zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* engine/ifs/*.cpp engine/ifs/*/*.cpp engine/ifs/*/*.h
 	;;
 
