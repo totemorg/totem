@@ -770,7 +770,7 @@ var
 		mime: { // default static file areas
 			files: ".", // path to shared files 
 			captcha: ".",  // path to antibot captchas
-			index: { // indexers
+			index: { //< paths for allowed file indexers ("" to use url path)
 				files: ""
 			},
 			extensions: {  // extend mime types as needed
@@ -2796,7 +2796,7 @@ the client is challenged as necessary.
 		
 		else
 		if ( area in index )  // index files
-			TOTEM.indexFile(path, function (files) { 
+			TOTEM.indexFile( index[area] || path, function (files) { 
 				sendFileIndex(`Index of ${path}`, files);
 			});
 		
