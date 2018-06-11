@@ -3487,7 +3487,7 @@ function runTask(req,res) {
 ].extend(Array);
 
 [ //< String prototypes
-	function tag(el,at,idx) {
+	function tag(el,at,eq) {
 	/**
 	@method tag
 	Tag url (el=?) or tag html (el=html tag) with specified attributes.
@@ -3499,39 +3499,21 @@ function runTask(req,res) {
 		if ( el == "?" || el == "&" ) {  // tag a url
 			var rtn = this+el;
 
-			for (var n in at) 
-				if ( val = at[n] ) 
-					switch ( val.constructor ) {
-						case Array:
-						case Date:
-						case Object: rtn += n + "=" + JSON.stringify(val) + "&"; break;
-						default: rtn += n + "=" + val + "&";
-					}
-				
-				else
-					rtn += n + "&";
+			for (var n in at) {
+				var val = at[n];
+				rtn += n + (eq||"=") + ((typeof val == "string") ? val : JSON.stringify(val)) + "&"; 
+			}
 
-			for (var n in idx || {}) 
-				if ( val = idx[n] ) 
-					switch ( val.constructor ) {
-						case Array:
-						case Date:
-						case Object: rtn += n + "=" + JSON.stringify(val) + "&"; break;
-						default: rtn += n + ":" + val + "&";
-					}
-				
-				else
-					rtn += n + "&";
-			
 			return rtn;	
 		}
 
 		else {  // tag html
 			var rtn = "<"+el+" ";
 
-			for (var n in at) 
-				if ( val = at[n] )
-					rtn += n + "='" + val + "' ";
+			for (var n in at) {
+				var val = at[n];
+				rtn += n + "='" + val + "' ";
+			}
 
 			switch (el) {
 				case "embed":
