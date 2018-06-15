@@ -2128,6 +2128,7 @@ function fetchData(path, query, body, cb) {
 	opts.rejectUnauthorized = false;
 	opts.agent = false;
 	opts.method = body ? "PUT" : "GET";
+	Log(opts,url);
 	opts.port = opts.port ||  (opts.protocol.endsWith("s:") ? 443 : 80);
 	// opts.cipher = " ... "
 	// opts.headers = { ... }
