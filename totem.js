@@ -3634,4 +3634,280 @@ function runTask(req,res) {
 
 ].extend(String);
 	
+switch (process.argv[2]) { // unit tests
+	case "T1": 
+		var TOTEM = require("../totem");
+
+		Trace({
+			msg: "Im simply a Totem interface so Im not even running as a service", 
+			default_fetcher_endpts: TOTEM.byTable,
+			default_protect_mode: TOTEM.faultless,
+			default_cores_used: TOTEM.cores
+		});
+		break;
+
+	case "T2": 
+		var TOTEM = require("../totem").config({
+			name: "Totem1",
+			faultless: true,
+			cores: 2
+		}, function (err) {
+
+			Trace( err || 
+`I'm a Totem service running in fault protection mode, no database, no UI; but I am running
+with 2 cores and the default endpoint routes` );
+
+		});
+		break;
+
+	case "T3": 
+		var TOTEM = require("../totem").config({
+			name: "Totem1",
+
+			mysql: {
+				host: ENV.MYSQL_HOST,
+				user: ENV.MYSQL_USER,
+				pass: ENV.MYSQL_PASS
+			}
+		},  function (err) {				
+			Trace( err ||
+`I'm a Totem service with no cores. I do, however, now have a mysql database from which I've derived 
+my startup options (see the openv.apps table for the Nick="Totem").  
+No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
+these files. `
+			);
+		});
+		break;
+
+	case "T4": 
+		var TOTEM = require("../totem").config({
+			mysql: {
+				host: ENV.MYSQL_HOST,
+				user: ENV.MYSQL_USER,
+				pass: ENV.MYSQL_PASS
+			},
+			byTable: {
+				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
+					res( "123" );
+
+					Trace({
+						do_query: req.query
+					});
+				},
+
+				dothat: function dothat(req,res) {
+
+					if (req.query.x)
+						res( [{x:req.query.x+1,y:req.query.x+2}] );
+					else
+						res( new Error("We have a problem huston") );
+
+					Trace({
+						msg: `Like dothis, but needs an ?x=value query`, 
+						or_query: req.query,
+						or_user: [req.client,req.group]
+					});
+				}
+			}
+		}, function (err) {
+			Trace( err || {
+				msg:
+`As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
+and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
+aka core), Im running unprotected, and have a mysql database.  
+[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
+associated public NICK.crt and private NICK.key certs it creates.`,
+				my_endpoints: TOTEM.byTable
+			});
+		});
+		break;
+
+	case "T5": 
+		var TOTEM = require("../totem").config({
+			mysql: {
+				host: ENV.MYSQL_HOST,
+				user: ENV.MYSQL_USER,
+				pass: ENV.MYSQL_PASS
+			},
+
+			name: "Totem1",
+
+			riddles: 20
+		}, function (err) {
+			Trace( err || {
+				msg:
+`I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
+shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.`, 
+				mysql_derived_parms: TOTEM.site
+			});
+		});
+		break;
+
+	case "T6":
+		var TOTEM = require("../totem").config({
+			name: "Totem1",  // default parms from openv.apps nick=Totem1
+			faultless: false,	// ex override default 
+			cores: 3,		// ex override default
+			mysql: { 		// provide a database
+				host: ENV.MYSQL_HOST,
+				user: ENV.MYSQL_USER,
+				pass: ENV.MYSQL_PASS
+			},
+			"byTable.": {  // define endpoints
+				test: function (req,res) {
+					res(" here we go");  // endpoint must always repond to its client 
+					if (CLUSTER.isMaster)  // setup tasking examples on on master
+						switch (req.query.opt || 1) {  // test example tasker
+							case 1: 
+								TOTEM.tasker({  // setup tasking for loops over these keys
+									keys: "i,j",
+									i: [1,2,3],
+									j: [4,5]
+								}, 
+									// define the task which returns a message msg
+									($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
+
+									// define the message msg handler
+									(msg) => console.log(msg)
+								);
+								break;
+
+							case 2:
+								TOTEM.tasker({
+									qos: 1,
+									keys: "i,j",
+									i: [1,2,3],
+									j: [4,5]
+								}, 
+									($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
+									(msg) => console.log(msg)
+								);
+								break;
+
+							case 3:
+								break;
+						}
+
+				}
+			}
+
+		}, function (err) {
+			Trace( err || "Testing tasker with database and 3 cores at /test endpoint" );
+		});
+		break;
+		
+	case "TX":
+		var TOTEM = require("../totem").config({
+			name: "Totem1",
+
+			mysql: {
+				host: ENV.MYSQL_HOST,
+				user: ENV.MYSQL_USER,
+				pass: ENV.MYSQL_PASS
+			}
+		},  function (err) {				
+			Trace( err || "db maintenance" );
+
+			if (CLUSTER.isMaster)
+			TOTEM.thread( function (sql) {
+
+				switch (process.argv[3]) {
+					case 1: 
+						sql.query( "select voxels.id as voxelID, chips.id as chipID from app.voxels left join app.chips on voxels.Ring = chips.Ring", function (err,recs) {
+							Log(err);
+							recs.each( function (n, rec) {
+								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], function (err) {
+									Log(err);
+								});
+							});
+						});
+						break;
+
+					case 2:
+						sql.query("select ID, Ring from app.voxels", function (err, recs) {
+							recs.each( function (n, rec) {
+								sql.query(
+									"update app.voxels set Point=geomFromText(?) where ?", 
+									[ `POINT(${rec.Ring[0][0].x} ${rec.Ring[0][0].y})` , {ID: rec.ID} ], 
+									function (err) {
+										Log(err);
+								});
+							});
+						});
+						break;
+
+					case 3:
+						sql.query( "select voxels.id as voxelID, cache.id as chipID from app.voxels left join app.cache on voxels.Ring = cache.geo1", function (err,recs) {
+							Log(err);
+							recs.each( function (n, rec) {
+								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], function (err) {
+									Log(err);
+								});
+							});
+						});
+						break;
+
+					case 4:
+						sql.query("select ID, geo1 from app.cache where bank='chip'", function (err, recs) {
+							recs.each( function (n, rec) {
+								if (rec.geo1)
+									sql.query(
+										"update app.cache set x1=?, x2=? where ?", 
+										[ rec.geo1[0][0].x, rec.geo1[0][0].y, {ID: rec.ID} ], 
+										function (err) {
+											Log(err);
+									});
+							});
+						});
+						break;
+
+					case 5: 
+						var parms = {
+ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on the earth's surface",
+"chip length": "[m] length of chip across an edge",
+"chip samples": "[pixels] number of pixels across edge of chip"
+						};
+						//get all tables and revise field comments with info data here -  archive parms - /parms in flex will
+						//use getfileds to get comments and return into
+
+					case 6:
+						var 
+							RAN = require("../randpr"),
+							ran = new RAN({
+								models: ["sinc"],
+								Mmax: 150,  // max coherence intervals
+								Mstep: 5 	// step intervals
+							});
+
+						ran.config( function (pc) {
+							var 
+								vals = pc.values,
+								vecs = pc.vectors,
+								N = vals.length, 
+								ref = vals[N-1];
+
+							vals.forEach( (val, idx) => {
+								var
+									save = {
+										correlation_model: pc.model,
+										coherence_intervals: pc.intervals,
+										eigen_value: val,
+										eigen_index: idx,
+										ref_value: ref,
+										max_intervals: ran.Mmax,
+										eigen_vector: JSON.stringify( vecs[idx] )
+									};
+
+								sql.query("INSERT INTO app.pcs SET ? ON DUPLICATE KEY UPDATE ?", [save,save] );	
+							});
+						});
+						break;	
+				}
+
+			});
+
+		});		
+		break;
+}
+
 // UNCLASSIFIED

@@ -379,12 +379,12 @@ docker.)
 
 *)  	# start specified totem config
 
-	node test.js $1 $2 $3 $4 $5 
+	node debe.js $1 $2 $3 $4 $5 
 	;;
 
 keepup.)
 
-	forever start test.js $2 $3 $4 $5
+	forever start debe.js $2 $3 $4 $5
 	;;
 
 esac
