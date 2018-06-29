@@ -3423,6 +3423,17 @@ function runTask(req,res) {
 ].extend(Date);
 
 [ //< Array prototypes
+	function parseJSON(rec,def) {
+		this.forEach( function (key) {
+			try {
+				rec[key] = rec[key].parseJSON(def);
+			}
+			catch (err) {
+				//Log(err,key,rec[key]);
+				rec[key] = def || null;
+			}
+		});
+	}
 	/*
 	function treeify(idx,kids,level,piv,wt) {
 	/ **
