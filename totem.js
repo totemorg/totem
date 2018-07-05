@@ -2004,6 +2004,7 @@ Access (create if needed) a file then callback cb(area, fileID, sql) if no error
 				"INSERT INTO app.files SET Added=now(), ?", {
 					Name: name,
 					Client: client,
+					Path: filepath,
 					Area: area
 				}, 
 				function (info) {
