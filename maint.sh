@@ -146,7 +146,7 @@ mysql.)
 		;;
 
 	load.)
-		mysql -u$MYSQL_USER -p$MYSQL_PASS openv <admins/db/openv.sql	
+		#mysql -u$MYSQL_USER -p$MYSQL_PASS openv <admins/db/openv.sql	
 		mysql -u$MYSQL_USER -p$MYSQL_PASS app <admins/db/app.sql	
 		;;
 		

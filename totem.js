@@ -3502,6 +3502,34 @@ function runTask(req,res) {
 ].extend(Array);
 
 [ //< String prototypes
+	function trace(msg,sql) {	
+		var pre = this+"";
+
+		if (sql) {
+			var 
+				parts = msg.split(" "),
+				action = parts[0],
+				target = parts[1],
+				client = "";
+
+			parts.each( function (n,part) {
+				if ( part == "FOR" ) client = parts[n+1];
+			});
+
+			sql.query("INSERT INTO openv.syslogs SET ?", {
+				Action: action,
+				Target: target,
+				Module: pre,
+				t: new Date(),
+				Client: client
+			});
+
+			console.log(pre,msg);
+		}
+		else
+			console.log(pre,msg);
+	},
+	
 	function tag(el,at,eq) {
 	/**
 	@method tag
@@ -3550,28 +3578,7 @@ function runTask(req,res) {
 	function parseJS(query) {
 		return VM.runInContext( "`" + this + "`" , VM.createContext(query));
 	},
-	/*
-	function parseJS(req,plugin) {
-
-		function Format($, _, ds, S) {
-		/ *
-		 * Format a string S containing ${$.key} tags.  The String wrapper for this
-		 * method extends $ with optional plugins like $.F = {fn: function (X){}, ...}.
-		 * /
-
-			try {
-				return eval("`" + S + "`");
-			}
-			catch (err) {
-				return S;
-			}
-
-		}
-
-		if (plugin) req.plugin = req.F = plugin || {};
-		return Format(req, req, req, this);
-	}, */
-
+	
 	function parseJSON(def) {
 		try { 
 			return JSON.parse(this);
@@ -3648,7 +3655,7 @@ function runTask(req,res) {
 
 ].extend(String);
 	
-switch (process.argv[2]) { // unit tests
+switch (process.argv[2]) { //< unit tests
 	case "T1": 
 		var TOTEM = require("../totem");
 
