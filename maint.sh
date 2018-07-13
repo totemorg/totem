@@ -73,25 +73,30 @@ _configall.)
 	;;
 
 #
-# flatten files for domain xfer
+# flatten/expand files for domain xfer
 #
 
-flatten.)
-	echo "flattening files in $2/* -> $2.tar -> $2.hex -> _x*"
-	tar cvf $2.tar $2
-	xxd -p $2.tar $2.hex
-	split -b 10m $2.hex _x
-	;;
-	
-expand.)
-	echo "expanding files in _x* -> $2.hex -> $2.tar -> $2/*"
-	cat _x* > $2.hex
-	xxd -r -p $2.hex  $2.tar
-	tar xvf $2.tar
-	;;
-	
-_flatten.)   # legacy
-	source hashem.sh $2
+xfer.)
+
+	case "$2." in
+	flatten.)
+		echo "flattening files in $2/* -> $2.tar -> $2.hex -> _x*"
+		tar cvf $2.tar $2
+		xxd -p $2.tar $2.hex
+		split -b 10m $2.hex _x
+		;;
+
+	expand.)
+		echo "expanding files in _x* -> $2.hex -> $2.tar -> $2/*"
+		cat _x* > $2.hex
+		xxd -r -p $2.hex  $2.tar
+		tar xvf $2.tar
+		;;
+
+	_flatten.)   # legacy
+		source hashem.sh $2
+		;;
+	esac
 	;;
 
 #
@@ -102,52 +107,71 @@ edit.) 		# startup edits
 	notepadqq debe/debe.js totem/totem.js jsdb/jsdb.js flex/flex.js &
 	;;
 	
-help.)	# some help
+#
+# DB maint
+#
 
-	echo "usage:"
-	echo "	. maint.sh CMD OPTIONS"
-	echo "	. maint.sh docker N FILE.js OPTIONS"
-	echo "	. maint.sh CONFIG OPTIONS"
-	echo "	. maint.sh FILE.js OPTIONS"
-	echo ""
-	echo "Repo CMDs:"
-	echo "	clone PROJECT from repo"
-	echo "	push current project with COMMENT VERSION"
-	echo "	pull latest version into current project"
-	echo "	baseline current project to the repo"
-	echo "Enumerator CMDs"
-	echo " 	apply CMD to all projects [${MODULES[@]}]"
-	echo "Testing CMDs:"
-	echo "	docker FILE.js in N docker containers with OPTIONS"
-	echo "	CONFIG to run from test.js"
-	echo "Maintenance CMDs:"
-	echo "	startup dependent services (mysql, cesium, nodered, ...)"
-	echo "	halt all allocated docker threads"
-	echo "	config app parameters via mysql"
-	echo "	help"
-	echo " 	notes on installation"
-	echo "	proxy email via ssh"
-	echo "Data Syncing CMDs:"
-	echo "	checkpoint the mysql database"
-	echo "	archive project to hosting machine"
-	echo "	sync code changes with other machines"
-	echo "Special CMDs:"
-	echo "	bind known c-modules to geonode"
-	echo "	redoc autodocument using babel/jsduck/doxygen compilers"
-	echo "	restyle css styles using css compass complier"
-	;;
+mysql.)
+
+	case "$2." in
 	
+	apps.)	# configure apps
+		echo -e "update openv.apps as needed"
+		mysql -u$MYSQL_USER -p$MYSQL_PASS
+		;;
+
+	snapf.)   # snapshot functions only
+		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -ndtR app >admins/db/funcs.sql
+		;;
+
+	archive.)  # snapshot and archive db
+
+		echo "Exporting sqldb to admins/db"
+
+		cd $ADMIN/db
+			mysqldump -u$MYSQL_USER -p$MYSQL_PASS openv >admins/db/openv.sql
+			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -R app >admins/db/app.sql
+			#mysqldump -u$MYSQL_USER -p$MYSQL_PASS --events mysql >admins/db/mysql.sql
+			#mysqldump -u$MYSQL_USER -p$MYSQL_PASS jou >admins/db/jou.sql
+
+			#sudo zip -ry /media/sf_archives/sqldb.zip $ADMINS/db
+			git commit -am $2
+			git push origin master
+		cd $HERE
+		;;
+
+	save.)		# snapshot all dbs
+		mysqldump -u$MYSQL_USER -p$MYSQL_PASS openv >admins/db/openv.sql
+		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -R app >admins/db/app.sql
+		;;
+
+	load.)
+		mysql -u$MYSQL_USER -p$MYSQL_PASS openv <admins/db/openv.sql	
+		mysql -u$MYSQL_USER -p$MYSQL_PASS app <admins/db/app.sql	
+		;;
+		
+	start.)
+		cd /local/mysql
+		bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" --max_allowed_packet=64M &
+		cd /local/service/debe
+		;;
+
+	enter.)
+		mysql -u$MYSQL_USER -p$MYSQL_PASS 
+		;;
+
+	esac
+	;;
+
 #
 # Maintenance and startups
 #
 
-mysql.)
-	cd /local/mysql
-	bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" --max_allowed_packet=64M &
-	cd /local/service/debe
+snap.)
+	zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* engine/ifs/*.cpp engine/ifs/*/*.cpp engine/ifs/*/*.h
 	;;
 	
-startup.)		# status and start dependent services
+start.)		# status and start dependent services
 	if P=$(pgrep mysqld); then
 		echo -e "mysql service running: \n$P"
 	else
@@ -185,48 +209,49 @@ startup.)		# status and start dependent services
 
 	;;
 
-apps.)	# configure apps
-	echo -e "update openv.apps as needed"
-	mysql -u$MYSQL_USER -p$MYSQL_PASS
-	;;
-
 restyle.)
 	echo "to be developed"
 	;;
 
-putduck.)
-	cd /local/babel
-	npm run $MODULE      # use babel to convert ES6 to ES5 saves to ducksrc area
-	cp ../service/$MODULE/README.md /media/sf_vmshare/ducksrc/readmes/$MODULE.md
-	echo "uploaded $MODULE to host jsduck.  use 'maint getduck $MODULE' to download results."
-	;;
+doc.)
+	
+	case "$2." in	
+	put.)
+		cd /local/babel
+		npm run $MODULE      # use babel to convert ES6 to ES5 saves to ducksrc area
+		cp ../service/$MODULE/README.md /media/sf_vmshare/ducksrc/readmes/$MODULE.md
+		echo "uploaded $MODULE to host jsduck.  use 'maint getduck $MODULE' to download results."
+		;;
 
-getduck.)
-	cp -r /media/sf_vmshare/ducksrc/output/$MODULE ../service/debe/shares/prm/
-	echo "downloaded host jsduck $MODULE results to the shares/prm"
+	get.)
+		cp -r /media/sf_vmshare/ducksrc/output/$MODULE ../service/debe/shares/prm/
+		echo "downloaded host jsduck $MODULE results to the shares/prm"
+		;;
+		
+	_duskpush.)
+		# doxygen config.oxy
+		. maint.sh putduck totem
+		;;
+
+	_duckpull.)
+		cd /local/babel
+		duckpull totem
+		duckpull debe
+		duckpull enum
+		;;
+
+	_docall.)
+		for mod in "${MODULES[@]}"; do
+
+			echo ">>>> $mod"
+			source maint.sh doc "$mod"1 "$mod"2
+
+		done
+		;;
+
+	esac
 	;;
 	
-_duskpush.)
-	# doxygen config.oxy
-	. maint.sh putduck totem
-	;;
-
-_duckpull.)
-	cd /local/babel
-	duckpull totem
-	duckpull debe
-	duckpull enum
-	;;
-
-_docall.)
-	for mod in "${MODULES[@]}"; do
-
-		echo ">>>> $mod"
-		source maint.sh doc "$mod"1 "$mod"2
-
-	done
-	;;
-
 proxy.)	# establish email proxy
 	ssh jamesdb@54.86.26.118 -L 5200:172.31.76.130:8080 -i ~/.ssh/aws_rsa.pri	
 	;;
@@ -253,31 +278,6 @@ _bind.) 	# bind known genode c-modules
 	cd $ENGINES
 	node-gyp rebuild $GYPOPTS
 
-	;;
-
-#
-# DB maint
-#
-
-snapfuncs.)
-	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -ndtR app >admins/db/funcs.sql
-	;;
-	
-snapdb.)  # snapshot and archive db
-
-	echo "Exporting sqldb to admins/db"
-
-	cd $ADMIN/db
-		mysqldump -u$MYSQL_USER -p$MYSQL_PASS openv >admins/db/openv.sql
-		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -R app >admins/db/app.sql
-		#mysqldump -u$MYSQL_USER -p$MYSQL_PASS --events mysql >admins/db/mysql.sql
-		#mysqldump -u$MYSQL_USER -p$MYSQL_PASS jou >admins/db/jou.sql
-
-		#sudo zip -ry /media/sf_archives/sqldb.zip $ADMINS/db
-		git commit -am $2
-		git push origin master
-	cd $HERE
-	
 	;;
 
 _archive.) 	# archive service to archive area
@@ -328,12 +328,6 @@ _zipall.)
 	done
 	;;
 
-snap.)		# zip snapshot of projects and db
-	mysqldump -u$MYSQL_USER -p$MYSQL_PASS openv >debe/admins/db/openv.sql
-	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -R app >debe/admins/db/app.sql
-	zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* engine/ifs/*.cpp engine/ifs/*/*.cpp engine/ifs/*/*.h
-	;;
-
 sync.)   # special forced code syncs
 	#rsync $CHIPS/forecasts/* $GPUHOST:$CHIPS/forecasts
 	rsync $HOME/*.jpg $GPUHOST:$HOME
@@ -373,10 +367,41 @@ docker.)
 	done
 	;;
 
-.)
-	echo "See 'setup help' for command options"
-	;;
+help.)	# some help
 
+	echo "usage:"
+	echo "	. maint.sh CMD OPTIONS"
+	echo "	. maint.sh docker N FILE.js OPTIONS"
+	echo "	. maint.sh CONFIG OPTIONS"
+	echo "	. maint.sh FILE.js OPTIONS"
+	echo ""
+	echo "Repo CMDs:"
+	echo "	clone PROJECT from repo"
+	echo "	push current project with COMMENT VERSION"
+	echo "	pull latest version into current project"
+	echo "	baseline current project to the repo"
+	echo "Enumerator CMDs"
+	echo " 	apply CMD to all projects [${MODULES[@]}]"
+	echo "Testing CMDs:"
+	echo "	docker FILE.js in N docker containers with OPTIONS"
+	echo "	CONFIG to run from test.js"
+	echo "Maintenance CMDs:"
+	echo "	startup dependent services (mysql, cesium, nodered, ...)"
+	echo "	halt all allocated docker threads"
+	echo "	config app parameters via mysql"
+	echo "	help"
+	echo " 	notes on installation"
+	echo "	proxy email via ssh"
+	echo "Data Syncing CMDs:"
+	echo "	checkpoint the mysql database"
+	echo "	archive project to hosting machine"
+	echo "	sync code changes with other machines"
+	echo "Special CMDs:"
+	echo "	bind known c-modules to geonode"
+	echo "	redoc autodocument using babel/jsduck/doxygen compilers"
+	echo "	restyle css styles using css compass complier"
+	;;
+	
 *)  	# start specified totem config
 
 	node debe.js $1 $2 $3 $4 $5 

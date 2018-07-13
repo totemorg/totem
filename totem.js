@@ -37,7 +37,12 @@ Required mysql app.datasets:
 	dblogs, files
  */
 
-var												// NodeJS modules
+var	
+	// globals
+	TRACE = "T>",
+	ENV = process.env,
+	
+	// NodeJS modules
 	HTTP = require("http"),						//< http interface
 	HTTPS = require("https"),					//< https interface
 	CP = require("child_process"),				//< spawn OS shell commands
@@ -47,9 +52,9 @@ var												// NodeJS modules
 	URL = require("url"),						//< url parsing
 	NET = require("net"), 				// network interface
 	VM = require("vm"), 					// virtual machines for tasking
-	OS = require('os');					// OS utilitites
+	OS = require('os'),				// OS utilitites
 
-var 											// 3rd party modules
+	// 3rd party modules
 	MIME = require("mime"), 			//< file mime types
 	SIO = require('socket.io'), 			//< Socket.io client mesh
 	SIOHUB = require('socket.io-clusterhub'),	//< Socket.io client mesh for multicore app
@@ -57,20 +62,16 @@ var 											// 3rd party modules
 	XML2JS = require("xml2js"),					//< xml to json parser (*)
 	BUSY = require('toobusy-js'),  		//< denial-of-service protector (cant install on NodeJS 5.x+)
 	JS2XML = require('js2xmlparser'), 			//< JSON to XML parser
-	JS2CSV = require('json2csv'); 				//< JSON to CSV parser	
+	JS2CSV = require('json2csv'),				//< JSON to CSV parser	
 	
-var 											// Totem modules
+	// Totem modules
 	JSDB = require("jsdb"),				//< JSDB database agnosticator
-	ENV = process.env,
 	sqlThread = JSDB.thread;
 
 const { Copy,Each,Log } = require("enum");
 	
 function Trace(msg,sql) {
-	if (msg.constructor == String)
-		msg.trace("T>",sql);
-	else
-		Log("T>", msg);
+	TRACE.trace(msg,sql);
 }
 
 var
@@ -1453,10 +1454,11 @@ function initializeService(sql) {
 	
 	Each( TOTEM.dogs, function (key, dog) {
 		if ( dog.cycle ) {
-			Trace("DOGGING "+key);
+			//Trace("DOGING "+key);
+			dog.trace = TRACE+dog.name.toUpperCase();
 			setInterval( function (args) {
 
-				Trace("DOG "+args.name);
+				//Trace("DOG "+args.name);
 
 				dog(dog);  // feed dog attributes as parameters
 
