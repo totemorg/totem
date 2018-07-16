@@ -76,27 +76,22 @@ _configall.)
 # flatten/expand files for domain xfer
 #
 
-xfer.)
+flatten.)
+	echo "flattening files in $2/* -> $2.tar -> $2.hex -> _x*"
+	tar cvf $2.tar $2
+	xxd -p $2.tar $2.hex
+	split -b 10m $2.hex _xx
+	;;
 
-	case "$2." in
-	flatten.)
-		echo "flattening files in $2/* -> $2.tar -> $2.hex -> _x*"
-		tar cvf $2.tar $2
-		xxd -p $2.tar $2.hex
-		split -b 10m $2.hex _x
-		;;
+expand.)
+	echo "expanding files in _xx* -> $2.hex -> $2.tar -> $2/*"
+	cat _x* > $2.hex
+	xxd -r -p $2.hex  $2.tar
+	tar xvf $2.tar
+	;;
 
-	expand.)
-		echo "expanding files in _x* -> $2.hex -> $2.tar -> $2/*"
-		cat _x* > $2.hex
-		xxd -r -p $2.hex  $2.tar
-		tar xvf $2.tar
-		;;
-
-	_flatten.)   # legacy
-		source hashem.sh $2
-		;;
-	esac
+_flatten.)   # legacy
+	source hashem.sh $2
 	;;
 
 #
