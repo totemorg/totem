@@ -2036,8 +2036,8 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 					sqlThread( function (sql) {
 
 						sql.query("UPDATE apps.files SET ? WHERE ?", [{
-							Tag: JSON.stringify(tags || null),
-							Notes: "Please go " + "here".tag("a", {href:"/files.view"}) + " to manage your holdings."
+							Ingest_Tag: JSON.stringify(tags || null),
+							State_Notes: "Please go " + "here".tag("a", {href:"/files.view"}) + " to manage your holdings."
 						}, {ID: fileID} ] );
 						
 						sql.release();
@@ -2047,7 +2047,7 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 					Log("totem upload error", err);
 					sqlThread( function (sql) {
 						sql.query("UPDATE app.files SET ? WHERE ?", [ {
-							Notes: "Upload failed: " + err 
+							State_Notes: "Upload failed: " + err 
 						}, {ID: fileID} ] );
 
 						sql.release();
