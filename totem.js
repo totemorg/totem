@@ -2859,7 +2859,7 @@ the client is challenged as necessary.
 		var
 			req = Req.req,
 			sql = req.sql,
-			error = TOTEM.errors,
+			errors = TOTEM.errors,
 			mime = ( (ack||0).constructor == Error) 
 				? MIME.types.html
 				: MIME.types[req.type] || MIME.types.html || "text/plain",
