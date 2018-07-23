@@ -77,21 +77,19 @@ _configall.)
 #
 
 flatten.)
-	echo "flattening files in $2/* -> $2.tar -> $2.hex -> _x*"
+	echo "flattening $2/* -> $2.tar -> $2.hex -> _$3*"
 	tar cvf $2.tar $2
 	xxd -p $2.tar $2.hex
-	split -b 10m $2.hex _xx
+	split -b 10m $2.hex _$3
+	rm $2.tar
+	rm $2.hex
 	;;
 
-expand.)
-	echo "expanding files in _xx* -> $2.hex -> $2.tar -> $2/*"
-	cat _x* > $2.hex
+join.)
+	echo "joining _$3* -> $2.hex -> $2.tar -> $2/*"
+	cat _$3* > $2.hex
 	xxd -r -p $2.hex  $2.tar
 	tar xvf $2.tar
-	;;
-
-_flatten.)   # legacy
-	source hashem.sh $2
 	;;
 
 #
@@ -110,7 +108,7 @@ mysql.)
 
 	case "$2." in
 	
-	apps.)	# configure apps
+	config.)	# configure apps
 		echo -e "update openv.apps as needed"
 		mysql -u$MYSQL_USER -p$MYSQL_PASS
 		;;
@@ -141,7 +139,7 @@ mysql.)
 		;;
 
 	load.)
-		#mysql -u$MYSQL_USER -p$MYSQL_PASS openv <admins/db/openv.sql	
+		mysql -u$MYSQL_USER -p$MYSQL_PASS openv <admins/db/openv.sql	
 		mysql -u$MYSQL_USER -p$MYSQL_PASS app <admins/db/app.sql	
 		;;
 		
@@ -149,10 +147,6 @@ mysql.)
 		cd /local/mysql
 		bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" --max_allowed_packet=64M &
 		cd /local/service/debe
-		;;
-
-	enter.)
-		mysql -u$MYSQL_USER -p$MYSQL_PASS 
 		;;
 
 	esac

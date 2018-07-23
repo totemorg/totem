@@ -274,7 +274,7 @@ var
 	@member TOTEM
 	Max files to index by the indexFile() method (0 disables).
 	*/
-	maxFiles: 100,						//< max files to index
+	maxIndex: 1000,						//< max files to index
 
 	/**
 	@cfg {Object}
@@ -1940,10 +1940,13 @@ function indexFile(path,cb) {
 @param {String} path file path
 @param {Function} cb totem response
 */
-	var files = [];
+	var 
+		files = [],
+		maxIndex = TOTEM.maxIndex;
 	
-	findFile(path, function (n,file) {
-		files.push( (file.indexOf(".")>=0) ? file : file+"/" );
+	findFile(path, function (file) {
+		if ( files.length < maxIndex)
+			files.push( (file.indexOf(".")<0) ? file+"/" : file );
 	});
 	
 	cb( files );
@@ -1956,21 +1959,14 @@ function findFile(path,cb) {
 @param {String} path file path
 @param {Function} cb totem response
 */
-	if (maxFiles = TOTEM.maxFiles)
-		try {
-			FS.readdirSync(path).each( function (n,file) {
-				if (n > maxFiles) return true;
-
-				if (file.charAt(0) != "_" && file.charAt(file.length-1) != "~") 
-					cb(n,file);
-			});
-		}
-		catch (err) {
-		}
-	
-	else
-		cb( [] );
-	
+	try {
+		FS.readdirSync(path).forEach( function (file) {
+			if (file.charAt(0) != "_" && file.charAt(file.length-1) != "~") 
+				cb(file);
+		});
+	}
+	catch (err) {
+	}	
 }
 
 function getFile(client, filepath, cb) {  
