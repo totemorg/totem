@@ -83,13 +83,19 @@ flatten.)
 	split -b 10m $2.hex _$3
 	rm $2.tar
 	rm $2.hex
+	mkdir patches/$3
+	mv _$3* patches/$3
 	;;
 
-join.)
+expand.)
 	echo "joining _$3* -> $2.hex -> $2.tar -> $2/*"
+	cp patches/$3/* .
 	cat _$3* > $2.hex
 	xxd -r -p $2.hex  $2.tar
 	tar xvf $2.tar
+	rm $2.tar
+	rm $2.hex
+	rm _$3*
 	;;
 
 #
