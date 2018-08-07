@@ -233,22 +233,6 @@ Example:
 yum install ruby rubygems ruby-devel
 gem install compass
 
-#opencv install on aws centos
-
-grab opencv.2.3.1a, 2.4.10 or 3.0.0 (best) and tar xvf it.  
-
-#follow opencv.org standard install process
-cd opencv
-mkdir newbuild
-cd newbuild
-cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/local/opencv ..
-make   # will get 2 errors re gpu/cuda support - ignore them - wont use these modules jet
-sudo make install
-
-# opencv3.0.0 install completely installs w/o errors - likely because it include cuda drivers
-# will need to update the $PATH and $LD_LIBRARY_PATH to ref the
-# installed dir ~/opencv
-
 ######## Start legacy - not used anymore)
 mv newbuild ~/opencv
 cp -r include/* ~/opencv/include
@@ -269,12 +253,12 @@ cd ~/opencv/modules/haartraining
 cp ~/sigma/opencv_util/mergevec.cpp .
 g++ `pkg-config --cflags opencv` `pkg-config --libs opencv` -o mergevec mergevec.cpp cvboost.o cvcommon.o cvsamples.o cvhaarclassifier.o cvhaartraining.o  #note .o (not .cpp) 
 
-###### end legacy
+####### end legacy
 
 # for gtk support for opencv (needed for graphical/console functions)
 sudo yum install gtk+-devel gtk2-devel
 
-##### install mysql cluster 
+####### install mysql cluster 
 
 # tar xvf mysql cluster (7.3.6, 7.4.8, 7.5.5) from generic linux install package (not the .el versions)
 
@@ -342,10 +326,9 @@ sudo rpm -i pdftk*.rpm
 sudo yum install libgcj
 sudo rpm -i pdftk-2.02-1.*.rpm
 
-# caffe dependencies
-# cuda
+####### end mysql
 
-# atlas
+####### LEGACY atlas install
 bunzip2 -c ~/dload/atlas3.10.0.tar.bz2 | tar xfm -
 cd ATLAS 
 mkdir build
@@ -359,6 +342,7 @@ make check
 make ptcheck
 make time
 make install
+####### atlas
 
 # centos vbox home
 # to access dns server from arcade, add 
@@ -375,7 +359,9 @@ sudo yum -y update
 sudo yum -y groupinstall "Development Tools"
 sudo yum -y install kernel-devel kernel-headers dkms cmake
 
-# nvidia gpu drivers
+# legacy - nvidia gpu drivers  (use cuda.run 2nd pass install only drivers)
+
+yum install kernel-devel-$(uname -r) kernel-headers-$(uname -r)
 
 lspci -vnn | grep VGA -A 12
 # www.binarytides.com/linux-get-gpu-information
@@ -446,7 +432,7 @@ sudo systemctl start xrdp
 echo -e "\nhald_enable='YES'\ndbus_enable='YES'" | sudo tee -a /etc/rc.conf
 ##################
 
-#### selinux
+#### selinux if installed
 sestatus  # get status
 setenforce 0  # temp disable - did not work - had to perm disable
 vi /etc/sysconfig/selinux   # perm disable - set "enforcing" to "disabled"
@@ -468,82 +454,201 @@ systemctl start docker  # starts
 ### dont know why i kept this
 # move install rpms, zips etc to installs folder via winscp eg
 
-# install CUDA toolkit (only)
+####### cuda install
 
-yum install kernel-devel-$(uname -r) kernel-headers-$(uname -r)
+# cuda-nvidia compatibility: https://developer.nvidia.com/cuda-gpus
+# K5000 compatibile with cuda 5.0 +
 
-sudo sh cuda_7.5*.run  # dont install the nvidia drivers
-cd NVIDIA*  # skip these driver install steps
+sudo sh cuda_X.X.run  # X.X=7.5 or 8.0 dont install the nvidia drivers - only the toolkit
+
+########### nvidia install
+sudo sh cuda_X.X.run # run again - this time install only the drivers
+
+cd /cuda/samples
 make    # will take 20mins 
 cd bin/x86_64/linux/release
 ./deviceQuery   # better work
 ./bandwidthTest	 # insightful info
+########### end nvidia
 
-# install opencv-3.0
-# install anaconda-1.9
-# install sigma
-# install mysql-cluster-7.4
+####### end cuda
 
-######## install caffe
+####### opencv install
+# on centos 6.x we need to install opencv-2.x globally (as setting caffe Makefile.config includes/libs does not work):
+# sudo yum install opencv-devel
+#cp lib/libopencv* /usr/lib64   # on centos 6.x, caffe needs these copied here (despite explict override of its Makefile.config LIBRARY_DIRS)
+
+# on centos 7.x we install opencv-3.x from downdload
+cd opencv-3.x
+
+# make sure cuda-8.0 installed as opencv defaults to these
+# follow opencv.org standard install process
+cd opencv
+mkdir newbuild
+cd newbuild
+cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/local/opencv ..
+make   # may get 2 errors re gpu/cuda support - ignore them - wont use these modules yet
+sudo make install  # should install w/o errors - likely because it includes its own cuda drivers
+
+
+######## end opencv
+
+######## caffe install
 
 # install caffe dependencies
 
 sudo yum install protobuf-devel leveldb-devel snappy-devel boost-devel hdf5-devel gflags-devel glog-devel lmdb-devel python-devel
 
-sudo yum install atlas-devel blas-devel  # on centos 6.x.  not sure if blas needed
-# on centos 7.x, I needed to install atlas (blas not needed) see notes-annex
+
+cd /local
+# repack protobuf
+mkdir protobuf
+mkdir protobuf/include
+mkdir protobuf/lib64
+cd protobuf
+cp -r /usr/include/google include
+cp /usr/lib64/libproto* lib64
+
+# repack boost
+mkdir boost
+mkdir boost/include
+mkdir boost/lib64
+cd boost
+cp -r /usr/include/boost include
+cp /usr/lib64/libboost* lib64
+
+# repack hdf5
+mkdir hdf5
+mkdir hdf5/include
+mkdir hdf5/lib64
+mkdir hdf5/bin
+cd hdf5
+cp -r /usr/include/hdf5* include
+cp -r /usr/include/H5* include
+cp /usr/lib64/libhdf5* lib64
+cp /usr/bin/h5* bin
+
+# repack leveldb
+mkdir leveldb
+mkdir leveldb/include
+mkdir leveldb/lib64
+cd leveldb
+cp /usr/include/leveldb/* include
+cp /usr/lib64/libleveldb* lib64
+
+# repack lmdb
+mkdir lmdb
+mkdir lmdb/include
+mkdir lmdb/lib64
+cd lmdb
+cp /usr/include/lmdb* include
+cp /usr/lib64/liblmdb* lib64
+
+# repack glog
+mkdir glog
+mkdir glog/include
+mkdir glog/lib64
+cd glog
+cp -r /usr/include/glog include
+cp /usr/lib64/libglog* lib64
+
+# repack gflags
+mkdir gflags
+mkdir gflags/include
+mkdir gflags/lib64
+cd gflags
+cp -r /usr/include/gflags include
+cp /usr/lib64/libgflags* lib64
+
+# repack snappy
+mkdir snappy
+mkdir snappy/include
+mkdir snappy/lib64
+cd snappy
+cp -r /usr/include/snappy* include
+cp /usr/lib64/libsnappy* lib64
+
+# atlas install
+sudo yum install atlas-devel 
+# centos 7.x renamed libs (cblas -> satlas and atlas -> tatlas) so need to revise caffe Makefile
+
+# blas install centos 6.x only
+# sudo yum install blas-devel
  
-unzip cuDNN_v3
-mv cuDNN_v3 ~/cuDNN-3.0 
+# repack atlas
+mkdir atlas
+mkdir atlas/include
+mkdir atlas/lib64
+cd atlas
+cp -r /usr/include/atlas include   # dont think we need the x68_64 stuff
+cp /usr/include/cblas* include
+cp /usr/include/clapack* include
+cp /usr/lib64/atlas/* lib64
 
-# could cp lib64/* and include/* to /usr/lib64 and /usr/include but, instead, I chose to ref these in caffe Makefile.conf via its LIBs and INCLUDEs
+# cuDNN install
+unzip cuDNN-x.x  # could cp lib64/* and include/* to /usr/lib64 and /usr/include but, instead, I chose to ref these in caffe Makefile.conf via its LIBs and INCLUDEs
 
-# on centos 6.x we need to install opencv-2.x globally (as setting caffe Makefile.config includes/libs does not work):
-sudo yum install opencv-devel
+# setup symbolic links in /local/include and /local/lib64 for atlas, opencv, etc, for example:
+cd /local/include
+ln -s /local/atlas/include atlas
 
-# on centos 7.x we install opencv-3.x from downdload
-cd opencv-3.0
-cp lib/*.so* /usr/lib64   # caffe make will not look for these despite adding to its Makefile.config LIBs
-
+# caffe install
 tar xvf caffe-master
 mv caffe-master caffe
 cd caffe
 cp Makefile.config.example Makefile.config
 vi Makefile.config   # adjust ...
-   > enable CPU_ONLY=1 if gpu-less laptop
-   > enable opencv3
-   > define CUDA+DIR=/local/cuda
-   > define BLAS_INCLUDE=/local/atlas/include and BLAS_LIB=/local/atlas/lib
+   > CPU_ONLY := 0 # 1 if gpu-less laptop
+   > USE_OPENCV := 1
+   > USE_CUDNN := 1
+   > USE_LMDB := 1
+   > USE_LEVELD := 1
+   > CUDA_DIR := /local/cuda
+   > OPENCV_VERSION := 3
+   > ANACONDA_HOME := $(CONDA)
+   > PYTHON_LIB := $(CONDA)/lib
+   > BLAS_INCLUDE := /local/atlas/include and BLAS_LIB=/local/atlas/lib64
+
+vi Makefile # replace cblas -> satlas and altas -> tatlas on all LIBRARIES += lines
+
+# setup paths
+export BASE=/local
+export CONDA=/local/anaconda
+export LIB=/local/lib64
 
 make clean
-make all
-make test
+make all   # some glog and boost warnings generated
+make test  # may get a few 'undefined ref to regexec'
 make runtest     
 
-## /local/atlas/include:/local/anaconda/bin:/local/include/python:/local/oxygen/bin:/opt/cmake:/local/anaconda/bin:/local/include/python:/local/oxygen/bin:/opt/cmake:/local/mysql/bin:/local/bin:/usr/bin:/local/sbin:/usr/sbin:/usr/local/share/gems/gems/jsduck-5.3.4/bin:/local/nodejs/bin:/local/include/opencv:/local/opencv/bin:/local/nodejs/bin:/local/include/opencv:/local/opencv/bin
-
-# python connector for centos 7.x
-
-sudo rpm -Uvh mysql-connector-python-2.1.x.rpm
-sudo cp -r /usr/lib/python-2.7/site-packages/mysql $CONDA/lib/python-2.7/site-packages
-
-$ pyton home
-cd /usr/lib
-mv python2.7 _python2.7
-ln -s /base/anaconda/lib/python2.7 python2.7
+# note during the make, INCLUDE_DIRS should look something like /local/atlas/include:/local/anaconda/bin:/local/include/python:/local/oxygen/bin:/opt/cmake:/local/anaconda/bin:/local/include/python:/local/oxygen/bin:/opt/cmake:/local/mysql/bin:/local/bin:/usr/bin:/local/sbin:/usr/sbin:/usr/local/share/gems/gems/jsduck-5.3.4/bin:/local/nodejs/bin:/local/include/opencv:/local/opencv/bin:/local/nodejs/bin:/local/include/opencv:/local/opencv/bin
 
 # python interface
-cd caffe
+cd /local/caffe
 make pycaffe
 
 # we need python protobuf too (undocumented reqt)
-cd $CONDA/bin
+cd /local/anaconda/bin
 ./pip install protobuf    # use conda's version so it installs to conda's site pkgs
 
 # most of this may not be needed as it is provided by anaconda
 cd caffe/python
 for req in $(cat requirements.txt); do pip install $req; done    # some errors are generated
-###################
+######## end caffe install
+
+
+######## python connector for centos 7.x
+
+sudo rpm -Uvh mysql-connector-python-2.1.x.rpm
+sudo cp -r /usr/lib/python2.7/site-packages/mysql $CONDA/lib/python2.7/site-packages
+######## end python connector
+
+# python re-direct
+#cd /usr/lib
+#mv python2.7 _python2.7
+#ln -s /local/anaconda/lib/python2.7 python2.7
+cd /local/lib64
+ln -s /local/anaconda/lib/python2.7 python
 
 # docker nvidia image
 sudo usermod -aG docker jamesdb
@@ -554,11 +659,13 @@ yum install kmod-nvidia   # see above for rpm setup.  blacklisting nouveau not n
 
 # base link to /usr/local
 
-ln -s /usr/local /base
-ln -s /usr/lib64 /base/caffe/lib
+ln -s /usr/local /local
+ln -s /usr/lib64 /local/caffe/lib
 
 # git
 # install per notes-git.txt
+ssh-agent  # allow service to push git cahnges w/o passwords
+ssh-add ~/.ssh/id_rsa 
 
 # putty and putty gen
 

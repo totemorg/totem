@@ -2121,14 +2121,14 @@ function fetchData(path, query, body, cb) {
 			mins: (dd) => Math.floor( (dd - Math.floor(dd))*60 )
 		})) : path,
 		opts = URL.parse(url),
+		protocol = opts.protocol || "",
 		cert = TOTEM.cache.certs.admin;
 
 	opts.retry = TOTEM.retries;
 	opts.rejectUnauthorized = false;
 	opts.agent = false;
 	opts.method = body ? "PUT" : "GET";
-	Log(opts,url);
-	opts.port = opts.port ||  (opts.protocol.endsWith("s:") ? 443 : 80);
+	opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
 	// opts.cipher = " ... "
 	// opts.headers = { ... }
 	// opts.Cookie = ["x=y", ...]
@@ -2140,12 +2140,13 @@ function fetchData(path, query, body, cb) {
 		opts.method = "POST";
 	}*/
 	
+	//Log(opts,url);
 	Trace("FETCH "+url);
 		
-	switch (opts.protocol) {
+	switch (protocol) {
 		case "curl:": 
 			retry(
-				`curl ` + url.replace(opts.protocol, "http:"),
+				`curl ` + url.replace(protocol, "http:"),
 				opts, 
 				function (err,out) {
 					try {
@@ -2159,7 +2160,7 @@ function fetchData(path, query, body, cb) {
 			
 		case "curls":
 			retry(
-				`curl -gk --cert ${cert._crt} --key ${cert._key} ` + url.replace(opts.protocol, "https:"),
+				`curl -gk --cert ${cert._crt} --key ${cert._key} ` + url.replace(protocol, "https:"),
 				opts, 
 				function (err,out) {
 					try {
@@ -2178,7 +2179,7 @@ function fetchData(path, query, body, cb) {
 				out = parts[1] || "./shares/junk.jpg";
 	
 			retry(
-				`wget -O ${out} ` + url.replace(opts.protocol, "http:"),
+				`wget -O ${out} ` + url.replace(protocol, "http:"),
 				opts, 
 				function (err) {
 					cb( err ? null : "ok" );
@@ -2192,7 +2193,7 @@ function fetchData(path, query, body, cb) {
 				out = parts[1] || "./shares/junk.jpg";
 	
 			retry(
-				`wget -O ${out} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + url.replace(opts.protocol, "https:"),
+				`wget -O ${out} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + url.replace(protocol, "https:"),
 				opts, 
 				function (err) {
 					cb( err ? null : "ok" );
@@ -2234,6 +2235,9 @@ function fetchData(path, query, body, cb) {
 
 			Req.end();
 			break;
+			
+		default: 
+			cb(null);
 	}
 }
 
@@ -2816,8 +2820,9 @@ the client is challenged as necessary.
 			errors = TOTEM.errors;
 		
 		if (ack)
-			if ( conv = reqTypes[req.type] || reqTypes.default )
+			if ( conv = reqTypes[req.type] )
 				conv(ack, req, function (rtn) {
+					
 					if (rtn) 
 						switch (rtn.constructor) {
 							case Error:
@@ -2942,14 +2947,6 @@ the client is challenged as necessary.
 
 		else
 			sendError( errors.noData );
-		/*
-		try {		
-
-		}
-
-		catch (err) {
-			sendError( TOTEM.errors.badReturn );
-		}*/
 	}
 
 	function getBody( cb ) { // Feed body and file parameters to callback
