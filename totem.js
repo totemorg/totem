@@ -734,7 +734,7 @@ var
 	Default paths to service files
 	*/		
 	paths: { 			
-		home: "/home.view",
+		nourl: "/ping",
 		
 		url: {
 			//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
@@ -3135,7 +3135,7 @@ the client is challenged as necessary.
 					resSocket: getSocket,
 					socketio: TOTEM.onEncrypted[CLUSTER.isMaster] ? TOTEM.site.urls.socketio : "",
 					body: body,
-					url: (Req.url == "/") ? TOTEM.paths.home : unescape(Req.url)
+					url: (Req.url == "/") ? TOTEM.paths.nourl : unescape(Req.url)
 					//query: {},
 					//flags: {},
 					//joins: {},
