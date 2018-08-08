@@ -2176,7 +2176,7 @@ function fetchData(path, query, body, cb) {
 			var 
 				parts = url.split(" >> "),
 				url = parts[0],
-				out = parts[1] || "./shares/junk.jpg";
+				out = parts[1] || "./temps/wget.jpg";
 	
 			retry(
 				`wget -O ${out} ` + url.replace(protocol, "http:"),
@@ -2190,7 +2190,7 @@ function fetchData(path, query, body, cb) {
 			var 
 				parts = url.split(" >> "),
 				url = parts[0],
-				out = parts[1] || "./shares/junk.jpg";
+				out = parts[1] || "./temps/wget.jpg";
 	
 			retry(
 				`wget -O ${out} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + url.replace(protocol, "https:"),
