@@ -3310,12 +3310,13 @@ function makeGuest( sql, client ) {  // return a suitable guest profile or null
 	
 	function userID(client) {  // return suitable userID given a client name
 		var 
-			parts = client().split("@"),
+			parts = client.split("@"),
 			parts = (parts[0]+".x.x").split("."),
 			userid = (parts[2]=="x") 
 					? parts[1].substr(0,6) + parts[0].charAt(0) 
 					: parts[2].substr(0,6) + parts[0].charAt(0) + parts[1].charAt(0);
 
+		Log(client,parts,userid);
 		return userid;
 	}
 	
