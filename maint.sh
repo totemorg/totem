@@ -88,7 +88,7 @@ flatten.)
 	;;
 
 expand.)
-	echo "joining _$3* -> $2.hex -> $2.tar -> $2/*"
+	echo "expanding _$3* -> $2.hex -> $2.tar -> $2/*"
 	cp patches/$3/* .
 	cat _$3* > $2.hex
 	xxd -r -p $2.hex  $2.tar
@@ -102,6 +102,12 @@ expand.)
 # other
 #
 
+certs.) 	# decompose a base.p12 pki cert into ca, public and private pem certs
+	openssl pkcs12 -in $2.p12 -out ca.pem -cacerts -nokeys
+	openssl pkcs12 -in $2.p12 -out public.pem -clcerts -nokeys
+	openssl pkcs12 -in $2.p12 -out private.pem -nocerts
+	;;
+	
 edit.) 		# startup edits
 	notepadqq debe/debe.js totem/totem.js jsdb/jsdb.js flex/flex.js &
 	;;

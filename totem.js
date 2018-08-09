@@ -534,14 +534,6 @@ var
 	},
 	
 	/**
-	@cfg {Function} 
-	@private
-	@member TOTEM	
-	Data fetcher method
-	*/		
-	fetchData: fetchData,
-
-	/**
 	@cfg {Object} 
 	@private
 	@member TOTEM	
@@ -616,19 +608,29 @@ var
 	*/		
 	started: null, 		//< totem start time
 		
-	/**
-	@cfg {Number} [retries=5]
-	@member TOTEM	
-	Maximum number of retries the data fetcher will user
-	*/				
-	retries: 5,			//< Maximum number of retries the data fetcher will user
-		
-	/**
-	@cfg {Boolean} [notify=true]
-	@member TOTEM	
-	Enable/disable tracing of data fetchers
-	*/		
-	notify: true, 		//< Enable/disable tracing of data fetchers
+	fetch: 	{	//< data fetching
+		/**
+		@cfg {Function} 
+		@private
+		@member TOTEM	
+		Data fetcher method
+		*/
+		fetcher: fetchData,
+
+		/**
+		@cfg {Number} [retries=5]
+		@member TOTEM	
+		Maximum number of retries the data fetcher will user
+		*/				
+		retries: 5,			//< Maximum number of retries the data fetcher will user
+
+		/**
+		@cfg {Boolean} [trace=true]
+		@member TOTEM	
+		Enable/disable tracing of data fetchers
+		*/		
+		trace: true 		//< Enable/disable tracing of data fetchers
+	},
 
 	/**
 	@cfg {Boolean} [guard=false]
@@ -666,13 +668,34 @@ var
 	/**
 	@cfg {Object} 
 	@member TOTEM	
-	Null to admitRule all clients, or {X:"required", Y: "optional", ...} to admitRule clients with cert organizational
+	PKI rules to admit clients 
 	credentials X.
 	*/		
-	admitRule: null, 	
-		/*{ "u.s. government": "required",
-		  	"us": "optional"
-		  }*/
+	badClient: function (cert) {  //< PKI rules to reject a client
+		var 
+			now = new Date(),
+			user = cert.subject || cert.issuer || {},
+			rules = {
+				// CN: "james brian d jamesbd",
+				// O: "u.s. governement",
+				// OU: ["nga", "dod"],
+				// C: "us"
+			};				
+		
+		if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
+			return true;
+		
+		for (var key in rules) 
+			 if ( test = user[key] ) {
+				if ( test.toLowerCase().indexOf( rule[key] ) < 0 ) 
+					return true;
+			 }
+
+			else
+				return true;			
+		
+		return false;
+	},
 
 	/**
 	@cfg {Object}
@@ -1057,7 +1080,7 @@ function configService(opts,cb) {
 		JSDB.config({   // establish the db agnosticator 
 			//emit: TOTEM.IO.sockets.emit,   // cant set socketio until server started
 
-			fetcher: TOTEM.fetchData,
+			fetcher: TOTEM.fetch.fetcher,
 			
 			mysql: Copy({ 
 				opts: {
@@ -1287,22 +1310,22 @@ function connectService(cb) {
 		name = TOTEM.name,
 		paths = TOTEM.paths,
 		certs = TOTEM.cache.certs,
-		cert = certs.totem = {  // cache server data fetching certs 
+		cert = certs.totem = {  // totem service certs
 			pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
 			key: FS.readFileSync(`${paths.certs}${name}.key`),
-			crt: FS.readFileSync(`${paths.certs}${name}.crt`),
-			_pfx: `${paths.certs}${name}.pfx`,
-			_crt: `${paths.certs}${name}.crt`,
-			_key: `${paths.certs}${name}.key`
+			crt: FS.readFileSync(`${paths.certs}${name}.crt`)
 		};
 
-	certs.admin = {
-			pfx: FS.readFileSync(`${paths.certs}admin.pfx`),
-			key: FS.readFileSync(`${paths.certs}admin.key`),
-			crt: FS.readFileSync(`${paths.certs}admin.crt`),
-			_pfx: `${paths.certs}admin.pfx`,
-			_crt: `${paths.certs}admin.crt`,
-			_key: `${paths.certs}admin.key`
+	certs.fetch = { 		// data fetching certs
+			pfx: FS.readFileSync(`${paths.certs}fetch.pfx`),
+			key: FS.readFileSync(`${paths.certs}fetch.key`),
+			crt: FS.readFileSync(`${paths.certs}fetch.crt`),
+			ca: FS.readFileSync(`${paths.certs}fetch.ca`),			
+			_pfx: `${paths.certs}fetch.pfx`,
+			_crt: `${paths.certs}fetch.crt`,
+			_key: `${paths.certs}fetch.key`,
+			_ca: `${paths.certs}fetch.ca`,
+			_pass: ENV.FETCH_PASS
 	};
 	
 	//Log( TOTEM.onEncrypted, CLUSTER.isMaster, CLUSTER.isWorker, TOTEM.onEncrypted[CLUSTER.isMaster]);
@@ -1844,19 +1867,13 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 			return avgUtil / cpus.length;
 		}		
 		
-		if ( TOTEM.onEncrypted[CLUSTER.isMaster] ) {  // validate client's cert
-
-			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
-				return res( TOTEM.errors.expiredCert );
-
-			if (admitRule = TOTEM.admitRule)
-				if ( !(cert.issuer.O.toLowerCase() in admitRule && cert.subject.C.toLowerCase() in admitRule) ) 
+		if ( TOTEM.onEncrypted[CLUSTER.isMaster] )  // validate client's cert
+			if ( badClient = TOTEM.badClient )
+				if ( badClient( cert ) )
 					return res( TOTEM.errors.rejectedCert );
 
-		}
-
 		if (profile.Banned)  // block client if banned
-			res( new Error(profile.Banned) );
+			return res( new Error(profile.Banned) );
 		
 		else
 			sql.query("show session status like 'Thread%'", function (err,stats) {  		// start session metric logging
@@ -2070,7 +2087,7 @@ function fetchData(path, query, body, cb) {
 
 		function trycmd(cmd,cb) {
 
-			if (TOTEM.notify)
+			if (TOTEM.fetch.trace)
 				Trace(`TRY[${opts.retry}] ${cmd}`);
 
 			CP.exec(cmd, function (err,stdout,stderr) {
@@ -2088,7 +2105,7 @@ function fetchData(path, query, body, cb) {
 			});
 		}
 
-		opts.retry = TOTEM.retries;
+		opts.retry = TOTEM.fetch.retries;
 
 		if (opts.retry) 
 			trycmd(cmd,cb);
@@ -2122,7 +2139,7 @@ function fetchData(path, query, body, cb) {
 		})) : path,
 		opts = URL.parse(url),
 		protocol = opts.protocol || "",
-		cert = TOTEM.cache.certs.admin;
+		cert = TOTEM.cache.certs.fetch;
 
 	opts.retry = TOTEM.retries;
 	opts.rejectUnauthorized = false;
@@ -2160,7 +2177,7 @@ function fetchData(path, query, body, cb) {
 			
 		case "curls":
 			retry(
-				`curl -gk --cert ${cert._crt} --key ${cert._key} ` + url.replace(protocol, "https:"),
+				`curl -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"),
 				opts, 
 				function (err,out) {
 					try {
@@ -2215,14 +2232,8 @@ function fetchData(path, query, body, cb) {
 			break;
 
 		case "https:":
-			if ( false ) {
-				opts.pfx = cert.pfx;
-				opts.passphrase = ENV.SERVICE_PASS;
-			}
-			else {
-				opts.key = cert.key;
-				opts.cert = cert.crt;
-			}
+			opts.pfx = cert.pfx;
+			opts.passphrase = cert._pass;
 			
 			var Req = HTTPS.request(opts, getResponse);
 			Req.on('error', function(err) {
