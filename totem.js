@@ -2016,7 +2016,7 @@ Access (create if needed) a file then callback cb(area, fileID, sql) if no error
 		else
 			sql.forAll( 
 				"FILE", 
-				"INSERT INTO app.files SET Added=now(), ?", {
+				"INSERT INTO app.files SET _State_Added=now(), ?", {
 					Name: name,
 					Client: client,
 					Path: filepath,
@@ -2049,8 +2049,8 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 					sqlThread( function (sql) {
 
 						sql.query("UPDATE apps.files SET ? WHERE ?", [{
-							Ingest_Tag: JSON.stringify(tags || null),
-							State_Notes: "Please go " + "here".tag("a", {href:"/files.view"}) + " to manage your holdings."
+							_Ingest_Tag: JSON.stringify(tags || null),
+							_State_Notes: "Please go " + "here".tag("a", {href:"/files.view"}) + " to manage your holdings."
 						}, {ID: fileID} ] );
 						
 						sql.release();
@@ -2060,7 +2060,7 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 					Log("totem upload error", err);
 					sqlThread( function (sql) {
 						sql.query("UPDATE app.files SET ? WHERE ?", [ {
-							State_Notes: "Upload failed: " + err 
+							_State_Notes: "Upload failed: " + err 
 						}, {ID: fileID} ] );
 
 						sql.release();
