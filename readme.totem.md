@@ -50,7 +50,7 @@ and COMMAND endpoints:
 	
 ## Installing
 
-Clone from one of the <a href="/test">repos</a> into your PROJECT/totem.
+Clone from one of the <a href="/test">repos</a> into your PROJECT/totem.  done.
 
 Dependencies:
 
