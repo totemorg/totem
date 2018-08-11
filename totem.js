@@ -25,15 +25,23 @@
 @requires js2xmlparser
 @requires toobusy-js
 
-Required env vars (see config.sh):
-	SERVICE_NAME, SERVICE_MASTER_URL, SERVICE_WORKER_URL, SERVICE_PASS
-	NODE0, NODE1, ...
-	MYSQL_USER, MYSQL_NAME, MYSQL_HOST
-	
-Required mysql openv.datasets:
+Referenced external vars:
+		SERVICE_NAME || "Totem1",
+		SERVICE_PASS || "",
+		SERVICE_WORKER_URL || "https://localhost:8443", 
+		SERVICE_MASTER_URL || "http://localhost:8080"
+		MYSQL_HOST || "localhost",
+		MYSQL_HOST || "nobody",
+		MYSQL_PASS || "secret",
+		SHARD0 || "http://localhost:8080/task",
+		SHARD1 || "http://localhost:8080/task",
+		SHARD2 || "http://localhost:8080/task",
+		SHARD3 || "http://localhost:8080/task"
+
+Required MySQL openv.datasets:
 	apps, sessions, profiles, aspreqts, ispreqts, swreqts, hwreqts, riddles, syslogs
 	
-Required mysql app.datasets:
+Required MySQL app.datasets:
 	dblogs, files
  */
 
@@ -360,14 +368,14 @@ var
 	/**
 	@cfg {Object} 
 	@member TOTEM
-	Mysql connection options: 
-	
-		host: name
-		user: name
-		pass: phrase
-		sessions: number	
+	Mysql connection options	
 	*/		
-	mysql: null,			
+	mysql: { //< null to disable database
+		host: ENV.MYSQL_HOST || "localhost",
+		user: ENV.MYSQL_USER || "nobody",
+		pass: ENV.MYSQL_PASS || "secret",
+		sessions: 1000
+	},
 	
 	sockets: false, 	//< enabled to support web sockets
 		
@@ -386,10 +394,10 @@ var
 	@member TOTEM	
 	Service host name 
 	*/		
-	host: "localhost", 		//< Service host name 
+	//host: "localhost", 		//< Service host name 
 
 	/**
-	@cfg {Obect}
+	@cfg {Object}
 	@member TOTEM	
 	Folder watching callbacks cb(path) 
 	*/				
@@ -415,8 +423,13 @@ var
 		3) identify server cert name.pfx file.
 	If the Nick=name is not located in openv.apps, the supplied	config() options are not overridden.
 	*/	
-	name: ENV.SERVICE_NAME, //"Totem",
-
+	host: { 
+		name: ENV.SERVICE_NAME || "Totem1",
+		encrypt: ENV.SERVICE_PASS || "",
+		worker:  ENV.SERVICE_WORKER_URL || "https://localhost:8443", 
+		master:  ENV.SERVICE_MASTER_URL || "http://localhost:8080"
+	},
+		
 	/**
 	@cfg {Object} 
 	@member TOTEM	
@@ -539,7 +552,7 @@ var
 	@member TOTEM	
 	Trust store extened with certs in the certs.truststore folder when the service starts in encrypted mode
 	*/		
-	trust: [ ],   
+	trustStore: [ ],   //< reserved for trust store
 		
 	/**
 	@cfg {Object} 
@@ -547,7 +560,7 @@ var
 	@member TOTEM	
 	CRUDE (req,res) method to respond to Totem request
 	*/				
-	server: null,
+	server: null,  //< established by TOTEM at config
 	
 	//======================================
 	// CRUDE interface
@@ -633,19 +646,14 @@ var
 	},
 
 	/**
-	@cfg {Boolean} [guard=false]
-	@member TOTEM	
-	Enable/disable service protection mode
-	*/		
-	guard: false,		//< Enable/disable service protection mode
-		
-	/**
 	@cfg {Object} 
 	@private
 	@member TOTEM	
 	Service protections when in guard mode
-	*/		
-	guards: {				
+	*/
+	faultless: false,  //< enable to use all defined guards
+		
+	guards:  {	// faults to trap 
 		//SIGUSR1:1,
 		//SIGTERM:1,
 		//SIGINT:1,
@@ -657,44 +665,108 @@ var
 		//SIGSTOP:1 
 	},	
 	
-	/**
-	@cfg {Function} 
-	@member TOTEM	
-	Additional session validator(req,res) responds will null if client validated, otherwise
-	responds with an error.
-	*/		
-	validator: null,	
-	
-	/**
-	@cfg {Object} 
-	@member TOTEM	
-	PKI rules to admit clients 
-	credentials X.
-	*/		
-	badClient: function (cert) {  //< PKI rules to reject a client
+	admitRules: {  // empty or null to disable rules
+		// CN: "james brian d jamesbd",
+		// O: "u.s. governement",
+		// OU: ["nga", "dod"],
+		// C: "us"
+	},
+
+	admitClient: function (req, profile, cb) { 
+		/**
+		@cfg {Object} 
+		@member TOTEM
+		Attaches the profile, group and a session metric log to this req request (cert,sql) with 
+		callback cb(error) where error reflects testing of client cert and profile credentials.
+		*/		
+		function cpuavgutil() {				// compute average cpu utilization
+			var avgUtil = 0;
+			var cpus = OS.cpus();
+
+			cpus.each(function (n,cpu) {
+				idle = cpu.times.idle;
+				busy = cpu.times.nice + cpu.times.sys + cpu.times.irq + cpu.times.user;
+				avgUtil += busy / (busy + idle);
+			});
+			return avgUtil / cpus.length;
+		}		
+
+		function admit() {
+			sql.query("show session status like 'Thread%'", function (err,stats) {  // attach session metric logs
+				if (err)
+					stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
+
+				req.log = new Object({  // add session metric logs to request
+					Event: now,		 					// start time
+					Action: req.action, 				// db action
+					ThreadsRunning: stats[3].Value,		// sql threads running
+					ThreadsConnected: stats[1].Value,	// sql threads connected
+					Stamp: TOTEM.host.name,					// site name
+					Util : cpuavgutil(),				// cpu utilization
+					Fault: "isp"						// fault codes
+					//Cores: site.Cores, 					// number of safety core hyperthreads
+					//VMs: 1,								// number of VMs
+					//Client: client, 				// client id
+					//Table: req.table, 					// db target
+					//RecID: req.query.ID || 0,			// sql recID
+				});
+				req.profile = new Object( profile );
+				req.group = profile.Group;
+
+				/*
+					//org		: cert.subject.O || "guest",  // cert organization 
+					//serverip: sock ? sock.address().address : "unknown",
+					//onencrypted: CLUSTER.isWorker,  // flag
+					//journal : true,				// journal db actions
+					//email	: client, 			// email address from pki
+					//profile	: new Object(profile),  // complete profile
+					//group	: profile.Group, // || TOTEM.site.db, 
+					//joined	: now, 				// time joined
+					//client	: client			// client ID
+				*/
+
+				cb( null );
+			});	
+		}
+		
 		var 
+			cert = req.cert,
+			sql = req.sql,
 			now = new Date(),
-			user = cert.subject || cert.issuer || {},
-			rules = {
-				// CN: "james brian d jamesbd",
-				// O: "u.s. governement",
-				// OU: ["nga", "dod"],
-				// C: "us"
-			};				
-		
-		if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
-			return true;
-		
-		for (var key in rules) 
-			 if ( test = user[key] ) {
-				if ( test.toLowerCase().indexOf( rule[key] ) < 0 ) 
-					return true;
-			 }
+			errors = TOTEM.errors,
+			rules = TOTEM.admitRules;
+
+		if (cert) 
+			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
+				cb( errors.expiredCert );
 
 			else
-				return true;			
+			if ( user = cert.subject || cert.issuer ) {
+				for (var key in rules) 
+					 if ( test = user[key] ) {
+						if ( test.toLowerCase().indexOf( rule[key] ) < 0 ) 
+							return cb( errors.rejectedClient );
+					 }
+
+					else
+						return cb( errors.rejectedClient );
+
+				if ( msg = profile.Banned)  // block client if banned
+					cb( new Error( msg ) );
+
+				else
+					admit();
+			}
 		
-		return false;
+			else
+				cb( errors.rejectedClient );
+		
+		else
+		if ( req.encrypted )
+			cb( errors.rejectedClient );
+		
+		else 
+			admit();
 	},
 
 	/**
@@ -702,7 +774,7 @@ var
 	@member TOTEM	
 	Default guest profile (unencrypted or client profile not found).  Null to bar guests.
 	*/		
-	guestProfile: {				
+	guestProfile: {				//< null if guests are barred
 		Banned: "",
 		QoS: 10000,
 		Credit: 100,
@@ -710,7 +782,7 @@ var
 		LikeUs: 0,
 		Challenge: 1,
 		Client: "guest@guest.org",
-		User: "guest@guest",
+		User: "guest",
 		Group: "app",
 		IDs: "{}",
 		Repoll: true,
@@ -775,20 +847,23 @@ var
 		mysql: {
 			users: "SELECT 'user' AS Role, group_concat(DISTINCT dataset SEPARATOR ';') AS Contact FROM app.dblogs WHERE instr(dataset,'@')",
 			derive: "SELECT * FROM openv.apps WHERE ? LIMIT 1",
-			record: "INSERT INTO app.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
+			saveMetrics: "INSERT INTO app.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
 			search: "SELECT * FROM app.files HAVING Score > 0.1",
 			//credit: "SELECT * FROM app.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 1",
-			upsession: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1,?",
+			getProfile: "SELECT * FROM openv.profiles WHERE ? LIMIT 1",
+			newProfile: "INSERT INTO openv.profiles SET ?",
+			getSession: "SELECT * FROM openv.sessions WHERE ? LIMIT 1",
+			newSession: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1",
 			challenge: "SELECT * FROM openv.profiles WHERE least(?,1) LIMIT 1",
-			guest: "SELECT * FROM openv.profiles WHERE Client='guest' LIMIT 1",
+			guest: "SELECT * FROM openv.profiles WHERE Client='guest@guest.org' LIMIT 1",
 			pocs: "SELECT lower(Hawk) AS Role, group_concat(DISTINCT Client SEPARATOR ';') AS Contact FROM openv.roles GROUP BY hawk"
 		},
 		
-		nodes: {  // available tasking nodes
-			0: ENV.NODE0,
-			1: ENV.NODE0,
-			2: ENV.NODE0,
-			3: ENV.NODE0
+		nodes: {  // available nodes for task sharding
+			0: ENV.SHARD0 || "http://localhost:8080/task",
+			1: ENV.SHARD1 || "http://localhost:8080/task",
+			2: ENV.SHARD2 || "http://localhost:8080/task",
+			3: ENV.SHARD3 || "http://localhost:8080/task"
 		},
 			
 		mime: { // default static file areas
@@ -823,7 +898,7 @@ var
 		failedUser: new Error("failed modification of user profile"),
 		missingPass: new Error("missing initial user password"),
 		expiredCert: new Error("cert expired"),
-		rejectedCert: new Error("cert rejected"),
+		rejectedClient: new Error("client rejected - bad cert, profile or session"),
 		tooBusy: new Error("too busy - try again later"),
 		noFile: new Error("file not found"),
 		noIndex: new Error("cannot index files here"),
@@ -905,7 +980,7 @@ var
 			});
 
 		if (derive = mysql.derive)  // derive site context vars
-			sql.query(derive, {Nick:TOTEM.name})
+			sql.query(derive, {Nick:TOTEM.host.name})
 			.on("result", function (opts) {
 				Each(opts, function (key,val) {
 					key = key.toLowerCase();
@@ -1065,8 +1140,7 @@ function configService(opts,cb) {
 	if (opts) Copy(opts, TOTEM, ".");
 	
 	var
-		name  = TOTEM.name,
-		mysql = TOTEM.mysql,
+		name  = TOTEM.host.name,
 		paths = TOTEM.paths,
 		site = TOTEM.site;
 
@@ -1076,7 +1150,7 @@ function configService(opts,cb) {
 
 	Copy(paths.mime.extensions, MIME.types);
 
-	if (mysql) 
+	if (mysql = TOTEM.mysql) 
 		JSDB.config({   // establish the db agnosticator 
 			//emit: TOTEM.IO.sockets.emit,   // cant set socketio until server started
 
@@ -1135,9 +1209,10 @@ function startService(server,cb) {
  * */
 	
 	var 
-		name = TOTEM.name,
+		name = TOTEM.host.name,
 		site = TOTEM.site,
-		paths = TOTEM.paths;
+		onEncrypted = TOTEM.onEncrypted[CLUSTER.isMaster],
+		paths = TOTEM.paths.mysql;
 	
 	Trace(`START ${name}`);
 	
@@ -1161,7 +1236,7 @@ function startService(server,cb) {
 
 	//TOTEM.flush();  		// flush enum's config callback stack
 
-	if (TOTEM.onEncrypted[CLUSTER.isMaster] && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
+	if ( onEncrypted && site.urls.socketio) {   // attach "/socket.io" with SIO and setup connection listeners
 		var 
 			guestProfile = TOTEM.guestProfile,
 			IO = TOTEM.IO = new SIO(server, { // use defaults but can override ...
@@ -1182,26 +1257,20 @@ function startService(server,cb) {
 					Trace(`CONNECTING ${req.client}`);
 					sqlThread( function (sql) {	
 
-						var ses = {
-							Client	: req.client,
-							Location: req.location,
-							Connects: 1,
-							ipAddress: req.ip,
-							Joined: new Date(),
-							Message: req.message
-						};
-						
-						if (upsession = paths.mysql.upsession) 
-							sql.query(upsession, [ses, {
-								Location: req.location,
-								ipAddress: req.ip,
-								Joined: new Date()
-							}]);
+						if (newSession = paths.newSession) 
+							sql.query(newSession,  {
+								Client	: req.client,
+								Connects: 1,
+								Location: "unknown", //req.location,
+								//ipAddress: req.ip,
+								Joined: new Date(),
+								Message: req.message
+							});
 
-						if (challenge = paths.mysql.challenge)
-							sql.query(challenge, {Client:req.client}, function (err,recs) {
+						if (challenge = paths.challenge)
+							sql.query(challenge, {Client:req.client}, function (err,profs) {
 								
-								if ( profile = recs[0] || makeGuest(sql, req.client)  )							
+								if ( profile = profs[0] )							 // || guestProfile(sql, req.client) 
 									if ( profile.Challenge)
 										challengeClient(req.client, profile);	
 								
@@ -1272,7 +1341,7 @@ function startService(server,cb) {
 			Trace(`MASTER AT ${site.urls.master}`);
 		});
 			
-	if ( TOTEM.guard)  { // catch core faults
+	if ( TOTEM.faultless)  { // catch core faults
 		process.on("uncaughtException", function (err) {
 			Trace(`FAULTED ${err}`);
 		});
@@ -1281,9 +1350,9 @@ function startService(server,cb) {
 			Trace(`HALTED ${code}`);
 		});
 
-		for (var n in TOTEM.guards)
-			process.on(n, function () {
-				Trace(`SIGNALED ${n}`);
+		for (var signal in TOTEM.guards)
+			process.on(signal, function () {
+				Trace(`SIGNALED ${signal}`);
 			});
 	}
 
@@ -1307,9 +1376,12 @@ function connectService(cb) {
  * */
 	
 	var 
-		name = TOTEM.name,
+		host = TOTEM.host,
+		name = host.name,
 		paths = TOTEM.paths,
 		certs = TOTEM.cache.certs,
+		onEncrypted = TOTEM.onEncrypted[CLUSTER.isMaster],
+		trustStore = TOTEM.trustStore,
 		cert = certs.totem = {  // totem service certs
 			pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
 			key: FS.readFileSync(`${paths.certs}${name}.key`),
@@ -1317,25 +1389,25 @@ function connectService(cb) {
 		};
 
 	certs.fetch = { 		// data fetching certs
-			pfx: FS.readFileSync(`${paths.certs}fetch.pfx`),
-			key: FS.readFileSync(`${paths.certs}fetch.key`),
-			crt: FS.readFileSync(`${paths.certs}fetch.crt`),
-			ca: FS.readFileSync(`${paths.certs}fetch.ca`),			
-			_pfx: `${paths.certs}fetch.pfx`,
-			_crt: `${paths.certs}fetch.crt`,
-			_key: `${paths.certs}fetch.key`,
-			_ca: `${paths.certs}fetch.ca`,
-			_pass: ENV.FETCH_PASS
+		pfx: FS.readFileSync(`${paths.certs}fetch.pfx`),
+		key: FS.readFileSync(`${paths.certs}fetch.key`),
+		crt: FS.readFileSync(`${paths.certs}fetch.crt`),
+		ca: FS.readFileSync(`${paths.certs}fetch.ca`),			
+		_pfx: `${paths.certs}fetch.pfx`,
+		_crt: `${paths.certs}fetch.crt`,
+		_key: `${paths.certs}fetch.key`,
+		_ca: `${paths.certs}fetch.ca`,
+		_pass: ENV.FETCH_PASS
 	};
 	
-	//Log( TOTEM.onEncrypted, CLUSTER.isMaster, CLUSTER.isWorker, TOTEM.onEncrypted[CLUSTER.isMaster]);
+	//Log( TOTEM.onEncrypted, CLUSTER.isMaster, CLUSTER.isWorker );
 	
-	if ( TOTEM.onEncrypted[CLUSTER.isMaster] ) {  
+	if ( onEncrypted ) {  
 		try {  // build the trust strore
 			Each( FS.readdirSync(paths.certs+"/truststore"), function (n,file) {
 				if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
 					Trace("TRUSTING "+file);
-					TOTEM.trust.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf8") );
+					trustStore.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf8") );
 				}
 			});
 		}
@@ -1344,9 +1416,9 @@ function connectService(cb) {
 		}
 
 		startService( HTTPS.createServer({
-			passphrase: ENV.SERVICE_PASS,		// passphrase for pfx
+			passphrase: host.encrypt,		// passphrase for pfx
 			pfx: cert.pfx,			// pfx/p12 encoded crt and key 
-			ca: TOTEM.trust,				// list of TOTEM.paths authorities (trusted serrver.trust)
+			ca: trustStore,				// list of TOTEM.paths authorities (trusted serrver.trust)
 			crl: [],						// pki revocation list
 			requestCert: true,
 			rejectUnauthorized: true
@@ -1368,44 +1440,41 @@ function protectService(cb) {
  * */
 	
 	var 
-		name = TOTEM.name,
+		host = TOTEM.host,
+		name = host.name,
 		paths = TOTEM.paths,
 		sock = TOTEM.sockets ? paths.url.socketio : "", 
-		pfxfile = `${paths.certs}${name}.pfx`,
 		urls = TOTEM.site.urls = TOTEM.cores   // establish site urls
 			? {  
 				socketio: sock,
-				worker:  ENV.SERVICE_WORKER_URL, 
-				master:  ENV.SERVICE_MASTER_URL
+				worker:  host.worker, 
+				master:  host.master
 			}
 			: {
 				socketio: sock,
-				worker:  ENV.SERVICE_WORKER_URL, 
-				master:  ENV.SERVICE_WORKER_URL 
+				worker:  host.master,
+				master:  host.master
 			},
 		doms = TOTEM.doms = {
 			master: URL.parse(urls.master),
 			worker: URL.parse(urls.worker)
 		},
+		pfx = `${paths.certs}${name}.pfx`,
 		onEncrypted = TOTEM.onEncrypted = {
-			true: doms.master.protocol == "https:",
-			false: doms.worker.protocol == "https:"
+			true: doms.master.protocol == "https:",   //  at master 
+			false: doms.worker.protocol == "https:"		// at worker
 		};
 	
 	//Log(onEncrypted, doms);
-	Trace(`PROTECT ${name}`);
+	Trace( `PROTECTING ${name} USING ${pfx}` );
 	
-	if ( onEncrypted[CLUSTER.isMaster] )   // derive a pfx cert if this is an encrypted service
-		FS.access( pfxfile, FS.F_OK, function (err) {
+	if ( onEncrypted )   // derive a pfx cert if protecting an encrypted service
+		FS.access( pfx, FS.F_OK, function (err) {
 
-			if (err) {
-				var owner = TOTEM.name;
-				Trace( "CREATE SERVER CERT FOR "+owner );
-			
-				createCert(owner,ENV.SERVICE_PASS, function () {
+			if (err) 
+				createCert(name,host.encrypt, function () {
 					connectService(cb);
 				});				
-			}
 				
 			else
 				connectService(cb);
@@ -1427,7 +1496,7 @@ function stopService() {
 			
 	if (server)
 		server.close(function () {
-			Trace(`STOP ${TOTEM.name}`);
+			Trace("STOPPED");
 		});
 }
 
@@ -1442,7 +1511,7 @@ function initializeService(sql) {
 		"USING " + site.db ,
 		"FROM " + process.cwd(),
 		"WITH " + (site.urls.socketio||"NO")+" SOCKETS",
-		"WITH " + (TOTEM.guard?"GUARDED":"UNGUARDED")+" THREADS",
+		"WITH " + (TOTEM.faultless?"GUARDED":"UNGUARDED")+" THREADS",
 		"WITH "+ (TOTEM.riddles?"ANTIBOT":"NO ANTIBOT") + " PROTECTION",
 		"WITH " + (site.sessions||"UNLIMITED")+" CONNECTIONS",
 		"WITH " + (TOTEM.cores ? TOTEM.cores + " WORKERS AT "+site.urls.worker : "NO WORKERS")
@@ -1770,7 +1839,11 @@ Create a cert for the desired owner with the desired passphrase then callback cb
 		crt = name + ".crt",
 		ppk = name + ".ppk";
 		
-	traceExecute(`echo -e "\n\n\n\n\n\n\n" | openssl req -x509 -nodes -days 5000 -newkey rsa:2048 -keyout ${key} -out ${crt}`, function () { 
+	Trace( "CREATE SELF-SIGNED SERVER CERT FOR "+owner );			
+	
+	traceExecute(
+		`echo -e "\n\n\n\n\n\n\n" | openssl req -x509 -nodes -days 5000 -newkey rsa:2048 -keyout ${key} -out ${crt}`, 
+		function () { 
 		
 	traceExecute(
 		`export PASS="${pass}";openssl pkcs12 -export -in ${crt} -inkey ${key} -out ${pfx} -passout env:PASS`, 
@@ -1784,7 +1857,7 @@ Create a cert for the desired owner with the desired passphrase then callback cb
 		`puttygen ${owner}.key -N ${pass} -o ${ppk}`, 	
 		function () {
 		
-		Trace("IGNORE PREVIOUS PUTTYGEN ERRORS IF NOT INSTALLED"); 
+		Trace("IGNORE PUTTYGEN ERRORS IF NOT INSTALLED"); 
 		cb();
 	});
 	});
@@ -1800,22 +1873,17 @@ function validateClient(req,res) {
 @param {Object} req totem request
 @param {Function} res totem response
 
-Responds will res(null) if session is valid or res(err) if session invalid.  Adds the client's session metric log, 
-org, serverip, group, profile, db journalling flag, time joined, email and client ID to this req request.  
+Attaches log, profile, group, client, cert and joined info to this req request (sql, reqSocket) with callback res(error) where
+error is null if session is admitted by admitClient.  
 */
 	
-	function getCert() {  //< Return cert for https/http connection on this req.socket w or w/o proxy.
+	function getCert(sock) {  //< Return cert for https/http connection on this socket (w or w/o proxy).
 		var 
-			cert =  (sock ? sock.getPeerCertificate ? sock.getPeerCertificate() : null : null) || {		//< default cert
-				issuer: {},
-				subjectaltname: "",
-				subject: {},
-				valid_to: null,
-				valid_from: null
-			};			
+			cert =  sock ? sock.getPeerCertificate ? sock.getPeerCertificate() : null : null;		
 		
-		if (TOTEM.behindProxy) {  // when going through a proxy, must update cert with originating cert info that was placed in header
+		if (TOTEM.behindProxy) {  // update cert with originating cert info that was placed in header
 			var 
+				cert = new Object(cert),  // clone so we can modify
 				NA = Req.headers.ssl_client_notafter,
 				NB = Req.headers.sll_client_notbefore,
 				DN = Req.headers.ssl_client_s_dn;
@@ -1838,112 +1906,54 @@ org, serverip, group, profile, db journalling flag, time joined, email and clien
 					}
 				});
 
-			var CN = cert.subject.CN;
-
-			if (CN) {
+			if ( CN = cert.subject.CN ) {
 				CN = CN.split(" ");
-				cert.subject.CN = CN[CN.length-1] + "@coe.ic.gov";
+				cert.subject.CN = CN[CN.length-1] + "@lost.org";
 			}
 		}
 		
 		return cert;
 	}
 				
-	function admitClient(req, res, now, profile, cert, client) {   // callback res(null) if client can be admited; otherwise res(error)
-	/* 
-	If the client's cert is admissible, respond with res(null), then add the client's session metric log, org, serverip, 
-	group, profile, db journalling flag, time joined, email and client ID to the req request.  The cert is also
-	cached for future data fetching to https sites.  If the cert is bad, then respond with res(err).
-	*/
-		function cpuavgutil() {				// compute average cpu utilization
-			var avgUtil = 0;
-			var cpus = OS.cpus();
-
-			cpus.each(function (n,cpu) {
-				idle = cpu.times.idle;
-				busy = cpu.times.nice + cpu.times.sys + cpu.times.irq + cpu.times.user;
-				avgUtil += busy / (busy + idle);
-			});
-			return avgUtil / cpus.length;
-		}		
-		
-		if ( TOTEM.onEncrypted[CLUSTER.isMaster] )  // validate client's cert
-			if ( badClient = TOTEM.badClient )
-				if ( badClient( cert ) )
-					return res( TOTEM.errors.rejectedCert );
-
-		if (profile.Banned)  // block client if banned
-			return res( new Error(profile.Banned) );
-		
-		else
-			sql.query("show session status like 'Thread%'", function (err,stats) {  		// start session metric logging
-				if (err)
-					stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
-
-				Copy({  // add session metric logs and session parms
-					log: {  								// potential session metrics to log
-						Event: now,		 					// start time
-						Action: req.action, 				// db action
-						ThreadsRunning: stats[3].Value,		// sql threads running
-						ThreadsConnected: stats[1].Value,	// sql threads connected
-						Stamp: TOTEM.name,					// site name
-						Util : cpuavgutil(),				// cpu utilization
-						Fault: "isp"						// fault codes
-						//Cores: site.Cores, 					// number of safety core hyperthreads
-						//VMs: 1,								// number of VMs
-						//Client: client, 				// client id
-						//Table: req.table, 					// db target
-						//RecID: req.query.ID || 0,			// sql recID
-					},
-
-					org		: cert.subject.O || "guest",  // cert organization 
-					//serverip: sock ? sock.address().address : "unknown",
-					group	: profile.Group, // || TOTEM.site.db, 
-					profile	: new Object(profile),  // complete profile
-					//onencrypted: CLUSTER.isWorker,  // flag
-					//journal : true,				// journal db actions
-					joined	: now, 				// time joined
-					email	: client, 			// email address from pki
-					client	: client			// client ID
-				}, req);
-
-				res(null);
-			});	
-		
-	}
-	
 	var 
 		sql = req.sql,
-		sock = req.reqSocket,
-		cert = getCert(),
-		now = new Date(),		
-		client = (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || "guest").split(",")[0].replace("email:","");
+		cert = req.encrypted ? getCert( req.reqSocket ) : null,
+		certs = TOTEM.cache.certs,
+		guest = "guest@guest.org",
+		paths = TOTEM.paths.mysql,
+		errors = TOTEM.errors,
+		admitClient = TOTEM.admitClient;
+	
+	req.cert = certs[req.client] = cert ? new Object(cert) : null;
+	req.joined = new Date();
+	req.client = cert 
+		? (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || guest).split(",")[0].replace("email:","")
+		: guest;
 
-	TOTEM.cache.certs[client] = new Object(cert);
-		
-	if (TOTEM.mysql)  // get client's profile
-		sql.query("SELECT * FROM openv.profiles WHERE ? LIMIT 1", {client: client}, function (err,recs) {
+	if (TOTEM.mysql)  // derive client's profile from db
+		sql.query(paths.getProfile, {client: req.client}, function (err,profs) {
 			
-			if ( profile = recs[0] || makeGuest(sql, client) )
-				admitClient(req, res, now, profile, cert, client);
-				
+			if ( profile = profs[0] || makeGuest(sql, req.client) ) 
+				admitClient(req, profile, res);
+			
 			else
-				res( TOTEM.errors.noProfile );
-			
-		})
-		.on("error", function (err) {
-			res( TOTEM.errors.noProfile );
+				res( errors.rejectedClient );
+					
 		});
 	
 	else 
-	if (TOTEM.onEncrypted[CLUSTER.isMaster])
-		res( TOTEM.errors.noDB );
-	
-	else {  // setup guest connection
-		req.socket = null;
-		admitClient(req, res, TOTEM.guestProfile, cert, client);		
-		res( null );
+	if ( req.encrypted )  // db required on encrypted service
+		res( errors.noDB );
+
+	else
+	if ( profile = makeGuest(sql, req.client) )  { // guests allowed
+		//req.socket = null;
+		req.reqSocket = null;   // disable guest session metrics
+		admitClient(req, profile, res);	
 	}
+	
+	else
+		res( errors.rejectedClient );
 }
 
 /**
@@ -2633,10 +2643,8 @@ Log session metrics, trace the current route, then callback route on the supplie
 request-response thread
 */
 
-	function logMetrics() { //< log session metrics 
-		
-		if ( sock=req.socket ) 
-		if ( record=TOTEM.paths.mysql.record ) {
+	function logMetrics(sock) { //< log session metrics 
+		if ( saveMetrics=TOTEM.paths.mysql.saveMetrics ) {
 			var log = req.log;
 		
 			sock._started = new Date();
@@ -2657,7 +2665,7 @@ request-response thread
 				sqlThread( function (sql) {
 
 					if (false)  // grainular track
-						sql.query(record, [ Copy(log, {
+						sql.query(saveMetrics, [ Copy(log, {
 							Delay: secs,
 							Transfer: bytes,
 							Event: sock._started,
@@ -2667,7 +2675,7 @@ request-response thread
 						}), bytes, secs, log.Event  ]);
 					
 					else { // bucket track
-						sql.query(record, [ Copy(log, {
+						sql.query(saveMetrics, [ Copy(log, {
 							Delay: secs,
 							Transfer: bytes,
 							Event: sock._started,
@@ -2675,7 +2683,7 @@ request-response thread
 							Actions: 1
 						}), bytes, secs, log.Event  ]);
 
-						sql.query(record, [ Copy(log, {
+						sql.query(saveMetrics, [ Copy(log, {
 							Delay: secs,
 							Transfer: bytes,
 							Event: sock._started,
@@ -2692,12 +2700,15 @@ request-response thread
 		}
 	}
 
-	if ( !req.filepath && TOTEM.onEncrypted[CLUSTER.isMaster] ) logMetrics();  // dont log file requests
+	if ( !req.filepath && req.encrypted )   // dont log file requests
+		if ( sock = req.reqSocket )  // dont log http request // req.socket
+			logMetrics( sock );  
+
 	var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
 
 	Trace( 
 		(route?route.name:"null").toUpperCase() 
-		+ ` ${req.filename} FOR ${req.group}.${req.client} ON CORE${myid}`, req.sql);
+		+ ` ${req.filename} FOR ${req.client} ON CORE${myid}.${req.group}`, req.sql);
 
 	route(req, res);
 	
@@ -3051,63 +3062,60 @@ the client is challenged as necessary.
 		
 	}
 	
-	function conThread(req, res) {  //< establish request connection with callbacl res(null) if started otherwise res(error)
+	function conThread(req, res) {  
 	/**
-	 * @private
-	 * @method conThread
-	 * Start a connection thread cb(err) containing a Req.req.sql connector,
-	 * a validated Req.req.cert certificate, and set appropriate Res headers. 
-	 * 
-	 * @param {Object} req request
-	 * @param {Function} res response
-	 *
-	 * input req {action, socketio, query, body, flags}
-	 * output req {log, cert, client, org, session, group, profile, joined, email}
+	 @private
+	 @method conThread
+	 Start a session by attaching sql, cert, client, profile and session info to this request req with callback res(error).  
+	 @param {Object} req request
+	 @param {Function} res response
 	 * */
-
+		var 
+			errors = TOTEM.errors,
+			paths = TOTEM.paths.mysql;
+		
 		if (sock = req.reqSocket )
-			resThread( req, function (sql) {
-				validateClient(req, function (err) {
-					if (err)
-						res(err);
+			if (TOTEM.mysql)  // running with database so attach a sql connection 
+				sqlThread( function (sql) {
+					req.sql = sql;
 
-					else 
-						if (TOTEM.mysql)
-							sql.query("SELECT * FROM openv.sessions WHERE ?", {Client: req.client}, function (err,ses) {
-								
+					validateClient(req, function (err) {
+						if (err)
+							res(err);
+
+						else 
+						if ( getSession = paths.getSession )
+							sql.query(getSession, {Client: req.client}, function (err,ses) {
+
 								if ( err )
 									return res(err);
-								
-								if ( !ses.length)
-									req.session = {
-										Client: "guest",
-										ipAddress : "unknown",
-										Location: "unknown",
-										Joined: new Date()
-									};
-								
-								else
-									req.session = new Object(ses[0]);
-									
-								if (validator = TOTEM.validator) 
-									validator(req, res);
-								
-								else
-									res(null);
-								
+
+								req.session = new Object( ses[0] || {
+									Client: "guest@guest.org",
+									Connects: 1,
+									//ipAddress : "unknown",
+									Location: "unknown",
+									Joined: new Date()
+								});
+
+								res(null);
 							});
-
-						else
-						if (validator = TOTEM.validator) 
-							validator(req, res);
-
-						else
+						
+						else {  // using dummy sessions
+							req.session = {};
 							res( null );
+						}
+					});
 				});
-			});
 		
+			else {  // running w/o database so use dummy session
+				req.session = {};
+				res( null );
+			}
+ 		
 		else 
-			Res.end( TOTEM.errors.pretty(TOTEM.errors.lostConnection ) );
+			res( errors.lostConnection );
+ 			//Res.end( TOTEM.errors.pretty(TOTEM.errors.lostConnection ) );
 	}
 
 	function getSocket() {  // returns suitable response socket depending on cross/same domain session
@@ -3124,56 +3132,48 @@ the client is challenged as necessary.
 	startSession( function() {  // process if session not busy
 		
 		getBody( function (body) {  // setup request with body parms 
-		/* 
-		Define request req 
-			.method = GET | PUT | POST | DELETE
-			.action = select | update | insert | delete
-			.reqSocket = socket to complete request
-			.resSocket = socket to complete response
-			socketio: path to client's socketio
-			body = hash of request key:value 
-			url = clean url
-		*/
+			/* 
+			Define request req 
+				.method = GET | PUT | POST | DELETE
+				.action = select | update | insert | delete
+				.reqSocket = socket to complete request
+				.resSocket = socket to complete response
+				socketio: path to client's socketio
+				body = hash of request key:value 
+				url = clean url
+			*/
 			var 
-				// parse request url into /area/nodes
-				paths = TOTEM.paths,
-
-				// prime session request hash
-				req = Req.req = {
+				paths = TOTEM.paths,		// parse request url into /area/nodes
+				onEncrypted = TOTEM.onEncrypted[CLUSTER.isMaster],  // request being made to encrypted service
+				req = Req.req = {			// prime session request
 					method: Req.method,
 					action: TOTEM.crud[Req.method],
-					reqSocket: Req.socket,
-					resSocket: getSocket,
-					socketio: TOTEM.onEncrypted[CLUSTER.isMaster] ? TOTEM.site.urls.socketio : "",
+					reqSocket: Req.socket,   // use supplied request socket 
+					resSocket: getSocket,		// use this method to return a response socket
+					encrypted: onEncrypted,
+					socketio: onEncrypted ? TOTEM.site.urls.socketio : "",
 					body: body,
-					url: (Req.url == "/") ? TOTEM.paths.nourl : unescape(Req.url)
-					//query: {},
-					//flags: {},
-					//joins: {},
-					//site: TOTEM.site
+					url: (Req.url == "/") ? paths.nourl : unescape(Req.url)
 				},
 
-				// get a clean url
 				/*
 				There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
 				embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
 				unescapes to /\\"ABC\\".  This is ok but can be confusing.
 				*/				
-				url = req.url,
-			
-				// get a list of all nodes on the url
-				nodes = TOTEM.nodeDivider 
+				url = req.url,  // get a clean url
+							
+				nodes = TOTEM.nodeDivider  // get a list of all nodes on the url
 					? url ? url.split(TOTEM.nodeDivider) : []
 					: url ? [url] : [] ;
 
-			conThread( req, function (err) { 	// start session with client and set the response header
+			conThread( req, function (err) { 	// start client connection and set the response header
 
-				// must carefully set appropriate heads to prevent http-parse errors when using master-worker proxy
-				if ( TOTEM.onEncrypted[CLUSTER.isMaster] )
-					Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
-
+				// must carefully set appropriate headers to prevent http-parse errors when using master-worker proxy
+				if ( onEncrypted )
+					Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.host.name] );						
 				
-				if (err) 					// session rejected (e.g. bad cert)
+				if (err) 					// connection rejected so we are done
 					res(err);
 
 				else
@@ -3188,22 +3188,23 @@ the client is challenged as necessary.
 			});
 
 		});
+	
 	});
 }
 
-function resThread(req, cb) {
-/**
+/*function resThread(req, cb) {
+/ **
 @private
 @method resThread
 @param {Object} req Totem session request
 @param {Function} cb sql connector callback(sql)
 
 Callback with request set to sql conector
-*/
+* /
 	sqlThread( function (sql) {
 		cb( req.sql = sql );
 	});
-}
+}*/
 
 function proxyThread(req, res) {  // not presently used but might want to support later
 	
@@ -3331,19 +3332,19 @@ function makeGuest( sql, client ) {  // return a suitable guest profile or null
 		return userid;
 	}
 	
-	if (guestProfile = TOTEM.guestProfile) {
-		var profile = Copy({
+	var paths = TOTEM.paths.mysql;
+	
+	if (profile = TOTEM.guestProfile) {  // allowing guests
+		return Copy({
 			Client: client,
 			User: userID(client),
 			Login: client,
 			Requested: new Date()
-		}, Copy(guestProfile, {}));
+		}, new Object(profile));
 
-		sql.query( "INSERT INTO openv.profiles SET ?", profile );
-		
-		return profile;
+		sql.query( paths.newProfile, profile );
 	}
-					
+	
 	else
 		return null;
 }
@@ -3674,7 +3675,7 @@ switch (process.argv[2]) { //< unit tests
 
 	case "T2": 
 		var TOTEM = require("../totem").config({
-			name: "Totem1",
+			mysql: null,
 			faultless: true,
 			cores: 2
 		}, function (err) {
@@ -3688,17 +3689,10 @@ with 2 cores and the default endpoint routes` );
 
 	case "T3": 
 		var TOTEM = require("../totem").config({
-			name: "Totem1",
-
-			mysql: {
-				host: ENV.MYSQL_HOST,
-				user: ENV.MYSQL_USER,
-				pass: ENV.MYSQL_PASS
-			}
-		},  function (err) {				
+		},  function (err) {
 			Trace( err ||
-`I'm a Totem service with no cores. I do, however, now have a mysql database from which I've derived 
-my startup options (see the openv.apps table for the Nick="Totem").  
+`I'm a Totem service with no cores. I do, however, have a mysql database from which I've derived 
+my startup options (see the openv.apps table for the Nick="Totem1").  
 No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
 these files. `
 			);
@@ -3707,11 +3701,6 @@ these files. `
 
 	case "T4": 
 		var TOTEM = require("../totem").config({
-			mysql: {
-				host: ENV.MYSQL_HOST,
-				user: ENV.MYSQL_USER,
-				pass: ENV.MYSQL_PASS
-			},
 			byTable: {
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 					res( "123" );
@@ -3750,14 +3739,6 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 
 	case "T5": 
 		var TOTEM = require("../totem").config({
-			mysql: {
-				host: ENV.MYSQL_HOST,
-				user: ENV.MYSQL_USER,
-				pass: ENV.MYSQL_PASS
-			},
-
-			name: "Totem1",
-
 			riddles: 20
 		}, function (err) {
 			Trace( err || {
@@ -3771,7 +3752,6 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 
 	case "T6":
 		var TOTEM = require("../totem").config({
-			name: "Totem1",  // default parms from openv.apps nick=Totem1
 			faultless: false,	// ex override default 
 			cores: 3,		// ex override default
 			mysql: { 		// provide a database
@@ -3824,13 +3804,6 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 		
 	case "TX":
 		var TOTEM = require("../totem").config({
-			name: "Totem1",
-
-			mysql: {
-				host: ENV.MYSQL_HOST,
-				user: ENV.MYSQL_USER,
-				pass: ENV.MYSQL_PASS
-			}
 		},  function (err) {				
 			Trace( err || "db maintenance" );
 

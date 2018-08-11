@@ -70,14 +70,14 @@ source pass.sh
 # define server domains
 export SERVICE_NAME=Totem1
 export SERVICE_MASTER_URL=http://localhost:8080
-export SERVICE_WORKER_URL=http://localhost:8080
+export SERVICE_WORKER_URL=https://localhost:8443
 #export SERVICE_WORKER_URL=https://localhost:8443
 #export SERVICE_WORKER_URL=http://localhost:8081  # in debug mode
 
-# define tasking node urls
-export NODE0=http://localhost:8080/task
-export NODE1=http://192.1.1.2:8443/task
-export NODE2=http://192.1.1.3:8443/task
-export NODE3=http://192.1.1.4:8443/task
+# define task sharding nodes
+export SHARD0=http://localhost:8080/task
+export SHARD1=http://localhost:8080/task
+export SHARD2=http://localhost:8080/task
+export SHARD3=http://localhost:8080/task
 
 # UNCLASSIFIED when IP addresses and passwords are undefined
