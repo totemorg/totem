@@ -50,7 +50,13 @@ and COMMAND endpoints:
 	
 ## Installing
 
-Clone from one of the <a href="/test">repos</a> into your <iframe src="/http://www.google.com"></iframe> PROJECT/totem.  done.
+Clone from one of the <a href="/test">repos</a> into your PROJECT/totem.  
+<form action="/test.view">
+	first: <input type="text" name="fname"><br>
+	last: <input type="text" name="lname"><br>
+	<input type="submit" value="Submit">
+</form>
+done.
 
 Dependencies:
 
