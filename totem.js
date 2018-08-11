@@ -2575,7 +2575,99 @@ byType, byActionTable, engine or file indexFile (see config documentation).
 	function sendFile(req,res) {
 		//Log("send file", req.filepath);
 		res( function () {return req.filepath; } );
-	}1
+	}
+
+	function followRoute(route,req,res) {
+	/**
+	@private
+	@method followRoute
+	@param {Function} route method endpoint to process session 
+	@param {Object} req Totem session request
+	@param {Function} res Totem response callback
+
+	Log session metrics, trace the current route, then callback route on the supplied 
+	request-response thread
+	*/
+
+		function logMetrics(sock) { //< log session metrics 
+			if ( saveMetrics=TOTEM.paths.mysql.saveMetrics ) {
+				var log = req.log;
+
+				sock._started = new Date();
+
+				/*
+				If maxlisteners is not set to infinity=0, the connection becomes sensitive to a sql 
+				connector t/o and there will be random memory leak warnings.
+				*/
+
+				sock.setMaxListeners(0);
+				sock.on('close', function () { 		// cb when connection closed
+					var 
+						secs = sock._started ? ((new Date()).getTime() - sock._started.getTime()) / 1000 : 0,
+						bytes = sock.bytesWritten,
+						log = req.log;
+
+					sqlThread( function (sql) {
+
+						if (false)  // grainular track
+							sql.query(saveMetrics, [ Copy(log, {
+								Delay: secs,
+								Transfer: bytes,
+								Event: sock._started,
+								Dataset: req.table,
+								Client: rec.client,
+								Actions: 1
+							}), bytes, secs, log.Event  ]);
+
+						else { // bucket track
+							sql.query(saveMetrics, [ Copy(log, {
+								Delay: secs,
+								Transfer: bytes,
+								Event: sock._started,
+								Dataset: req.table,
+								Actions: 1
+							}), bytes, secs, log.Event  ]);
+
+							sql.query(saveMetrics, [ Copy(log, {
+								Delay: secs,
+								Transfer: bytes,
+								Event: sock._started,
+								Dataset: req.client,
+								Actions: 1
+							}), bytes, secs, log.Event  ]);
+						}
+
+						sql.release();
+
+					});
+				});
+
+			}
+		}
+
+		if ( !req.filepath && req.encrypted )   // dont log file requests
+			if ( sock = req.reqSocket )  // dont log http request // req.socket
+				logMetrics( sock );  
+
+		var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
+
+		Trace( 
+			(route?route.name:"null").toUpperCase() 
+			+ ` ${req.filename} FOR ${req.client} ON CORE${myid}.${req.group}`, req.sql);
+
+		route(req, res);
+
+		/*
+		if ( CLUSTER.isWorker || !TOTEM.cores ) {
+		}
+		else
+		if (route.name == "simThread")
+			route(req,res);
+
+		else
+			res(TOTEM.errors.noAccess);
+		*/
+	}
 
 	var
 		sql = req.sql,
@@ -2629,99 +2721,6 @@ byType, byActionTable, engine or file indexFile (see config documentation).
 
 	else 
 		res( TOTEM.errors.noRoute );
-}
-
-function followRoute(route,req,res) {
-/**
-@private
-@method followRoute
-@param {Function} route method endpoint to process session 
-@param {Object} req Totem session request
-@param {Function} res Totem response callback
-
-Log session metrics, trace the current route, then callback route on the supplied 
-request-response thread
-*/
-
-	function logMetrics(sock) { //< log session metrics 
-		if ( saveMetrics=TOTEM.paths.mysql.saveMetrics ) {
-			var log = req.log;
-		
-			sock._started = new Date();
-			
-			/*
-			If maxlisteners is not set to infinity=0, the connection becomes sensitive to a sql 
-			connector t/o and there will be random memory leak warnings.
-			*/
-			
-			sock.setMaxListeners(0);
-			sock.on('close', function () { 		// cb when connection closed
-				
-				var 
-					secs = sock._started ? ((new Date()).getTime() - sock._started.getTime()) / 1000 : 0,
-					bytes = sock.bytesWritten,
-					log = req.log;
-				
-				sqlThread( function (sql) {
-
-					if (false)  // grainular track
-						sql.query(saveMetrics, [ Copy(log, {
-							Delay: secs,
-							Transfer: bytes,
-							Event: sock._started,
-							Dataset: req.table,
-							Client: rec.client,
-							Actions: 1
-						}), bytes, secs, log.Event  ]);
-					
-					else { // bucket track
-						sql.query(saveMetrics, [ Copy(log, {
-							Delay: secs,
-							Transfer: bytes,
-							Event: sock._started,
-							Dataset: req.table,
-							Actions: 1
-						}), bytes, secs, log.Event  ]);
-
-						sql.query(saveMetrics, [ Copy(log, {
-							Delay: secs,
-							Transfer: bytes,
-							Event: sock._started,
-							Dataset: req.client,
-							Actions: 1
-						}), bytes, secs, log.Event  ]);
-					}
-					
-					sql.release();
-					
-				});
-			});
-
-		}
-	}
-
-	if ( !req.filepath && req.encrypted )   // dont log file requests
-		if ( sock = req.reqSocket )  // dont log http request // req.socket
-			logMetrics( sock );  
-
-	var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
-
-	Trace( 
-		(route?route.name:"null").toUpperCase() 
-		+ ` ${req.filename} FOR ${req.client} ON CORE${myid}.${req.group}`, req.sql);
-
-	route(req, res);
-	
-	/*
-	if ( CLUSTER.isWorker || !TOTEM.cores ) {
-	}
-	else
-	if (route.name == "simThread")
-		route(req,res);
-	
-	else
-		res(TOTEM.errors.noAccess);
-	*/
 }
 
 /**
