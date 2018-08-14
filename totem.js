@@ -2245,9 +2245,16 @@ function fetchData(path, query, body, cb) {
 			opts.pfx = cert.pfx;
 			opts.passphrase = cert._pass;
 			
-			var Req = HTTPS.request(opts, getResponse);
-			Req.on('error', function(err) {
+			try {
+				var Req = HTTPS.request(opts, getResponse);
+			}
+			catch (err) {
 				Log(err);
+				return cb(null);
+			}
+			
+			Req.on('error', function(err) {
+				Log("https fail", err);
 				cb( null );
 			});
 
