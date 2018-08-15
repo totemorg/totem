@@ -3588,7 +3588,12 @@ function runTask(req,res) {
 	Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
 	*/
 	function parseJS(query) {
-		return VM.runInContext( "`" + this + "`" , VM.createContext(query));
+		try {
+			return VM.runInContext( "`" + this + "`" , VM.createContext(query));
+		}
+		catch (err) {
+			return null;
+		}
 	},
 	
 	function parseJSON(def) {
