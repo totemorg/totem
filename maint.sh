@@ -309,6 +309,12 @@ baseline.)
 	cd ..
 	;;
 
+githigh.)
+	zip -uP $ZIP_PASS $MODULE.zip $MODULE.js
+	git -commit -am "rebase"
+	git push origin master
+	;;
+	
 commit.)   # commit changes
 	git commit -am "$2"
 	;;
