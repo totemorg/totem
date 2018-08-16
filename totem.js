@@ -158,7 +158,7 @@ var
 		
 		var 
 			paths = TOTEM.paths,
-			fetch = TOTEM.fetchData,
+			fetch = TOTEM.fetchString,
 			fetches = 0, 
 			node = 0,
 			nodeURL = paths.nodes[node],
@@ -628,7 +628,7 @@ var
 		@member TOTEM	
 		Data fetcher method
 		*/
-		fetcher: fetchData,
+		fetcher: fetchString,
 
 		/**
 		@cfg {Number} [retries=5]
@@ -2091,9 +2091,9 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 @class DATA_FETCHING methods to pull external data from other services
  */
 
-function fetchData(path, query, body, cb) {
+function fetchString(path, query, body, cb) {  //< callback cb(string)
 	
-	function retry(cmd,opts,cb) {
+	function retry(cmd,opts,cb) {  // wget-curl retry logic
 
 		function trycmd(cmd,cb) {
 
@@ -2133,12 +2133,7 @@ function fetchData(path, query, body, cb) {
 		});
 
 		Res.on("end", function () {
-			try {
-				cb( JSON.parse(body) );
-			}
-			catch (err) {
-				cb( body );
-			}
+			cb( body );
 		});
 	}
 
@@ -2174,28 +2169,16 @@ function fetchData(path, query, body, cb) {
 		case "curl:": 
 			retry(
 				`curl ` + url.replace(protocol, "http:"),
-				opts, 
-				function (err,out) {
-					try {
-						cb( JSON.parse(out) );
-					}
-					catch (err) {
-						cb( out );
-					}
-			});	
+				opts, (err,out) => {					
+					cb( err ? "" : out );
+			});
 			break;
 			
 		case "curls":
 			retry(
 				`curl -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"),
-				opts, 
-				function (err,out) {
-					try {
-						cb( JSON.parse(out) );
-					}
-					catch (err) {
-						cb( out );
-					}
+				opts, (err,out) => {
+					cb( err ? "" : out );
 			});	
 			break;
 			
@@ -2207,9 +2190,8 @@ function fetchData(path, query, body, cb) {
 	
 			retry(
 				`wget -O ${out} ` + url.replace(protocol, "http:"),
-				opts, 
-				function (err) {
-					cb( err ? null : "ok" );
+				opts, (err) => {
+					cb( err ? "" : "ok" );
 			});
 			break;
 			
@@ -2221,17 +2203,22 @@ function fetchData(path, query, body, cb) {
 	
 			retry(
 				`wget -O ${out} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + url.replace(protocol, "https:"),
-				opts, 
-				function (err) {
-					cb( err ? null : "ok" );
+				opts, (err) => {
+					cb( err ? "" : "ok" );
 			});
 			break;
 
 		case "http:":
-			var Req = HTTP.request(opts, getResponse);
+			try {
+				var Req = HTTP.request(opts, getResponse);
+			} 
+			catch (err) {
+				cb( "" );
+			}
+			
 			Req.on('error', function(err) {
-				Log(err);
-				cb( null );
+				Log("http fail", err);
+				cb( "" );
 			});
 			//Log("http", opts, body);
 			
@@ -2249,13 +2236,12 @@ function fetchData(path, query, body, cb) {
 				var Req = HTTPS.request(opts, getResponse);
 			}
 			catch (err) {
-				Log(err);
-				return cb(null);
+				return cb( "" );
 			}
 			
 			Req.on('error', function(err) {
 				Log("https fail", err);
-				cb( null );
+				cb( "" );
 			});
 
 			if ( body )
@@ -2265,7 +2251,7 @@ function fetchData(path, query, body, cb) {
 			break;
 			
 		default: 
-			cb(null);
+			cb( "" );
 	}
 }
 
@@ -2416,7 +2402,7 @@ Challenge a client with specified profile parameters
 	var 
 		rid = [],
 		reply = (TOTEM.riddleMap && TOTEM.riddles)
-				? makeRiddles( profile.Message, rid, (profile.IDs||"").parseJSON({}) )
+				? makeRiddles( profile.Message, rid, (profile.IDs||"").parseJSON() || {} )
 				: profile.Message;
 
 	if (reply && TOTEM.IO) 
@@ -3438,16 +3424,17 @@ function runTask(req,res) {
 ].extend(Date);
 
 [ //< Array prototypes
-	function parseJSON(rec,def) {
+	function parseJSON(ctx,def) {
 		this.forEach( function (key) {
 			try {
-				rec[key] = rec[key].parseJSON(def);
+				ctx[key] = ctx[key].parseJSON() || def || null;
 			}
 			catch (err) {
 				//Log(err,key,rec[key]);
-				rec[key] = def || null;
+				ctx[key] = def || null;
 			}
 		});
+		return ctx;
 	}
 	/*
 	function treeify(idx,kids,level,piv,wt) {
@@ -3596,21 +3583,12 @@ function runTask(req,res) {
 		}
 	},
 	
-	function parseJSON(def) {
+	function parseJSON(cb) {
 		try { 
 			return JSON.parse(this);
 		}
 		catch (err) {  
-
-			if ( !def ) // no default method so return null
-				return null;
-
-			else
-			if (def.constructor == Function)  // use supplied parse method
-				return def(this);
-
-			else
-				return def;
+			if (cb) cb(this);
 		}
 	},
 
