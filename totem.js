@@ -342,12 +342,18 @@ var
 	@cfg {Object} 
 	@member TOTEM
 	Options to parse request flags
-	
-			traps: { flag:cb(query,flags), ...} // sets trap cb for a _flag=list to reorganize the query and flags hash,
-			edits: { flag:cb(list,data,req), ...} // sets data conversion cb for a _flag=list,
-			prefix:  "_" 	// sets flag prefix
 	*/
 	reqFlags: {				//< Properties for request flags
+		traps: { //< cb(query) traps to reorganize query
+			filters: function (req) {
+				var 
+					flags = req.flags,
+					query = req.query,
+					filters = flags.filters || [];
+				
+				filters.forEach( (filter) => query[ filter.property ] = filter.value );
+			}
+		},
 		strips:	 			//< Flags to strips from request
 			{"":1, "_":1, leaf:1, _dc:1}, 		
 
@@ -2482,39 +2488,35 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 			f: flags
 		}}); */
 
-		for (var n in query) 		// strip bogus query parameters 
-			if ( n in strips )
-				delete query[n];
+		for (var key in query) 		// strip or remap bogus  keys
+			if ( key in strips )
+				delete query[key];
 
 			else
-			if (n.charAt(0) == prefix) {  	// remap flag
-				flags[n.substr(1)] = query[n];
-				delete query[n];
+			if (key.charAt(0) == prefix) {  	// remap flag
+				flags[ flag = key.substr(1)] = query[key];
+				delete query[key];
+				if ( trap = traps[flag] ) trap(req);
 			}
 
 			else {							// remap join
-				var parts = n.split(".");
+				var parts = key.split(".");
 				if (parts.length>1) {
-					joins[parts[0]] = n+"="+query[n];
-					delete query[n];
+					joins[parts[0]] = key+"="+query[key];
+					delete query[key];
 				}
 			}	
 
-		for (var n in body) 		// remap body flags
-			if (n.charAt(0) == prefix) {  
-				flags[n.substr(1)] = body[n];
-				delete body[n];
+		for (var key in body) 		// remap body flags
+			if (key.charAt(0) == prefix) {  
+				flags[key.substr(1)] = body[key];
+				delete body[key];
 			}
 
 		if (id in body) {  			// remap body record id
 			query[id] = body[id];
 			delete body[id];
 		}
-
-		if (traps)
-			for (var n in traps) 		// traps remap query-flag parms
-				if ( flags[n] )
-					traps[n](req);
 
 		/*
 		Log({after: {
