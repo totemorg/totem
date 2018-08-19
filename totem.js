@@ -2452,7 +2452,7 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 		node = URL.parse( req.node ),
 		path = req.path = node.path || "",
 		areas = node.pathname.split("/"),
-		file = req.filename = areas.pop() || "", //(areas[1] ? "" : TOTEM.paths.default),
+		file = req.filename = areas.pop() || "",
 		parts = req.parts = file.split("."),
 		table = req.table = parts[0] || "",
 		type = req.type = parts[1] || "",
@@ -3186,20 +3186,6 @@ the client is challenged as necessary.
 	});
 }
 
-/*function resThread(req, cb) {
-/ **
-@private
-@method resThread
-@param {Object} req Totem session request
-@param {Function} cb sql connector callback(sql)
-
-Callback with request set to sql conector
-* /
-	sqlThread( function (sql) {
-		cb( req.sql = sql );
-	});
-}*/
-
 function proxyThread(req, res) {  // not presently used but might want to support later
 	
 	var 
@@ -3365,7 +3351,7 @@ function simThread(sock) {
 	});
 } */
 
-function runTask(req,res) {
+function runTask(req,res) {  //< task sharding
 	var 
 		query = req.query,
 		body = req.body,
@@ -3382,9 +3368,6 @@ function runTask(req,res) {
 
 	res( "ok" );
 
-	//Log(body);
-	//Log(engine);
-	
 	if ( task && cb ) 
 		dom.forEach( function (index) {
 
