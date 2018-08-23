@@ -3564,7 +3564,7 @@ function runTask(req,res) {  //< task sharding
 			return VM.runInContext( "`" + this + "`" , VM.createContext(query));
 		}
 		catch (err) {
-			return null;
+			return "";
 		}
 	},
 	
