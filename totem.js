@@ -874,6 +874,7 @@ var
 			
 		mime: { // default static file areas
 			files: ".", // path to shared files 
+			"socket.io": ".", // path to socket.io
 			captcha: ".",  // path to antibot captchas
 			index: { //< paths for allowed file indexers ("" to use url path)
 				files: ""
@@ -3308,7 +3309,7 @@ function makeGuest( sql, client ) {  // return a suitable guest profile or null
 					? parts[1].substr(0,6) + parts[0].charAt(0) 
 					: parts[2].substr(0,6) + parts[0].charAt(0) + parts[1].charAt(0);
 
-		Log(client,parts,userid);
+		//Log(client,parts,userid);
 		return userid;
 	}
 	
