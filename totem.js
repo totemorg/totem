@@ -85,6 +85,9 @@ function Trace(msg,sql) {
 var
 	TOTEM = module.exports = {
 
+	reroute: { //< table -> db.table translators
+	},
+		
 	init: function () {},
 		
 	/**
@@ -441,7 +444,7 @@ var
 	@member TOTEM	
 	Site context extended by the mysql derived query when service starts
 	*/
-	site: {  	// reserved for derived context vars		
+	site: {  	//< reserved for derived context vars		
 	},
 
 	/**
@@ -449,7 +452,7 @@ var
 	@member TOTEM	
 	Endpoint reqTypes cb(ack data as string || error)
 	*/
-	reqTypes: {  
+	reqTypes: {  //< record data convertors
 		db: function (ack, req, res) {			
 			req.sql.query("select found_rows()")
 			.on('result', function (stat) {		// records sourced from sql				
@@ -500,7 +503,7 @@ var
 	@member TOTEM	
 	By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
 	*/				
-	byTable: {				
+	byTable: {			  //< by-table routers	
 		riddle: checkRiddle,
 		task: runTask
 	},
@@ -510,7 +513,7 @@ var
 	@member TOTEM	
 	By-action endpoint routers for accessing engines
 	*/				
-	byAction: {
+	byAction: { //< by-action routers
 	},
 
 	/**
@@ -518,7 +521,7 @@ var
 	@member TOTEM	
 	By-type endpoint routers  {type: method(req,res), ... } for accessing dataset readers
 	*/				
-	byType: {
+	byType: {  //< by-type routers
 	},
 
 	/**
@@ -526,7 +529,7 @@ var
 	@member TOTEM	
 	By-area endpoint routers {area: method(req,res), ... } for sending/cacheing files
 	*/		
-	byArea: {	
+	byArea: {	//< by-area routers
 	},
 
 	/**
@@ -534,7 +537,7 @@ var
 	@member TOTEM	
 	By-action-table endpoint routers {action: {table: method(req,res), ...}, ... } for accessing virtual tables
 	*/		
-	byActionTable: {	
+	byActionTable: {	//< by-action-table routers
 		select: {
 			//user: selectUser
 		},
@@ -1161,6 +1164,8 @@ function configService(opts,cb) {
 		JSDB.config({   // establish the db agnosticator 
 			//emit: TOTEM.IO.sockets.emit,   // cant set socketio until server started
 
+			reroute: TOTEM.reroute,  // db translators
+			
 			fetcher: TOTEM.fetch.fetcher,
 			
 			mysql: Copy({ 
@@ -1555,6 +1560,10 @@ function initializeService(sql) {
 		if ( dog.cycle ) {
 			//Trace("DOGING "+key);
 			dog.trace = TRACE+dog.name.toUpperCase();
+			dog.forEach = JSDB.forEach;
+			dog.forAll = JSDB.forAll;
+			dog.forFirst; JSDB.forFirst;
+			
 			setInterval( function (args) {
 
 				//Trace("DOG "+args.name);
@@ -2055,6 +2064,8 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 @param {String} sinkPath path to target file
 @param {Object} tags hach of tags to add to file
 @param {Function} cb callback(fileID) if no errors encountered
+Uploads a source stream srcStream to a target file sinkPath owned by a 
+specified client.  Optional tags are logged with the upload.
 */
 	getFile(client, sinkPath, function (area, fileID, sql) {
 		var 
@@ -2062,7 +2073,7 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 			sinkStream = FS.createWriteStream( folder + "/" + sinkPath, "utf8")
 				.on("finish", function() {  // establish sink stream for export pipe
 
-					Log("totem done uploading");
+					Trace("UPLOADED FILE");
 					sqlThread( function (sql) {
 
 						sql.query("UPDATE apps.files SET ? WHERE ?", [{
@@ -2094,11 +2105,16 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 
 }
 
-/**
-@class DATA_FETCHING methods to pull external data from other services
- */
-
 function fetchString(path, query, body, cb) {  //< callback cb(string)
+/**
+@private
+@method fetchString
+@param {String} path http/https/curl/curls/wget/wgets or "/" -prefixed url
+@param {Object} query GET parameters
+@param {Object} body POST parameters
+@param {Function} cb callback(results as string)
+Fetches data from this/other service and returns this data as a string ("" if an error).
+ */
 	
 	function retry(cmd,opts,cb) {  // wget-curl retry logic
 
@@ -2145,10 +2161,12 @@ function fetchString(path, query, body, cb) {  //< callback cb(string)
 	}
 
 	var 
+		/*
 		url = query ? path.parseJS( Copy(query, {
 			degs: (dd) => Math.floor(dd),
 			mins: (dd) => Math.floor( (dd - Math.floor(dd))*60 )
-		})) : path,
+		})) : path,  */
+		url = (path.charAt(0) == "/") ? TOTEM.host.master + path : path,
 		opts = URL.parse(url),
 		protocol = opts.protocol || "",
 		cert = TOTEM.cache.certs.fetch;
@@ -2831,14 +2849,23 @@ the client is challenged as necessary.
 		Req.req.sql.release();
 	}
 
-	function sendRecords(ack, req, res) {  // Send records via converter
+	function sendObject(rec) {
+		try {
+			sendString( JSON.stringify(rec) );
+		}
+		catch (err) {
+			sendErrror( errors.noData );
+		}		
+	}
+	
+	function sendRecords(recs, req) {  // Send records via converter
 		var 
 			reqTypes = TOTEM.reqTypes,
 			errors = TOTEM.errors;
 		
-		if (ack)
-			if ( conv = reqTypes[req.type] )
-				conv(ack, req, function (rtn) {
+		if (recs)
+			if ( conv = reqTypes[req.type] )  // process record conversions
+				conv(recs, req, function (rtn) {
 					
 					if (rtn) 
 						switch (rtn.constructor) {
@@ -2853,12 +2880,7 @@ the client is challenged as necessary.
 							case Array:
 							case Object:
 							default:
-								try {
-									sendString( JSON.stringify(rtn) );
-								}
-								catch (err) {
-									sendErrror( errors.noData );
-								}
+								sendObject( rtn );
 						} 
 					
 					else
@@ -2937,17 +2959,17 @@ the client is challenged as necessary.
 					
 					if ( req.flags.blog )   // blog back selected keys
 						flag.blog( ack, req, function (recs) {
-							sendRecords(recs,req,res);
+							sendRecords(recs,req);
 						});
 
 					else
 					if ( req.flags.encap )   // encap selected keys
 						flag.encap( ack, req, function (recs) {
-							sendRecords(recs,req,res);
+							sendRecords(recs,req);
 						});
 						
 					else
-						sendRecords(ack,req,res);
+						sendRecords(ack,req);
 					
 					break;
 
@@ -2957,7 +2979,7 @@ the client is challenged as necessary.
 			
 				case Object:
 				default: 					// send data record
-					sendRecords([ack],req,res);
+					sendObject(ack);
 					break;
 			
 			}
