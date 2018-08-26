@@ -2849,9 +2849,9 @@ the client is challenged as necessary.
 		Req.req.sql.release();
 	}
 
-	function sendObject(rec) {
+	function sendObject(obj) {
 		try {
-			sendString( JSON.stringify(rec) );
+			sendString( JSON.stringify(obj) );
 		}
 		catch (err) {
 			sendErrror( errors.noData );
@@ -2888,7 +2888,8 @@ the client is challenged as necessary.
 				});
 
 			else 
-				sendError( errors.badType );
+				sendObject( recs );
+				//sendError( errors.badType );
 		
 		else
 			sendErrror( errors.noData ); 
