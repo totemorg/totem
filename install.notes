@@ -639,8 +639,9 @@ for req in $(cat requirements.txt); do pip install $req; done    # some errors a
 
 ######## python connector for centos 7.x
 
-sudo rpm -Uvh mysql-connector-python-2.1.x.rpm
-sudo cp -r /usr/lib/python2.7/site-packages/mysql $CONDA/lib/python2.7/site-packages
+#sudo rpm -Uvh mysql-connector-python-2.1.x.rpm
+pip install mysql-connector-python   # better
+#sudo cp -r /usr/lib/python2.7/site-packages/mysql $CONDA/lib/python2.7/site-packages
 ######## end python connector
 
 # python re-direct
