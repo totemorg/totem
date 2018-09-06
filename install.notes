@@ -462,7 +462,8 @@ systemctl start docker  # starts
 sudo sh cuda_X.X.run  # X.X=7.5 or 8.0 dont install the nvidia drivers - only the toolkit
 
 ########### nvidia install
-sudo sh cuda_X.X.run # run again - this time install only the drivers
+#sudo sh cuda_X.X.run # run again - this time install only the drivers - no. instead ...
+#download latest .sh nvidia drivers and install
 
 cd /cuda/samples
 make    # will take 20mins 
