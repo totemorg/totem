@@ -85,6 +85,8 @@ function Trace(msg,sql) {
 var
 	TOTEM = module.exports = {
 
+	queues: JSDB.queues, 	// pass along
+		
 	reroute: { //< table -> db.table translators
 	},
 		
@@ -784,20 +786,20 @@ var
 	Default guest profile (unencrypted or client profile not found).  Null to bar guests.
 	*/		
 	guestProfile: {				//< null if guests are barred
-		Banned: "",
-		QoS: 10000,
-		Credit: 100,
-		Charge: 0,
-		LikeUs: 0,
-		Challenge: 1,
-		Client: "guest@guest.org",
-		User: "guest",
-		Group: "app",
-		IDs: "{}",
-		Repoll: true,
-		Retries: 5,
-		Timeout: 30,
-		Message: "Welcome guest - what is (riddle)?"
+		Banned: "",  // nonempty to ban user
+		QoS: 10,  // [secs] job regulation interval
+		Credit: 100,  // job cred its
+		Charge: 0,	// current job charges
+		LikeUs: 0,	// number of user likeus
+		Challenge: 1,		// enable to challenge user at session join
+		Client: "guest@guest.org",		// default client id
+		User: "guest",		// default user ID (reserved for login)
+		Group: "app",		// default group name (db to access)
+		IDs: "{}",		// challenge key:value pairs
+		Repoll: true,	// challenge repoll during active sessions
+		Retries: 5,		// challenge number of retrys before session killed
+		Timeout: 30,	// challenge timeout in secs
+		Message: "Welcome guest - what is (riddle)?"		// challenge message with riddles, ids, etc
 	},
 
 	/**
@@ -1557,12 +1559,14 @@ function initializeService(sql) {
 	// start watch dogs
 	
 	Each( TOTEM.dogs, function (key, dog) {
-		if ( dog.cycle ) {
+		if ( dog.cycle ) {  // attach sql threaders and setup watchdog interval
 			//Trace("DOGING "+key);
 			dog.trace = TRACE+dog.name.toUpperCase();
 			dog.forEach = JSDB.forEach;
 			dog.forAll = JSDB.forAll;
-			dog.forFirst; JSDB.forFirst;
+			dog.forFirst = JSDB.forFirst;
+			dog.thread = JSDB.thread;
+			dog.site = TOTEM.site;
 			
 			setInterval( function (args) {
 
