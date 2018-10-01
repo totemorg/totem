@@ -3596,12 +3596,12 @@ function runTask(req,res) {  //< task sharding
 		}
 	},
 	
-	function parseJSON(cb) {
+	function parseJSON(def) {
 		try { 
 			return JSON.parse(this);
 		}
 		catch (err) {  
-			if (cb) cb(this);
+			return def ? def(this) : null;
 		}
 	},
 
