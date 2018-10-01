@@ -3514,34 +3514,6 @@ function runTask(req,res) {  //< task sharding
 ].extend(Array);
 
 [ //< String prototypes
-	function trace(msg,sql) {	
-		var pre = this+"";
-
-		if (sql) {
-			var 
-				parts = msg.split(" "),
-				action = parts[0],
-				target = parts[1],
-				client = "";
-
-			parts.each( function (n,part) {
-				if ( part == "FOR" ) client = parts[n+1];
-			});
-
-			sql.query("INSERT INTO openv.syslogs SET ?", {
-				Action: action,
-				Target: target,
-				Module: pre,
-				t: new Date(),
-				Client: client
-			});
-
-			console.log(pre,msg);
-		}
-		else
-			console.log(pre,msg);
-	},
-	
 	function tag(el,at,eq) {
 	/**
 	@method tag
