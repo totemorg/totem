@@ -1531,10 +1531,6 @@ function initializeService(sql) {
 		"WITH " + (TOTEM.cores ? TOTEM.cores + " WORKERS AT "+site.urls.worker : "NO WORKERS")
 	].join("\n- ")	);
 
-	// clear system logs
-	
-	sql.query("DELETE FROM openv.syslogs");
-
 	// initialize file watcher
 
 	sql.query("UPDATE app.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
@@ -2669,9 +2665,7 @@ byType, byActionTable, engine or file indexFile (see config documentation).
 
 		var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
 
-		Trace( 
-			(route?route.name:"null").toUpperCase() 
-			+ ` ${req.filename} FOR ${req.client} ON CORE${myid}.${req.group}`, req.sql);
+		Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.filename} FOR ${req.client} ON CORE${myid}`, req.sql );
 
 		route(req, res);
 

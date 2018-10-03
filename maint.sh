@@ -309,9 +309,9 @@ baseline.)
 	cd ..
 	;;
 
-githigh.)
+rebase.)
 	zip -uP $ZIP_PASS $MODULE.zip $MODULE.js
-	git -commit -am "rebase"
+	git -commit -am "rebase $2"
 	git push origin master
 	;;
 	
@@ -409,14 +409,18 @@ help.)	# some help
 	echo "	restyle css styles using css compass complier"
 	;;
 	
+up.) 		# bring up production service 
+
+	export SERVICE_NAME=Totem1
+	export SERVICE_MASTER_URL=http://localhost:80
+	export SERVICE_WORKER_URL=https://localhost:443
+
+	sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever start debe.js D1
+	;;
+
 *)  	# start specified totem config
 
 	node debe.js $1 $2 $3 $4 $5 
-	;;
-
-keepup.)
-
-	forever start debe.js $2 $3 $4 $5
 	;;
 
 esac
