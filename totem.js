@@ -1557,7 +1557,7 @@ function initializeService(sql) {
 	Each( TOTEM.dogs, function (key, dog) {
 		if ( dog.cycle ) {  // attach sql threaders and setup watchdog interval
 			//Trace("DOGING "+key);
-			dog.trace = TRACE+dog.name.toUpperCase();
+			dog.trace = dog.name.toUpperCase();
 			dog.forEach = JSDB.forEach;
 			dog.forAll = JSDB.forAll;
 			dog.forFirst = JSDB.forFirst;
