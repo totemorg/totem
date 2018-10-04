@@ -637,6 +637,11 @@ cd caffe/python
 for req in $(cat requirements.txt); do pip install $req; done    # some errors are generated
 ######## end caffe install
 
+######## python code minifier
+pip install pyminifier # --index-url= ..... (see gitadv)
+# need to revise the pyminifier to reseed rvs so same var names produced. add to pyminifier the following:
+# from random import seed
+# seed(1234)
 
 ######## python connector for centos 7.x
 
