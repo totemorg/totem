@@ -3443,68 +3443,6 @@ function runTask(req,res) {  //< task sharding
 		});
 		return ctx;
 	}
-	/*
-	function treeify(idx,kids,level,piv,wt) {
-	/ **
-	@private
-	@method treeify
-	@member Array
-	Returns list as a tree containing children,weight,name leafs.
-	@param [Number] idx starting index (0 on first call)
-	@param [Number] kids number of leafs following starting index (this.length on first call)
-	@param [Number] level current depth (0 on first call)
-	@param [Array] piv pivots
-	@param [String] wt key name that contains leaf weight (defaults to "size")
-	* /		
-
-		if (!wt) 
-			return this.treeify(0,recs.length,0,idx,"size");
-
-		var recs = this;
-		var key = piv[level];
-		var levels = piv.length-1;
-		var ref = recs[idx][key];
-		var len = 0;
-		var pos = idx, end = idx+kids;
-		var tar = [];
-
-		if (level<levels)
-			while (pos<end) {
-				var rec = recs[idx];
-				var stop = (idx==end) ? true : (rec[key] != ref);
-
-				if ( stop ) {
-					//Log([pos,idx,end,key,ref,recs.length]);
-
-					var node = {
-						name: key+":"+ref, 
-						weight: len, //wt ? parseInt(rec[wt] || "0") : 0,
-						children: recs.treeify(pos,len,level+1,piv,wt)
-					};
-
-					tar.push( node );
-					pos = idx;
-					len = 0;
-					ref = (idx==end) ? null : recs[idx][key];
-				}
-				else {
-					idx++;
-					len++;
-				}
-			}
-
-		else
-			while (pos < end) {
-				var rec = recs[pos++];
-				tar.push({
-					name: key+":"+rec[key], 
-					weight: wt ? parseInt(rec[wt] || "1") : 1,
-					doc: rec
-				});
-			}
-
-		return tar;
-	} */
 ].extend(Array);
 
 [ //< String prototypes
