@@ -2427,7 +2427,7 @@ Challenge a client with specified profile parameters
 	var 
 		rid = [],
 		reply = (TOTEM.riddleMap && TOTEM.riddles)
-				? makeRiddles( profile.Message, rid, (profile.IDs||"").parseJSON() || {} )
+				? makeRiddles( profile.Message, rid, (profile.IDs||"").parseJSON( (val) => {} ) )
 				: profile.Message;
 
 	if (reply && TOTEM.IO) 
@@ -2481,7 +2481,7 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 		site = req.site = TOTEM.site,
 		joins = req.joins = {},
 		flags = req.flags = {},
-		src = node.path.parsePath(query,index,query);
+		src = node.path.parsePath(query,index);
 	
 	//Log(">>>>>", src, ">>>>", query);
 	
@@ -2997,7 +2997,7 @@ the client is challenged as necessary.
 		})
 		.on("end", function () {
 			if (body)
-				cb( body.parseJSON( function () {  // yank files if body not json
+				cb( body.parseJSON( (body) => {  // yank files if body not json
 					
 					var files = [], parms = {};
 					
@@ -3434,7 +3434,7 @@ function runTask(req,res) {  //< task sharding
 	function parseJSON(ctx,def) {
 		this.forEach( function (key) {
 			try {
-				ctx[key] = ctx[key].parseJSON() || def || null;
+				ctx[key] = ctx[key].parseJSON( (val) => def || null );
 			}
 			catch (err) {
 				//Log(err,key,rec[key]);
@@ -3567,7 +3567,7 @@ function runTask(req,res) {  //< task sharding
 			return JSON.parse(this);
 		}
 		catch (err) {  
-			return def ? def(this) : null;
+			return def ? def(this) : this;
 		}
 	},
 
@@ -3582,38 +3582,34 @@ function runTask(req,res) {  //< task sharding
 		function parse(parm, op, qual, store, cb) {
 			var	
 				parts = parm.split(op),  
-				key = parts[0] + qual,
-				val = parts[1];
+				key = parts[0],
+				val = parts[1] || "";
 			
-			if (val) 
-				try {
-					store[key] = JSON.parse(val);
-				}
-				catch (err) {
-					store[key] = val;
-				}
-
+			
+			if (key && val) 
+				store[key+qual] = val.parseJSON( ) ;
+			
 			else 
-				if (cb) cb();
+			if (cb) cb();
 		}
 
 		var 
-			parts = this.split("?"),
-			pathname = parts[0],
-			parms = parts[1],
-			parms = parms ? parms.split("&") : [];
+			parts = this.split("?");
 
-		parms.forEach( function (parm) {
-			if (parm) 
-				parse( parm, "=", "", query, function () {
-				parse( parm, ":", ":", index || {}, function () {
-				parse( parm, "<", "<$", query, function () {
-				parse( parm, ">", ">$", query, function () {
-					if (trap) trap[parm] = null;
-				}); }); });	});
-		});
+		if ( parms = parts[1] )
+			parms.split("&").forEach( function (parm) {
+				if (parm) 
+					parse( parm, "=", "", query, function () {
+					parse( parm, ":", ":", index || {}, function () {
+					parse( parm, "<", "<$", query, function () {
+					parse( parm, ">", ">$", query, function () {
+						if (trap) trap[parm] = null;
+					}); }); });	});
+			});
 
-		return pathname;
+		delete query[""];
+		//Log(parts[0], query, trap, parts[1]);
+		return parts[0];
 	},
 
 	function parseXML(def, cb) {
