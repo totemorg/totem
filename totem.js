@@ -42,7 +42,7 @@ Required MySQL openv.datasets:
 	apps, sessions, profiles, aspreqts, ispreqts, swreqts, hwreqts, riddles, syslogs
 	
 Required MySQL app.datasets:
-	dblogs, files
+	dblogs syslogs files
  */
 
 var	
@@ -690,54 +690,49 @@ var
 		Attaches the profile, group and a session metric log to this req request (cert,sql) with 
 		callback cb(error) where error reflects testing of client cert and profile credentials.
 		*/		
-		function cpuavgutil() {				// compute average cpu utilization
-			var avgUtil = 0;
-			var cpus = OS.cpus();
+		function admit(cb) {  // callback cb(log || null) with session log 
+			
+			function cpuavgutil() {				// compute average cpu utilization
+				var avgUtil = 0;
+				var cpus = OS.cpus();
 
-			cpus.each(function (n,cpu) {
-				idle = cpu.times.idle;
-				busy = cpu.times.nice + cpu.times.sys + cpu.times.irq + cpu.times.user;
-				avgUtil += busy / (busy + idle);
-			});
-			return avgUtil / cpus.length;
-		}		
-
-		function admit() {
-			sql.query("show session status like 'Thread%'", function (err,stats) {  // attach session metric logs
-				if (err)
-					stats = [{Value:0},{Value:0},{Value:0},{Value:0}];
-
-				req.log = new Object({  // add session metric logs to request
-					Event: now,		 					// start time
-					Action: req.action, 				// db action
-					ThreadsRunning: stats[3].Value,		// sql threads running
-					ThreadsConnected: stats[1].Value,	// sql threads connected
-					Stamp: TOTEM.host.name,					// site name
-					Util : cpuavgutil(),				// cpu utilization
-					Fault: "isp"						// fault codes
-					//Cores: site.Cores, 					// number of safety core hyperthreads
-					//VMs: 1,								// number of VMs
-					//Client: client, 				// client id
-					//Table: req.table, 					// db target
-					//RecID: req.query.ID || 0,			// sql recID
+				cpus.each(function (n,cpu) {
+					idle = cpu.times.idle;
+					busy = cpu.times.nice + cpu.times.sys + cpu.times.irq + cpu.times.user;
+					avgUtil += busy / (busy + idle);
 				});
-				req.profile = new Object( profile );
-				req.group = profile.Group;
+				return avgUtil / cpus.length;
+			}		
 
-				/*
-					//org		: cert.subject.O || "guest",  // cert organization 
-					//serverip: sock ? sock.address().address : "unknown",
-					//onencrypted: CLUSTER.isWorker,  // flag
-					//journal : true,				// journal db actions
-					//email	: client, 			// email address from pki
-					//profile	: new Object(profile),  // complete profile
-					//group	: profile.Group, // || TOTEM.site.db, 
-					//joined	: now, 				// time joined
-					//client	: client			// client ID
-				*/
-
+			if ( logThreads = TOTEM.paths.mysql.logThreads )
+				sql.query( logThreads , function (err,stats) {  // attach session metric logs					
+					cb( err ? null : {
+						Event: now,		 					// start time
+						Action: req.action, 				// db action
+						ThreadsRunning: stats[3].Value,		// sql threads running
+						ThreadsConnected: stats[1].Value,	// sql threads connected
+						Stamp: TOTEM.host.name,					// site name
+						Util : cpuavgutil(),				// cpu utilization
+						Fault: "isp"						// fault codes
+						//Cores: site.Cores, 					// number of safety core hyperthreads
+						//VMs: 1,								// number of VMs
+						//Client: client, 				// client id
+						//Table: req.table, 					// db target
+						//RecID: req.query.ID || 0,			// sql recID
+						//org		: cert.subject.O || "guest",  // cert organization 
+						//serverip: sock ? sock.address().address : "unknown",
+						//onencrypted: CLUSTER.isWorker,  // flag
+						//journal : true,				// journal db actions
+						//email	: client, 			// email address from pki
+						//profile	: new Object(profile),  // complete profile
+						//group	: profile.Group, // || TOTEM.site.db, 
+						//joined	: now, 				// time joined
+						//client	: client			// client ID
+					});
+				});
+					
+			else 
 				cb( null );
-			});	
 		}
 		
 		var 
@@ -766,7 +761,12 @@ var
 					cb( new Error( msg ) );
 
 				else
-					admit();
+					admit( (log) => {
+						req.log = log ? new Object(log) : null;
+						req.profile = new Object( profile );
+						req.group = profile.Group;
+						cb( null );
+					});
 			}
 		
 			else
@@ -777,7 +777,12 @@ var
 			cb( errors.rejectedClient );
 		
 		else 
-			admit();
+			admit( (log) => {
+				req.log = log ? new Object(log) : null;
+				req.profile = new Object( profile );
+				req.group = profile.Group;
+				cb( null );
+			});
 	},
 
 	/**
@@ -856,9 +861,10 @@ var
 		certs: "./certs/", 
 		
 		mysql: {
+			//logThreads: "show session status like 'Thread%'",
 			users: "SELECT 'user' AS Role, group_concat(DISTINCT dataset SEPARATOR ';') AS Contact FROM app.dblogs WHERE instr(dataset,'@')",
 			derive: "SELECT * FROM openv.apps WHERE ? LIMIT 1",
-			saveMetrics: "INSERT INTO app.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
+			//logMetrics: "INSERT INTO app.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
 			search: "SELECT * FROM app.files HAVING Score > 0.1",
 			//credit: "SELECT * FROM app.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 1",
 			getProfile: "SELECT * FROM openv.profiles WHERE ? LIMIT 1",
@@ -1416,7 +1422,7 @@ function connectService(cb) {
 	
 	//Log( TOTEM.onEncrypted, CLUSTER.isMaster, CLUSTER.isWorker );
 	
-	if ( onEncrypted ) {  
+	if ( onEncrypted ) {  // have encrypted services so start https service
 		try {  // build the trust strore
 			Each( FS.readdirSync(paths.certs+"/truststore"), function (n,file) {
 				if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
@@ -1440,7 +1446,7 @@ function connectService(cb) {
 		}) , cb );
 	}
 	
-	else 
+	else // unencrpted services so start http service
 		startService( HTTP.createServer(), cb );
 }
 
@@ -2547,10 +2553,10 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 	}
 }						
 
-function syncNodes(nodes, acks, req, res) {
+function routeNodes(nodes, acks, req, res) {
 /**
 @private
-@method syncNodes
+@method routeNodes
 @param {Array} nodes
 @param {Object} acks
 @param {Object} req Totem session request
@@ -2562,12 +2568,12 @@ method, aggregate results, then send with supplied response().
 	if ( node = req.node = nodes.pop() )  	// grab last node
 		routeNode( req, function (ack) { 	// route it and intercept its ack
 			acks[req.table] = ack;
-			syncNodes( nodes, acks, Copy(req,{}), res );
+			routeNodes( nodes, acks, Copy(req,{}), res );
 		});
 
 	else
 	if (nodes.length) 	// still more nodes
-		syncNodes( nodes, acks, Copy(req,{}), res );
+		routeNodes( nodes, acks, Copy(req,{}), res );
 	
 	else  				// no more nodes
 		res(acks);
@@ -2603,9 +2609,8 @@ byType, byActionTable, engine or file indexFile (see config documentation).
 	request-response thread
 	*/
 
-		function logMetrics(sock) { //< log session metrics 
-			if ( saveMetrics=TOTEM.paths.mysql.saveMetrics ) {
-				var log = req.log;
+		function logMetrics(log, sock) { //< log session metrics 
+			if ( logMetrics = TOTEM.paths.mysql.logMetrics ) {
 
 				sock._started = new Date();
 
@@ -2618,38 +2623,19 @@ byType, byActionTable, engine or file indexFile (see config documentation).
 				sock.on('close', function () { 		// cb when connection closed
 					var 
 						secs = sock._started ? ((new Date()).getTime() - sock._started.getTime()) / 1000 : 0,
-						bytes = sock.bytesWritten,
-						log = req.log;
+						bytes = sock.bytesWritten;
+						//log = req.log;
 
 					sqlThread( function (sql) {
 
-						if (false)  // grainular track
-							sql.query(saveMetrics, [ Copy(log, {
-								Delay: secs,
-								Transfer: bytes,
-								Event: sock._started,
-								Dataset: req.table,
-								Client: rec.client,
-								Actions: 1
-							}), bytes, secs, log.Event  ]);
-
-						else { // bucket track
-							sql.query(saveMetrics, [ Copy(log, {
-								Delay: secs,
-								Transfer: bytes,
-								Event: sock._started,
-								Dataset: req.table,
-								Actions: 1
-							}), bytes, secs, log.Event  ]);
-
-							sql.query(saveMetrics, [ Copy(log, {
-								Delay: secs,
-								Transfer: bytes,
-								Event: sock._started,
-								Dataset: req.client,
-								Actions: 1
-							}), bytes, secs, log.Event  ]);
-						}
+						sql.query(logMetrics, [ Copy(log, {
+							Delay: secs,
+							Transfer: bytes,
+							Event: sock._started,
+							Dataset: "",
+							Client: req.client,
+							Actions: 1
+						}), bytes, secs, log.Event  ]);
 
 						sql.release();
 
@@ -2659,9 +2645,10 @@ byType, byActionTable, engine or file indexFile (see config documentation).
 			}
 		}
 
-		if ( !req.filepath && req.encrypted )   // dont log file requests
-			if ( sock = req.reqSocket )  // dont log http request // req.socket
-				logMetrics( sock );  
+		if ( !req.filepath && req.encrypted )   // dont log if file requested
+			if ( sock = req.reqSocket )  // dont log if no http request socket
+				if ( log = req.log )  // dont log if logging disabled
+					logMetrics( log, sock );  
 
 		var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
 
@@ -3162,14 +3149,15 @@ the client is challenged as necessary.
 				paths = TOTEM.paths,		// parse request url into /area/nodes
 				onEncrypted = TOTEM.onEncrypted[CLUSTER.isMaster],  // request being made to encrypted service
 				req = Req.req = {			// prime session request
-					method: Req.method,
+					method: Req.method,		// get,put, etc
+					started: Req.headers.Date,  // time client started request
 					action: TOTEM.crud[Req.method],
 					reqSocket: Req.socket,   // use supplied request socket 
 					resSocket: getSocket,		// use this method to return a response socket
-					encrypted: onEncrypted,
-					socketio: onEncrypted ? TOTEM.site.urls.socketio : "",
-					body: body,
-					url: (Req.url == "/") ? paths.nourl : unescape(Req.url)
+					encrypted: onEncrypted,	// on encrypted worker
+					socketio: onEncrypted ? TOTEM.site.urls.socketio : "",		// path to socket.io
+					body: body,		// body parameters
+					url: (Req.url == "/") ? paths.nourl : unescape(Req.url)		// requested url
 				},
 
 				/*
@@ -3199,7 +3187,7 @@ the client is challenged as necessary.
 				}
 
 				else 					// respond with aggregate of all nodes
-					syncNodes(nodes, {}, req, res);
+					routeNodes(nodes, {}, req, res);
 
 			});
 
@@ -3505,7 +3493,7 @@ function runTask(req,res) {  //< task sharding
 			return JSON.parse(this);
 		}
 		catch (err) {  
-			return def ? def(this) : this;
+			return def ? def(this) : this+"";
 		}
 	},
 
@@ -3517,36 +3505,35 @@ function runTask(req,res) {  //< task sharding
 	the default hash def = {key:val, key=val?query, relation:null, key:json, ...}.
 	*/
 
-		function parse(parm, op, qual, store, cb) {
-			var	
-				parts = parm.split(op),  
-				key = parts[0],
-				val = parts[1] || "";
-			
-			
-			if (key && val) 
-				store[key+qual] = val.parseJSON( ) ;
-			
-			else 
-			if (cb) cb();
-		}
-
 		var 
 			parts = this.split("?");
 
 		if ( parms = parts[1] )
 			parms.split("&").forEach( function (parm) {
+				function parseParm(op, qual, store, cb) {
+					var	
+						parts = parm.split(op),  
+						key = parts[0],
+						val = parts[1] || "";
+
+					if (key) 
+						if (val)
+							store[key+qual] = val.parseJSON( );
+	
+						else
+							cb();
+				}
+
 				if (parm) 
-					parse( parm, "=", "", query, function () {
-					parse( parm, ":", ":", index || {}, function () {
-					parse( parm, "<", "<$", query, function () {
-					parse( parm, ">", ">$", query, function () {
+					parseParm( "=", "", query, function () {
+					parseParm( ":", ":", index || {}, function () {
+					parseParm( "<", "<$", query, function () {
+					parseParm( ">", ">$", query, function () {
 						if (trap) trap[parm] = null;
 					}); }); });	});
 			});
 
 		delete query[""];
-		//Log(parts[0], query, trap, parts[1]);
 		return parts[0];
 	},
 
