@@ -1,15 +1,12 @@
 #!/bin/bash
 # UNCLASSIFIED when IP addresses and passwords are undefined
 
-#export HERE=`pwd`
-#export node_path=./node_modules
+export BASE=/local
+export HERE=`pwd`
 
 # initialize dev/prod paths
-export BASE=/local
 export MAP=/media/sf_vmshare
-export SRV=$BASE/service
 export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin
-export LD_LIBRARY_PATH=
 export REPO=git@git.geointapps.org:acmesds
 
 # NodeJS  
@@ -39,30 +36,25 @@ export NET="--net host"
 export RUN="run -it $GPU $VOL $NET"
 export RUND="$RUN -d"
 
-# Devs
-export INCLUDE=$BASE/include
-export LIB=$BASE/lib64
+case "sbudev." in
+awsdev.)  # AWS
+	export USER=jamesdb
+	export GPUHOST=$USER@swag-gpu-01
+	export GUIHOST=$USER@swag-ws-02
+	;;
+	
+iledec.) 	# ILE
+	export USER=jamesbd
+	export GPUHOST=giatstlgui01.innovision.local
+	export GUIHOST=giatstlgui01.innovision.local
+	;;
+	
+sbudev.)  # SBU
+	export USER=jamesbd
+	export GPUHOST=wsn3303
+	export GUIHOST=wsn3303
 
-# binders machines and geo shortcuts
-
-export REBUILD="node-gyp rebuild --nodedir=$NODE"	# use "node-gyp $GYPTOPS" to override distro ref to inet
-#export ENGINES=$SRV/engine/ifs
-#export LINK=g++ 			# fixes node-gyp flock issue when source files on NFS system
-
-# AWS
-#export USER=jamesdb
-#export GPUHOST=$USER@swag-gpu-01
-#export GUIHOST=$USER@swag-ws-02
-
-# ILE
-#export USER=jamesbd
-#export GPUHOST=giatstlgui01.innovision.local
-#export GUIHOST=giatstlgui01.innovision.local
-
-# SBU
-export USER=jamesbd
-export GPUHOST=wsn3303
-export GUIHOST=wsn3303
+esac
 
 # define passwords
 source pass.sh
