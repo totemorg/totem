@@ -3422,7 +3422,7 @@ function runTask(req,res) {  //< task sharding
 	function parseJSON(ctx,def) {
 		this.forEach( function (key) {
 			try {
-				ctx[key] = ctx[key].parseJSON( (val) => def || null );
+				ctx[key] = (ctx[key] || "").parseJSON( (val) => def || null );
 			}
 			catch (err) {
 				//Log(err,key,rec[key]);
@@ -3493,7 +3493,7 @@ function runTask(req,res) {  //< task sharding
 			return JSON.parse(this);
 		}
 		catch (err) {  
-			return def ? def(this) : this+"";
+			return def ? def(this) || null : null;
 		}
 	},
 
@@ -3518,7 +3518,7 @@ function runTask(req,res) {  //< task sharding
 
 					if (key) 
 						if (val)
-							store[key+qual] = val.parseJSON( );
+							store[key+qual] = val.parseJSON( (junk) => val );
 	
 						else
 							cb();
