@@ -122,11 +122,11 @@ mysql.)
 	
 	config.)	# configure apps
 		echo -e "update openv.apps as needed"
-		mysql -u$MYSQL_USER -p$MYSQL_PASS
+		mysql -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST
 		;;
 
 	snapf.)   # snapshot functions only
-		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -ndtR app >admins/db/funcs.sql
+		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST ndtR app >admins/db/funcs.sql
 		;;
 
 	archive.)  # snapshot and archive db
@@ -134,8 +134,8 @@ mysql.)
 		echo "Exporting sqldb to admins/db"
 
 		cd $ADMIN/db
-			mysqldump -u$MYSQL_USER -p$MYSQL_PASS openv >admins/db/openv.sql
-			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -R app >admins/db/app.sql
+			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >admins/db/openv.sql
+			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app >admins/db/app.sql
 			#mysqldump -u$MYSQL_USER -p$MYSQL_PASS --events mysql >admins/db/mysql.sql
 			#mysqldump -u$MYSQL_USER -p$MYSQL_PASS jou >admins/db/jou.sql
 
@@ -146,13 +146,13 @@ mysql.)
 		;;
 
 	save.)		# snapshot all dbs
-		mysqldump -u$MYSQL_USER -p$MYSQL_PASS openv >admins/db/openv.sql
-		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -R app >admins/db/app.sql
+		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >admins/db/openv.sql
+		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app >admins/db/app.sql
 		;;
 
 	load.)
-		mysql -u$MYSQL_USER -p$MYSQL_PASS openv <admins/db/openv.sql	
-		mysql -u$MYSQL_USER -p$MYSQL_PASS app <admins/db/app.sql	
+		mysql -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv <admins/db/openv.sql	
+		mysql -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST app <admins/db/app.sql	
 		;;
 		
 	start.)
@@ -415,7 +415,7 @@ up.) 		# bring up production service
 	export SERVICE_MASTER_URL=http://localhost:80
 	export SERVICE_WORKER_URL=https://localhost:443
 
-	sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever start debe.js D1
+	sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o up.log start debe.js D1
 	;;
 
 *)  	# start specified totem config
