@@ -291,6 +291,10 @@ _archive.) 	# archive service to archive area
 # Local and remote archives
 #
 
+gitconfig.)
+	git config –global http.sslVerify false
+	;;
+
 zip.)
 	zip -ry ../transfer/$MODULE.zip * -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
 	;;
