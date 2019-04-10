@@ -7,7 +7,8 @@
 
 # TOTEM
 
-TOTEM replaces a slew of god-awful middleware, by providing a http/https service with the following configurable features:
+TOTEM provides a basic http/https web service (thus replaces a slew of god-awful middleware) 
+having the following configurable features:
 
 	+ routing methods for table, engine, and file objects
 	+ denial-of-service protection
