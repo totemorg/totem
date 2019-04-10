@@ -3532,8 +3532,8 @@ function runTask(req,res) {  //< task sharding
 ].extend(String);
 	
 switch (process.argv[2]) { //< unit tests
-	default:
-		Log("unit test with T1 ... T7");
+	case "?":
+		Log("unit test with 'node totem.js [T1 || T2 || ...]'");
 		break;
 		
 	case "T1": 
