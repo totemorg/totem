@@ -24,26 +24,7 @@
 @requires json2csv
 @requires js2xmlparser
 @requires toobusy-js
-
-Referenced external vars:
-		SERVICE_NAME || "Totem1",
-		SERVICE_PASS || "",
-		SERVICE_WORKER_URL || "https://localhost:8443", 
-		SERVICE_MASTER_URL || "http://localhost:8080"
-		MYSQL_HOST || "localhost",
-		MYSQL_HOST || "nobody",
-		MYSQL_PASS || "secret",
-		SHARD0 || "http://localhost:8080/task",
-		SHARD1 || "http://localhost:8080/task",
-		SHARD2 || "http://localhost:8080/task",
-		SHARD3 || "http://localhost:8080/task"
-
-Required MySQL openv.datasets:
-	apps, sessions, profiles, aspreqts, ispreqts, swreqts, hwreqts, riddles, syslogs
-	
-Required MySQL app.datasets:
-	dblogs syslogs files
- */
+*/
 
 var	
 	// globals
@@ -3551,6 +3532,10 @@ function runTask(req,res) {  //< task sharding
 ].extend(String);
 	
 switch (process.argv[2]) { //< unit tests
+	default:
+		Log("unit test with T1 ... T7");
+		break;
+		
 	case "T1": 
 		var TOTEM = require("../totem");
 
@@ -3691,7 +3676,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 		});
 		break;
 		
-	case "TX":
+	case "T7":
 		var TOTEM = require("../totem").config({
 		},  function (err) {				
 			Trace( err || "db maintenance" );
@@ -3793,7 +3778,6 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 				}
 
 			});
-
 		});		
 		break;
 }
