@@ -759,3 +759,11 @@ CUDA: Install via the NVIDIA package instead of yum to be certain of the library
 BLAS: install ATLAS by sudo yum install atlas-devel or install OpenBLAS or MKL for better CPU performance. For the Makefile build, uncomment and set BLAS_LIB accordingly as ATLAS is usually installed under /usr/lib[64]/atlas).
 
 Python (optional): if you use the default Python you will need to sudo yum install the python-devel package to have the Python headers for building the pycaffe wrapper.
+
+############ anaconda
+bash ..../Anaconda-xxxx.sh
+# place install at /local/anaconda-xxxx
+# cd /local
+# ln -s anaconda anaconda-xxxx
+conda init   # post install init
+conda install -c plotly plotly  # install plotly etc packages

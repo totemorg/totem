@@ -3,11 +3,11 @@
 	[SourceForge](https://sourceforge.net) 
 	[github](https://github.com/acmesds/totem.git) 
 	[geointapps](https://git.geointapps.org/acmesds/totem)
-	[gitlab](https://gitlab.weat.nga.ic.gov/acmesds/totem.git)
+	[gitlab](https://gitlab.west.nga.ic.gov/acmesds/totem.git)
 
 # TOTEM
 
-TOTEM  provides a service with the following selectable features:
+TOTEM replaces a slew of god-awful middleware, by providing a http/https service with the following configurable features:
 
 	+ routing methods for table, engine, and file objects
 	+ denial-of-service protection
@@ -23,52 +23,65 @@ TOTEM  provides a service with the following selectable features:
 	+ database agnosticator (default MySQL-Cluster)
 	+ poll files and services
 	+ automattic server cert generation
-	+ parallel tasking
+	+ task sharding
   
- thus replacing a slew of god-awful middleware (like Express).  As documented in its api, 
- TOTEM provides a CRUD-compliant interface to a NODE at the endpoints:
+ TOTEM provides a CRUD interface to endpoint NODEs:
 
 	POST		/NODE ?? NODE ...
 	GET			/NODE ?? NODE ...
 	PUT			/NODE ?? NODE ...
 	DELETE	/NODE ?? NODE ...
 
- to access its datasets, engines, files and commands at a NODE:
+where a NODE endpoint represents either a dataset, engine, files or command:
 
 	DATASET.TYPE ? QUERY ? QUERY ...
 	ENGINE.TYPE ? QUERY ? QUERY ...
 	FILEPATH.TYPE ? QUERY ? QUERY ...
 	COMMAND.TYPE ? QUERY ? QUERY ...
 
-The default TOTEM configure provides TYPE formatters:
+By default, TOTEM provides the following TYPEs:
 
 	db | xml | csv | json
 
-and COMMAND endpoints:
+and the following COMMAND endpoints:
 
 	riddle | task
 	
 ## Installing
 
-Clone from one of the repos into your PROJECT/totem.  
+Clone [TOTEM](https://github.com/acmesds/totem) into your PROJECT/totem folder.   
+Clone [ENUM basic enumerators](https://github.com/acmesds/enum) into your PROJECT/enum folder.   
+Clone [JSDB database agnosticaor](https://github.com/acmesds/jsdb) into your PROJECT/jsdb folder.
 
-Dependencies:
+## Required external variables
 
-* [ENUM basic enumerators](https://github.com/acmesds/enum)
-* [JSDB database agnosticaor](https://github.com/acmesds/jsdb)
+* SERVICE_NAME || "Totem1"  
+* SERVICE_PASS || ""  
+* SERVICE_WORKER_URL || "https://localhost:8443"  
+* SERVICE_MASTER_URL || "http://localhost:8080"  
+* MYSQL_HOST || "localhost" 
+* MYSQL_HOST || "nobody"  
+* MYSQL_PASS || "secret"  
+* SHARD0 , SHARD1, ... SHARDN || "http://localhost:8080/task"
+
+## Required MySQL tables
+
 * openv.profiles Updates when a client arrives  
-* openv.sessions Updates when a client session is established  
+* openv.sessions Updates when a client session is established   
 * openv.riddles Builds on config() and updates when a client arrives  
-* openv.apps Read on config() to override TOTEM options and define site context parameters
+* openv.apps Read on config() to override config options and to define site context keys  
+* openv.aspreqts Read on config() to define asp requirements  
+* openv.ispreqts Read on config() to define isp requirements  
+* openv.hwreqts Read on config() to define hardware requirements  
+* app.files Updated/read during file download/upload
 
-## Using
+## Starting
 
-To start TOTEM, simply run the desired test.js configuration:
+To start TOTEM, simply run the TOTEM in one of its unit-test configurations:
 	
-	. maint.sh [N1 | N2 | ...]
+	node totem.js [N1 | N2 | ...]
 	
-Each configuration follow the 
-[ENUM deep copy() conventions](https://github.com/acmesds/enum):
+Each configuration follows the pattern:
 
 	var TOTEM = require("totem").config({
 		key: value, 						// set key
@@ -78,8 +91,8 @@ Each configuration follow the
 		console.log( err ? "something evil is lurking" : "look mom - Im running!");
 	});
 
-where its [key:value options](/shares/prm/totem/index.html) override the defaults
-primed from [nick:"NAME"](/apps.view).
+where [configuration options](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) follow 
+the [ENUM deep copy() conventions](https://github.com/acmesds/enum).
 
 ### N1 - Just an interface
 		
