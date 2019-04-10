@@ -47,13 +47,13 @@ and the following COMMAND endpoints:
 
 	riddle | task
 	
-## Installing
+## Installation
 
-Clone [TOTEM](https://github.com/acmesds/totem) into your PROJECT/totem folder.   
+Clone [TOTEM base web service](https://github.com/acmesds/totem) into your PROJECT/totem folder.   
 Clone [ENUM basic enumerators](https://github.com/acmesds/enum) into your PROJECT/enum folder.   
 Clone [JSDB database agnosticaor](https://github.com/acmesds/jsdb) into your PROJECT/jsdb folder.
 
-## Required external variables
+### Required external variables
 
 * SERVICE_NAME || "Totem1"  
 * SERVICE_PASS || ""  
@@ -64,7 +64,7 @@ Clone [JSDB database agnosticaor](https://github.com/acmesds/jsdb) into your PRO
 * MYSQL_PASS || "secret"  
 * SHARD0 , SHARD1, ... SHARDN || "http://localhost:8080/task"
 
-## Required MySQL tables
+### Required MySQL databases
 
 * openv.profiles Updates when a client arrives  
 * openv.sessions Updates when a client session is established   
@@ -91,8 +91,8 @@ Each configuration follows the pattern:
 		console.log( err ? "something evil is lurking" : "look mom - Im running!");
 	});
 
-where [configuration options](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) follow 
-the [ENUM deep copy() conventions](https://github.com/acmesds/enum).
+where [its configuration options](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) follow 
+the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 
 ## Usage
 
