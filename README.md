@@ -76,14 +76,12 @@ Clone [JSDB database agnosticaor](https://github.com/acmesds/jsdb) into your PRO
 * openv.hwreqts Read on config() to define hardware requirements  
 * app.files Updated/read during file download/upload
 
+## Usage
+
 ## Starting
 
-To start TOTEM, simply run the TOTEM in one of its unit-test configurations:
+Simply require, configure and start TOTEM:
 	
-	node totem.js [N1 | N2 | ...]
-	
-Each configuration follows the pattern:
-
 	var TOTEM = require("totem").config({
 		key: value, 						// set key
 		"key.key": value, 					// indexed set
@@ -92,12 +90,14 @@ Each configuration follows the pattern:
 		console.log( err ? "something evil is lurking" : "look mom - Im running!");
 	});
 
-where [its configuration options](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) follow 
+where [its configuration keys](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) follow 
 the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 
-## Usage
+The following examples are taken from DEBE's unit tester:
+	
+	node totem.js [T1 || T2 || ...]
 
-### N1 - Just an interface
+### T1 - Just an interface
 		
 	var TOTEM = require("../totem");
 
@@ -108,7 +108,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 		default_cores_used: TOTEM.cores
 	});
 	
-### N2 - A do-little service
+### T2 - A do-little service
 
 	var TOTEM = require("../totem").config({
 		name: "iamwhoiam",
@@ -122,7 +122,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 
 	});
 
-### N3 - A service with a database
+### T3 - A service with a database
 
 	var TOTEM = require("../totem").config({
 		name: "Totem",
@@ -141,7 +141,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 		);
 	});
 		
-### N4 - A service with custom endpoints
+### T4 - A service with custom endpoints
 	
 	var TOTEM = require("../totem").config({
 		mysql: {
@@ -184,7 +184,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 		});
 	});
 		
-### N5 - A service with antibot protection
+### T5 - A service with antibot protection
 	
 	var TOTEM = require("../totem").config({
 		mysql: {
@@ -205,7 +205,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 		});
 	});
 
-### N6 - A service with tasking endpoints
+### T6 - A service with tasking endpoints
 
 	var TOTEM = require("../totem").config({  // configure the service for tasking
 		name: "Totem1",  // default parms from openv.apps nick=Totem1
