@@ -258,8 +258,8 @@ The following examples are taken from the unit tester:
 
 ## Contributing
 
-See our [issues](https://totem.west.ile.nga.ic.gov/issues.view), [milestones](https://totem.west.ile.nga.ic.gov/milestones.view), [s/w requirements](https://totem.west.ile.nga.ic.gov/swreqts.view),
-and [h/w requirements](https://totem.west.ile.nga.ic.gov/hwreqts.view).
+To contribute to this module, see our [issues](https://totem.west.ile.nga.ic.gov/issues.view)
+and [milestones](https://totem.west.ile.nga.ic.gov/milestones.view).
 
 ## License
 
