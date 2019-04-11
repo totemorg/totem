@@ -93,7 +93,7 @@ Simply require, configure and start TOTEM:
 where [its configuration keys](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) follow 
 the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 
-The following examples are taken from DEBE's unit tester:
+The following examples are taken from TOTEM's unit tester:
 	
 	node totem.js [T1 || T2 || ...]
 
