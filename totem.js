@@ -672,48 +672,11 @@ var
 		callback cb(error) where error reflects testing of client cert and profile credentials.
 		*/		
 		function admit(cb) {  // callback cb(log || null) with session log 
-			
-			function cpuavgutil() {				// compute average cpu utilization
-				var avgUtil = 0;
-				var cpus = OS.cpus();
-
-				cpus.each(function (n,cpu) {
-					idle = cpu.times.idle;
-					busy = cpu.times.nice + cpu.times.sys + cpu.times.irq + cpu.times.user;
-					avgUtil += busy / (busy + idle);
-				});
-				return avgUtil / cpus.length;
-			}		
-
-			if ( logThreads = TOTEM.paths.mysql.logThreads )
-				sql.query( logThreads , function (err,stats) {  // attach session metric logs					
-					cb( err ? null : {
-						Event: now,		 					// start time
-						Action: req.action, 				// db action
-						ThreadsRunning: stats[3].Value,		// sql threads running
-						ThreadsConnected: stats[1].Value,	// sql threads connected
-						Stamp: TOTEM.host.name,					// site name
-						Util : cpuavgutil(),				// cpu utilization
-						Fault: "isp"						// fault codes
-						//Cores: site.Cores, 					// number of safety core hyperthreads
-						//VMs: 1,								// number of VMs
-						//Client: client, 				// client id
-						//Table: req.table, 					// db target
-						//RecID: req.query.ID || 0,			// sql recID
-						//org		: cert.subject.O || "guest",  // cert organization 
-						//serverip: sock ? sock.address().address : "unknown",
-						//onencrypted: CLUSTER.isWorker,  // flag
-						//journal : true,				// journal db actions
-						//email	: client, 			// email address from pki
-						//profile	: new Object(profile),  // complete profile
-						//group	: profile.Group, // || TOTEM.site.db, 
-						//joined	: now, 				// time joined
-						//client	: client			// client ID
-					});
-				});
-					
-			else 
-				cb( null );
+			cb({ 
+				Event: now,		 					// start time
+				Action: req.action, 				// db action
+				Stamp: TOTEM.host.name  // site name
+			});				
 		}
 		
 		var 
