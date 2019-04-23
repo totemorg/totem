@@ -10,7 +10,8 @@
 @requires clusters
 @requires child-process
 @requires os
-@requires vm
+@requires stream
+@requires str
 
 @requires enum
 @requires jsdb
@@ -32,6 +33,7 @@ var
 	ENV = process.env,
 	
 	// NodeJS modules
+	STREAM = require("stream"), 	// pipe-able streams
 	HTTP = require("http"),						//< http interface
 	HTTPS = require("https"),					//< https interface
 	CP = require("child_process"),				//< spawn OS shell commands
@@ -206,7 +208,6 @@ var
 	dogs: { //< watchdog functions(sql, lims)
 	},
 	
-	watchFile: function (area, name, cb) { 
 	/**
 	@private
 	@method  watchFile
@@ -215,6 +216,7 @@ var
 	@param {String} name Name of file being watched
 	@param {Function} callback cb(sql, name, path) when file at path has changed
 	*/
+	watchFile: function (area, name, cb) { 
 		var 
 			path = area + name,
 			watchMods = TOTEM.watchMods;
@@ -360,7 +362,7 @@ var
 	/**
 	@cfg {Object} 
 	@member TOTEM
-	Mysql connection options	
+	MySQL connection options {host, user, pass, sessions} or nul l to disable
 	*/		
 	mysql: { //< null to disable database
 		host: ENV.MYSQL_HOST || "localhost",
@@ -369,6 +371,11 @@ var
 		sessions: 1000
 	},
 	
+	/**
+	@cfg {Boolean} [sockets=false]
+	@member TOTEM
+	Enabled to support web sockets
+	*/
 	sockets: false, 	//< enabled to support web sockets
 		
 	/**
@@ -487,8 +494,9 @@ var
 	By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
 	*/				
 	byTable: {			  //< by-table routers	
-		riddle: checkRiddle,
-		task: runTask
+		riddle: sysValidate,
+		task: sysTask,
+		ping: sysPing
 	},
 		
 	/**
@@ -513,6 +521,9 @@ var
 	By-area endpoint routers {area: method(req,res), ... } for sending/cacheing files
 	*/		
 	byArea: {	//< by-area routers
+		stores: sysArea,
+		uploads: sysArea,
+		shares: sysArea
 	},
 
 	/**
@@ -871,6 +882,8 @@ var
 		noData: new Error("no data returned"),
 		retry: new Error("data fetch retries exceeded"),
 		notAllowed: new Error("this endpoint is disabled"),
+		noID: new Error("missing session id"),
+		noSession: new Error("no such session started"),
 		noAccess: new Error("no access to master core at this endpoint")
 	},
 
@@ -1933,6 +1946,23 @@ function indexFile(path,cb) {
 @param {String} path file path
 @param {Function} cb totem response
 */
+	function findFile(path,cb) {
+	/**
+	@private
+	@method findFile
+	@param {String} path file path
+	@param {Function} cb totem response
+	*/
+		try {
+			FS.readdirSync(path).forEach( function (file) {
+				if (file.charAt(0) != "_" && file.charAt(file.length-1) != "~") 
+					cb(file);
+			});
+		}
+		catch (err) {
+		}	
+	}
+
 	var 
 		files = [],
 		maxIndex = TOTEM.maxIndex;
@@ -1945,61 +1975,39 @@ function indexFile(path,cb) {
 	cb( files );
 }	
 
-function findFile(path,cb) {
-/**
-@private
-@method findFile
-@param {String} path file path
-@param {Function} cb totem response
-*/
-	try {
-		FS.readdirSync(path).forEach( function (file) {
-			if (file.charAt(0) != "_" && file.charAt(file.length-1) != "~") 
-				cb(file);
-		});
-	}
-	catch (err) {
-	}	
-}
-
-function getFile(client, filepath, cb) {  
+function getFile(client, name, cb) {  
 /**
 @private
 @method getFile
-@param {String} client file owner to make new files
-@param {String} filepath path to the file
+@param {String} client owner of file
+@param {String} name of file to get/make
 @param {Function} cb callback(area, fileID, sql) if no errors
-Access (create if needed) a file then callback cb(area, fileID, sql) if no errors
+Get (or create if needed) a file with callback cb(fileID, sql) if no errors
 */
-	
-	var
-		parts = filepath.split("/"),
-		name = parts.pop() || "",
-		area = parts[0] || "";
 
 	JSDB.forFirst( 
 		"FILE", 
 		"SELECT ID FROM app.files WHERE least(?,1) LIMIT 1", {
-			Name: name,
+			Name: name
 			//Client: client,
-			Area: area
+			//Area: area
 		}, 
 		function (file, sql) {
 
 		if ( file )
-			cb( area, file.ID, sql );
+			cb( file.ID, sql );
 
 		else
 			sql.forAll( 
 				"FILE", 
 				"INSERT INTO app.files SET _State_Added=now(), ?", {
 					Name: name,
-					Client: client,
-					Path: filepath,
-					Area: area
+					Client: client
+					// Path: filepath,
+					// Area: area
 				}, 
 				function (info) {
-					cb( area, info.insertId, sql );
+					cb( info.insertId, sql );
 			});
 
 	});
@@ -2017,10 +2025,13 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 Uploads a source stream srcStream to a target file sinkPath owned by a 
 specified client.  Optional tags are logged with the upload.
 */
-	getFile(client, sinkPath, function (area, fileID, sql) {
+	var
+		parts = sinkPath.split("/"),
+		name = parts.pop() || "";
+	
+	getFile(client, name, function ( fileID, sql ) {
 		var 
-			folder = TOTEM.paths.mime[area],
-			sinkStream = FS.createWriteStream( folder + "/" + sinkPath, "utf8")
+			sinkStream = FS.createWriteStream( sinkPath, "utf8")
 				.on("finish", function() {  // establish sink stream for export pipe
 
 					Trace("UPLOADED FILE");
@@ -2045,7 +2056,7 @@ specified client.  Optional tags are logged with the upload.
 					});
 				});
 
-		Log("uploading to", folder, sinkPath);
+		Log("uploading to", sinkPath);
 
 		if (cb) cb(fileID);  // callback if provided
 		
@@ -2234,20 +2245,21 @@ Fetches data from this/other service and returns this data as a string ("" if an
 @class ANTIBOT data theft protection
  */
 
-function checkRiddle(req,res) {	//< endpoint to check clients response to a riddle
+function sysValidate(req,res) {	//< endpoint to check clients response to a riddle
 /**
 @private
-@method checkRiddle
+@method sysValidate
 Endpoint to check clients response req.query to a riddle created by challengeClient.
 @param {Object} req Totem session request
 @param {Function} res Totem response callback
 */
 	var 
 		query = req.query,
-		sql = req.sql;
+		sql = req.sql,
+		id = query.ID || query.id;
 		
-	if (query.ID)
-		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:query.ID}, function (err,rids) {
+	if (id)
+		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:id}, function (err,rids) {
 			
 			if ( rid = rids[0] ) {
 				var 
@@ -2273,12 +2285,12 @@ Endpoint to check clients response req.query to a riddle created by challengeCli
 			}
 			
 			else
-				res( TOTEM.errors.notAllowed  );
+				res( TOTEM.errors.noSession  );
 
 		});
 	
 	else
-		res( TOTEM.errors.notAllowed );
+		res( TOTEM.errors.noID );
 }
 
 function initChallenger() {
@@ -2321,7 +2333,7 @@ Create a set of TOTEM.riddles challenges.
 function makeRiddles(msg,rid,ids) { //< turn msg with riddle markdown into a riddle
 /**
 @private
-@method checkRiddle
+@method sysValidate
 Endpoint to check clients response req.query to a riddle created by challengeClient.
 @param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
 @param {Array} rid List of riddles returned
@@ -2418,83 +2430,75 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 @param {Object} req Totem session request
 */
 	var
-		node = URL.parse( req.node ),
-		path = req.path = node.path || "",
-		areas = node.pathname.split("/"),
-		file = req.filename = areas.pop() || "",
-		parts = req.parts = file.split("."),
-		table = req.table = parts[0] || "",
-		type = req.type = parts[1] || "",
-		area = req.filearea = areas[1] || "",
 		query = req.query = {},
 		index = req.index = {},	
-		site = req.site = TOTEM.site,
 		joins = req.joins = {},
 		flags = req.flags = {},
-		src = node.path.parsePath(query,index);
+		path = req.path = "." + req.node.parsePath(query, index),	//  ./area1/area2/.../table.type
+		areas = path.split("/"),						// [".", area1, area2, ...]
+		file = req.file = areas.pop() || "",		// table.type
+		parts = file.split("."),							// [table, type, ...]
+		table = req.table = parts[0] || "",	
+		type = req.type = parts[1] || "",
+		area = req.area = areas[1] || "",
+		site = req.site = TOTEM.site;
 	
-	//Log(">>>>>", src, ">>>>", query);
+	//Log(">>>>>", path, ">>>>", query);
+	//Log(path,areas,area);
 	
-	if ( req.filepath = req.filearea ? TOTEM.paths.mime[req.filearea] || req.filearea : "" ) 
-		req.filepath += node.pathname;
+	var 
+		reqFlags = TOTEM.reqFlags,
+		strips = reqFlags.strips,
+		prefix = reqFlags.prefix,
+		traps = reqFlags.traps,
+		id = reqFlags.id,
+		body = req.body;
 
-	else {
-		req.filearea = "";
+	/*
+	Log({before: {
+		a: req.action,
+		q: query,
+		b: body,
+		f: flags
+	}}); */
 
-		var 
-			reqFlags = TOTEM.reqFlags,
-			strips = reqFlags.strips,
-			prefix = reqFlags.prefix,
-			traps = reqFlags.traps,
-			id = reqFlags.id,
-			body = req.body;
+	for (var key in query) 		// strip or remap bogus keys
+		if ( key in strips )
+			delete query[key];
 
-		/*
-		Log({before: {
-			a: req.action,
-			q: query,
-			b: body,
-			f: flags
-		}}); */
-
-		for (var key in query) 		// strip or remap bogus  keys
-			if ( key in strips )
-				delete query[key];
-
-			else
-			if (key.charAt(0) == prefix) {  	// remap flag
-				flags[ flag = key.substr(1)] = query[key];
-				delete query[key];
-				if ( trap = traps[flag] ) trap(req);
-			}
-
-			else {							// remap join
-				var parts = key.split(".");
-				if (parts.length>1) {
-					joins[parts[0]] = key+"="+query[key];
-					delete query[key];
-				}
-			}	
-
-		for (var key in body) 		// remap body flags
-			if (key.charAt(0) == prefix) {  
-				flags[key.substr(1)] = body[key];
-				delete body[key];
-			}
-
-		if (id in body) {  			// remap body record id
-			query[id] = body[id];
-			delete body[id];
+		else
+		if (key.charAt(0) == prefix) {  	// remap flag
+			flags[ flag = key.substr(1)] = query[key];
+			delete query[key];
+			if ( trap = traps[flag] ) trap(req);
 		}
 
-		/*
-		Log({after: {
-			a: req.action,
-			q: query,
-			b: body,
-			f: flags
-		}}); */
+		else {							// remap join
+			var parts = key.split(".");
+			if (parts.length>1) {
+				joins[parts[0]] = key+"="+query[key];
+				delete query[key];
+			}
+		}	
+
+	for (var key in body) 		// remap body flags
+		if (key.charAt(0) == prefix) {  
+			flags[key.substr(1)] = body[key];
+			delete body[key];
+		}
+
+	if (id in body) {  			// remap body record id
+		query[id] = body[id];
+		delete body[id];
 	}
+
+	/*
+	Log({after: {
+		a: req.action,
+		q: query,
+		b: body,
+		f: flags
+	}}); */
 }						
 
 function routeNodes(nodes, acks, req, res) {
@@ -2530,15 +2534,14 @@ function routeNode(req, res) {
 @param {Object} req Totem session request
 @param {Function} res Totem response callback
 
-Parse the node=/dataset.type on the current req thread, then route it to the approprate TOTEM byArea, 
-byType, byActionTable, engine or file indexFile (see config documentation).
+Parse the node=/dataset.type on the current req thread, then route using byArea, byType, byTable,
+byActionTable, or byAction routers.
 */
 	
 	parseNode(req);
 
 	function sendFile(req,res) {
-		//Log("send file", req.filepath);
-		res( function () {return req.filepath; } );
+		res( function () {return req.path; } );
 	}
 
 	function followRoute(route,req,res) {
@@ -2589,14 +2592,14 @@ byType, byActionTable, engine or file indexFile (see config documentation).
 			}
 		}
 
-		if ( !req.filepath && req.encrypted )   // dont log if file requested
-			if ( sock = req.reqSocket )  // dont log if no http request socket
-				if ( log = req.log )  // dont log if logging disabled
+		if ( !req.area && req.encrypted )   // log if file path unspecified
+			if ( sock = req.reqSocket )  // log if http request socket
+				if ( log = req.log )  // log if logging enabled
 					logMetrics( log, sock );  
 
 		var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
 
-		Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.filename} FOR ${req.client} ON CORE${myid}`, req.sql );
+		Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.file} FOR ${req.client} ON CORE${myid}`, req.sql );
 
 		route(req, res);
 
@@ -2618,13 +2621,18 @@ byType, byActionTable, engine or file indexFile (see config documentation).
 		table = req.table,
 		type = req.type,
 		action = req.action,
-		area = req.filearea,
+		area = req.area,
+		path = req.path,
 		paths = TOTEM.paths;
 
-	//Log([action,req.filepath,area,table,type]);
+	//Log([action,path,area,table,type]);
 	
-	if (req.filepath && ( route = TOTEM.byArea[area] || sendFile ) )
-		followRoute( route, req, res );
+	if (area)
+		if ( route = TOTEM.byArea[area] )
+			followRoute( route, req, res );
+	
+		else
+			followRoute( sendFile, req, res );
 
 	else
 	if ( route = TOTEM.byType[type] ) 
@@ -2710,66 +2718,31 @@ the client is challenged as necessary.
 		Req.req.sql.release();
 	}
 		
-	function sendFileIndex( head, files ) {  // Send list of files under specified folder
+	function sendFile(path,file,type,area) { // Cache and send file to client
 		
-		switch (0) {
-			case 0:
-				files.each( function (n,file) {
-					files[n] = file.tag("a",{href:`${file}`});
-				});
-				
-				sendString(`${head}:<br>` + files.join("<br>") );
-				break;
-				
-			case 1:
-				sendString(`${head}:\n` + files.join("\n") );
-				break;
-		}
+		// Trace(`SENDING ${path}`);
 		
-	}
-	
-	function sendCache(path,file,type,area) { // Cache and send file to client
-		
-		var 
-			//mime = MIME[type] || MIME.html  || "text/plain",
-			paths = TOTEM.paths;
-			index = paths.mime.index;
-		
-		//Trace(`SENDING ${path} AS ${mime} ${file} ${type} ${area}`);
-		
-		if (type) {  // cache and send file
-				
-			var cache = TOTEM.cache;
-			
-			if (cache.never[file] || cache.never[type]) cache = null;
-			if (cache) cache = cache[area];
-			if (cache) cache = cache[type];
-			
-			var buf = cache ? cache[path] : null;
-			
-			if (buf)
-				sendString( buf );
-			
-			else
-				try {
-					if (cache)
-						sendString( cache[path] = FS.readFileSync(path) );
-					else
-						sendString( FS.readFileSync(path) );
-				}
-				catch (err) {
-					sendError( TOTEM.errors.noFile );
-				}
-		}
-		
+		var cache = TOTEM.cache;
+
+		if (cache.never[file] || cache.never[type]) cache = null;
+		if (cache) cache = cache[area];
+		if (cache) cache = cache[type];
+
+		var buf = cache ? cache[path] : null;
+
+		if (buf)
+			sendString( buf );
+
 		else
-		if ( area in index )  // index files
-			TOTEM.indexFile( index[area] || path, function (files) { 
-				sendFileIndex(`Index of ${path}`, files);
-			});
-		
-		else
-			sendError( TOTEM.errors.noIndex );
+			try {
+				if (cache)
+					sendString( cache[path] = FS.readFileSync(path) );
+				else
+					sendString( FS.readFileSync(path) );
+			}
+			catch (err) {
+				sendError( TOTEM.errors.noFile );
+			}
 		
 	}		
 
@@ -2872,13 +2845,13 @@ the client is challenged as necessary.
 					
 					else {			
 						if ( credit = paths.mysql.credit)  // credit/charge client when file pulled from file system
-							sql.query( credit, {Name:req.node,Area:req.filearea} )
+							sql.query( credit, {Name:req.node,Area:req.area} )
 							.on("result", function (file) {
 								if (file.Client != req.client)
 									sql.query("UPDATE openv.profiles SET Credit=Credit+1 WHERE ?",{Client: file.Client});
 							});
 
-						sendCache( ack(), req.filename, req.type, req.filearea );
+						sendFile( ack(), req.file, req.type, req.area );
 					}
 				
 					break;
@@ -2904,6 +2877,7 @@ the client is challenged as necessary.
 					break;
 
 				case String:  			// send message
+				case Buffer:
 					sendString(ack);
 					break;
 			
@@ -3305,7 +3279,7 @@ function simThread(sock) {
 	});
 } */
 
-function runTask(req,res) {  //< task sharding
+function sysTask(req,res) {  //< task sharding
 	var 
 		query = req.query,
 		body = req.body,
@@ -3357,6 +3331,172 @@ function runTask(req,res) {  //< task sharding
 			else
 				runEngine( index );
 		});
+}
+
+function sysPing(req,res) {
+/**
+@method sysPing
+Totem(req,res) endpoint to test client connection
+@param {Object} req Totem request
+@param {Function} res Totem response
+*/
+	res("hello "+req.client);			
+}
+
+function sysArea(req, res) {
+	
+	var 
+		sql = req.sql, 
+		query = req.query, 
+		body = req.body,
+		client = req.client,
+		action = req.action,
+		area = req.table,
+		path = req.path,
+		now = new Date();
+	
+	Log({
+		p: path,
+		q: query,
+		b: body,
+		a: area,
+		c: client,
+		n: req.file
+	});
+	
+	switch (action) {
+		case "select":
+			
+			if ( req.file )
+				try {		// these ifiles are not static so we dont cache them
+					res( FS.readFileSync(path) );
+				}
+				catch (err) {
+					res( TOTEM.errors.noFile );
+				}
+				
+			else
+				indexFile( path, function (files) {  // Send list of files under specified folder
+
+					files.each( function (n,file) {
+						files[n] = file.tag("a",{href:`${file}`});
+					});
+
+					res(`Index of ${path}:<br>` + files.join("<br>") );
+				});
+			
+			break;
+					
+		case "delete":
+			res( new Error("undefined"));
+			break;
+			
+		case "update":
+		case "insert":
+			var
+				canvas = body.canvas || {objects:[]},
+				attach = [],
+				image = body.image,
+				files = image ? [{
+					filename: client, //name, // + ( files.length ? "_"+files.length : ""), 
+					size: image.length/8, 
+					image: image
+				}] : body.files || [],
+				tags = Copy(query.tag || {}, {Location: query.location || "POINT(0 0)"});
+
+			res( "uploading" );
+
+			canvas.objects.each( function (n,obj) {	// upload provided canvas objects
+
+				switch (obj.type) {
+					case "image": // ignore blob
+						break;
+
+					case "rect":
+
+						attach.push(obj);
+
+						sql.query("REPLACE INTO proofs SET ?", {
+							top: obj.top,
+							left: obj.left,
+							width: obj.width,
+							height: obj.height,
+							label: tag,
+							made: now,
+							name: area+"."+name
+						});
+						break;			
+				}
+			});
+
+			files.forEach( function (file, n) {
+
+				var 
+					buf = new Buffer(file.data,"base64"),
+					srcStream = new STREAM.Readable({  // source stream for event ingest
+						objectMode: true,
+						read: function () {  // return null if there are no more events
+							this.push( buf );
+							buf = null;
+						}
+					});
+
+				Trace(`UPLOAD ${file.filename} INTO ${area} FOR ${client}`, sql);
+
+				uploadFile( client, srcStream, "./"+area+"/"+file.filename, tags, function (fileID) {
+
+					if (false)
+					sql.query(	// this might be generating an extra geo=null record for some reason.  works thereafter.
+						   "INSERT INTO ??.files SET ?,Location=GeomFromText(?) "
+						+ "ON DUPLICATE KEY UPDATE Client=?,Added=now(),Revs=Revs+1,Location=GeomFromText(?)", [ 
+							req.group, {
+									Client: req.client,
+									Name: file.filename,
+									Area: area,
+									Added: new Date(),
+									Classif: query.classif || "",
+									Revs: 1,
+									Ingest_Size: file.size,
+									Ingest_Tag: query.tag || ""
+								}, geoloc, req.client, geoloc
+							]);
+
+					if (false)
+					sql.query( // credit the client
+						"UPDATE openv.profiles SET Credit=Credit+?,useDisk=useDisk+? WHERE ?", [ 
+							1000, file.size, {Client: req.client} 
+						]);
+
+					if (false) //(file.image)
+						switch (area) {
+							case "proofs": 
+
+								sql.query("REPLACE INTO proofs SET ?", {
+									top: 0,
+									left: 0,
+									width: file.Width,
+									height: file.Height,
+									label: tag,
+									made: now,
+									name: area+"."+name
+								});
+
+								sql.query(
+									"SELECT detectors.ID, count(ID) AS counts FROM app.detectors LEFT JOIN proofs ON proofs.label LIKE detectors.PosCases AND proofs.name=? HAVING counts",
+									[area+"."+name]
+								)
+								.on("result", function (det) {
+									sql.query("UPDATE detectors SET Dirty=Dirty+1");
+								});
+
+								break;
+
+						}
+				});
+			});
+			break;
+			
+	}
 }
 
 [  //< date prototypes
@@ -3445,7 +3585,7 @@ function runTask(req,res) {  //< task sharding
 	/**
 	@private
 	@member String
-	Parse a "&key=val&key=val?query&relation& ..." query into 
+	Parse a "tag?key=val&key=val? ..." query into 
 	the default hash def = {key:val, key=val?query, relation:null, key:json, ...}.
 	*/
 
@@ -3519,7 +3659,7 @@ switch (process.argv[2]) { //< unit tests
 
 			Trace( err || 
 `I'm a Totem service running in fault protection mode, no database, no UI; but I am running
-with 2 cores and the default endpoint routes` );
+with 2 workers and the default endpoint routes` );
 
 		});
 		break;
@@ -3528,7 +3668,7 @@ with 2 cores and the default endpoint routes` );
 		var TOTEM = require("../totem").config({
 		},  function (err) {
 			Trace( err ||
-`I'm a Totem service with no cores. I do, however, have a mysql database from which I've derived 
+`I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
 my startup options (see the openv.apps table for the Nick="Totem1").  
 No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
 these files. `

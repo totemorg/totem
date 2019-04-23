@@ -18,7 +18,7 @@ having the following configurable features:
 	+ hyper-threading in a master-worker or master-only relationship
 	+ PKI channel encryption and authentication
 	+ no-faulting (protected) run state
-	+ transfer, indexing, saving and selective cacheing of static mime files
+	+ indexing, uploading, downloading and cacheing mime files
 	+ per-client antibot challenges: profile challenges like (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
 	+ syncronized crude operations on mutiple endpoints
 	+ database agnosticator (default MySQL-Cluster)

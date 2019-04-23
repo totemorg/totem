@@ -6,7 +6,7 @@
 #
 
 export HERE=`pwd`
-export MODULES=(totem atomic geohack flex enum glwip reader debe jsdb jslab)
+export MODULES=(totem atomic geohack flex enum glwip reader debe jsdb man)
 export MODULE=`basename $HERE`
 
 case "$1." in
