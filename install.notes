@@ -703,9 +703,12 @@ mv puttygen /usr/bin
 # git config --global user.name "DEBE"
 # git config --global user.email "g500xxx@trbvm.com"
 # git remote add origin git@git.geointapps.org:ACME/sigma.git
+# git config --global http.sslverify false
 # git pull
-# .ssh/id_rsa shoould contain private key corresponding to git public key uploaded into https://git.geointapps.org
+# .ssh/id_rsa should contain private key corresponding to git public key uploaded into https://git.geointapps.org
 
+# npm config strict-ssl false
+# curl --insecure <url>
 
 ##############
 # smop matlab to python compiler
