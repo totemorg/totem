@@ -707,7 +707,7 @@ mv puttygen /usr/bin
 # git pull
 # .ssh/id_rsa should contain private key corresponding to git public key uploaded into https://git.geointapps.org
 
-# npm config strict-ssl false
+# npm config set strict-ssl false
 # curl --insecure <url>
 
 ##############
