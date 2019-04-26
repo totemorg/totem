@@ -26,28 +26,32 @@ having the following configurable features:
 	+ automattic server cert generation
 	+ task sharding
   
- TOTEM provides a CRUD interface to endpoint NODEs:
+ TOTEM provides a CRUD interface to endpoints:
 
 	POST		/NODE ?? NODE ...
 	GET			/NODE ?? NODE ...
 	PUT			/NODE ?? NODE ...
 	DELETE	/NODE ?? NODE ...
 
-where a NODE endpoint represents either a dataset, engine, files or command:
+where a NODE represents either a dataset, plugin, files or command:
 
 	DATASET.TYPE ? QUERY ? QUERY ...
-	ENGINE.TYPE ? QUERY ? QUERY ...
-	FILEPATH.TYPE ? QUERY ? QUERY ...
+	PLUGIN.TYPE ? QUERY ? QUERY ...
+	FILE.TYPE ? QUERY ? QUERY ...
 	COMMAND.TYPE ? QUERY ? QUERY ...
 
-By default, TOTEM provides the following TYPEs:
+By default, TOTEM provides the following data conversion TYPEs:
 
 	db | xml | csv | json
 
-and the following COMMAND endpoints:
+session validation, task sharding, connection test COMMANDs:
 
-	riddle | task
+	riddle | task | ping
 	
+and FILE upload/download areas:
+
+	stores | uploads | shares
+
 ## Installation
 
 Clone [TOTEM base web service](https://github.com/acmesds/totem) into your PROJECT/totem folder.   

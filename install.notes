@@ -707,9 +707,14 @@ mv puttygen /usr/bin
 # git pull
 # .ssh/id_rsa should contain private key corresponding to git public key uploaded into https://git.geointapps.org
 
-# npm config set strict-ssl false
+# npm config set strict-ssl false -g   # needs to be set globally
 # curl --insecure <url>
 
+# find cert info for exmaple.com site that is failing with unsigne cert message
+# openssl s_client -showcerts -connect example.com:443 < /dev/null
+# then copy stuff bewteen BEGIN - END to a .crt that will get moved to /etc/ca-trust/source/anchores/exampleSite
+# then sudo update-ca-trust 
+#
 ##############
 # smop matlab to python compiler
 # download smop-master.zip
