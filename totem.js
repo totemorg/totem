@@ -59,7 +59,7 @@ var
 	JSDB = require("jsdb"),				//< JSDB database agnosticator
 	sqlThread = JSDB.thread;
 
-const { Copy,Each,Log } = require("enum");
+const { Copy,Each,Log,isError,isArray,isString } = require("enum");
 	
 function Trace(msg,sql) {
 	TRACE.trace(msg,sql);
@@ -181,7 +181,7 @@ var
 					}
 
 					if (task) 
-						if (task.constructor == Array)
+						if ( isArray(task) )
 							task.forEach( function (task) {
 								nodeReq.task = task+"";
 								fetch( nodeURL, null, nodeReq, nodeCB);
@@ -961,7 +961,7 @@ var
 					key = key.toLowerCase();
 					site[key] = val;
 
-					if ( (val||0).constructor == String)
+					if ( isString(val||0) )
 						try {
 							site[key] = JSON.parse( val );
 						}
@@ -2803,7 +2803,7 @@ the client is challenged as necessary.
 			req = Req.req,
 			sql = req.sql,
 			errors = TOTEM.errors,
-			mime = ( (ack||0).constructor == Error) 
+			mime = isError(ack||0)
 				? MIME.types.html
 				: MIME.types[req.type] || MIME.types.html || "text/plain",
 			paths = TOTEM.paths;
@@ -3618,6 +3618,7 @@ function sysArea(req, res) {
 			});
 
 		delete query[""];
+		
 		return parts[0];
 	},
 
