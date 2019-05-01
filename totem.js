@@ -146,7 +146,7 @@ var
 		
 		var 
 			paths = TOTEM.paths,
-			fetch = TOTEM.fetchString,
+			fetcher = TOTEM.fetchString,
 			fetches = 0, 
 			node = 0,
 			nodeURL = paths.nodes[node],
@@ -184,12 +184,12 @@ var
 						if ( isArray(task) )
 							task.forEach( function (task) {
 								nodeReq.task = task+"";
-								fetch( nodeURL, null, nodeReq, nodeCB);
+								fetcher( nodeURL, nodeReq, nodeCB);
 							});
 
 						else {
 							nodeReq.task = task+"";
-							fetch( nodeURL, null, nodeReq, nodeCB);
+							fetcher( nodeURL, nodeReq, nodeCB);
 						}
 
 					else
@@ -2066,13 +2066,12 @@ specified client.  Optional tags are logged with the upload.
 
 }
 
-function fetchString(path, query, body, cb) {  //< callback cb(string)
+function fetchString(path, post, cb) {  //< callback cb(string)
 /**
 @private
 @method fetchString
 @param {String} path http/https/curl/curls/wget/wgets or "/" -prefixed url
-@param {Object} query GET parameters
-@param {Object} body POST parameters
+@param {Object} post POST parameters or null
 @param {Function} cb callback(results as string)
 Fetches data from this/other service and returns this data as a string ("" if an error).
  */
@@ -2122,11 +2121,6 @@ Fetches data from this/other service and returns this data as a string ("" if an
 	}
 
 	var 
-		/*
-		url = query ? path.parseJS( Copy(query, {
-			degs: (dd) => Math.floor(dd),
-			mins: (dd) => Math.floor( (dd - Math.floor(dd))*60 )
-		})) : path,  */
 		url = (path.charAt(0) == "/") ? TOTEM.host.master + path : path,
 		opts = URL.parse(url),
 		protocol = opts.protocol || "",
@@ -2135,7 +2129,7 @@ Fetches data from this/other service and returns this data as a string ("" if an
 	opts.retry = TOTEM.retries;
 	opts.rejectUnauthorized = false;
 	opts.agent = false;
-	opts.method = body ? "PUT" : "GET";
+	opts.method = post ? "PUT" : "GET";
 	opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
 	// opts.cipher = " ... "
 	// opts.headers = { ... }
@@ -2206,10 +2200,9 @@ Fetches data from this/other service and returns this data as a string ("" if an
 				Log("http fail", err);
 				cb( "" );
 			});
-			//Log("http", opts, body);
 			
-			if ( body )
-				Req.write( JSON.stringify(body) );  // body parms
+			if ( post )
+				Req.write( JSON.stringify(post) );  // post parms
 
 			Req.end();
 			break;
