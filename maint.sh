@@ -134,14 +134,15 @@ mysql.)
 		echo "Exporting sqldb to admins/db"
 
 		cd $ADMIN/db
-			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >admins/db/openv.sql
-			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app >admins/db/app.sql
+			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >openv.sql
+			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app >app.sql
+			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST ndtR app >funcs.sql
 			#mysqldump -u$MYSQL_USER -p$MYSQL_PASS --events mysql >admins/db/mysql.sql
 			#mysqldump -u$MYSQL_USER -p$MYSQL_PASS jou >admins/db/jou.sql
 
 			#sudo zip -ry /media/sf_archives/sqldb.zip $ADMINS/db
-			git commit -am $2
-			git push origin master
+			#git commit -am $2
+			#git push origin master
 		cd $HERE
 		;;
 
