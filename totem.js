@@ -146,7 +146,7 @@ var
 		
 		var 
 			paths = TOTEM.paths,
-			fetcher = TOTEM.fetchString,
+			fetcher = TOTEM.fetcher,
 			fetches = 0, 
 			node = 0,
 			nodeURL = paths.nodes[node],
@@ -184,12 +184,12 @@ var
 						if ( isArray(task) )
 							task.forEach( function (task) {
 								nodeReq.task = task+"";
-								fetcher( nodeURL, nodeReq, nodeCB);
+								fetcher( nodeURL, nodeReq, null, nodeCB);
 							});
 
 						else {
 							nodeReq.task = task+"";
-							fetcher( nodeURL, nodeReq, nodeCB);
+							fetcher( nodeURL, nodeReq, null, nodeCB);
 						}
 
 					else
@@ -624,15 +624,17 @@ var
 	*/		
 	started: null, 		//< totem start time
 		
-	fetch: 	{	//< data fetching
-		/**
-		@cfg {Function} 
-		@private
-		@member TOTEM	
-		Data fetcher method
-		*/
-		fetcher: fetchString,
-
+	/**
+	@cfg {Function} 
+	@private
+	@member TOTEM	
+	@param {String} path "http || https || curl || curls || wget || wgets || / "-prefixed url
+	@param {Object} post POST parameters or null
+	@param {Object} ctx context to forward to callback
+	@param {Function} cb callback(string results || "", ctx)
+	Fetches data from this/other service and forward returned information (as a string, "" if an error occured) to the provided callback.
+	 */
+	fetcher: Copy({
 		/**
 		@cfg {Number} [retries=5]
 		@member TOTEM	
@@ -645,8 +647,155 @@ var
 		@member TOTEM	
 		Enable/disable tracing of data fetchers
 		*/		
-		trace: true 		//< Enable/disable tracing of data fetchers
-	},
+		trace: true 		//< Enable/disable tracing of data fetchers		
+	}, function fetcher(path, post, ctx, cb) {	//< data fetching
+	
+			function retry(cmd, cb) {  // wget-curl retry logic
+
+				function trycmd(retries, cmd, cb) {
+
+					if (trace)
+						Trace(`TRY[${opts.retry}] ${cmd}`);
+
+					CP.exec(cmd, function (err,stdout,stderr) {
+						if (err) 
+							if ( retries ) 
+								trycmd( --retries, cmd, cb);
+							
+							else
+								cb( TOTEM.errors.retry );
+						
+						else
+						if (cb) cb(null, stdout);
+					});
+				}
+
+				if ( retries ) 
+					trycmd( retries, cmd, cb);
+
+				else
+					CP.exec(cmd, function (err,stdout,stderr) {			
+						cb( err , stdout );
+					});
+			}
+
+			function getResponse(Res) {
+				var body = "";
+				Res.on("data", function (chunk) {
+					body += chunk.toString();
+				});
+
+				Res.on("end", function () {
+					cb( body, ctx );
+				});
+			}
+
+			var 
+				url = (path.charAt(0) == "/") ? TOTEM.host.master + path : path,
+				opts = URL.parse(url),
+				protocol = opts.protocol || "",
+				trace = this.trace,
+				retries = this.retries,
+				cert = TOTEM.cache.certs.fetch;
+
+			opts.rejectUnauthorized = false;
+			opts.agent = false;
+			opts.method = post ? "PUT" : "GET";
+			opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
+			// opts.cipher = " ... "
+			// opts.headers = { ... }
+			// opts.Cookie = ["x=y", ...]
+			/*if (opts.soap) {
+				opts.headers = {
+					"Content-Type": "application/soap+xml; charset=utf8",
+					"Content-Length": opts.soap.length
+				};
+				opts.method = "POST";
+			}*/
+
+			//Log(opts,url);
+			Trace("FETCH "+url);
+
+			switch (protocol) {
+				case "curl:": 
+					retry( `curl ` + url.replace(protocol, "http:"), (err,out) => {
+						cb( err ? "" : out, ctx );
+					});
+					break;
+
+				case "curls":
+					retry( `curl -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"), (err,out) => {
+						cb( err ? "" : out, ctx );
+					});	
+					break;
+
+				case "wget:":
+					var 
+						parts = url.split(" >> "),
+						url = parts[0],
+						out = parts[1] || "./temps/wget.jpg";
+
+					retry( `wget -O ${out} ` + url.replace(protocol, "http:"), (err) => {
+						cb( err ? "" : "ok", ctx );
+					});
+					break;
+
+				case "wgets:":
+					var 
+						parts = url.split(" >> "),
+						url = parts[0],
+						out = parts[1] || "./temps/wget.jpg";
+
+					retry( `wget -O ${out} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + url.replace(protocol, "https:"), (err) => {
+						cb( err ? "" : "ok", ctx );
+					});
+					break;
+
+				case "http:":
+					try {
+						var Req = HTTP.request(opts, getResponse);
+					} 
+					catch (err) {
+						cb( "", ctx );
+					}
+
+					Req.on('error', function(err) {
+						Log("FETCH FAIL", err);
+						cb( "", ctx );
+					});
+
+					if ( post )
+						Req.write( JSON.stringify(post) );  // post parms
+
+					Req.end();
+					break;
+
+				case "https:":
+					opts.pfx = cert.pfx;
+					opts.passphrase = cert._pass;
+
+					try {
+						var Req = HTTPS.request(opts, getResponse);
+					}
+					catch (err) {
+						return cb( "", ctx );
+					}
+
+					Req.on('error', function(err) {
+						Log("FETCH FAIL", err);
+						cb( "" , ctx );
+					});
+
+					if ( body )
+						Req.write( JSON.stringify( body ) );  // body parms
+
+					Req.end();
+					break;
+
+				default: 
+					cb( "" , ctx );
+			}
+		}),
 
 	/**
 	@cfg {Object} 
@@ -1131,7 +1280,7 @@ function configService(opts,cb) {
 
 			reroute: TOTEM.reroute,  // db translators
 			
-			fetcher: TOTEM.fetch.fetcher,
+			fetcher: TOTEM.fetcher,
 			
 			mysql: Copy({ 
 				opts: {
@@ -2064,174 +2213,6 @@ specified client.  Optional tags are logged with the upload.
 			srcStream.pipe(sinkStream);  
 	});
 
-}
-
-function fetchString(path, post, cb) {  //< callback cb(string)
-/**
-@private
-@method fetchString
-@param {String} path http/https/curl/curls/wget/wgets or "/" -prefixed url
-@param {Object} post POST parameters or null
-@param {Function} cb callback(results as string)
-Fetches data from this/other service and returns this data as a string ("" if an error).
- */
-	
-	function retry(cmd,opts,cb) {  // wget-curl retry logic
-
-		function trycmd(cmd,cb) {
-
-			if (TOTEM.fetch.trace)
-				Trace(`TRY[${opts.retry}] ${cmd}`);
-
-			CP.exec(cmd, function (err,stdout,stderr) {
-				if (err) {
-					if (opts.retry) {
-						opts.retry--;
-
-						trycmd(cmd,cb);
-					}
-					else
-						cb( TOTEM.errors.retry );
-				}
-				else
-				if (cb) cb(null, stdout);
-			});
-		}
-
-		opts.retry = TOTEM.fetch.retries;
-
-		if (opts.retry) 
-			trycmd(cmd,cb);
-		
-		else
-			CP.exec(cmd, function (err,stdout,stderr) {			
-				cb( err , stdout );
-			});
-	}
-
-	function getResponse(Res) {
-		var body = "";
-		Res.on("data", function (chunk) {
-			body += chunk.toString();
-		});
-
-		Res.on("end", function () {
-			cb( body );
-		});
-	}
-
-	var 
-		url = (path.charAt(0) == "/") ? TOTEM.host.master + path : path,
-		opts = URL.parse(url),
-		protocol = opts.protocol || "",
-		cert = TOTEM.cache.certs.fetch;
-
-	opts.retry = TOTEM.retries;
-	opts.rejectUnauthorized = false;
-	opts.agent = false;
-	opts.method = post ? "PUT" : "GET";
-	opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
-	// opts.cipher = " ... "
-	// opts.headers = { ... }
-	// opts.Cookie = ["x=y", ...]
-	/*if (opts.soap) {
-		opts.headers = {
-			"Content-Type": "application/soap+xml; charset=utf8",
-			"Content-Length": opts.soap.length
-		};
-		opts.method = "POST";
-	}*/
-	
-	//Log(opts,url);
-	Trace("FETCH "+url);
-		
-	switch (protocol) {
-		case "curl:": 
-			retry(
-				`curl ` + url.replace(protocol, "http:"),
-				opts, (err,out) => {					
-					cb( err ? "" : out );
-			});
-			break;
-			
-		case "curls":
-			retry(
-				`curl -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"),
-				opts, (err,out) => {
-					cb( err ? "" : out );
-			});	
-			break;
-			
-		case "wget:":
-			var 
-				parts = url.split(" >> "),
-				url = parts[0],
-				out = parts[1] || "./temps/wget.jpg";
-	
-			retry(
-				`wget -O ${out} ` + url.replace(protocol, "http:"),
-				opts, (err) => {
-					cb( err ? "" : "ok" );
-			});
-			break;
-			
-		case "wgets:":
-			var 
-				parts = url.split(" >> "),
-				url = parts[0],
-				out = parts[1] || "./temps/wget.jpg";
-	
-			retry(
-				`wget -O ${out} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + url.replace(protocol, "https:"),
-				opts, (err) => {
-					cb( err ? "" : "ok" );
-			});
-			break;
-
-		case "http:":
-			try {
-				var Req = HTTP.request(opts, getResponse);
-			} 
-			catch (err) {
-				cb( "" );
-			}
-			
-			Req.on('error', function(err) {
-				Log("http fail", err);
-				cb( "" );
-			});
-			
-			if ( post )
-				Req.write( JSON.stringify(post) );  // post parms
-
-			Req.end();
-			break;
-
-		case "https:":
-			opts.pfx = cert.pfx;
-			opts.passphrase = cert._pass;
-			
-			try {
-				var Req = HTTPS.request(opts, getResponse);
-			}
-			catch (err) {
-				return cb( "" );
-			}
-			
-			Req.on('error', function(err) {
-				Log("https fail", err);
-				cb( "" );
-			});
-
-			if ( body )
-				Req.write( JSON.stringify( body ) );  // body parms
-
-			Req.end();
-			break;
-			
-		default: 
-			cb( "" );
-	}
 }
 
 /**
@@ -3348,14 +3329,14 @@ function sysArea(req, res) {
 		path = req.path,
 		now = new Date();
 	
-	Log({
+	/*Log({
 		p: path,
 		q: query,
 		b: body,
 		a: area,
 		c: client,
 		n: req.file
-	});
+	}); */
 	
 	switch (action) {
 		case "select":
