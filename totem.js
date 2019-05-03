@@ -184,12 +184,12 @@ var
 						if ( isArray(task) )
 							task.forEach( function (task) {
 								nodeReq.task = task+"";
-								fetcher( nodeURL, nodeReq, null, nodeCB);
+								fetcher( nodeURL, nodeReq, nodeCB);
 							});
 
 						else {
 							nodeReq.task = task+"";
-							fetcher( nodeURL, nodeReq, null, nodeCB);
+							fetcher( nodeURL, nodeReq, nodeCB);
 						}
 
 					else
@@ -628,8 +628,7 @@ var
 	@member TOTEM	
 	@param {String} path "http || https || curl || curls || wget || wgets || / "-prefixed url
 	@param {Object} post POST parameters or null
-	@param {Object} ctx context to forward to callback
-	@param {Function} cb callback(string results || "", ctx)
+	@param {Function} cb callback(string results)
 	Fetches data from this/other service and forward returned information (as a string, "" if an error occured) to the provided callback.
 	 */
 	fetcher: Copy({
@@ -646,7 +645,7 @@ var
 		Enable/disable tracing of data fetchers
 		*/		
 		trace: true 		//< Enable/disable tracing of data fetchers		
-	}, function fetcher(path, post, ctx, cb) {	//< data fetching
+	}, function fetcher(path, post, cb) {	//< data fetching
 	
 			function retry(cmd, cb) {  // wget-curl retry logic
 
@@ -684,7 +683,7 @@ var
 				});
 
 				Res.on("end", function () {
-					cb( body, ctx );
+					cb( body );
 				});
 			}
 
@@ -717,13 +716,13 @@ var
 			switch (protocol) {
 				case "curl:": 
 					retry( `curl ` + url.replace(protocol, "http:"), (err,out) => {
-						cb( err ? "" : out, ctx );
+						cb( err ? "" : out );
 					});
 					break;
 
 				case "curls":
 					retry( `curl -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"), (err,out) => {
-						cb( err ? "" : out, ctx );
+						cb( err ? "" : out );
 					});	
 					break;
 
@@ -734,7 +733,7 @@ var
 						out = parts[1] || "./temps/wget.jpg";
 
 					retry( `wget -O ${out} ` + url.replace(protocol, "http:"), (err) => {
-						cb( err ? "" : "ok", ctx );
+						cb( err ? "" : "ok" );
 					});
 					break;
 
@@ -745,7 +744,7 @@ var
 						out = parts[1] || "./temps/wget.jpg";
 
 					retry( `wget -O ${out} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + url.replace(protocol, "https:"), (err) => {
-						cb( err ? "" : "ok", ctx );
+						cb( err ? "" : "ok" );
 					});
 					break;
 
@@ -754,12 +753,12 @@ var
 						var Req = HTTP.request(opts, getResponse);
 					} 
 					catch (err) {
-						cb( "", ctx );
+						cb( "" );
 					}
 
 					Req.on('error', function(err) {
 						Log("FETCH FAIL", err);
-						cb( "", ctx );
+						cb( "" );
 					});
 
 					if ( post )
@@ -776,12 +775,12 @@ var
 						var Req = HTTPS.request(opts, getResponse);
 					}
 					catch (err) {
-						return cb( "", ctx );
+						return cb( "" );
 					}
 
 					Req.on('error', function(err) {
 						Log("FETCH FAIL", err);
-						cb( "" , ctx );
+						cb( "" );
 					});
 
 					if ( body )
@@ -791,7 +790,7 @@ var
 					break;
 
 				default: 
-					cb( "" , ctx );
+					cb( "" );
 			}
 		}),
 
