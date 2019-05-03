@@ -7,8 +7,7 @@
 
 # TOTEM
 
-TOTEM provides a basic http/https web service (thus replaces a slew of god-awful middleware) 
-having the following configurable features:
+TOTEM provides a basic http/https web service having the following configurable features:
 
 	+ routing methods for table, engine, and file objects
 	+ denial-of-service protection
@@ -26,31 +25,34 @@ having the following configurable features:
 	+ automattic server cert generation
 	+ task sharding
   
- TOTEM provides a CRUD interface to endpoints:
+TOTEM thus replaces a slew of god-awful middleware.  TOTEM defines a CRUD interface 
+ at its endpoints:
 
 	POST		/NODE ?? NODE ...
 	GET			/NODE ?? NODE ...
 	PUT			/NODE ?? NODE ...
 	DELETE	/NODE ?? NODE ...
 
-where a NODE represents either a dataset, plugin, files or command:
+where a NODE references a dataset, a plugin, a file or a command:
 
-	DATASET.TYPE ? QUERY ? QUERY ...
-	PLUGIN.TYPE ? QUERY ? QUERY ...
-	FILE.TYPE ? QUERY ? QUERY ...
-	COMMAND.TYPE ? QUERY ? QUERY ...
+	DATASET.TYPE ? QUERY
+	PLUGIN.TYPE ? QUERY
+	FILE.TYPE ? QUERY
+	COMMAND.TYPE ? QUERY
 
-By default, TOTEM provides the following data conversion TYPEs:
+By default, TOTEM provides the TYPEs:
 
 	db | xml | csv | json
-
-session validation, task sharding, connection test COMMANDs:
+	
+for converting DATASETs, the COMMANDs:
 
 	riddle | task | ping
 	
-and FILE upload/download areas:
+for validating a session, sharding a task, and testing a connection, as well as the FILE areas:
 
 	stores | uploads | shares
+
+for uploading, storing and serving files.
 
 ## Installation
 
