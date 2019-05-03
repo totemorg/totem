@@ -212,22 +212,19 @@ var
 	@private
 	@method  watchFile
 	Establish smart file watcher when file at area/name has changed.
-	@param {String} area Name of folder being watched
-	@param {String} name Name of file being watched
+	@param {String} path to file being watched
 	@param {Function} callback cb(sql, name, path) when file at path has changed
 	*/
-	watchFile: function (area, name, cb) { 
+	watchFile: function (path, cb) { 
 		var 
-			path = area + name,
-			watchMods = TOTEM.watchMods;
+			watchMTime = TOTEM.watchMTime;
 		
-		Trace("WATCHING " + name);
+		Trace("WATCHING " + path);
 		
-		watchMods[path] = 0; 
+		watchMTime[path] = 0; 
 
 		FS.watch(path, function (ev, file) {  
 			var 
-				path = area + file,
 				isSwap = file.charAt(0) == ".";
 
 			if (file && !isSwap)
@@ -238,8 +235,9 @@ var
 
 							FS.stat(path, function (err, stats) {
 
-								if ( !err && (watchMods[path] - stats.mtime) ) {
-									watchMods[path] = stats.mtime;
+								//Log(path, err, stats);
+								if ( !err && (watchMTime[path] != stats.mtime) ) {
+									watchMTime[path] = stats.mtime;
 									cb(sql, file, path);
 								}
 
@@ -403,7 +401,7 @@ var
 	onFile: {		//< File folder watchers with callbacks cb(path) 
 	},
 		
-	watchMods: { 	//< List to track changed files as OS will trigger multiple change evented when file changed
+	watchMTime: { 	//< List to track changed files as OS will trigger multiple change evented when file changed
 	},
 		
 	/**
@@ -1647,7 +1645,7 @@ function initializeService(sql) {
 
 	sql.query("UPDATE app.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
 	
-	var watchMods = TOTEM.watchMods;
+	var watchMTime = TOTEM.watchMTime;
 
 	Each(TOTEM.onFile, function (area, cb) {  // callback cb(sql,name,area) when file changed
 		FS.readdir( area, function (err, files) {
@@ -1659,7 +1657,7 @@ function initializeService(sql) {
 					var first = file.charAt(0);
 					
 					if (first != "." && first != "_") 
-						TOTEM.watchFile( area, file, cb );
+						TOTEM.watchFile( area+file, cb );
 				});
 		});	
 	});
