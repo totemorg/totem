@@ -7,7 +7,8 @@
 
 # TOTEM
 
-TOTEM provides a basic http/https web service having the following configurable features:
+TOTEM replaces a slew of god-awful middleware by providing a basic http/https web service 
+having the following configurable features:
 
 	+ routing methods for table, engine, and file objects
 	+ denial-of-service protection
@@ -25,8 +26,7 @@ TOTEM provides a basic http/https web service having the following configurable 
 	+ automattic server cert generation
 	+ task sharding
   
-TOTEM thus replaces a slew of god-awful middleware.  TOTEM defines a CRUD interface 
- at its endpoints:
+TOTEM defines a CRUD interface at its endpoints:
 
 	POST		/NODE ?? NODE ...
 	GET			/NODE ?? NODE ...
