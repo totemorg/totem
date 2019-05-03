@@ -48,7 +48,8 @@ for converting DATASETs, the COMMANDs:
 
 	riddle | task | ping
 	
-for validating a session, sharding a task, and testing a connection, as well as the FILE areas:
+for validating a session, sharding a task, and testing a connection.  TOTEM also establishes
+FILE areas:
 
 	stores | uploads | shares
 
