@@ -59,7 +59,7 @@ var
 	JSDB = require("jsdb"),				//< JSDB database agnosticator
 	sqlThread = JSDB.thread;
 
-const { Copy,Each,Log,isError,isArray,isString } = require("enum");
+const { Copy,Each,Log,isError,isArray,isString,isFunction } = require("enum");
 	
 function Trace(msg,sql) {
 	TRACE.trace(msg,sql);
@@ -1193,14 +1193,14 @@ function selectDS(req, res) {
 	var 
 		sql = req.sql,							// sql connection
 		flags = req.flags,
-		query = req.query,
+		where = req.where,
 		index = flags.index || req.index;
 	
 	sql.runQuery({
 		crud: req.action,
 		from: req.table,
 		db: req.group || "app",
-		where: query,
+		where: where,
 		index: index,
 		having: {},
 		client: req.client
@@ -1216,8 +1216,7 @@ function insertDS(req, res) {
 	var 
 		sql = req.sql,							// sql connection
 		flags = req.flags,
-		body = req.body,
-		query = req.query;
+		body = req.body;
 
 	sql.runQuery({
 		crud: req.action,
@@ -1239,14 +1238,14 @@ function deleteDS(req, res) {
 	var 
 		sql = req.sql,							// sql connection
 		flags = req.flags,
-		query = req.query;
+		where = req.where;
 
-	if ( query.ID )
+	if ( where.ID )
 		sql.runQuery({
 			crud: req.action,
 			from: req.table,
 			db: req.group || "app",
-			where: query,
+			where: where,
 			client: req.client
 		}, TOTEM.emitter, function (err,info) {
 
@@ -1267,7 +1266,7 @@ function updateDS(req, res) {
 		flags = req.flags,
 		body = req.body,
 		ds = req.table,
-		query = req.query;
+		where = req.where;
 
 	//Log(req.action, query, body);
 	
@@ -1275,12 +1274,12 @@ function updateDS(req, res) {
 		res( TOTEM.errors.noBody );
 	
 	else
-	if ( query.ID )
+	if ( where.ID )
 		sql.runQuery({
 			crud: req.action,
 			from: req.table,
 			db: req.group || "app",
-			where: query,
+			where: where,
 			set: body,
 			client: req.client
 		}, TOTEM.emitter, function (err,info) {
@@ -2523,9 +2522,9 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 	var
 		query = req.query = {},
 		index = req.index = {},	
-		keys = req.keys = {},
+		where = req.where = {},
 		flags = req.flags = {},
-		path = req.path = "." + req.node.parsePath(query, index, flags, keys),	//  ./area1/area2/.../table.type
+		path = req.path = "." + req.node.parsePath(query, index, flags, where),	//  ./area1/area2/.../table.type
 		areas = path.split("/"),						// [".", area1, area2, ...]
 		file = req.file = areas.pop() || "",		// table.type
 		parts = file.split("."),							// [table, type, ...]
@@ -2766,11 +2765,11 @@ route this thread to the appropriate (req,res)-endpoint, where the newly formed 
 		method: "GET, ... " 		// http method and its ...
 		action: "select, ...",		// corresponding crude name
 		socketio: "path"  // filepath to client's socketio.js
-		query: {...}, 		// sql-ized query keys from url
+		where: {...}, 		// sql-ized query keys from url
 		body: {...},		// body keys from request 
 		flags: {...}, 		// flag keys from url
 		index: {...}		// sql-ized index keys from url
-		keys: {...}, 		// raw keys from url
+		query: {...}, 		// raw keys from url
 		files: [...] 		// files uploaded
 		site: {...}			// skinning context keys
 		sql: connector 		// sql database connector (dummy if no mysql config)
@@ -2810,16 +2809,17 @@ the client is challenged as necessary.
 			sendString( buf );
 
 		else
-			try {
-				if (cache)
-					sendString( cache[path] = FS.readFileSync(path) );
+			FS.readFile( path, (err,buf) => {
+				if (err)
+					sendError( TOTEM.errors.noFile );
+
 				else
-					sendString( FS.readFileSync(path) );
-			}
-			catch (err) {
-				sendError( TOTEM.errors.noFile );
-			}
-		
+				if (cache)
+					sendString( cache[path] = buf );
+
+				else
+					sendString( buf );
+			});
 	}		
 
 	function sendError(err) {  // Send pretty error message
@@ -3437,7 +3437,6 @@ Totem(req,res) endpoint to send uncached, static files from a requested area.
 		query = req.query, 
 		index = req.index,
 		body = req.body,
-		keys = req.keys,
 		client = req.client,
 		action = req.action,
 		area = req.table,
@@ -3464,7 +3463,7 @@ Totem(req,res) endpoint to send uncached, static files from a requested area.
 							res(err);
 
 						else 
-						if ( isEmpty(keys) )
+						if ( isEmpty(query) )
 							res(buf);
 						
 						else {
@@ -3472,8 +3471,8 @@ Totem(req,res) endpoint to send uncached, static files from a requested area.
 								src = buf.parseJSON( {} ),
 								rtn = {};
 						
-							Log("keys", keys);
-							Each(keys, (key, index) => rtn[key] = index.parseEval(src) );
+							Log("keys", query);
+							Each(query, (key, index) => rtn[key] = index.parseEval(src) );
 							
 							res( JSON.stringify(rtn) );
 						}
@@ -3692,7 +3691,7 @@ Totem(req,res) endpoint to send uncached, static files from a requested area.
 		}
 	},
 
-	function parsePath(query,index,flags,keys) { 
+	function parsePath(query,index,flags,where) { 
 	/**
 	@member String
 	Parse a "PATH?PARM&PARM&..." url into the specified query, index, flags, or keys hash
@@ -3702,7 +3701,7 @@ Totem(req,res) endpoint to send uncached, static files from a requested area.
 		
 		function doParm(str) {  // expand parm str 
 			doSample( str, (res) => { // not sampling so try relation
-				doRelation(res, query, (res) => {	// not relation so try index
+				doRelation(res, where, (res) => {	// not relation so try index
 					//Log("last guess", res);
 					return index[res] = escapeId(res);  
 				});
@@ -3747,7 +3746,7 @@ Totem(req,res) endpoint to send uncached, static files from a requested area.
 			return expand ? res : cb( str );
 		}
 
-		function doRelation(str, query, cb) {  // expand "query op val" || "_flag = json" or callback(str)
+		function doRelation(str, where, cb) {  // expand "where op val" || "_flag = json" or callback(str)
 			
 			function rep(lhs,op,rhs) {
 				//Log("dotest", lhs, op, rhs);
@@ -3787,9 +3786,9 @@ Totem(req,res) endpoint to send uncached, static files from a requested area.
 				return res;
 			
 			else {
-				res = str.replace( // query op val
+				res = str.replace( // where op val
 					/(.*)(\/=|\^=|\|=|<=|>=|\!=)(.*)/, 
-					(rem,lhs,op,rhs) => query[lhs] = rep(lhs,op,rhs) );
+					(rem,lhs,op,rhs) => where[lhs] = rep(lhs,op,rhs) );
 				
 				if (expand)
 					return res;
@@ -3798,8 +3797,8 @@ Totem(req,res) endpoint to send uncached, static files from a requested area.
 					res = str.replace( // query op val
 						/(.*)(=|<|>)(.*)/, 
 						(rem,lhs,op,rhs) => {
-							if (op == "=") keys[lhs] = rhs;
-							return query[lhs] = rep(lhs,op,rhs);
+							if (op == "=") query[lhs] = rhs;
+							return where[lhs] = rep(lhs,op,rhs);
 						});
 
 					return expand ? res : doStore(str, cb );
@@ -3820,7 +3819,7 @@ Totem(req,res) endpoint to send uncached, static files from a requested area.
 
 		//delete query[""];
 		
-		Log({query: query, index: index, flags: flags, keys: keys, path: parts[0]});
+		Log({query: query, index: index, flags: flags, where: where, path: parts[0]});
 		
 		return parts[0];
 	},
