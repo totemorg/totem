@@ -3611,21 +3611,21 @@ function sysArea(req, res) {
 			return expand ? res : cb( res );
 		}
 
-		function doJson(str, cb) {
+		function doJson(str, cb) {  // expand "key$expression" or callback(str)
 			var 
 				expand = false,
 				res = str.replace( 
 					/(.*)(\$)(.*)/, 
 					(rem,key,op,expr) => {
 						expand = true;
-						Log(key,op,expr);
+						//Log(key,op,expr);
 						return `json_extract(${escapeId(key)}, ${escape(op+expr)} )`;
 					});
 
-			return expand ? res : cb( res );
+			return expand ? res : cb( str );
 		}
 
-		function doTest(str, query, cb) {
+		function doTest(str, query, cb) {  // expand "lhs op rhs" || "_flag = json" || "lhs = rhs" or callback(str)
 			
 			function rep(lhs,op,rhs) {
 				//Log("dotest", lhs, op, rhs);
@@ -3670,7 +3670,7 @@ function sysArea(req, res) {
 				else {				
 					res = str.replace( /(.*)(=)(.*)/, (rem,lhs,op,rhs) => query[lhs+"_"] = rep(lhs,op,rhs) );
 
-					return expand ? res : doJson(res, cb );
+					return expand ? res : doJson(str, cb );
 				}
 			}
 		}
