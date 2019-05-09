@@ -217,11 +217,11 @@ var
 	*/
 	watchFile: function (path, cb) { 
 		var 
-			watchMTime = TOTEM.watchMTime;
+			mTimes = TOTEM.mTimes;
 		
 		Trace("WATCHING " + path);
 		
-		watchMTime[path] = 0; 
+		mTimes[path] = 0; 
 
 		FS.watch(path, function (ev, file) {  
 			var 
@@ -236,8 +236,8 @@ var
 							FS.stat(path, function (err, stats) {
 
 								//Log(path, err, stats);
-								if ( !err && (watchMTime[path] != stats.mtime) ) {
-									watchMTime[path] = stats.mtime;
+								if ( !err && (mTimes[path] != stats.mtime) ) {
+									mTimes[path] = stats.mtime;
 									cb(sql, file, path);
 								}
 
@@ -401,7 +401,7 @@ var
 	onFile: {		//< File folder watchers with callbacks cb(path) 
 	},
 		
-	watchMTime: { 	//< List to track changed files as OS will trigger multiple change evented when file changed
+	mTimes: { 	//< File mod-times tracked as OS will trigger multiple events when file changed
 	},
 		
 	/**
@@ -1644,7 +1644,7 @@ function initializeService(sql) {
 
 	sql.query("UPDATE app.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
 	
-	var watchMTime = TOTEM.watchMTime;
+	var mTimes = TOTEM.mTimes;
 
 	Each(TOTEM.onFile, function (area, cb) {  // callback cb(sql,name,area) when file changed
 		FS.readdir( area, function (err, files) {
@@ -2405,7 +2405,7 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 		index = req.index = {},	
 		joins = req.joins = {},
 		flags = req.flags = {},
-		path = req.path = "." + req.node.parsePath(query, index),	//  ./area1/area2/.../table.type
+		path = req.path = "." + req.node.parsePath(query, index, flags),	//  ./area1/area2/.../table.type
 		areas = path.split("/"),						// [".", area1, area2, ...]
 		file = req.file = areas.pop() || "",		// table.type
 		parts = file.split("."),							// [table, type, ...]
@@ -2437,6 +2437,7 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 		if ( key in strips )
 			delete query[key];
 
+		/*
 		else
 		if (key.charAt(0) == prefix) {  	// remap flag
 			flags[ flag = key.substr(1)] = query[key];
@@ -2450,7 +2451,7 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 				joins[parts[0]] = key+"="+query[key];
 				delete query[key];
 			}
-		}	
+		}	  */
 
 	for (var key in body) 		// remap body flags
 		if (key.charAt(0) == prefix) {  
@@ -3548,47 +3549,146 @@ function sysArea(req, res) {
 			return JSON.parse(this);
 		}
 		catch (err) {  
-			return def ? def(this) || null : null;
+			return def ? def(this+"") || null : null;
 		}
 	},
 
-	function parsePath(query,index,trap) { 
+	function parsePath(query,index,flags) { 
 	/**
 	@private
 	@member String
 	Parse a "tag?key=val&key=val? ..." query into 
 	the default hash def = {key:val, key=val?query, relation:null, key:json, ...}.
 	*/
+		/*
+		function parseParm(parm, op, qual, store, cb) {
+			var	
+				parts = parm.split(op),  
+				val = parts[1],
+				key = val ? parts[0] : "";
 
+			if (key) 
+				store[key+qual] = val; //val.parseJSON( (junk) => val );
+
+			else
+			if (cb) cb();
+		}
+		*/
+		/*
+		parseParm( parm, "=", "", query, function () {
+		parseParm( ":", ":", index || {}, function () {
+		parseParm( parm, "<", "<$", query, function () {
+		parseParm( parm, ">", ">$", query, function () {
+			if (trap) trap[parm] = null;
+		}); }); });	
+		}); */
+		
+		function doParm(str) {
+			doAs( str, index, (res) => {
+				doTest(res, query, (res) => {
+					Log("last guess", res);
+					return index[res+"_"] = escapeId(res);  // doJson( res, (res) => res );  
+				});
+			});
+		}
+
+		function doAs(str, query, cb) {
+			function rep(lhs,op,rhs) {
+				expand = true;
+				var
+					test = doTest(rhs, {}, (res) => {
+						//Log("no test", res);
+						return escapeId(res); 
+					});
+
+				return `${test} AS ${escapeId(lhs)}`;
+			}
+				
+			var 
+				expand = false,
+				res = str.replace( /(.*)(:=)(.*)/, (rem,lhs,op,rhs) => query[lhs+"_"] = rep(lhs,op,rhs) );
+
+			return expand ? res : cb( res );
+		}
+
+		function doJson(str, cb) {
+			var 
+				expand = false,
+				res = str.replace( 
+					/(.*)(\$)(.*)/, 
+					(rem,key,op,expr) => {
+						expand = true;
+						Log(key,op,expr);
+						return `json_extract(${escapeId(key)}, ${escape(op+expr)} )`;
+					});
+
+			return expand ? res : cb( res );
+		}
+
+		function doTest(str, query, cb) {
+			
+			function rep(lhs,op,rhs) {
+				//Log("dotest", lhs, op, rhs);
+				expand = true;
+				var
+					key = doJson(lhs, (res) => {
+						var keys = res.split(",");
+						keys.forEach( (key,n) => keys[n] = escapeId(key) );
+						return keys.join(",");
+					}),
+					val = doJson(rhs, (res) => escape(res) );
+
+				switch ( op ) {
+					case "/=":
+						return `MATCH(${key}) AGAINST(${val})`;
+					case "^=":
+						return `MATCH(${key}) AGAINST(${val} IN BINARY MODE)`;
+					case "|=":
+						return `MATCH(${key}) AGAINST(${val} IN QUERY EXPANSION)`;
+					default:
+						return `${key} ${op} ${val}`;
+				}
+			}
+
+			var
+				expand = false,
+				res = str.replace( /(.*)(\/=|\^=|\|=|<=|>=|<|>)(.*)/, (rem,lhs,op,rhs) => query[lhs+"_"] = rep(lhs,op,rhs) );
+
+			if (expand) 
+				return res;
+			
+			else {
+				res = str.replace( /^_(.*)(=)(.*)/, (rem,lhs,op,rhs) => {
+					expand = true; 
+					//Log("flags", lhs, rhs);
+					flags[lhs] = rhs.parseJSON( (res) => res );
+				});
+				
+				if (expand)
+					return res;
+				
+				else {				
+					res = str.replace( /(.*)(=)(.*)/, (rem,lhs,op,rhs) => query[lhs+"_"] = rep(lhs,op,rhs) );
+
+					return expand ? res : doJson(res, cb );
+				}
+			}
+		}
+		
 		var 
+			escape = MYSQL.escape,
+			escapeId = MYSQL.escapeId,
 			parts = this.split("?");
 
 		if ( parms = parts[1] )
-			parms.split("&").forEach( function (parm) {
-				function parseParm(op, qual, store, cb) {
-					var	
-						parts = parm.split(op),  
-						key = parts[0],
-						val = parts[1] || "";
-
-					if (key) 
-						if (val)
-							store[key+qual] = val.parseJSON( (junk) => val );
-	
-						else
-							cb();
-				}
-
+			parms.split("&").forEach( (parm) => {
 				if (parm) 
-					parseParm( "=", "", query, function () {
-					parseParm( ":", ":", index || {}, function () {
-					parseParm( "<", "<$", query, function () {
-					parseParm( ">", ">$", query, function () {
-						if (trap) trap[parm] = null;
-					}); }); });	});
+					doParm( parm );
 			});
 
 		delete query[""];
+		
+		Log({query: query, index: index, flags: flags, path: parts[0]});
 		
 		return parts[0];
 	},
