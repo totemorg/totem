@@ -3699,34 +3699,12 @@ Totem(req,res) endpoint to send uncached, static files from a requested area.
 	as directed by the PARM = ASKEY := REL || REL || _FLAG = VALUE where 
 	REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY
 	*/
-		/*
-		function parseParm(parm, op, qual, store, cb) {
-			var	
-				parts = parm.split(op),  
-				val = parts[1],
-				key = val ? parts[0] : "";
-
-			if (key) 
-				store[key+qual] = val; //val.parseJSON( (junk) => val );
-
-			else
-			if (cb) cb();
-		}
-		*/
-		/*
-		parseParm( parm, "=", "", query, function () {
-		parseParm( ":", ":", index || {}, function () {
-		parseParm( parm, "<", "<$", query, function () {
-		parseParm( parm, ">", ">$", query, function () {
-			if (trap) trap[parm] = null;
-		}); }); });	
-		}); */
 		
 		function doParm(str) {  // expand parm str 
 			doSample( str, (res) => { // not sampling so try relation
 				doRelation(res, query, (res) => {	// not relation so try index
 					//Log("last guess", res);
-					return index[res+"_"] = escapeId(res);  
+					return index[res] = escapeId(res);  
 				});
 			});
 		}
@@ -3735,19 +3713,19 @@ Totem(req,res) endpoint to send uncached, static files from a requested area.
 			function rep(lhs,op,rhs) {
 				expand = true;
 				var
-					test = doRelation(rhs, {}, (res) => {	// not relation so try index
+					rel = doRelation(rhs, {}, (res) => {	// not relation so assume id
 						//Log("no test", res);
 						return escapeId(res); 
 					});
 
-				return `${test} AS ${escapeId(lhs)}`;
+				return `${rel} AS ${escapeId(lhs)}`;
 			}
 				
 			var 
 				expand = false,
 				res = str.replace( 
 					/(.*)(:=)(.*)/, 
-					(rem,lhs,op,rhs) => index[lhs+"_"] = rep(lhs,op,rhs) );
+					(rem,lhs,op,rhs) => index[lhs] = rep(lhs,op,rhs) );
 
 			return expand ? res : cb( res );
 		}
@@ -3802,6 +3780,7 @@ Totem(req,res) endpoint to send uncached, static files from a requested area.
 						expand = true; 
 						//Log("flags", lhs, rhs);
 						flags[lhs] = rhs.parseJSON( (res) => res );
+						return rhs;
 					});
 
 			if (expand) 
@@ -3810,7 +3789,7 @@ Totem(req,res) endpoint to send uncached, static files from a requested area.
 			else {
 				res = str.replace( // query op val
 					/(.*)(\/=|\^=|\|=|<=|>=|\!=)(.*)/, 
-					(rem,lhs,op,rhs) => query[lhs+"_"] = rep(lhs,op,rhs) );
+					(rem,lhs,op,rhs) => query[lhs] = rep(lhs,op,rhs) );
 				
 				if (expand)
 					return res;
@@ -3820,7 +3799,7 @@ Totem(req,res) endpoint to send uncached, static files from a requested area.
 						/(.*)(=|<|>)(.*)/, 
 						(rem,lhs,op,rhs) => {
 							if (op == "=") keys[lhs] = rhs;
-							query[lhs+"_"] = rep(lhs,op,rhs);
+							return query[lhs] = rep(lhs,op,rhs);
 						});
 
 					return expand ? res : doStore(str, cb );
