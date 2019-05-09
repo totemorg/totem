@@ -270,6 +270,7 @@ var
 	*/
 	maxIndex: 1000,						//< max files to index
 
+	emitter: null,
 	/**
 	@cfg {Object}
 	@private
@@ -1006,6 +1007,7 @@ var
 		pretty: function (err) { 
 			return err+"";
 		},
+		noID: new Error("missing record ID"),
 		badMethod: new Error("unsupported request method"),
 		noProtocol: new Error("no protocol specified to fetch"),
 		noRoute: new Error("no route"),
@@ -1182,13 +1184,129 @@ var
  * @class TOTEM
  **/
 
+//======================= CRUD interface
+
+function selectDS(req, res) {
+	var 
+		sql = req.sql,							// sql connection
+		flags = req.flags,
+		query = req.query,
+		index = flags.index || req.index;
+	
+	sql.runQuery({
+		crud: req.action,
+		from: req.table,
+		db: req.group || "app",
+		where: query,
+		index: index,
+		having: {},
+		client: req.client
+	}, null, function (err,recs) {
+
+		res( err || recs );
+
+	});
+}
+
+function insertDS(req, res) {
+		
+	var 
+		sql = req.sql,							// sql connection
+		flags = req.flags,
+		body = req.body,
+		query = req.query;
+
+	sql.runQuery({
+		crud: req.action,
+		from: req.table,
+		db: req.group || "app",
+		set: body,
+		client: req.client
+	}, TOTEM.emitter, function (err,info) {
+
+		//Log(info);
+		res( err || info );
+
+	});
+	
+}
+
+function deleteDS(req, res) {
+		
+	var 
+		sql = req.sql,							// sql connection
+		flags = req.flags,
+		query = req.query;
+
+	if ( query.ID )
+		sql.runQuery({
+			crud: req.action,
+			from: req.table,
+			db: req.group || "app",
+			where: query,
+			client: req.client
+		}, TOTEM.emitter, function (err,info) {
+
+			//Log(info);
+			res( err || info );
+
+		});
+	
+	else
+		res( TOTEM.errors.noID );
+	
+}
+
+function updateDS(req, res) {
+	function isEmpty(opts) {
+		for ( var key in opts ) return false;
+		return true;
+	}
+	
+	var 
+		sql = req.sql,							// sql connection
+		flags = req.flags,
+		body = req.body,
+		ds = req.table,
+		query = req.query;
+
+	//Log(req.action, query, body);
+	
+	if ( isEmpty(body) )
+		res( TOTEM.errors.noBody );
+	
+	else
+	if ( query.ID )
+		sql.runQuery({
+			crud: req.action,
+			from: req.table,
+			db: req.group || "app",
+			where: query,
+			set: body,
+			client: req.client
+		}, TOTEM.emitter, function (err,info) {
+
+			//Log(info);
+			res( err || info );
+
+			if ( onUpdate = TOTEM.onUpdate ) 
+				onUpdate(sql, ds, body);
+			
+		});
+	
+	else
+		res( TOTEM.errors.noID );
+	
+}
+
+/*
 function selectDS(req,res) {	//< Default virtual table logic is real table
-/**
+/ **
  * @private
  * @method deleteDS
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
- * */
+ * * /
 	if (TOTEM.mysql)
 		req.sql.query("SELECT * FROM ??.??", [req.group,req.table], function (err,data) {
 			res(err || data);
@@ -1196,15 +1314,16 @@ function selectDS(req,res) {	//< Default virtual table logic is real table
 	
 	else
 		res(TOTEM.errors.noDB);
-}
+} */
 
+/*
 function updateDS(req,res) {
-/**
+/ **
  * @private
  * @method updateDS
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
- * */
+ * * /
 	//Log(req.table, TOTEM.byTable);
 	
 	if ( route = TOTEM.byTable[req.table] )
@@ -1212,27 +1331,29 @@ function updateDS(req,res) {
 	
 	else
 		res( TOTEM.errors.noRoute );
-}
+} */
 
+/*
 function insertDS(req,res) {
-/**
+/ **
  * @private
  * @method insertDS
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
- * */
+ * * /
 	res( TOTEM.errors.notAllowed );
-}
+} */
 
+/*
 function deleteDS(req,res) {
-/**
+/ **
  * @private
  * @method deleteDS
  * @param {Object} req Totem's request
  * @param {Function} res Totem's response callback
- * */
+ * * /
 	res( TOTEM.errors.notAllowed );
-}
+}  */
 
 function executeDS(req,res) {
 /**
@@ -1273,7 +1394,7 @@ function configService(opts,cb) {
 
 	if (mysql = TOTEM.mysql) 
 		JSDB.config({   // establish the db agnosticator 
-			//emit: TOTEM.IO.sockets.emit,   // cant set socketio until server started
+			//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server started
 
 			reroute: TOTEM.reroute,  // db translators
 			
@@ -1371,7 +1492,7 @@ function startService(server,cb) {
 		if (IO) { 							// Setup client web-socket support
 			Trace("SOCKETS AT "+IO.path());
 
-			JSDB.emit =	IO.sockets.emit;
+			TOTEM.emitter = IO.sockets.emit;
 			
 			IO.on("connect", function (socket) {  // Trap every connect				
 				//Trace("ALLOW SOCKETS");
