@@ -3612,15 +3612,16 @@ function sysArea(req, res) {
 		}
 
 		function doJson(str, cb) {  // expand "key$expression" or callback(str)
+			function rep(key,op,exp) {
+				expand = true;
+				var exs = exp.split(",");
+				exs.forEach( (ex,n) => exs[n] = escape(op+ex) );
+				return `json_extract(${escapeId(key)}, ${exs.join(",")} )`;
+			}
+
 			var 
 				expand = false,
-				res = str.replace( 
-					/(.*)(\$)(.*)/, 
-					(rem,key,op,expr) => {
-						expand = true;
-						//Log(key,op,expr);
-						return `json_extract(${escapeId(key)}, ${escape(op+expr)} )`;
-					});
+				res = str.replace( /(.*)(\$)(.*)/, (rem,lhs,op,rhs) => rep(lhs,op,rhs)  );
 
 			return expand ? res : cb( str );
 		}
@@ -3652,7 +3653,7 @@ function sysArea(req, res) {
 
 			var
 				expand = false,
-				res = str.replace( /(.*)(\/=|\^=|\|=|<=|>=|<|>)(.*)/, (rem,lhs,op,rhs) => query[lhs+"_"] = rep(lhs,op,rhs) );
+				res = str.replace( /(.*)(\/=|\^=|\|=|<=|>=|\!=|<|>)(.*)/, (rem,lhs,op,rhs) => query[lhs+"_"] = rep(lhs,op,rhs) );
 
 			if (expand) 
 				return res;
@@ -3686,7 +3687,7 @@ function sysArea(req, res) {
 					doParm( parm );
 			});
 
-		delete query[""];
+		//delete query[""];
 		
 		Log({query: query, index: index, flags: flags, path: parts[0]});
 		
