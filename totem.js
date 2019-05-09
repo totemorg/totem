@@ -94,6 +94,8 @@ var
 		false: false	// on worker
 	},
 		
+	onUpdate: null,
+		
 	/**
 	@cfg {Function}
 	@method tasker
