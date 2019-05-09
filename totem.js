@@ -273,6 +273,7 @@ var
 	maxIndex: 1000,						//< max files to index
 
 	emitter: null,
+		
 	/**
 	@cfg {Object}
 	@private
@@ -1260,10 +1261,6 @@ function deleteDS(req, res) {
 }
 
 function updateDS(req, res) {
-	function isEmpty(opts) {
-		for ( var key in opts ) return false;
-		return true;
-	}
 	
 	var 
 		sql = req.sql,							// sql connection
@@ -2483,7 +2480,7 @@ Challenge a client with specified profile parameters
 	var 
 		rid = [],
 		reply = (TOTEM.riddleMap && TOTEM.riddles)
-				? makeRiddles( profile.Message, rid, (profile.IDs||"").parseJSON( (val) => {} ) )
+				? makeRiddles( profile.Message, rid, (profile.IDs||"").parseJSON( {} ) )
 				: profile.Message;
 
 	if (reply && TOTEM.IO) 
@@ -2526,9 +2523,9 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 	var
 		query = req.query = {},
 		index = req.index = {},	
-		joins = req.joins = {},
+		keys = req.keys = {},
 		flags = req.flags = {},
-		path = req.path = "." + req.node.parsePath(query, index, flags),	//  ./area1/area2/.../table.type
+		path = req.path = "." + req.node.parsePath(query, index, flags, keys),	//  ./area1/area2/.../table.type
 		areas = path.split("/"),						// [".", area1, area2, ...]
 		file = req.file = areas.pop() || "",		// table.type
 		parts = file.split("."),							// [table, type, ...]
@@ -2559,22 +2556,6 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 	for (var key in query) 		// strip or remap bogus keys
 		if ( key in strips )
 			delete query[key];
-
-		/*
-		else
-		if (key.charAt(0) == prefix) {  	// remap flag
-			flags[ flag = key.substr(1)] = query[key];
-			delete query[key];
-			if ( trap = traps[flag] ) trap(req);
-		}
-
-		else {							// remap join
-			var parts = key.split(".");
-			if (parts.length>1) {
-				joins[parts[0]] = key+"="+query[key];
-				delete query[key];
-			}
-		}	  */
 
 	for (var key in body) 		// remap body flags
 		if (key.charAt(0) == prefix) {  
@@ -2785,11 +2766,11 @@ route this thread to the appropriate (req,res)-endpoint, where the newly formed 
 		method: "GET, ... " 		// http method and its ...
 		action: "select, ...",		// corresponding crude name
 		socketio: "path"  // filepath to client's socketio.js
-		query: {...}, 		// query ke-value parms from url
-		body: {...},		// body key-value parms from request body
-		flags: {...}, 		// _flags key-value parms parsed from url
-		index: {...}		// x:EXPR indecies from url
-		joins: {...}, 		// from.to dataset joins from url
+		query: {...}, 		// sql-ized query keys from url
+		body: {...},		// body keys from request 
+		flags: {...}, 		// flag keys from url
+		index: {...}		// sql-ized index keys from url
+		keys: {...}, 		// raw keys from url
 		files: [...] 		// files uploaded
 		site: {...}			// skinning context keys
 		sql: connector 		// sql database connector (dummy if no mysql config)
@@ -2801,7 +2782,7 @@ route this thread to the appropriate (req,res)-endpoint, where the newly formed 
 		type: "type" 			// type part 
 		connection: socket		// http/https socket to retrieve client cert 
 
-The newly form response res method accepts a string, an objects, an array, an error, or a file-cache function
+The newly formed response res method accepts a string, an objects, an array, an error, or a file-cache function
 to appropriately respond and close this thread and its sql connection.  The session is validated and logged, and 
 the client is challenged as necessary.
  */
@@ -3438,12 +3419,25 @@ Totem(req,res) endpoint to test client connection
 	res("hello "+req.client);			
 }
 
+function isEmpty(opts) {
+	for ( var key in opts ) return false;
+	return true;
+}
+
 function sysArea(req, res) {
+/**
+@method sysArea
+Totem(req,res) endpoint to send uncached, static files from a requested area.
+@param {Object} req Totem request
+@param {Function} res Totem response
+*/
 	
 	var 
 		sql = req.sql, 
 		query = req.query, 
+		index = req.index,
 		body = req.body,
+		keys = req.keys,
 		client = req.client,
 		action = req.action,
 		area = req.table,
@@ -3464,7 +3458,26 @@ function sysArea(req, res) {
 			
 			if ( req.file )
 				try {		// these ifiles are not static so we dont cache them
-					res( FS.readFileSync(path) );
+					FS.readFile(path, "utf8", (err,buf) => {
+
+						if (err) 
+							res(err);
+
+						else 
+						if ( isEmpty(keys) )
+							res(buf);
+						
+						else {
+							var
+								src = buf.parseJSON( {} ),
+								rtn = {};
+						
+							Log("keys", keys);
+							Each(keys, (key, index) => rtn[key] = index.parseEval(src) );
+							
+							res( JSON.stringify(rtn) );
+						}
+					});
 				}
 				catch (err) {
 					res( TOTEM.errors.noFile );
@@ -3653,12 +3666,15 @@ function sysArea(req, res) {
 		}
 	},
 
+	function parseEval($) {
+		return eval(this+"");
+	},
+	
+	function parseJS(query) {
 	/**
-	@private
 	@member String
 	Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
 	*/
-	function parseJS(query) {
 		try {
 			return VM.runInContext( "`" + this + "`" , VM.createContext(query));
 		}
@@ -3672,16 +3688,16 @@ function sysArea(req, res) {
 			return JSON.parse(this);
 		}
 		catch (err) {  
-			return def ? def(this+"") || null : null;
+			return def ? (isFunction(def) ? def(this+"") : def) || null : null;
 		}
 	},
 
-	function parsePath(query,index,flags) { 
+	function parsePath(query,index,flags,keys) { 
 	/**
-	@private
 	@member String
-	Parse a "tag?key=val&key=val? ..." query into 
-	the default hash def = {key:val, key=val?query, relation:null, key:json, ...}.
+	Parse a "PATH?PARM&PARM&..." url into the specified query, index, flags, or keys hash
+	as directed by the PARM = ASKEY := REL || REL || _FLAG = VALUE where 
+	REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY
 	*/
 		/*
 		function parseParm(parm, op, qual, store, cb) {
@@ -3706,20 +3722,20 @@ function sysArea(req, res) {
 		}); }); });	
 		}); */
 		
-		function doParm(str) {
-			doAs( str, index, (res) => {
-				doTest(res, query, (res) => {
-					Log("last guess", res);
-					return index[res+"_"] = escapeId(res);  // doJson( res, (res) => res );  
+		function doParm(str) {  // expand parm str 
+			doSample( str, (res) => { // not sampling so try relation
+				doRelation(res, query, (res) => {	// not relation so try index
+					//Log("last guess", res);
+					return index[res+"_"] = escapeId(res);  
 				});
 			});
 		}
 
-		function doAs(str, query, cb) {
+		function doSample(str, cb) {  // expand lhs := rhs or callback cb(str)
 			function rep(lhs,op,rhs) {
 				expand = true;
 				var
-					test = doTest(rhs, {}, (res) => {
+					test = doRelation(rhs, {}, (res) => {	// not relation so try index
 						//Log("no test", res);
 						return escapeId(res); 
 					});
@@ -3729,12 +3745,14 @@ function sysArea(req, res) {
 				
 			var 
 				expand = false,
-				res = str.replace( /(.*)(:=)(.*)/, (rem,lhs,op,rhs) => query[lhs+"_"] = rep(lhs,op,rhs) );
+				res = str.replace( 
+					/(.*)(:=)(.*)/, 
+					(rem,lhs,op,rhs) => index[lhs+"_"] = rep(lhs,op,rhs) );
 
 			return expand ? res : cb( res );
 		}
 
-		function doJson(str, cb) {  // expand "key$expression" or callback(str)
+		function doStore(str, cb) {  // expand "store$expression, ..." or callback(str)
 			function rep(key,op,exp) {
 				expand = true;
 				var exs = exp.split(",");
@@ -3744,23 +3762,25 @@ function sysArea(req, res) {
 
 			var 
 				expand = false,
-				res = str.replace( /(.*)(\$)(.*)/, (rem,lhs,op,rhs) => rep(lhs,op,rhs)  );
+				res = str.replace( 
+					/(.*)(\$)(.*)/, 
+					(rem,lhs,op,rhs) => rep(lhs,op,rhs)  );
 
 			return expand ? res : cb( str );
 		}
 
-		function doTest(str, query, cb) {  // expand "lhs op rhs" || "_flag = json" || "lhs = rhs" or callback(str)
+		function doRelation(str, query, cb) {  // expand "query op val" || "_flag = json" or callback(str)
 			
 			function rep(lhs,op,rhs) {
 				//Log("dotest", lhs, op, rhs);
 				expand = true;
 				var
-					key = doJson(lhs, (res) => {
+					key = doStore(lhs, (res) => { // lhs not a store so assume keys
 						var keys = res.split(",");
 						keys.forEach( (key,n) => keys[n] = escapeId(key) );
 						return keys.join(",");
 					}),
-					val = doJson(rhs, (res) => escape(res) );
+					val = doStore(rhs, (res) => escape(res) );
 
 				switch ( op ) {
 					case "/=":
@@ -3776,25 +3796,34 @@ function sysArea(req, res) {
 
 			var
 				expand = false,
-				res = str.replace( /(.*)(\/=|\^=|\|=|<=|>=|\!=|<|>)(.*)/, (rem,lhs,op,rhs) => query[lhs+"_"] = rep(lhs,op,rhs) );
+				res = str.replace( 
+					/^_(.*)(=)(.*)/, 
+					(rem,lhs,op,rhs) => {  // _flag=json
+						expand = true; 
+						//Log("flags", lhs, rhs);
+						flags[lhs] = rhs.parseJSON( (res) => res );
+					});
 
 			if (expand) 
 				return res;
 			
 			else {
-				res = str.replace( /^_(.*)(=)(.*)/, (rem,lhs,op,rhs) => {
-					expand = true; 
-					//Log("flags", lhs, rhs);
-					flags[lhs] = rhs.parseJSON( (res) => res );
-				});
+				res = str.replace( // query op val
+					/(.*)(\/=|\^=|\|=|<=|>=|\!=)(.*)/, 
+					(rem,lhs,op,rhs) => query[lhs+"_"] = rep(lhs,op,rhs) );
 				
 				if (expand)
 					return res;
 				
 				else {				
-					res = str.replace( /(.*)(=)(.*)/, (rem,lhs,op,rhs) => query[lhs+"_"] = rep(lhs,op,rhs) );
+					res = str.replace( // query op val
+						/(.*)(=|<|>)(.*)/, 
+						(rem,lhs,op,rhs) => {
+							if (op == "=") keys[lhs] = rhs;
+							query[lhs+"_"] = rep(lhs,op,rhs);
+						});
 
-					return expand ? res : doJson(str, cb );
+					return expand ? res : doStore(str, cb );
 				}
 			}
 		}
@@ -3812,14 +3841,13 @@ function sysArea(req, res) {
 
 		//delete query[""];
 		
-		Log({query: query, index: index, flags: flags, path: parts[0]});
+		Log({query: query, index: index, flags: flags, keys: keys, path: parts[0]});
 		
 		return parts[0];
 	},
 
 	function parseXML(def, cb) {
 	/**
-	@private
 	@member String
 	Callback cb(xml parsed) string
 	*/
