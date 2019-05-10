@@ -355,10 +355,11 @@ var
 			filters: function (req) {
 				var 
 					flags = req.flags,
-					query = req.query,
-					filters = flags.filters || [];
+					where = req.where,
+					filters = flags.filters;
 				
-				filters.forEach( (filter) => query[ filter.property ] = filter.value );
+				if (filters)
+				filters.forEach( (filter) => where[ filter.property ] = `${filter.property} = '${filter.value}' ` );
 			}
 		},
 		strips:	 			//< Flags to strips from request
@@ -1059,7 +1060,7 @@ var
 		noData: new Error("no data returned"),
 		retry: new Error("data fetch retries exceeded"),
 		notAllowed: new Error("this endpoint is disabled"),
-		noID: new Error("missing session id"),
+		noID: new Error("missing record id"),
 		noSession: new Error("no such session started"),
 		noAccess: new Error("no access to master core at this endpoint")
 	},
@@ -1316,6 +1317,7 @@ function updateDS(req, res) {
 		where = req.where;
 
 	//Log(req.action, query, body);
+	Log( ">>>>>>>>>>>>>>where", where, body, flags, req.query);
 	
 	if ( isEmpty(body) )
 		res( TOTEM.errors.noBody );
@@ -2615,6 +2617,10 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 		if ( key in strips )
 			delete query[key];
 
+	for (var key in flags) 	// trap special flags
+		if ( trap = traps[key] )
+			trap(req);
+			
 	for (var key in body) 		// remap body flags
 		if (key.charAt(0) == prefix) {  
 			flags[key.substr(1)] = body[key];
@@ -2623,6 +2629,7 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 
 	if (id in body) {  			// remap body record id
 		query[id] = body[id];
+		where[id] = `${id} = ${body[id]}`;
 		delete body[id];
 	}
 
