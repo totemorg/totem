@@ -226,7 +226,7 @@ doc.)
 		;;
 
 	get.)
-		cp -r /media/sf_vmshare/ducksrc/output/$MODULE ../service/debe/shares/prm/
+		cp -r /media/sf_vmshare/ducksrc/output/$MODULE /local/service/debe/shares/prm/
 		echo "downloaded host jsduck $MODULE results to the shares/prm"
 		;;
 		
