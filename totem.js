@@ -1211,7 +1211,7 @@ var
 };
 
 /**
- * @class TOTEM.Utilities.CRUD_Interface
+ * @class TOTEM.End_Points.CRUD_Interface
  * Create / insert / post, Read / select / get, Update / put, Delete methods.
  */
 
@@ -1856,7 +1856,7 @@ function initializeService(sql) {
 	});	
 }
 /**
-@class TOTEM.Utilities.User_Managment
+@class TOTEM.End_Points.User_Managment
 Legacy endpoints to manage users and their profiles.  Moved to FLEX.
  */
 
@@ -2819,9 +2819,9 @@ function sesThread(Req,Res) {
 /**
 @method sesThread
 
-
-Created a HTTP/HTTPS request-repsonse session thread.  UsesTOTEM's byTable, byArea, byType, byActionTable to
-route this thread to the appropriate (req,res)-endpoint, where the newly formed request req contains
+Creates a HTTP/HTTPS request-repsonse session thread, then uses the byTable, byArea, 
+byType, byActionTable config to route this thread to the appropriate (req,res)-endpoint.
+The newly formed request req contains:
 
 		method: "GET, ... " 		// http method and its ...
 		action: "select, ...",		// corresponding crude name
@@ -2842,9 +2842,9 @@ route this thread to the appropriate (req,res)-endpoint, where the newly formed 
 		type: "type" 			// type part 
 		connection: socket		// http/https socket to retrieve client cert 
 
-The newly formed response res method accepts a string, an objects, an array, an error, or a file-cache function
-to appropriately respond and close this thread and its sql connection.  The session is validated and logged, and 
-the client is challenged as necessary.
+The newly formed response res method accepts a string, an objects, an array, an error, or 
+a file-cache function to appropriately respond and close this thread and its sql connection.  
+The session is validated and logged, and the client is challenged as necessary.
 
 @param {Object} Req http/https request
 @param {Object} Res http/https response
@@ -3419,7 +3419,16 @@ function simThread(sock) {
 	});
 } */
 
+/**
+@class TOTEM.End_Points.System
+*/
 function sysTask(req,res) {  //< task sharding
+/**
+@method sysTask
+Totem (req,res)-endpoint to shard a task to totem compute nodes.
+@param {Object} req Totem request
+@param {Function} res Totem response
+*/
 	var 
 		query = req.query,
 		body = req.body,
@@ -3476,7 +3485,7 @@ function sysTask(req,res) {  //< task sharding
 function sysPing(req,res) {
 /**
 @method sysPing
-Totem(req,res) endpoint to test client connection
+Totem (req,res)-endpoint to test client connection
 @param {Object} req Totem request
 @param {Function} res Totem response
 */
@@ -3491,7 +3500,7 @@ function isEmpty(opts) {
 function sysArea(req, res) {
 /**
 @method sysArea
-Totem(req,res) endpoint to send uncached, static files from a requested area.
+Totem (req,res)-endpoint to send uncached, static files from a requested area.
 @param {Object} req Totem request
 @param {Function} res Totem response
 */
