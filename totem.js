@@ -59,7 +59,7 @@ var
 	JSDB = require("jsdb"),				//< JSDB database agnosticator
 	sqlThread = JSDB.thread;
 
-const { Copy,Each,Log,isError,isArray,isString,isFunction } = require("enum");
+const { Copy,Each,Log,isError,isArray,isString,isFunction,isEmpty } = require("enum");
 	
 function Trace(msg,sql) {
 	TRACE.trace(msg,sql);
@@ -1230,17 +1230,37 @@ function selectDS(req, res) {
 		index = flags.index || req.index;
 	
 	sql.runQuery({
+		trace: flags.trace,
 		crud: req.action,
 		from: req.table,
 		db: req.group || "app",
+		pivot: flags.pivot,
+		browse: flags.browse,		
 		where: where,
 		index: index,
 		having: {},
 		client: req.client
 	}, null, function (err,recs) {
 
-		res( err || recs );
+		if ( isEmpty(index) )
+			res( err || recs );
+		
+		else
+		if (err) 
+			res( err );
 
+		else {
+			recs.forEach( (rec) => {
+				Each(index, (key) => {
+					try {
+						rec[key] = JSON.parse( rec[key] );
+					}
+					catch (err) {
+					}
+				});
+			});
+			res( recs );
+		}
 	});
 }
 
@@ -1257,6 +1277,7 @@ function insertDS(req, res) {
 		body = req.body;
 
 	sql.runQuery({
+		trace: flags.trace,
 		crud: req.action,
 		from: req.table,
 		db: req.group || "app",
@@ -1285,6 +1306,7 @@ function deleteDS(req, res) {
 
 	if ( where.ID )
 		sql.runQuery({
+			trace: flags.trace,			
 			crud: req.action,
 			from: req.table,
 			db: req.group || "app",
@@ -1317,7 +1339,6 @@ function updateDS(req, res) {
 		where = req.where;
 
 	//Log(req.action, query, body);
-	Log( ">>>>>>>>>>>>>>where", where, body, flags, req.query);
 	
 	if ( isEmpty(body) )
 		res( TOTEM.errors.noBody );
@@ -1325,6 +1346,7 @@ function updateDS(req, res) {
 	else
 	if ( where.ID )
 		sql.runQuery({
+			trace: flags.trace,
 			crud: req.action,
 			from: req.table,
 			db: req.group || "app",
@@ -3497,11 +3519,6 @@ Totem (req,res)-endpoint to test client connection
 @param {Function} res Totem response
 */
 	res("hello "+req.client);			
-}
-
-function isEmpty(opts) {
-	for ( var key in opts ) return false;
-	return true;
 }
 
 function sysArea(req, res) {
