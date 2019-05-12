@@ -3774,7 +3774,13 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 
 	@param {Object} $ source hash
 	*/
-		return eval(this+"");
+		try {
+			return eval(this+"");
+		}
+		
+		catch (err) {
+			return err+"";
+		}
 	},
 	
 	function parseJS(query) {
