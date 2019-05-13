@@ -3707,6 +3707,24 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 ].extend(Date);
 
 [ //< Array prototypes
+	function dice(start,len) {
+		var rtn = new Array(this.length), rnd = Math.round;
+		
+		if (len) {
+			this.forEach( (vec, n ) => {
+				rtn[n] = vec.slice(start,start+len);
+			});
+			return rtn;
+		}
+		
+		else {
+			this.forEach( (vec, n ) => {
+				rtn[n] = rnd(vec[start]);
+			});
+			return [rtn];
+		}
+	},
+	
 	function parseJSON(ctx,def) {
 		this.forEach( function (key) {
 			try {
