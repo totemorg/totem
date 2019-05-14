@@ -1274,8 +1274,12 @@ function insertDS(req, res) {
 	var 
 		sql = req.sql,							// sql connection
 		flags = req.flags,
-		body = req.body;
+		body = req.body,
+		escapeId = MYSQL.escapeId,
+		escape = MYSQL.escape;
 
+	for (var key in body) body[key] = `${escapeId(key)} = ${escape(body[key])}`;
+	
 	sql.runQuery({
 		trace: flags.trace,
 		crud: req.action,
@@ -1336,9 +1340,13 @@ function updateDS(req, res) {
 		flags = req.flags,
 		body = req.body,
 		ds = req.table,
-		where = req.where;
+		where = req.where,
+		escapeId = MYSQL.escapeId,
+		escape = MYSQL.escape;
 
-	//Log(req.action, query, body);
+	Log(req.action, where, body);
+	//for (var key in body) body[key] = `${escapeId(key)} = ${escape(body[key])}`;
+	//Log(body);
 	
 	if ( isEmpty(body) )
 		res( TOTEM.errors.noBody );
