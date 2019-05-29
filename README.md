@@ -102,7 +102,7 @@ After configuring TOTEM:
 
 	npm start
 
-run one of unit tests:
+run one of its unit tests:
 	
 	npm test [T1 || T2 || ...]
 
