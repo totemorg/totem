@@ -63,6 +63,9 @@ export SERVICE_WORKER_URL=https://localhost:8443
 #export SERVICE_WORKER_URL=https://localhost:8443
 #export SERVICE_WORKER_URL=http://localhost:8081  # in debug mode
 
+# PRM doc interface
+export DUCK=/media/sf_vmshare/ducksrc
+
 # define task sharding nodes
 export SHARD0=http://localhost:8080/task
 export SHARD1=http://localhost:8080/task

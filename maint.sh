@@ -215,43 +215,38 @@ restyle.)
 	echo "to be developed"
 	;;
 
-doc.)
+prmput.)
 	
-	case "$2." in	
-	put.)
-		cd /local/babel
-		npm run $MODULE      # use babel to convert ES6 to ES5 saves to ducksrc area
-		cp ../service/$MODULE/README.md /media/sf_vmshare/ducksrc/readmes/$MODULE.md
-		echo "uploaded $MODULE to host jsduck.  use 'maint getduck $MODULE' to download results."
-		;;
+	cd /local/babel
+	npm run $MODULE      # use babel to convert ES6 to ES5 saves to ducksrc area
+	cp ../service/$MODULE/README.md $DUCK/readmes/$MODULE.md
+	echo "uploaded $MODULE to jsduck host.  use 'maint prmget' to download jsduck output."
+	;;
 
-	get.)
-		cp -r /media/sf_vmshare/ducksrc/output/$MODULE /local/service/debe/shares/prm/
-		echo "downloaded host jsduck $MODULE results to the shares/prm"
-		;;
+prmget.)
+	cp -r $DUCK/output/$MODULE/* prm
+	echo "downloaded jsduck output into prms/$MODULE"
+	;;
 		
-	_duskpush.)
-		# doxygen config.oxy
-		. maint.sh putduck totem
-		;;
+_duskpush.)
+	# doxygen config.oxy
+	. maint.sh putduck totem
+	;;
 
-	_duckpull.)
-		cd /local/babel
-		duckpull totem
-		duckpull debe
-		duckpull enum
-		;;
+_duckpull.)
+	cd /local/babel
+	duckpull totem
+	duckpull debe
+	duckpull enum
+	;;
 
-	_docall.)
-		for mod in "${MODULES[@]}"; do
+_docall.)
+	for mod in "${MODULES[@]}"; do
 
-			echo ">>>> $mod"
-			source maint.sh doc "$mod"1 "$mod"2
+		echo ">>>> $mod"
+		source maint.sh doc "$mod"1 "$mod"2
 
-		done
-		;;
-
-	esac
+	done
 	;;
 	
 proxy.)	# establish email proxy
