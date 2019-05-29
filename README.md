@@ -61,16 +61,11 @@ Clone [TOTEM base web service](https://github.com/acmesds/totem) into your PROJE
 Clone [ENUM basic enumerators](https://github.com/acmesds/enum) into your PROJECT/enum folder.   
 Clone [JSDB database agnosticaor](https://github.com/acmesds/jsdb) into your PROJECT/jsdb folder.
 
-### Required external variables
-
-* SERVICE_NAME || "Totem1"  
-* SERVICE_PASS || ""  
-* SERVICE_WORKER_URL || "https://localhost:8443"  
-* SERVICE_MASTER_URL || "http://localhost:8080"  
-* MYSQL_HOST || "localhost" 
-* MYSQL_USER || "mysqluser"  
-* MYSQL_PASS || "mysqlpass"  
-* SHARD0 , SHARD1, ... SHARDN || "http://localhost:8080/task"
+### Configure Environment and Unit test
+	
+	npm run edit
+	npm run start
+	npm test [ ? || T1 || T2 || ...]
 
 ### Required MySQL databases
 
@@ -97,14 +92,6 @@ Simply require, configure and start TOTEM:
 
 where [its configuration keys](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) follow 
 the [ENUM deep copy conventions](https://github.com/acmesds/enum).
-
-After configuring TOTEM:
-
-	npm start
-
-run one of its unit tests:
-	
-	npm test [T1 || T2 || ...]
 
 ### T1 - Just an interface
 		

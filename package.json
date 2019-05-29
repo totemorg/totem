@@ -4,6 +4,7 @@
   "description": "bare essentials web service",
   "main": "totem.js",
   "scripts": {
+	 "edit": "vi ./config.sh ./pass.sh",
 	"start": "source ./config.sh && source ./pass.sh",
 	"test": "node totem.js "
   },
