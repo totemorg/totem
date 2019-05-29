@@ -4,22 +4,21 @@
   "description": "bare essentials web service",
   "main": "totem.js",
   "scripts": {
-    "test": ". maint.sh N1"
+	"start": "source ./config.sh && source ./pass.sh",
+	"test": "node totem.js "
   },
   "author": "ACME SDS",
   "license": "ISC",
   "dependencies": {
-    "jsdb": "^1.0.0",
-    "enum": "^1.0.0",
     "js2xmlparser": "^3.0.0",
     "json2csv": "^3.11.5",
     "mime": "^1.0.0",
-    "mysql": "^2.15.0",
-    "socket.io": "^2.0.4",
+    "mysql": "^2.17.1",
+    "socket.io": "^2.2.0",
     "socket.io-clusterhub": "^0.2.1",
     "toobusy-js": "^0.5.1",
     "xml2js": "^0.4.19",
-    "xml2json": "^0.11.0"
+    "xml2json": "^0.11.2"
   },
   "devDependencies": {}
 }

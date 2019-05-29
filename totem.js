@@ -386,8 +386,8 @@ var
 	*/		
 	mysql: { //< null to disable database
 		host: ENV.MYSQL_HOST || "localhost",
-		user: ENV.MYSQL_USER || "nobody",
-		pass: ENV.MYSQL_PASS || "secret",
+		user: ENV.MYSQL_USER || "mysqluser",
+		pass: ENV.MYSQL_PASS || "mysqlpass",
 		sessions: 1000
 	},
 	

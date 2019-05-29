@@ -56,9 +56,6 @@ sbudev.)  # SBU
 
 esac
 
-# define passwords
-source pass.sh
-
 # define server domains
 export SERVICE_NAME=Totem1
 export SERVICE_MASTER_URL=http://localhost:8080

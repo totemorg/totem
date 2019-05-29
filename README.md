@@ -68,8 +68,8 @@ Clone [JSDB database agnosticaor](https://github.com/acmesds/jsdb) into your PRO
 * SERVICE_WORKER_URL || "https://localhost:8443"  
 * SERVICE_MASTER_URL || "http://localhost:8080"  
 * MYSQL_HOST || "localhost" 
-* MYSQL_HOST || "nobody"  
-* MYSQL_PASS || "secret"  
+* MYSQL_USER || "mysqluser"  
+* MYSQL_PASS || "mysqlpass"  
 * SHARD0 , SHARD1, ... SHARDN || "http://localhost:8080/task"
 
 ### Required MySQL databases
@@ -98,9 +98,13 @@ Simply require, configure and start TOTEM:
 where [its configuration keys](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) follow 
 the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 
-The following examples are taken from the unit tester:
+After configuring TOTEM:
+
+	npm start
+
+run one of unit tests:
 	
-	node totem.js [T1 || T2 || ...]
+	npm test [T1 || T2 || ...]
 
 ### T1 - Just an interface
 		
