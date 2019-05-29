@@ -4,6 +4,8 @@
   "description": "bare essentials web service",
   "main": "totem.js",
   "scripts": {
+	  "prmprep": "source ./maint.sh prmput",
+	  "prmload": "source ./maint.sh prmget",	 
 	 "edit": "vi ./config.sh ./pass.sh",
 	"start": "source ./config.sh && source ./pass.sh",
 	"test": "node totem.js "

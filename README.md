@@ -61,11 +61,11 @@ Clone [TOTEM base web service](https://github.com/acmesds/totem) into your PROJE
 Clone [ENUM basic enumerators](https://github.com/acmesds/enum) into your PROJECT/enum folder.   
 Clone [JSDB database agnosticaor](https://github.com/acmesds/jsdb) into your PROJECT/jsdb folder.
 
-### Configure Environment and Unit test
-	
-	npm run edit
-	npm run start
-	npm test [ ? || T1 || T2 || ...]
+### Manage 
+
+	npm run [ edit || start ]			# Configure environment
+	npm test [ ? || T1 || T2 || ...]			# Unit test
+	npm run [ prmprep || prmload ]		# Revise PRM
 
 ### Required MySQL databases
 
