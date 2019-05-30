@@ -3974,7 +3974,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 
 		//delete query[""];
 		
-		Log({query: query, index: index, flags: flags, where: where, path: parts[0]});
+		//Log({query: query, index: index, flags: flags, where: where, path: parts[0]});
 		
 		return parts[0];
 	},
