@@ -3816,6 +3816,20 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 	@param {Object} query context hash
 	*/
 		try {
+			return VM.runInContext( this+"", VM.createContext({$: query}));
+		}
+		catch (err) {
+			return err+"";
+		}
+	},
+	
+	function parseEMAC(query) {
+	/**
+	@member String
+	Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
+	@param {Object} query context hash
+	*/
+		try {
 			return VM.runInContext( "`" + this + "`" , VM.createContext(query));
 		}
 		catch (err) {
@@ -3855,8 +3869,8 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 	*/
 		
 		function doParm(str) {  // expand parm str 
-			doSample( str, (res) => { // not sampling so try relation
-				doRelation(res, where, (res) => {	// not relation so try index
+			doSample( str, res => { // not sampling so try relation
+				doRelation(res, where, res => {	// not relation so try index
 					//Log("last guess", res);
 					return index[res] = escapeId(res);  
 				});
@@ -3867,7 +3881,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			function rep(lhs,op,rhs) {
 				expand = true;
 				var
-					rel = doRelation(rhs, {}, (res) => {	// not relation so assume id
+					rel = doRelation(rhs, {}, res => {	// not relation so assume id
 						//Log("no test", res);
 						return escapeId(res); 
 					});
@@ -3907,12 +3921,12 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 				//Log("dotest", lhs, op, rhs);
 				expand = true;
 				var
-					key = doStore(lhs, (res) => { // lhs not a store so assume keys
+					key = doStore(lhs, res => { // lhs not a store so assume keys
 						var keys = res.split(",");
 						keys.forEach( (key,n) => keys[n] = escapeId(key) );
 						return keys.join(",");
 					}),
-					val = doStore(rhs, (res) => escape(res) );
+					val = doStore(rhs, res => escape(res) );
 
 				switch ( op ) {
 					case "/=":
@@ -3933,7 +3947,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 					(rem,lhs,op,rhs) => {  // _flag=json
 						expand = true; 
 						//Log("flags", lhs, rhs);
-						flags[lhs] = rhs.parseJSON( (res) => res );
+						flags[lhs] = rhs.parseJSON( res => res );
 						return rhs;
 					});
 
