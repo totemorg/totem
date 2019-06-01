@@ -3816,9 +3816,10 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 	@param {Object} query context hash
 	*/
 		try {
-			return VM.runInContext( this+"", VM.createContext({$: query}));
+			return VM.runInContext( this+"", VM.createContext(query));
 		}
 		catch (err) {
+			Log(err);
 			return err+"";
 		}
 	},
