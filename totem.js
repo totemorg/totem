@@ -1711,9 +1711,9 @@ function connectService(cb) {
 
 	certs.fetch = { 		// data fetching certs
 		pfx: FS.readFileSync(`${paths.certs}fetch.pfx`),
-		key: FS.readFileSync(`${paths.certs}fetch.key`),
-		crt: FS.readFileSync(`${paths.certs}fetch.crt`),
-		ca: FS.readFileSync(`${paths.certs}fetch.ca`),			
+		key: "", //FS.readFileSync(`${paths.certs}fetch.key`),
+		crt: "", //FS.readFileSync(`${paths.certs}fetch.crt`),
+		ca: "", //FS.readFileSync(`${paths.certs}fetch.ca`),			
 		_pfx: `${paths.certs}fetch.pfx`,
 		_crt: `${paths.certs}fetch.crt`,
 		_key: `${paths.certs}fetch.key`,
