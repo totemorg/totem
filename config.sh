@@ -73,6 +73,6 @@ export SHARD2=http://localhost:8080/task
 export SHARD3=http://localhost:8080/task
 
 # define passwords
-source pass.sh
+source _pass.sh
 
 # UNCLASSIFIED when IP addresses and passwords are undefined
