@@ -287,44 +287,57 @@ _archive.) 	# archive service to archive area
 # Local and remote archives
 #
 
-gitconfig.)
-	git config –global http.sslVerify false
-	;;
-
-zip.)
-	zip -ry ../transfer/$MODULE.zip * -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
-	;;
+git.)
 	
-clone.)	# clone a project
-	echo "Cloning project $2"
-	git clone $REPO/$2.git
-	;;	
+	case "$2." in
+	
+	nopass.)
+		cd ~/home
+		ssh-agent  # allow service to push git chnges w/o password prompts
+		ssh-add ~/.ssh/id_rsa 
+		;;
 
-baseline.)
-	echo "Baseline project $2"
-	cd $2
-		git init
-		git remote add origin $REPO/$2.git
+	config.)
+		git config –global http.sslVerify false
+		;;
+
+	zip.)
+		zip -ry ../transfer/$MODULE.zip * -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
+		;;
+
+	clone.)	# clone a project
+		echo "Cloning project $2"
+		git clone $REPO/$2.git
+		;;	
+
+	baseline.)
+		echo "Baseline project $2"
+		cd $2
+			git init
+			git remote add origin $REPO/$2.git
+			git pull origin master
+		cd ..
+		;;
+
+	rebase.)
+		zip -uP $ZIP_PASS $MODULE.zip $MODULE.js
+		git -commit -am "rebase $2"
+		git push origin master
+		;;
+
+	commit.)   # commit changes
+		git commit -am "$2"
+		;;
+
+	push.)   # push code changes to git
+		git push origin master
+		;;
+
+	pull.)	# pull code changes from git
 		git pull origin master
-	cd ..
-	;;
+		;;
 
-rebase.)
-	zip -uP $ZIP_PASS $MODULE.zip $MODULE.js
-	git -commit -am "rebase $2"
-	git push origin master
-	;;
-	
-commit.)   # commit changes
-	git commit -am "$2"
-	;;
-
-push.)   # push code changes to git
-	git push origin master
-	;;
-	
-pull.)	# pull code changes from git
-	git pull origin master
+	esac
 	;;
 	
 _zipall.)
