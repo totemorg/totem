@@ -234,7 +234,7 @@ var
 			if (file && !isSwap)
 				switch (ev) {
 					case "change":
-						sqlThread( function (sql) {
+						sqlThread( sql => {
 							Trace(ev.toUpperCase()+" "+file, sql);
 
 							FS.stat(path, function (err, stats) {
@@ -352,7 +352,7 @@ var
 	*/
 	reqFlags: {				//< Properties for request flags
 		traps: { //< cb(query) traps to reorganize query
-			filters: function (req) {
+			filters: req => {
 				var 
 					flags = req.flags,
 					where = req.where,
@@ -723,7 +723,7 @@ var
 			// opts.Cookie = ["x=y", ...]
 			/*if (opts.soap) {
 				opts.headers = {
-					"Content-Type": "application/soap+xml; charset=utf8",
+					"Content-Type": "application/soap+xml; charset=utf-8",
 					"Content-Length": opts.soap.length
 				};
 				opts.method = "POST";
@@ -1034,7 +1034,7 @@ var
 	Error messages
 	*/		
 	errors: {
-		pretty: function (err) { 
+		pretty: err => { 
 			return err+"";
 		},
 		noID: new Error("missing record ID"),
@@ -1488,13 +1488,13 @@ function configService(opts,cb) {
 					waitForConnections: true			// allow connection requests to be queued
 				}
 			}, mysql)
-		}, function (err) {  // derive server vars and site context vars
+		}, err => {  // derive server vars and site context vars
 		
 			if (err)
 				Trace(err);
 			
 			else
-				JSDB.thread( function (sql) {
+				JSDB.thread( sql => {
 					Trace(`DERIVE ${name}`);
 
 					for (var n in mysql)   // derive server paths
@@ -1502,7 +1502,7 @@ function configService(opts,cb) {
 
 					if (name)	// derive site context
 						TOTEM.setContext(sql, function () {
-							protectService(cb || function (err) {
+							protectService(cb || function(err) {
 								Trace(err || `STARTED ${name} ENCRYPTED`, sql);
 							});
 						});
@@ -1513,7 +1513,7 @@ function configService(opts,cb) {
 		});	
 
 	else
-		protectService(cb || function (err) {
+		protectService(cb || function(err) {
 			Trace(err || `STARTED ${name} STANDALONE`);
 		});
 	
@@ -1571,12 +1571,12 @@ function startService(server,cb) {
 
 			TOTEM.emitter = IO.sockets.emit;
 			
-			IO.on("connect", function (socket) {  // Trap every connect				
+			IO.on("connect", socket => {  // Trap every connect				
 				//Trace("ALLOW SOCKETS");
-				socket.on("select", function (req) { 		// Trap connect raised on client "select/join request"
+				socket.on("select", req => { 		// Trap connect raised on client "select/join request"
 					
 					Trace(`CONNECTING ${req.client}`);
-					sqlThread( function (sql) {	
+					sqlThread( sql => {	
 
 						if (newSession = paths.newSession) 
 							sql.query(newSession,  {
@@ -1603,11 +1603,11 @@ function startService(server,cb) {
 			});	
 
 			/*
-			IO.on("connect_error", function (err) {
+			IO.on("connect_error", err => {
 				Log(err);
 			});
 			
-			IO.on("disconnection", function (socket) {
+			IO.on("disconnection", socket => {
 				Log(">>DISCONNECT CLIENT");
 			});	*/
 			
@@ -1663,7 +1663,7 @@ function startService(server,cb) {
 		});
 			
 	if ( TOTEM.faultless)  { // catch core faults
-		process.on("uncaughtException", function (err) {
+		process.on("uncaughtException", err => {
 			Trace(`FAULTED ${err}`);
 		});
 
@@ -1679,7 +1679,7 @@ function startService(server,cb) {
 
 	if (TOTEM.riddles) initChallenger();
 		
-	sqlThread( function (sql) {
+	sqlThread( sql => {
 		if (CLUSTER.isMaster) initializeService(sql);
 		TOTEM.init(sql);
 		sql.release();
@@ -1728,7 +1728,7 @@ function connectService(cb) {
 			Each( FS.readdirSync(paths.certs+"/truststore"), function (n,file) {
 				if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
 					Trace("TRUSTING "+file);
-					trustStore.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf8") );
+					trustStore.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf-8") );
 				}
 			});
 		}
@@ -1789,7 +1789,7 @@ function protectService(cb) {
 	Trace( `PROTECTING ${name} USING ${pfx}` );
 	
 	if ( onEncrypted )   // derive a pfx cert if protecting an encrypted service
-		FS.access( pfx, FS.F_OK, function (err) {
+		FS.access( pfx, FS.F_OK, err => {
 
 			if (err) 
 				createCert(name,host.encrypt, function () {
@@ -2059,7 +2059,7 @@ To connect to ${site.Nick} from Windows:
 				sql.query(
 					"UPDATE openv.profiles SET ? WHERE ?",
 					[ init, {User: user.User} ],
-					function (err) {
+					err => {
 						
 						createCert(user.User, pass, function () {
 
@@ -2149,7 +2149,7 @@ Create a cert for the desired owner with the desired passphrase then callback cb
 
 		Trace(cmd.replace(/\n/g,"\\n"));
 
-		CP.exec(cmd, function (err) {
+		CP.exec(cmd, err => {
 
 			if (err)
 				console.info({
@@ -2385,11 +2385,11 @@ specified client.  Optional tags are logged with the upload.
 	
 	getFile(client, name, function ( fileID, sql ) {
 		var 
-			sinkStream = FS.createWriteStream( sinkPath, "utf8")
+			sinkStream = FS.createWriteStream( sinkPath, "utf-8")
 				.on("finish", function() {  // establish sink stream for export pipe
 
 					Trace("UPLOADED FILE");
-					sqlThread( function (sql) {
+					sqlThread( sql => {
 
 						sql.query("UPDATE apps.files SET ? WHERE ?", [{
 							_Ingest_Tag: JSON.stringify(tags || null),
@@ -2399,9 +2399,9 @@ specified client.  Optional tags are logged with the upload.
 						sql.release();
 					});
 				})
-				.on("error", function (err) {
+				.on("error", err => {
 					Log("totem upload error", err);
-					sqlThread( function (sql) {
+					sqlThread( sql => {
 						sql.query("UPDATE app.files SET ? WHERE ?", [ {
 							_State_Notes: "Upload failed: " + err 
 						}, {ID: fileID} ] );
@@ -2573,7 +2573,7 @@ Challenge a client with specified profile parameters
 				: profile.Message;
 
 	if (reply && TOTEM.IO) 
-		sqlThread( function (sql) {
+		sqlThread( sql => {
 			sql.query("REPLACE INTO openv.riddles SET ?", {
 				Riddle: rid.join(",").replace(/ /g,""),
 				Client: client,
@@ -2746,7 +2746,7 @@ byActionTable, or byAction routers.
 						bytes = sock.bytesWritten;
 						//log = req.log;
 
-					sqlThread( function (sql) {
+					sqlThread( sql => {
 
 						sql.query(logMetrics, [ Copy(log, {
 							Delay: secs,
@@ -2916,10 +2916,10 @@ The session is validated and logged, and the client is challenged as necessary.
 
 				else
 				if (cache)
-					sendString( cache[path] = buf );
+					sendString( cache[path] = new Buffer(buf) );
 
 				else
-					sendString( buf );
+					sendString( new Buffer(buf) );
 			});
 	}		
 
@@ -2987,10 +2987,10 @@ The session is validated and logged, and the client is challenged as necessary.
 
 		Res.setHeader("Content-Type", mime);
 		Res.statusCode = 200;
-		
+			
 		if (ack)
-			switch (ack.constructor) {  // send ack based on its type
-				case Error: 			// send error message
+			switch (ack.constructor.name) {  // send ack based on its type
+				case "Error": 			// send error message
 					
 					switch (req.type) {
 						case "db":  
@@ -3007,7 +3007,7 @@ The session is validated and logged, and the client is challenged as necessary.
 					}
 					break;
 				
-				case Function: 			// send file via search or direct
+				case "Function": 			// send file via search or direct
 				
 					if ( (search = req.query.search) && paths.mysql.search) 		// search for file via nlp/etc
 						sql.query(paths.mysql.search, {FullSearch:search}, function (err, files) {
@@ -3033,18 +3033,18 @@ The session is validated and logged, and the client is challenged as necessary.
 				
 					break;
 					
-				case Array: 			// send data records 
+				case "Array": 			// send data records 
 
 					var flag = TOTEM.reqFlags;
 					
 					if ( req.flags.blog )   // blog back selected keys
-						flag.blog( ack, req, function (recs) {
+						flag.blog( ack, req, recs => {
 							sendRecords(recs,req);
 						});
 
 					else
 					if ( req.flags.encap )   // encap selected keys
-						flag.encap( ack, req, function (recs) {
+						flag.encap( ack, req, recs => {
 							sendRecords(recs,req);
 						});
 						
@@ -3053,16 +3053,15 @@ The session is validated and logged, and the client is challenged as necessary.
 					
 					break;
 
-				case String:  			// send message
-				case Buffer:
+				case "String":  			// send message
+				case "Buffer":
 					sendString(ack);
 					break;
 			
-				case Object:
+				case "Object":
 				default: 					// send data record
 					sendObject(ack);
-					break;
-			
+					break;			
 			}
 
 		else
@@ -3079,7 +3078,7 @@ The session is validated and logged, and the client is challenged as necessary.
 		})
 		.on("end", function () {
 			if (body)
-				cb( body.parseJSON( (body) => {  // yank files if body not json
+				cb( body.parseJSON( body => {  // yank files if body not json
 					
 					var files = [], parms = {};
 					
@@ -3174,10 +3173,10 @@ The session is validated and logged, and the client is challenged as necessary.
 		
 		if (sock = req.reqSocket )
 			if (TOTEM.mysql)  // running with database so attach a sql connection 
-				sqlThread( function (sql) {
+				sqlThread( sql => {
 					req.sql = sql;
 
-					validateClient(req, function (err) {
+					validateClient(req, err => {
 						if (err)
 							res(err);
 
@@ -3266,7 +3265,7 @@ The session is validated and logged, and the client is challenged as necessary.
 					? url ? url.split(TOTEM.nodeDivider) : []
 					: url ? [url] : [] ;
 
-			conThread( req, function (err) { 	// start client connection and set the response header
+			conThread( req, err => { 	// start client connection and set the response header
 
 				// must carefully set appropriate headers to prevent http-parse errors when using master-worker proxy
 				if ( onEncrypted )
@@ -3307,7 +3306,7 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 	
 	/*
 	var sock = NET.connect( proxy.port );
-	sock.setEncoding("utf8");
+	sock.setEncoding("utf-8");
 	sock.write("here is some data for u");
 	sock.on("data", function (d) {
 		Log("sock rx", d);
@@ -3319,7 +3318,7 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 		
 		var body = "";
 
-		Res.setEncoding("utf8");
+		Res.setEncoding("utf-8");
 		Res.on('data', function (chunk) {  // will not trigger unless worker fails to end socket
 			body += chunk;
 		});
@@ -3329,7 +3328,7 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 			res(body);
 		});
 		
-		Res.on("error", function (err) {
+		Res.on("error", err => {
 			Log("what??? "+err);
 		}); 
 		
@@ -3380,7 +3379,7 @@ var LOCAL_PORT  = 6512;
 var REMOTE_PORT = 6512;
 var REMOTE_ADDR = "192.168.1.25";
 
-var server = net.createServer(function (socket) {
+var server = net.createServer(socket => {
     socket.on('data', function (msg) {
         Log('  ** START **');
         Log('<< From client to proxy ', msg.toString());
@@ -3438,8 +3437,8 @@ function makeGuest( sql, client ) {  // return a suitable guest profile or null
 function simThread(sock) { 
 	//Req.setSocketKeepAlive(true);
 	Log({ip: sock.remoteAddress, port: sock.remotePort});
-	sock.setEncoding("utf8");
-	sock.on("data", function (req) {
+	sock.setEncoding("utf-8");
+	sock.on("data", req => {
 		Log("sock data>>>>",req);
 		var 
 			Req = Copy({
@@ -3561,9 +3560,9 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		case "select":
 			
 			if ( req.file )
-				try {		// these ifiles are not static so we dont cache them
-					FS.readFile(path, "utf8", (err,buf) => {
-
+				try {		// sysArea files are never static so we never cache them
+					FS.readFile(path,  (err,buf) => res( err || new Buffer(buf) ) );
+					/*
 						if (err) 
 							res(err);
 
@@ -3580,8 +3579,8 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 							Each(query, (key, index) => rtn[key] = index.parseEval(src) );
 							
 							res( JSON.stringify(rtn) );
-						}
-					});
+						} 
+					});  */
 				}
 				catch (err) {
 					res( TOTEM.errors.noFile );
@@ -4046,7 +4045,7 @@ with 2 workers and the default endpoint routes.
 			mysql: null,
 			faultless: true,
 			cores: 2
-		}, function (err) {
+		}, err => {
 
 			Trace( err || 
 `I'm a Totem service running in fault protection mode, no database, no UI; but I am running
@@ -4065,7 +4064,7 @@ these files.
 	*/
 
 		var TOTEM = require("../totem").config({
-		},  function (err) {
+		},  err => {
 			Trace( err ||
 `I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
 my startup options (see the openv.apps table for the Nick="Totem1").  
@@ -4109,7 +4108,7 @@ associated public NICK.crt and private NICK.key certs it creates.
 					});
 				}
 			}
-		}, function (err) {
+		}, err => {
 			Trace( err || {
 				msg:
 `As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
@@ -4131,7 +4130,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 		
 		var TOTEM = require("../totem").config({
 			riddles: 20
-		}, function (err) {
+		}, err => {
 			Trace( err || {
 				msg:
 `I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
@@ -4193,7 +4192,7 @@ Testing tasker with database and 3 cores at /test endpoint.
 				}
 			}
 
-		}, function (err) {
+		}, err => {
 			Trace( err || "Testing tasker with database and 3 cores at /test endpoint" );
 		});
 		break;
@@ -4204,18 +4203,18 @@ Testing tasker with database and 3 cores at /test endpoint.
 	*/
 		
 		var TOTEM = require("../totem").config({
-		},  function (err) {				
+		},  err => {				
 			Trace( err || "db maintenance" );
 
 			if (CLUSTER.isMaster)
-			TOTEM.thread( function (sql) {
+			TOTEM.thread( sql => {
 
 				switch (process.argv[3]) {
 					case 1: 
 						sql.query( "select voxels.id as voxelID, chips.id as chipID from app.voxels left join app.chips on voxels.Ring = chips.Ring", function (err,recs) {
 							Log(err);
 							recs.each( function (n, rec) {
-								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], function (err) {
+								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
 									Log(err);
 								});
 							});
@@ -4228,7 +4227,7 @@ Testing tasker with database and 3 cores at /test endpoint.
 								sql.query(
 									"update app.voxels set Point=geomFromText(?) where ?", 
 									[ `POINT(${rec.Ring[0][0].x} ${rec.Ring[0][0].y})` , {ID: rec.ID} ], 
-									function (err) {
+									err => {
 										Log(err);
 								});
 							});
@@ -4239,7 +4238,7 @@ Testing tasker with database and 3 cores at /test endpoint.
 						sql.query( "select voxels.id as voxelID, cache.id as chipID from app.voxels left join app.cache on voxels.Ring = cache.geo1", function (err,recs) {
 							Log(err);
 							recs.each( function (n, rec) {
-								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], function (err) {
+								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
 									Log(err);
 								});
 							});
@@ -4253,7 +4252,7 @@ Testing tasker with database and 3 cores at /test endpoint.
 									sql.query(
 										"update app.cache set x1=?, x2=? where ?", 
 										[ rec.geo1[0][0].x, rec.geo1[0][0].y, {ID: rec.ID} ], 
-										function (err) {
+										err => {
 											Log(err);
 									});
 							});
