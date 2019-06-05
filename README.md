@@ -26,7 +26,7 @@ having the following configurable features:
 	+ automattic server cert generation
 	+ task sharding
   
-TOTEM defines a CRUD interface at its endpoints:
+TOTEM defines the following CRUD endpoint interfaces:
 
 	POST /NODE ?? NODE ...
 	GET /NODE ?? NODE ...
@@ -44,16 +44,15 @@ By default, TOTEM provides the TYPEs:
 
 	db | xml | csv | json
 	
-for converting DATASETs, the COMMANDs:
+for converting DATASETs; the COMMANDs:
 
 	riddle | task | ping
 	
-for validating a session, sharding a task, and testing a connection.  TOTEM also establishes
-FILE areas:
+for validating a session, sharding a task, and testing a connection; and the FILE areas:
 
 	stores | uploads | shares
 
-for uploading, storing and serving files.
+for storing (no change monitoring), uploading (change monitored) and sharing files.
 
 ## Installation
 
