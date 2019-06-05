@@ -77,25 +77,25 @@ _configall.)
 #
 
 flatten.)
-	echo "flattening $2/* -> $2.tar -> $2.hex -> _$3*"
+	echo "flattening $2/* -> $2.tar -> $2.hex -> _xx*"
 	tar cvf $2.tar $2
 	xxd -p $2.tar $2.hex
-	split -b 10m $2.hex _$3
+	split -b 10m $2.hex _$xx
 	rm $2.tar
 	rm $2.hex
-	mkdir patches/$3
-	mv _$3* patches/$3
+	mkdir patches/$2
+	mv _$xx* patches/$2
 	;;
 
 expand.)
-	echo "expanding _$3* -> $2.hex -> $2.tar -> $2/*"
-	cp patches/$3/* .
-	cat _$3* > $2.hex
+	echo "expanding _$xx* -> $2.hex -> $2.tar -> $2/*"
+	cp patches/$2/* .
+	cat _$xx* > $2.hex
 	xxd -r -p $2.hex  $2.tar
 	tar xvf $2.tar
 	rm $2.tar
 	rm $2.hex
-	rm _$3*
+	rm _$xx*
 	;;
 
 #
