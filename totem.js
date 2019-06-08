@@ -356,10 +356,12 @@ var
 				var 
 					flags = req.flags,
 					where = req.where,
-					filters = flags.filters;
+					filters = flags.filters,
+					escape = MYSQL.escape,
+					escapeId = MYSQL.escapeId;
 				
 				if (filters)
-				filters.forEach( (filter) => where[ filter.property ] = `${filter.property} = '${filter.value}' ` );
+				filters.forEach( (filter) => where[ filter.property ] = escapeId(filter.property).test( escape(filter.value) ) );
 			}
 		},
 		strips:	 			//< Flags to strips from request
@@ -1022,7 +1024,7 @@ var
 			index: { //< paths for allowed file indexers ("" to use url path)
 				files: ""
 			},
-			extensions: {  // extend mime types as needed
+			extensions: {  // Extend mime types as needed
 			}
 		}
 	},
@@ -1455,7 +1457,7 @@ function configService(opts,cb) {
  Configure JSDB, define site context, then protect, connect, start and initialize this server.
  */
 
-	//TOTEM.extend(opts);
+	//TOTEM.Extend(opts);
 	if (opts) Copy(opts, TOTEM, ".");
 	
 	var
@@ -3711,7 +3713,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 }
 
 [  //< date prototypes
-].extend(Date);
+].Extend(Date);
 
 [ //< Array prototypes
 	function dice(start,len) {
@@ -3744,7 +3746,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		});
 		return ctx;
 	}
-].extend(Array);
+].Extend(Array);
 
 [ //< String prototypes
 	function tag(el,at,eq) {
@@ -3899,11 +3901,12 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 
 		function doStore(str, cb) {  // expand "store$expression, ..." or callback(str)
-			function rep(key,op,exp) {
+			function rep(lhs,op,rhs) {
 				expand = true;
-				var exs = exp.split(",");
+				
+				var exs = rhs.split(",");
 				exs.forEach( (ex,n) => exs[n] = escape(op+ex) );
-				return `json_extract(${escapeId(key)}, ${exs.join(",")} )`;
+				return `json_extract(${escapeId(lhs)}, ${exs.join(",")} )`;
 			}
 
 			var 
@@ -3928,26 +3931,43 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 					}),
 					val = doStore(rhs, res => escape(res) );
 
-				switch ( op ) {
-					case "/=":
-						return `MATCH(${key}) AGAINST(${val})`;
-					case "^=":
-						return `MATCH(${key}) AGAINST(${val} IN BINARY MODE)`;
-					case "|=":
-						return `MATCH(${key}) AGAINST(${val} IN QUERY EXPANSION)`;
-					default:
-						return `${key} ${op} ${val}`;
-				}
+				return key.test(val); //(val.indexOf("%") >= 0) ? `${key} LIKE ${val}` : `${key} ${op} ${val}`;
 			}
 
 			var
 				expand = false,
-				res = str.replace( 
+				res = str.replace( 	// _flag=json
 					/^_(.*)(=)(.*)/, 
-					(rem,lhs,op,rhs) => {  // _flag=json
+					(rem,lhs,op,rhs) => {  
 						expand = true; 
 						//Log("flags", lhs, rhs);
-						flags[lhs] = rhs.parseJSON( res => res );
+						/*
+						switch ( op ) {
+							case "=$n":
+								return `MATCH(${key}) AGAINST(${val})`;
+							case "=$b":
+								return `MATCH(${key}) AGAINST(${val} IN BINARY MODE)`;
+							case "=$q":
+								return `MATCH(${key}) AGAINST(${val} IN QUERY EXPANSION)`;
+							default:
+								return (val.indexOf("%") >= 0)
+									? `${key} LIKE ${val}`
+									: `${key} ${op} ${val}`;
+						} */
+						
+						switch (lhs) {
+							case "bin":
+								where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN BOOLEAN MODE)`;
+								break;
+							case "exp":
+								where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN QUERY EXPANSION)`;
+								break;
+							case "nlp":
+								where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN NATURAL LANGUAuGE MODE)`;
+								break;
+							default:
+								flags[lhs] = rhs.parseJSON( res => res );
+						}
 						return rhs;
 					});
 
@@ -3956,17 +3976,17 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			
 			else {
 				res = str.replace( // where op val
-					/(.*)(\/=|\^=|\|=|<=|>=|\!=)(.*)/, 
+					/(.*)(<=|>=|\!=)(.*)/, 		// \/=|\^=|\|=|
 					(rem,lhs,op,rhs) => where[lhs] = rep(lhs,op,rhs) );
 				
 				if (expand)
 					return res;
 				
 				else {				
-					res = str.replace( // query op val
+					res = str.replace( // where op val
 						/(.*)(=|<|>)(.*)/, 
 						(rem,lhs,op,rhs) => {
-							if (op == "=") query[lhs] = rhs;
+							if (op == "=") query[lhs] = rhs;		// same raw to query as well
 							return where[lhs] = rep(lhs,op,rhs);
 						});
 
@@ -3988,7 +4008,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 
 		//delete query[""];
 		
-		//Log({query: query, index: index, flags: flags, where: where, path: parts[0]});
+		Log({query: query, index: index, flags: flags, where: where, path: parts[0]});
 		
 		return parts[0];
 	},
@@ -4005,11 +4025,12 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		XML2JS.parseString(this, function (err,json) {				
 			cb( err ? null : json );
 		});
+	},
+	
+	function test( val ) {
+		return ( val.indexOf("%")>=0) ? `${this} LIKE ${val} `  : `${this} = ${val} ` 
 	}
-
-].extend(String);
-
-//=================================== unit testing
+].Extend(String);
 
 /**
 @class TOTEM.Unit_Tests_Use_Cases
