@@ -1856,7 +1856,7 @@ function initializeService(sql) {
 				Log(err);
 
 			else
-				files.each( function (n,file) {
+				files.forEach( file => {
 					var first = file.charAt(0);
 					
 					if (first != "." && first != "_") 
@@ -3084,7 +3084,7 @@ The session is validated and logged, and the client is challenged as necessary.
 					
 					var files = [], parms = {};
 					
-					body.split("\r\n").each( function (n,line) {
+					body.split("\r\n").forEach( line => {
 						if (line) 
 							if (parms.type) {  // type was defined so have the file data
 								files.push( Copy(parms,{data: line, size: line.length}) );
@@ -3093,7 +3093,7 @@ The session is validated and logged, and the client is challenged as necessary.
 							else {
 								//Trace("LOAD "+line);
 
-								line.split(";").each(function (n,arg) {  // process one file at a time
+								line.split(";").forEach( arg => {  // process one file at a time
 
 									var tok = arg
 										.replace("Content-Disposition: ","disposition=")
@@ -3591,7 +3591,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			else
 				indexFile( path, function (files) {  // Send list of files under specified folder
 
-					files.each( function (n,file) {
+					files.forEach( file => {
 						files[n] = file.tag("a",{href:`${file}`});
 					});
 
@@ -3619,7 +3619,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 
 			res( "uploading" );
 
-			canvas.objects.each( function (n,obj) {	// upload provided canvas objects
+			canvas.objects.forEach( obj => {	// upload provided canvas objects
 
 				switch (obj.type) {
 					case "image": // ignore blob
@@ -4234,7 +4234,7 @@ Testing tasker with database and 3 cores at /test endpoint.
 					case 1: 
 						sql.query( "select voxels.id as voxelID, chips.id as chipID from app.voxels left join app.chips on voxels.Ring = chips.Ring", function (err,recs) {
 							Log(err);
-							recs.each( function (n, rec) {
+							recs.forEach( rec => {
 								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
 									Log(err);
 								});
@@ -4244,7 +4244,7 @@ Testing tasker with database and 3 cores at /test endpoint.
 
 					case 2:
 						sql.query("select ID, Ring from app.voxels", function (err, recs) {
-							recs.each( function (n, rec) {
+							recs.forEach( rec => {
 								sql.query(
 									"update app.voxels set Point=geomFromText(?) where ?", 
 									[ `POINT(${rec.Ring[0][0].x} ${rec.Ring[0][0].y})` , {ID: rec.ID} ], 
@@ -4258,7 +4258,7 @@ Testing tasker with database and 3 cores at /test endpoint.
 					case 3:
 						sql.query( "select voxels.id as voxelID, cache.id as chipID from app.voxels left join app.cache on voxels.Ring = cache.geo1", function (err,recs) {
 							Log(err);
-							recs.each( function (n, rec) {
+							recs.forEach( rec => {
 								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
 									Log(err);
 								});
@@ -4268,7 +4268,7 @@ Testing tasker with database and 3 cores at /test endpoint.
 
 					case 4:
 						sql.query("select ID, geo1 from app.cache where bank='chip'", function (err, recs) {
-							recs.each( function (n, rec) {
+							recs.forEach( rec => {
 								if (rec.geo1)
 									sql.query(
 										"update app.cache set x1=?, x2=? where ?", 
