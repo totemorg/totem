@@ -77,10 +77,10 @@ _configall.)
 #
 
 flatten.)
-	echo "flattening $2/* -> $2.tar -> $2.hex -> $2_xx*"
+	echo "flattening $2/* -> $2.tar -> $2.hex -> F_$2_xx*"
 	tar cvf $2.tar $2
 	xxd -p $2.tar $2.hex
-	split -b 10m $2.hex $2_$xx
+	split -b 10m $2.hex F_$2_$xx
 	rm $2.tar
 	rm $2.hex
 	#mkdir patches/$2
@@ -88,14 +88,14 @@ flatten.)
 	;;
 
 expand.)
-	echo "expanding $2_$xx* -> $2.hex -> $2.tar -> $2/*"
+	echo "expanding F_$2_$xx* -> $2.hex -> $2.tar -> $2/*"
 	#cp patches/$2/* .
-	cat $2_$xx* > $2.hex
+	cat F_$2* > $2.hex
 	xxd -r -p $2.hex  $2.tar
 	tar xvf $2.tar
 	rm $2.tar
 	rm $2.hex
-	rm $2_$xx*
+	rm F_$2*
 	;;
 
 #
