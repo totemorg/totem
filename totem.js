@@ -3716,24 +3716,6 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 ].Extend(Date);
 
 [ //< Array prototypes
-	function dice(start,len) {
-		var rtn = new Array(this.length), rnd = Math.round;
-		
-		if (len) {
-			this.forEach( (vec, n ) => {
-				rtn[n] = vec.slice(start,start+len);
-			});
-			return rtn;
-		}
-		
-		else {
-			this.forEach( (vec, n ) => {
-				rtn[n] = rnd(vec[start]);
-			});
-			return [rtn];
-		}
-	},
-	
 	function parseJSON(ctx,def) {
 		this.forEach( function (key) {
 			try {
@@ -4006,9 +3988,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 					doParm( parm );
 			});
 
-		//delete query[""];
-		
-		Log({query: query, index: index, flags: flags, where: where, path: parts[0]});
+		//Log({query: query, index: index, flags: flags, where: where, path: parts[0]});
 		
 		return parts[0];
 	},
