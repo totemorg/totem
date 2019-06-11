@@ -3591,7 +3591,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			else
 				indexFile( path, function (files) {  // Send list of files under specified folder
 
-					files.forEach( file => {
+					files.forEach( (file,n) => {
 						files[n] = file.tag("a",{href:`${file}`});
 					});
 
