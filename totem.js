@@ -3802,7 +3802,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			return VM.runInContext( this+"", VM.createContext(query));
 		}
 		catch (err) {
-			Log("parseJS", this+"", err);
+			//Log("parseJS", this+"", err);
 			return err+"";
 		}
 	},
