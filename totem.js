@@ -460,50 +460,50 @@ var
 	/**
 	@cfg {Object} 
 	@member TOTEM	
-	Endpoint reqTypes cb(ack data as string || error)
+	Endpoint reqTypes cb(data data as string || error)
 	*/
 	reqTypes: {  //< record data convertors
-		db: function (ack, req, res) {			
+		db: function (data, req, res) {			
 			req.sql.query("select found_rows()")
 			.on('result', function (stat) {		// records sourced from sql				
 				res({ 
 					success: true,
 					msg: "ok",
 					count: stat["found_rows()"] || 0,
-					data: ack
+					data: data
 				});
 			})
 			.on("error", function () {  		// records sourced from virtual table
 				res({ 
 					success: true,
 					msg: "ok",
-					count: ack.length,
-					data: ack
+					count: data.length,
+					data: data
 				});
 			});
 		},
 		
-		csv: function (ack, req, res) {
+		csv: function (data, req, res) {
 			JS2CSV({ 
-				data: ack, 
-				fields: Object.keys( ack[0]||{} )
+				data: data, 
+				fields: Object.keys( data[0]||{} )
 			} , function (err,csv) {
 					res( err || csv );
 			});
 		},
 		
-		"": function (ack,req,res) {
-			res( ack );
+		"": function (data,req,res) {
+			res( data );
 		},
 		
-		json: function (ack,req,res) {
-			res( ack );
+		json: function (data,req,res) {
+			res( data );
 		},
 		
-		xml: function (ack, req, res) {
+		xml: function (data, req, res) {
 			res( JS2XML.parse(req.table, {  
-				count: ack.length,
-				data: ack
+				count: data.length,
+				data: data
 			}) );
 		}
 	},
@@ -800,7 +800,7 @@ var
 					}
 
 					Req.on('error', function(err) {
-						Log("FETCH FAIL", err);
+						//Log("FETCH FAIL", err);
 						cb( "" );
 					});
 
@@ -1056,7 +1056,7 @@ var
 		noFile: new Error("file not found"),
 		noIndex: new Error("cannot index files here"),
 		badType: new Error("no such dataset type"),
-		badReturn: new Error("nothing returned"),
+		badReturn: new Error("data could not be returned"),
 		noSockets: new Error("socket.io failed"),
 		noService: new Error("no service  to start"),
 		noData: new Error("no data returned"),
@@ -2687,8 +2687,8 @@ method, aggregate results, then send with supplied response().
 */
 	
 	if ( node = req.node = nodes.pop() )  	// grab last node
-		routeNode( req, function (ack) { 	// route it and intercept its ack
-			acks[req.table] = ack;
+		routeNode( req, function (data) { 	// route it and intercept its data
+			acks[req.table] = data;
 			routeNodes( nodes, acks, Copy(req,{}), res );
 		});
 
@@ -2823,11 +2823,11 @@ byActionTable, or byAction routers.
 	
 	else  // attempt to route to engines then to database
 	if ( route = TOTEM.byAction[action] ) 
-		route(req, function (ack) { 
-			//Log({engroute: ack});
+		route(req, function (data) { 
+			//Log({engroute: data});
 			
-			if (ack)
-				res( ack );
+			if (data)
+				res( data );
 				
 			else
 				if ( route = TOTEM[action] ) 
@@ -2862,24 +2862,25 @@ Creates a HTTP/HTTPS request-repsonse session thread, then uses the byTable, byA
 byType, byActionTable config to route this thread to the appropriate (req,res)-endpoint.
 The newly formed request req contains:
 
-		method: "GET, ... " 		// http method and its ...
-		action: "select, ...",		// corresponding crude name
-		socketio: "path"  // filepath to client's socketio.js
-		where: {...}, 		// sql-ized query keys from url
-		body: {...},		// body keys from request 
-		flags: {...}, 		// flag keys from url
-		index: {...}		// sql-ized index keys from url
-		query: {...}, 		// raw keys from url
-		files: [...] 		// files uploaded
-		site: {...}			// skinning context keys
-		sql: connector 		// sql database connector (dummy if no mysql config)
-		url	: "url"				// complete "/area/.../name.type?query" url
-		search: "query"		// query part
-		path: "/..."			// path part 
-		filearea: "area"		// area part
-		filename: "name"	// name part
-		type: "type" 			// type part 
-		connection: socket		// http/https socket to retrieve client cert 
+		.method: "GET, ... " 		// http method and its ...
+		.action: "select, ...",		// corresponding crude name
+		.socketio: "path"  // filepath to client's socketio.js
+		.where: {...}, 		// sql-ized query keys from url
+		.body: {...},		// body keys from request 
+		.post: "..."			// raw body text
+		.flags: {...}, 		// flag keys from url
+		.index: {...}		// sql-ized index keys from url
+		.query: {...}, 		// raw keys from url
+		.files: [...] 		// files uploaded
+		.site: {...}			// skinning context keys
+		.sql: connector 		// sql database connector (dummy if no mysql config)
+		.url	: "url"				// complete "/area/.../name.type?query" url
+		.search: "query"		// query part
+		.path: "/..."			// path part 
+		.filearea: "area"		// area part
+		.filename: "name"	// name part
+		.type: "type" 			// type part 
+		.connection: socket		// http/https socket to retrieve client cert 
 
 The newly formed response res method accepts a string, an objects, an array, an error, or 
 a file-cache function to appropriately respond and close this thread and its sql connection.  
@@ -2935,7 +2936,7 @@ The session is validated and logged, and the client is challenged as necessary.
 			sendString( JSON.stringify(obj) );
 		}
 		catch (err) {
-			sendErrror( errors.noData );
+			sendErrror( errors.badReturn );
 		}		
 	}
 	
@@ -2946,43 +2947,42 @@ The session is validated and logged, and the client is challenged as necessary.
 		
 		if (recs)
 			if ( conv = reqTypes[req.type] )  // process record conversions
-				conv(recs, req, function (rtn) {
+				conv(recs, req, recs => {
 					
-					if (rtn) 
-						switch (rtn.constructor) {
-							case Error:
-								sendError( rtn );
+					if (recs) 
+						switch (recs.constructor.name) {
+							case "Error":
+								sendError( recs );
 								break;
 
-							case String:
-								sendString( rtn );
+							case "String":
+								sendString( recs );
 								break;
 
-							case Array:
-							case Object:
+							case "Array":
+							case "Object":
 							default:
-								sendObject( rtn );
+								sendObject( recs );
 						} 
 					
 					else
-						sendError( errors.noData );
+						sendError( errors.badReturn );
 				});
 
 			else 
 				sendObject( recs );
-				//sendError( errors.badType );
 		
 		else
-			sendErrror( errors.noData ); 
+			sendErrror( errors.badReturn ); 
 	}
 	
-	function res(ack) {  // Session response callback
+	function res(data) {  // Session response callback
 		
 		var
 			req = Req.req,
 			sql = req.sql,
 			errors = TOTEM.errors,
-			mime = isError(ack||0)
+			mime = isError(data||0)
 				? MIME.types.html
 				: MIME.types[req.type] || MIME.types.html || "text/plain",
 			paths = TOTEM.paths;
@@ -2990,28 +2990,28 @@ The session is validated and logged, and the client is challenged as necessary.
 		Res.setHeader("Content-Type", mime);
 		Res.statusCode = 200;
 			
-		if (ack)
-			switch (ack.constructor.name) {  // send ack based on its type
+		if (data)
+			switch (data.constructor.name) {  // send based on its type
 				case "Error": 			// send error message
 					
 					switch (req.type) {
 						case "db":  
 							sendString( JSON.stringify({ 
 								success: false,
-								msg: ack+"",
+								msg: data+"",
 								count: 0,
 								data: []
 							}) );
 							break;
 							
 						default:
-							sendError( ack );
+							sendError( data );
 					}
 					break;
 				
-				case "Function": 			// send file via search or direct
+				case "Function": 			// send file (search or direct)
 				
-					if ( (search = req.query.search) && paths.mysql.search) 		// search for file via nlp/etc
+					if ( (search = req.query.search) && paths.mysql.search) 		// search for file via (e.g. nlp) score
 						sql.query(paths.mysql.search, {FullSearch:search}, function (err, files) {
 							
 							if (err) 
@@ -3030,7 +3030,7 @@ The session is validated and logged, and the client is challenged as necessary.
 									sql.query("UPDATE openv.profiles SET Credit=Credit+1 WHERE ?",{Client: file.Client});
 							});
 
-						sendFile( ack(), req.file, req.type, req.area );
+						sendFile( data(), req.file, req.type, req.area );
 					}
 				
 					break;
@@ -3040,37 +3040,38 @@ The session is validated and logged, and the client is challenged as necessary.
 					var flag = TOTEM.reqFlags;
 					
 					if ( req.flags.blog )   // blog back selected keys
-						flag.blog( ack, req, recs => {
+						flag.blog( data, req, recs => {
 							sendRecords(recs,req);
 						});
 
 					else
 					if ( req.flags.encap )   // encap selected keys
-						flag.encap( ack, req, recs => {
+						flag.encap( data, req, recs => {
 							sendRecords(recs,req);
 						});
 						
 					else
-						sendRecords(ack,req);
+						sendRecords(data,req);
 					
 					break;
 
 				case "String":  			// send message
 				case "Buffer":
-					sendString(ack);
+					sendString(data);
 					break;
 			
 				case "Object":
 				default: 					// send data record
-					sendObject(ack);
+					sendObject(data);
 					break;			
 			}
 
 		else
-			sendError( errors.noData );
+			sendString( data || "" );
+			//sendError( errors.noData );
 	}
 
-	function getBody( cb ) { // Feed body and file parameters to callback
+	function getBody( cb ) { // Feed body to callback
 
 		var body = ""; 
 		
@@ -3079,43 +3080,7 @@ The session is validated and logged, and the client is challenged as necessary.
 			body += chunk.toString();
 		})
 		.on("end", function () {
-			if (body)
-				cb( body.parseJSON( body => {  // yank files if body not json
-					
-					var files = [], parms = {};
-					
-					body.split("\r\n").forEach( line => {
-						if (line) 
-							if (parms.type) {  // type was defined so have the file data
-								files.push( Copy(parms,{data: line, size: line.length}) );
-								parms = {};
-							}
-							else {
-								//Trace("LOAD "+line);
-
-								line.split(";").forEach( arg => {  // process one file at a time
-
-									var tok = arg
-										.replace("Content-Disposition: ","disposition=")
-										.replace("Content-Type: ","type=")
-										.split("="), 
-
-										val = tok.pop(), 
-										key = tok.pop();
-
-									if (key)
-										parms[key.replace(/ /g,"")] = val.replace(/"/g,"");
-
-								});
-							}
-					});
-
-//Log(files);
-					return {files: files};
-				}) );
-			
-			else
-				cb( {} );
+			cb( body );
 		});
 	}
 		
@@ -3230,16 +3195,17 @@ The session is validated and logged, and the client is challenged as necessary.
 		
 	startSession( function() {  // process if session not busy
 		
-		getBody( function (body) {  // setup request with body parms 
+		getBody( body => {  // setup request with body parms 
 			/* 
 			Define request req 
 				.method = GET | PUT | POST | DELETE
 				.action = select | update | insert | delete
 				.reqSocket = socket to complete request
 				.resSocket = socket to complete response
-				socketio: path to client's socketio
-				body = hash of request key:value 
-				url = clean url
+				.socketio: path to client's socketio
+				.body = hash of request key:value 
+				.post = raw body text
+				.url = clean url
 			*/
 			var 
 				paths = TOTEM.paths,		// parse request url into /area/nodes
@@ -3252,7 +3218,40 @@ The session is validated and logged, and the client is challenged as necessary.
 					resSocket: getSocket,		// use this method to return a response socket
 					encrypted: onEncrypted,	// on encrypted worker
 					socketio: onEncrypted ? TOTEM.site.urls.socketio : "",		// path to socket.io
-					body: body,		// body parameters
+					body: body.parseJSON( body => {  // get parameters or yank files from body 
+					
+						var files = [], parms = {};
+
+						body.split("\r\n").forEach( line => {
+							if (line) 
+								if (parms.type) {  // type was defined so have the file data
+									files.push( Copy(parms,{data: line, size: line.length}) );
+									parms = {};
+								}
+								else {
+									//Trace("LOAD "+line);
+
+									line.split(";").forEach( arg => {  // process one file at a time
+
+										var tok = arg
+											.replace("Content-Disposition: ","disposition=")
+											.replace("Content-Type: ","type=")
+											.split("="), 
+
+											val = tok.pop(), 
+											key = tok.pop();
+
+										if (key)
+											parms[key.replace(/ /g,"")] = val.replace(/"/g,"");
+
+									});
+								}
+						});
+
+	//Log(files);
+						return {files: files};
+					}),		// body parameters
+					post: body,		// raw body text
 					url: (Req.url == "/") ? paths.nourl : unescape(Req.url)		// requested url
 				},
 
@@ -3448,8 +3447,8 @@ function simThread(sock) {
 			}, JSON.parse(req)),
 			
 			Res = {  // used if master does not makes handoff
-				end: function (ack) {
-					sock.write(ack);
+				end: function (data) {
+					sock.write(data);
 				}
 			};
 				
