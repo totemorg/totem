@@ -4306,6 +4306,16 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 			});
 		});		
 		break;
+		
+	default:
+		var 
+			file = process.argv[2],
+			parts = file.split("."),
+			name = parts[0],
+			type = parts[1];
+		
+		
+		
 }
 
 // UNCLASSIFIED
