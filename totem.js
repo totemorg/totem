@@ -2617,7 +2617,7 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 		index = req.index = {},	
 		where = req.where = {},
 		flags = req.flags = {},
-		path = req.path = "." + req.node.parsePath(query, index, flags, where),	//  ./area1/area2/.../table.type
+		path = req.path = "." + req.node.parseURL(query, index, flags, where),	//  ./area1/area2/.../table.type
 		areas = path.split("/"),						// [".", area1, area2, ...]
 		file = req.file = areas.pop() || "",		// table.type
 		parts = file.split("."),							// [table, type, ...]
@@ -3836,10 +3836,10 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 	},
 
-	function parsePath(query,index,flags,where) { 
+	function parseURL(query,index,flags,where) { 
 	/**
 	@member String
-	@method parsePath
+	@method parseURL
 	
 	Parse a "PATH?PARM&PARM&..." url into the specified query, index, flags, or keys hash
 	as directed by the PARM = ASKEY := REL || REL || _FLAG = VALUE where 
