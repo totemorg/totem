@@ -980,6 +980,7 @@ var
 			//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 			//default: "/home",
 			//resetpass: "/resetpass",
+			home: "",
 			wget: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 			curl: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 			http: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
@@ -3515,7 +3516,9 @@ Totem (req,res)-endpoint to test client connection
 @param {Object} req Totem request
 @param {Function} res Totem response
 */
-	res("hello "+req.client);			
+	var home = TOTEM.paths.url.home;
+	
+	res("hello "+req.client + ( home ? " " + "home".tag("a",{href:home}) : "" ) );
 }
 
 function sysArea(req, res) {
@@ -3768,8 +3771,21 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 
 	@param {Object} $ source hash
 	*/
+		var index = this+"";
+		
+		Log("eval", isArray($) );
+		
 		try {
-			return eval(this+"");
+			if ( isArray($) ) {
+				var rtns = new Array($.length);
+				Log("eval", $.length);
+				$.forEach( ($,n) => rtns[n] = index.parseEval( $ ) );
+				Log("eval>>>", rtns);
+				return rtns;
+			}
+			
+			else				
+				return eval(index);
 		}
 		
 		catch (err) {
