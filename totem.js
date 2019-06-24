@@ -3724,10 +3724,10 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 	@member String
 	@method tag
 
-	Tag url (el=?) or tag html (el=html tag) with specified attributes.
+	Tag url (el = ? || &) or html (el = html tag) with specified attributes.
 
-	@param {String} el tag element
-	@param {String} at tag attributes
+	@param {String} el tag element = ? || & || html tag
+	@param {String} at tag attributes = {key: val, ...}
 	@return {String} tagged results
 	*/
 
