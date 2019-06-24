@@ -373,12 +373,7 @@ var
 		trace: "_trace",		//< Echo flags before and after parse	
 		blog: function (recs, req, res) {  //< Default blogger
 			res(recs);
-		},
-		encap: function (recs,req,res) {  //< dataset.encap to encap records
-			var rtn = {};
-			rtn[req.flags.encap] = recs;
-			res(rtn);
-		}		
+		}
 	},
 
 	/**
@@ -3045,12 +3040,6 @@ The session is validated and logged, and the client is challenged as necessary.
 						});
 
 					else
-					if ( req.flags.encap )   // encap selected keys
-						flag.encap( data, req, recs => {
-							sendRecords(recs,req);
-						});
-						
-					else
 						sendRecords(data,req);
 					
 					break;
@@ -3730,7 +3719,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 ].Extend(Array);
 
 [ //< String prototypes
-	function tag(el,at,eq) {
+	function tag(el,at) {
 	/**
 	@member String
 	@method tag
@@ -3743,12 +3732,12 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 	*/
 
 		if ( el == "?" || el == "&" ) {  // tag a url
-			var rtn = this+el;
+			var rtn = this;
 
-			for (var n in at) {
-				var val = at[n];
-				rtn += n + (eq||"=") + ((typeof val == "string") ? val : JSON.stringify(val)) + "&"; 
-			}
+			Each(at, (key,val) => {
+				rtn += el + key + "=" + ( (typeof val == "string") ? val : JSON.stringify(val) ); 
+				el = "&";
+			});
 
 			return rtn;	
 		}
@@ -3756,10 +3745,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		else {  // tag html
 			var rtn = "<"+el+" ";
 
-			for (var n in at) {
-				var val = at[n];
-				rtn += n + "='" + val + "' ";
-			}
+			Each( at, (key,val) => rtn += key + "='" + val + "' " );
 
 			switch (el) {
 				case "embed":
