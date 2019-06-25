@@ -3771,21 +3771,8 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 
 	@param {Object} $ source hash
 	*/
-		var index = this+"";
-		
-		Log("eval", isArray($) );
-		
 		try {
-			if ( isArray($) ) {
-				var rtns = new Array($.length);
-				Log("eval", $.length);
-				$.forEach( ($,n) => rtns[n] = index.parseEval( $ ) );
-				Log("eval>>>", rtns);
-				return rtns;
-			}
-			
-			else				
-				return eval(index);
+			return eval(this+"");
 		}
 		
 		catch (err) {

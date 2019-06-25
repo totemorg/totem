@@ -225,7 +225,7 @@ prmput.)
 
 prmget.)
 	cp -r $DUCK/output/$MODULE/* prm
-	echo "downloaded jsduck output into prms/$MODULE"
+	echo "downloaded jsduck output into prm/$MODULE"
 	;;
 		
 _duskpush.)
