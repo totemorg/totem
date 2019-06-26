@@ -1158,10 +1158,10 @@ var
 
 			site.warning = [
 				site.warning || "",
-				"ASP".fontcolor(asp[0].Fails ? "red" : "green").tag("a",{href:"/help?from=asp"}),
-				"ISP".fontcolor(isp[0].Fails ? "red" : "green").tag("a",{href:"/help?from=isp"}),
-				"SW".fontcolor(sw[0].Fails ? "red" : "green").tag("a",{href:"/help?from=swap"}),   // mails list of failed swapIDs (and link to all sw reqts) to swap PMO
-				"HW".fontcolor(hw[0].Fails ? "red" : "green").tag("a",{href:"/help?from=pmo"})   // mails list of failed hw reqts (and link to all hw reqts) to pod lead
+				"ASP".fontcolor(asp[0].Fails ? "red" : "green").tag( "/help?from=asp" ),
+				"ISP".fontcolor(isp[0].Fails ? "red" : "green").tag( "/help?from=isp" ),
+				"SW".fontcolor(sw[0].Fails ? "red" : "green").tag( "/help?from=swap" ),   // mails list of failed swapIDs (and link to all sw reqts) to swap PMO
+				"HW".fontcolor(hw[0].Fails ? "red" : "green").tag( "/help?from=pmo" )   // mails list of failed hw reqts (and link to all hw reqts) to pod lead
 			].join(" ");
 
 		});
@@ -2013,7 +2013,7 @@ Create user profile, associated certs and distribute info to user
 				var init = Copy({	
 					Approved: new Date(),
 					Banned: url.resetpass
-						? "Please "+"reset your password".tag("a", {href:url.resetpass})+" to access"
+						? "Please "+"reset your password".tag( url.resetpass )+" to access"
 						: "",
 
 					Client: user.User,					
@@ -2021,7 +2021,7 @@ Create user profile, associated certs and distribute info to user
 
 					Message:
 
-`Greetings from ${site.Nick.tag("a",{href:site.urls.master})}-
+`Greetings from ${site.Nick.tag(site.urls.master)}-
 
 Admin:
 	Please create an AWS EC2 account for ${owner} using attached cert.
@@ -2391,7 +2391,7 @@ specified client.  Optional tags are logged with the upload.
 
 						sql.query("UPDATE apps.files SET ? WHERE ?", [{
 							_Ingest_Tag: JSON.stringify(tags || null),
-							_State_Notes: "Please go " + "here".tag("a", {href:"/files.view"}) + " to manage your holdings."
+							_State_Notes: "Please go " + "here".tag("/files.view") + " to manage your holdings."
 						}, {ID: fileID} ] );
 						
 						sql.release();
@@ -3490,14 +3490,10 @@ Totem (req,res)-endpoint to shard a task to totem compute nodes.
 					name: body.name,
 					task: body.name,
 					notes: [
-							req.table.tag("?",req.query).tag("a", {href:"/" + req.table + ".run"}), 
-							((body.credit>0) ? "funded" : "unfunded").tag("a",{href:req.url}),
-							"RTP".tag("a", {
-								href:`/rtpsqd.view?task=${body.name}`
-							}),
-							"PMR brief".tag("a", {
-								href:`/briefs.view?options=${body.name}`
-							})
+							req.table.tag("?",req.query).tag( "/" + req.table + ".run" ), 
+							((body.credit>0) ? "funded" : "unfunded").tag( req.url ),
+							"RTP".tag( `/rtpsqd.view?task=${body.name}` ),
+							"PMR brief".tag( `/briefs.view?options=${body.name}` )
 					].join(" || ")
 				}, function (sql,job) {
 					//Log("reg job" , job);
@@ -3518,7 +3514,7 @@ Totem (req,res)-endpoint to test client connection
 */
 	var home = TOTEM.paths.url.home;
 	
-	res("hello "+req.client + ( home ? " " + "home".tag("a",{href:home}) : "" ) );
+	res("hello "+req.client + ( home ? " " + "home".tag( home ) : "" ) );
 }
 
 function sysArea(req, res) {
@@ -3583,7 +3579,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 				indexFile( path, function (files) {  // Send list of files under specified folder
 
 					files.forEach( (file,n) => {
-						files[n] = file.tag("a",{href:`${file}`});
+						files[n] = file.tag( file );
 					});
 
 					res(`Index of ${path}:<br>` + files.join("<br>") );
@@ -3734,6 +3730,8 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 	@return {String} tagged results
 	*/
 
+		if (!at) { at = {href: el}; el = "a"; }
+		
 		if ( el == "?" || el == "&" ) {  // tag a url
 			var rtn = this;
 
