@@ -3895,20 +3895,6 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 					/^_(.*)(=)(.*)/, 
 					(rem,lhs,op,rhs) => {  
 						expand = true; 
-						//Log("flags", lhs, rhs);
-						/*
-						switch ( op ) {
-							case "=$n":
-								return `MATCH(${key}) AGAINST(${val})`;
-							case "=$b":
-								return `MATCH(${key}) AGAINST(${val} IN BINARY MODE)`;
-							case "=$q":
-								return `MATCH(${key}) AGAINST(${val} IN QUERY EXPANSION)`;
-							default:
-								return (val.indexOf("%") >= 0)
-									? `${key} LIKE ${val}`
-									: `${key} ${op} ${val}`;
-						} */
 						
 						switch (lhs) {
 							case "bin":
@@ -3941,7 +3927,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 					res = str.replace( // where op val
 						/(.*)(=|<|>)(.*)/, 
 						(rem,lhs,op,rhs) => {
-							if (op == "=") query[lhs] = rhs;		// same raw to query as well
+							if (op == "=") query[lhs] = rhs.parseJSON(rhs);		// same raw to query as well
 							return where[lhs] = rep(lhs,op,rhs);
 						});
 
