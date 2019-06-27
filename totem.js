@@ -1183,28 +1183,18 @@ var
 			"base.js": 1,
 			"extjs.js": 1,
 			"jquery.js":1,
-			"flow.js":1,
-			"dojo.js":1,
-			"games.js":1,
-			"capture.js":1,
-			"jade": 1,
-			"view": 1,
-			"gif": 1
+			"jade": 1
 		},
 		
-		clients: {  // byType cache of clients area
-			js: {},
-			css: {},
-			ico: {}
+		clients: {  // cache clients area
 		},
 		
-		"socket.io": {  // byType cache of socketio area
-			js: {}
+		"socket.io": {  // cache socketio area
 		},
 		
 		learnedTables: true, 
 		
-		certs: {} 		// reserved for client crts (pfx, crt, and key reserved for server)
+		certs: {} 		// cache client crts (pfx, crt, and key reserved for server)
 	}
 	
 };
@@ -2897,15 +2887,16 @@ The session is validated and logged, and the client is challenged as necessary.
 		
 		// Trace(`SENDING ${path}`);
 		
-		var cache = TOTEM.cache;
+		var 
+			cache = TOTEM.cache,
+			never = cache.never,
+			cache = (never[file] || never[type]) 
+						? {}
+						: cache[area] || cache[type] || {};
 
-		if (cache.never[file] || cache.never[type]) cache = null;
-		if (cache) cache = cache[area];
-		if (cache) cache = cache[type];
-
-		var buf = cache ? cache[path] : null;
-
-		if (buf)
+		//Log(path, cache[path] ? "in cached" : "not in cached");
+		
+		if ( buf = cache[path] )
 			sendString( buf );
 
 		else
@@ -2914,11 +2905,7 @@ The session is validated and logged, and the client is challenged as necessary.
 					sendError( TOTEM.errors.noFile );
 
 				else
-				if (cache)
 					sendString( cache[path] = new Buffer(buf) );
-
-				else
-					sendString( new Buffer(buf) );
 			});
 	}		
 
