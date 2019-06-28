@@ -536,9 +536,9 @@ var
 	By-area endpoint routers {area: method(req,res), ... } for sending/cacheing files
 	*/		
 	byArea: {	//< by-area routers
-		stores: sysArea,
-		uploads: sysArea,
-		shares: sysArea
+		stores: sysFile,
+		uploads: sysFile,
+		shares: sysFile
 	},
 
 	/**
@@ -2612,9 +2612,6 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 		area = req.area = areas[1] || "",
 		site = req.site = TOTEM.site;
 	
-	//Log(">>>>>", path, ">>>>", query);
-	//Log(path,areas,area);
-	
 	var 
 		reqFlags = TOTEM.reqFlags,
 		strips = reqFlags.strips,
@@ -2889,12 +2886,11 @@ The session is validated and logged, and the client is challenged as necessary.
 		
 		var 
 			cache = TOTEM.cache,
+			errors = TOTEM.errors,
 			never = cache.never,
-			cache = (never[file] || never[type]) 
-						? {}
-						: cache[area] || cache[type] || {};
+			cache = (never[file] || never[type]) ? {} : cache[area] || cache[type] || {};
 
-		//Log(path, cache[path] ? "in cached" : "not in cached");
+		Log(path, cache[path] ? "cached" : "!cached");
 		
 		if ( buf = cache[path] )
 			sendString( buf );
@@ -2902,7 +2898,7 @@ The session is validated and logged, and the client is challenged as necessary.
 		else
 			FS.readFile( path, (err,buf) => {
 				if (err)
-					sendError( TOTEM.errors.noFile );
+					sendError( errors.noFile );
 
 				else
 					sendString( cache[path] = new Buffer(buf) );
@@ -3504,9 +3500,9 @@ Totem (req,res)-endpoint to test client connection
 	res("hello "+req.client + ( home ? " " + "home".tag( home ) : "" ) );
 }
 
-function sysArea(req, res) {
+function sysFile(req, res) {
 /**
-@method sysArea
+@method sysFile
 Totem (req,res)-endpoint to send uncached, static files from a requested area.
 @param {Object} req Totem request
 @param {Function} res Totem response
@@ -3521,6 +3517,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		action = req.action,
 		area = req.table,
 		path = req.path,
+		errors = TOTEM.errors,
 		now = new Date();
 	
 	/*Log({
@@ -3535,35 +3532,17 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 	switch (action) {
 		case "select":
 			
+			Log(">>>get", path);
 			if ( req.file )
-				try {		// sysArea files are never static so we never cache them
+				try {		// sysFile files are never static so we never cache them
 					FS.readFile(path,  (err,buf) => res( err || new Buffer(buf) ) );
-					/*
-						if (err) 
-							res(err);
-
-						else 
-						if ( isEmpty(query) )
-							res(buf);
-						
-						else {
-							var
-								src = buf.parseJSON( {} ),
-								rtn = {};
-						
-							Log("keys", query);
-							Each(query, (key, index) => rtn[key] = index.parseEval(src) );
-							
-							res( JSON.stringify(rtn) );
-						} 
-					});  */
 				}
 				catch (err) {
-					res( TOTEM.errors.noFile );
+					res( errors.noFile );
 				}
 				
 			else
-				indexFile( path, function (files) {  // Send list of files under specified folder
+				indexFile( path, files => {  // Send list of files under specified folder
 
 					files.forEach( (file,n) => {
 						files[n] = file.tag( file );
@@ -3575,7 +3554,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			break;
 					
 		case "delete":
-			res( new Error("undefined"));
+			res( errors.noFile );
 			break;
 			
 		case "update":
@@ -3765,7 +3744,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 	},
 	
-	function parseJS(query) {
+	function parseJS(query, cb) {
 	/**
 	@member String
 	Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
@@ -3776,7 +3755,11 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 		catch (err) {
 			//Log("parseJS", this+"", err);
-			return err+"";
+			if ( cb ) 
+				return cb(this, err);
+			
+			else
+				return err+"";
 		}
 	},
 	
@@ -4265,15 +4248,6 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 			});
 		});		
 		break;
-		
-	default:
-		var 
-			file = process.argv[2],
-			parts = file.split("."),
-			name = parts[0],
-			type = parts[1];
-		
-		
 		
 }
 
