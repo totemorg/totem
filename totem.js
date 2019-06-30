@@ -3756,7 +3756,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		catch (err) {
 			//Log("parseJS", this+"", err);
 			if ( cb ) 
-				return cb(this, errr);
+				return cb(this, err);
 			
 			else
 				return err+"";
