@@ -992,7 +992,7 @@ var
 		
 		mysql: {
 			//logThreads: "show session status like 'Thread%'",
-			users: "SELECT 'user' AS Role, group_concat(DISTINCT dataset SEPARATOR ';') AS Contact FROM app.dblogs WHERE instr(dataset,'@')",
+			users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM app.dblogs WHERE instr(dataset,'@')",
 			derive: "SELECT * FROM openv.apps WHERE ? LIMIT 1",
 			//logMetrics: "INSERT INTO app.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
 			search: "SELECT * FROM app.files HAVING Score > 0.1",
@@ -1003,7 +1003,7 @@ var
 			newSession: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1",
 			challenge: "SELECT * FROM openv.profiles WHERE least(?,1) LIMIT 1",
 			guest: "SELECT * FROM openv.profiles WHERE Client='guest@guest.org' LIMIT 1",
-			pocs: "SELECT lower(Hawk) AS Role, group_concat(DISTINCT Client SEPARATOR ';') AS Contact FROM openv.roles GROUP BY hawk"
+			pocs: "SELECT lower(Hawk) AS Role, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Clients FROM openv.roles GROUP BY hawk"
 		},
 		
 		nodes: {  // available nodes for task sharding
@@ -1107,32 +1107,27 @@ var
 			mysql = paths.mysql;
 		
 		site.pocs = {};
-		site.distro = {};
 
 		if (pocs = mysql.pocs) 
 			sql.query(pocs)
-			.on("result", function (poc) {
-				site.pocs[poc.Role] = poc.Contact;
-				site.distro[poc.Role] = poc.Role.link("mailto:"+poc.Contact);
-			});
+			.on("result", poc => site.pocs[poc.Role] = poc.Clients || "" )
+			.on("end", () => Log(TRACE, "POCs", site.pocs) );
 
 		if (users = mysql.users) 
 			sql.query(users)
-			.on("result", function (poc) {
-				site.pocs[poc.Role] = poc.Contact;
-				site.distro[poc.Role] = poc.Role.link("mailto:"+poc.Contact);				
-			});
+			.on("result", poc => site.pocs[poc.Role] = poc.Clients || "" )
+			.on("end", () => Log(TRACE, "POCs", site.pocs) );
 		
 		if (guest = mysql.guest)
 			sql.query(guest)
-			.on("result", function (rec) {
+			.on("result", rec => {
 				TOTEM.guestProfile = Copy(rec,{});
 				delete TOTEM.guestProfile.ID;
 			});
 
 		if (derive = mysql.derive)  // derive site context vars
 			sql.query(derive, {Nick:TOTEM.host.name})
-			.on("result", function (opts) {
+			.on("result", opts => {
 				Each(opts, function (key,val) {
 					key = key.toLowerCase();
 					site[key] = val;
