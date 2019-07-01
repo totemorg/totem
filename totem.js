@@ -361,7 +361,7 @@ var
 					escapeId = MYSQL.escapeId;
 				
 				if (filters)
-				filters.forEach( (filter) => where[ filter.property ] = escapeId(filter.property).test( escape(filter.value) ) );
+				filters.forEach( (filter) => where[ filter.property ] = escapeId(filter.property).SQLfind( escape(filter.value) ) );
 			}
 		},
 		strips:	 			//< Flags to strips from request
@@ -2890,7 +2890,7 @@ The session is validated and logged, and the client is challenged as necessary.
 			never = cache.never,
 			cache = (never[file] || never[type]) ? {} : cache[area] || cache[type] || {};
 
-		Log(path, cache[path] ? "cached" : "!cached");
+		//Log(path, cache[path] ? "cached" : "!cached");
 		
 		if ( buf = cache[path] )
 			sendString( buf );
@@ -3532,7 +3532,6 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 	switch (action) {
 		case "select":
 			
-			Log(">>>get", path);
 			if ( req.file )
 				try {		// sysFile files are never static so we never cache them
 					FS.readFile(path,  (err,buf) => res( err || new Buffer(buf) ) );
@@ -3869,7 +3868,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 					}),
 					val = doStore(rhs, res => escape(res) );
 
-				return key.test(val); //(val.indexOf("%") >= 0) ? `${key} LIKE ${val}` : `${key} ${op} ${val}`;
+				return key.SQLfind(val);
 			}
 
 			var
@@ -3947,10 +3946,6 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		XML2JS.parseString(this, function (err,json) {				
 			cb( err ? null : json );
 		});
-	},
-	
-	function test( val ) {
-		return ( val.indexOf("%")>=0) ? `${this} LIKE ${val} `  : `${this} = ${val} ` 
 	}
 ].Extend(String);
 
