@@ -980,14 +980,14 @@ var
 			//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 			//default: "/home",
 			//resetpass: "/resetpass",
-			home: "",
 			wget: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 			curl: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 			http: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 			socketio: "/socket.io/socket.io.js",
 			riddler: "/riddle"
 		},
-			
+		
+		home: "",	
 		certs: "./certs/", 
 		
 		mysql: {
@@ -3490,9 +3490,7 @@ Totem (req,res)-endpoint to test client connection
 @param {Object} req Totem request
 @param {Function} res Totem response
 */
-	var home = TOTEM.paths.url.home;
-	
-	res("hello "+req.client + ( home ? " " + "home".tag( home ) : "" ) );
+	res("hello " + req.client + " " + TOTEM.paths.home );
 }
 
 function sysFile(req, res) {
