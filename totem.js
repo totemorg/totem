@@ -2496,7 +2496,7 @@ Create a set of TOTEM.riddles challenges.
 function makeRiddles(msg,rid,ids) { //< turn msg with riddle markdown into a riddle
 /**
 @private
-@method sysValidate
+@method makeRiddles
 Endpoint to check clients response req.query to a riddle created by challengeClient.
 @param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
 @param {Array} rid List of riddles returned
