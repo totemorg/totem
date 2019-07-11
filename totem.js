@@ -114,10 +114,10 @@ var
 			nodes: 3 			// limit number of nodes (ala locales) in the cluster
 		}, 
 			// here, a simple task that returns a message 
-			($) => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
+			$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
 
 			// here, a simple callback that displays the task results
-			(msg) => console.log(msg) 
+			msg => console.log(msg) 
 		);
 	
 	@param {Object} opts tasking options (see example)
@@ -163,34 +163,34 @@ var
 			},
 			dom = nodeReq.domain, 
 			keys = opts.keys || "",
-			cores = opts.cores || opts.workers || 10,
-			shards = opts.shards || 100,
-			nodes = opts.nodes || opts.locales || 50;
+			cores = opts.cores || opts.workers || 10,		// cores (aka workers) on each node
+			shards = opts.shards || 100,	// shards on each core (aka worker)
+			nodes = opts.nodes || opts.locales || 50;	// nodes in compute cloud
 
-		if ( opts.local )
-			genDomain(0, keys.split(","), opts, {}, true, function (index) {
+		if ( opts.local )	// run all shards locally
+			genDomain(0, keys.split(","), opts, {}, true, index => {
 				cb( task(index) );
 			});
 		
-		else
-			genDomain(0, keys.split(","), opts, {}, true, function (index, isLast) {
-				dom.push( index );
+		else	// distribute shards over the cloud and over workers
+			genDomain(0, keys.split(","), opts, {}, true, (index, isLast) => {
+				dom.push( index );		// push index set on node request
 
-				if ( isLast || (dom.length == shards) ) {
-					if ( ++fetches > cores ) {
+				if ( isLast || (dom.length == shards) ) {  // last index or shards exhausted
+					if ( ++fetches > cores ) {	// distribute to next node
 						nodeURL = paths.nodes[++node];
-						if ( !nodeURL) nodeURL = paths.nodes[node = 0];
+						if ( !nodeURL) nodeURL = paths.nodes[node = 0];	// recycle nodes
 						fetches = 0;
 					}
 
 					if (task) 
 						if ( isArray(task) )
-							task.forEach( function (task) {
+							task.forEach( task => {		// multiple tasks supplied
 								nodeReq.task = task+"";
 								fetcher( nodeURL, nodeReq, nodeCB);
 							});
 
-						else {
+						else {	// post the task request to the node
 							nodeReq.task = task+"";
 							fetcher( nodeURL, nodeReq, nodeCB);
 						}
