@@ -736,7 +736,7 @@ var
 					});
 					break;
 
-				case "curls":
+				case "curls:":
 					retry( `curl -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"), (err,out) => {
 						cb( err ? "" : out );
 					});	
@@ -744,22 +744,22 @@ var
 
 				case "wget:":
 					var 
-						parts = url.split(" >> "),
+						parts = url.split("////"),
 						url = parts[0],
 						out = parts[1] || "./temps/wget.jpg";
 
-					retry( `wget -O ${out} ` + url.replace(protocol, "http:"), (err) => {
+					retry( `wget -O ${out} ` + url.replace(protocol, "http:"), err => {
 						cb( err ? "" : "ok" );
 					});
 					break;
 
 				case "wgets:":
 					var 
-						parts = url.split(" >> "),
+						parts = url.split("////"),
 						url = parts[0],
 						out = parts[1] || "./temps/wget.jpg";
 
-					retry( `wget -O ${out} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + url.replace(protocol, "https:"), (err) => {
+					retry( `wget -O ${out} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + url.replace(protocol, "https:"), err => {
 						cb( err ? "" : "ok" );
 					});
 					break;
@@ -772,8 +772,8 @@ var
 						cb( "" );
 					}
 
-					Req.on('error', function(err) {
-						Log("FETCH FAIL", err);
+					Req.on('error', err => {
+						//Log("FETCH FAIL", err);
 						cb( "" );
 					});
 
@@ -794,7 +794,7 @@ var
 						return cb( "" );
 					}
 
-					Req.on('error', function(err) {
+					Req.on('error', err => {
 						//Log("FETCH FAIL", err);
 						cb( "" );
 					});
@@ -1485,7 +1485,7 @@ function configService(opts,cb) {
 
 					if (name)	// derive site context
 						TOTEM.setContext(sql, function () {
-							protectService(cb || function(err) {
+							protectService(cb || err => {
 								Trace(err || `STARTED ${name} ENCRYPTED`, sql);
 							});
 						});
@@ -1496,7 +1496,7 @@ function configService(opts,cb) {
 		});	
 
 	else
-		protectService(cb || function(err) {
+		protectService(cb || err => {
 			Trace(err || `STARTED ${name} STANDALONE`);
 		});
 	
@@ -3303,7 +3303,7 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 		
 	}); 
 
-	Req.on('error', function(err) {
+	Req.on('error', err => {
 		Log("=========tx "+err);
 		res("oh well");
 	});
