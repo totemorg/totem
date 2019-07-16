@@ -1438,6 +1438,60 @@ function configService(opts,cb) {
  Configure JSDB, define site context, then protect, connect, start and initialize this server.
  */
 
+	function protectService(cb) {
+	/**
+	 @private
+	 @method protectService
+	 Create the server's PKI certs (if they dont exist), setup site urls, then connect, start and initialize this service.  
+	 @param {Function} cb callback(err) when protected
+	 */
+
+		var 
+			host = TOTEM.host,
+			name = host.name,
+			paths = TOTEM.paths,
+			sock = TOTEM.sockets ? paths.url.socketio : "", 
+			urls = TOTEM.site.urls = TOTEM.cores   // establish site urls
+				? {  
+					socketio: sock,
+					worker:  host.worker, 
+					master:  host.master
+				}
+				: {
+					socketio: sock,
+					worker:  host.master,
+					master:  host.master
+				},
+			doms = TOTEM.doms = {
+				master: URL.parse(urls.master),
+				worker: URL.parse(urls.worker)
+			},
+			pfx = `${paths.certs}${name}.pfx`,
+			onEncrypted = TOTEM.onEncrypted = {
+				true: doms.master.protocol == "https:",   //  at master 
+				false: doms.worker.protocol == "https:"		// at worker
+			};
+
+		//Log(onEncrypted, doms);
+		Trace( `PROTECTING ${name} USING ${pfx}` );
+
+		if ( onEncrypted )   // derive a pfx cert if protecting an encrypted service
+			FS.access( pfx, FS.F_OK, err => {
+
+				if (err) 
+					createCert(name,host.encrypt, function () {
+						connectService(cb);
+					});				
+
+				else
+					connectService(cb);
+
+			});
+
+		else 
+			connectService(cb);
+	}
+
 	//TOTEM.Extend(opts);
 	if (opts) Copy(opts, TOTEM, ".");
 	
@@ -1480,12 +1534,12 @@ function configService(opts,cb) {
 				JSDB.thread( sql => {
 					Trace(`DERIVE ${name}`);
 
-					for (var n in mysql)   // derive server paths
-						if (n in paths) paths[n] = mysql[n];
+					for (var key in mysql)   // derive server paths
+						if (key in paths) paths[key] = mysql[key];
 
 					if (name)	// derive site context
-						TOTEM.setContext(sql, function () {
-							protectService(cb || err => {
+						TOTEM.setContext(sql, () => {
+							protectService(cb || function (err) {
 								Trace(err || `STARTED ${name} ENCRYPTED`, sql);
 							});
 						});
@@ -1496,7 +1550,7 @@ function configService(opts,cb) {
 		});	
 
 	else
-		protectService(cb || err => {
+		protectService(cb || function (err) {
 			Trace(err || `STARTED ${name} STANDALONE`);
 		});
 	
@@ -1732,60 +1786,6 @@ function connectService(cb) {
 	
 	else // unencrpted services so start http service
 		startService( HTTP.createServer(), cb );
-}
-
-function protectService(cb) {
-/**
- @private
- @method protectService
- Create the server's PKI certs (if they dont exist), setup site urls, then connect, start and initialize this service.  
- @param {Function} cb callback(err) when protected
- */
-	
-	var 
-		host = TOTEM.host,
-		name = host.name,
-		paths = TOTEM.paths,
-		sock = TOTEM.sockets ? paths.url.socketio : "", 
-		urls = TOTEM.site.urls = TOTEM.cores   // establish site urls
-			? {  
-				socketio: sock,
-				worker:  host.worker, 
-				master:  host.master
-			}
-			: {
-				socketio: sock,
-				worker:  host.master,
-				master:  host.master
-			},
-		doms = TOTEM.doms = {
-			master: URL.parse(urls.master),
-			worker: URL.parse(urls.worker)
-		},
-		pfx = `${paths.certs}${name}.pfx`,
-		onEncrypted = TOTEM.onEncrypted = {
-			true: doms.master.protocol == "https:",   //  at master 
-			false: doms.worker.protocol == "https:"		// at worker
-		};
-	
-	//Log(onEncrypted, doms);
-	Trace( `PROTECTING ${name} USING ${pfx}` );
-	
-	if ( onEncrypted )   // derive a pfx cert if protecting an encrypted service
-		FS.access( pfx, FS.F_OK, err => {
-
-			if (err) 
-				createCert(name,host.encrypt, function () {
-					connectService(cb);
-				});				
-				
-			else
-				connectService(cb);
-
-		});
-	
-	else 
-		connectService(cb);
 }
 
 function stopService() {
