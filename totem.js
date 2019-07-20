@@ -56,8 +56,7 @@ var
 	JS2CSV = require('json2csv'),				//< JSON to CSV parser	
 	
 	// Totem modules
-	JSDB = require("jsdb"),				//< JSDB database agnosticator
-	sqlThread = JSDB.thread;
+	SQL = require("jsdb");				//< SQL database agnosticator
 
 const { Copy,Each,Log,isError,isArray,isString,isFunction,isEmpty } = require("enum");
 	
@@ -68,7 +67,7 @@ function Trace(msg,sql) {
 var
 	TOTEM = module.exports = {
 
-	queues: JSDB.queues, 	// pass along
+	queues: SQL.queues, 	// pass along
 		
 	reroute: { //< table -> db.table translators
 	},
@@ -234,7 +233,7 @@ var
 			if (file && !isSwap)
 				switch (ev) {
 					case "change":
-						sqlThread( sql => {
+						SQL.thread( sql => {
 							Trace(ev.toUpperCase()+" "+file, sql);
 
 							FS.stat(path, function (err, stats) {
@@ -301,7 +300,7 @@ var
 	/**
 	@cfg {Object}
 	@member TOTEM
-	Reserved for dataset attributes derived by JSDB.config
+	Reserved for dataset attributes derived by SQL.config
 	*/
 	dsAttrs: {
 	},
@@ -328,10 +327,10 @@ var
 	@cfg {Function}
 	@member TOTEM	
 	@method thread
-	Thread a new sql connection to a callback.  Unless overridden, will default to the JSDB thread method.
+	Thread a new sql connection to a callback.  Unless overridden, will default to the SQL thread method.
 	@param {Function} cb callback(sql connector)
 	 * */
-	thread: sqlThread,
+	thread: SQL.thread,
 		
 	/**
 	@cfg {Object}  
@@ -1435,7 +1434,7 @@ function configService(opts,cb) {
  @method configService
  @param {Object} opts configuration options following the ENUM.Copy() conventions.
  @param {Function} cb callback(err) after service configured
- Configure JSDB, define site context, then protect, connect, start and initialize this server.
+ Configure SQL, define site context, then protect, connect, start and initialize this server.
  */
 
 	function protectService(cb) {
@@ -1507,7 +1506,7 @@ function configService(opts,cb) {
 	Copy(paths.mime.extensions, MIME.types);
 
 	if (mysql = TOTEM.mysql) 
-		JSDB.config({   // establish the db agnosticator 
+		SQL.config({   // establish the db agnosticator 
 			//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server started
 
 			reroute: TOTEM.reroute,  // db translators
@@ -1531,7 +1530,7 @@ function configService(opts,cb) {
 				Trace(err);
 			
 			else
-				JSDB.thread( sql => {
+				SQL.thread( sql => {
 					Trace(`DERIVE ${name}`);
 
 					for (var key in mysql)   // derive server paths
@@ -1544,7 +1543,7 @@ function configService(opts,cb) {
 							});
 						});
 
-					//TOTEM.dsAttrs = JSDB.dsAttrs;
+					//TOTEM.dsAttrs = SQL.dsAttrs;
 					sql.release();
 				});
 		});	
@@ -1613,7 +1612,7 @@ function startService(server,cb) {
 				socket.on("select", req => { 		// Trap connect raised on client "select/join request"
 					
 					Trace(`CONNECTING ${req.client}`);
-					sqlThread( sql => {	
+					SQL.thread( sql => {	
 
 						if (newSession = paths.newSession) 
 							sql.query(newSession,  {
@@ -1716,7 +1715,7 @@ function startService(server,cb) {
 
 	if (TOTEM.riddles) initChallenger();
 		
-	sqlThread( sql => {
+	SQL.thread( sql => {
 		if (CLUSTER.isMaster) initializeService(sql);
 		TOTEM.init(sql);
 		sql.release();
@@ -1852,10 +1851,10 @@ function initializeService(sql) {
 		if ( dog.cycle ) {  // attach sql threaders and setup watchdog interval
 			//Trace("DOGING "+key);
 			dog.trace = dog.name.toUpperCase();
-			dog.forEach = JSDB.forEach;
-			dog.forAll = JSDB.forAll;
-			dog.forFirst = JSDB.forFirst;
-			dog.thread = JSDB.thread;
+			dog.forEach = SQL.forEach;
+			dog.forAll = SQL.forAll;
+			dog.forFirst = SQL.forFirst;
+			dog.thread = SQL.thread;
 			dog.site = TOTEM.site;
 			
 			setInterval( function (args) {
@@ -2319,34 +2318,41 @@ function getFile(client, name, cb) {
 Get (or create if needed) a file with callback cb(fileID, sql) if no errors
 @param {String} client owner of file
 @param {String} name of file to get/make
-@param {Function} cb callback(area, fileID, sql) if no errors
+@param {Function} cb callback(file, sql) if no errors
 */
 
-	JSDB.forFirst( 
-		"FILE", 
-		"SELECT ID FROM app.files WHERE least(?,1) LIMIT 1", {
-			Name: name
-			//Client: client,
-			//Area: area
-		}, 
-		function (file, sql) {
+	SQL.thread( sql => {
+		sql.forFirst( 
+			"FILE", 
+			"SELECT ID FROM app.files WHERE least(?,1) LIMIT 1", {
+				Name: name
+				//Client: client,
+				//Area: area
+			}, 
+			file => {
 
-		if ( file )
-			cb( file.ID, sql );
+				if ( file )
+					cb( file );
 
-		else
-			sql.forAll( 
-				"FILE", 
-				"INSERT INTO app.files SET _State_Added=now(), ?", {
-					Name: name,
-					Client: client
-					// Path: filepath,
-					// Area: area
-				}, 
-				function (info) {
-					cb( info.insertId, sql );
-			});
+				else
+					sql.forAll( 
+						"FILE", 
+						"INSERT INTO app.files SET _State_Added=now(), ?", {
+							Name: name,
+							Client: client
+							// Path: filepath,
+							// Area: area
+						}, 
+						info => {
+							cb({
+								ID: info.insertId, 
+								Name: name,
+								Client: client
+							});
+						});
 
+				sql.release();
+			});		
 	});
 }
 
@@ -2360,34 +2366,33 @@ specified client.  Optional tags are logged with the upload.
 @param {Stream} source stream
 @param {String} sinkPath path to target file
 @param {Object} tags hach of tags to add to file
-@param {Function} cb callback(fileID) if no errors encountered
+@param {Function} cb callback(file) if upload sucessful
 */
 	var
 		parts = sinkPath.split("/"),
 		name = parts.pop() || "";
 	
-	getFile(client, name, function ( fileID, sql ) {
+	getFile(client, name, file => {
 		var 
 			sinkStream = FS.createWriteStream( sinkPath, "utf-8")
 				.on("finish", function() {  // establish sink stream for export pipe
 
 					Trace("UPLOADED FILE");
-					sqlThread( sql => {
-
+					SQL.thread( sql => {
 						sql.query("UPDATE apps.files SET ? WHERE ?", [{
 							_Ingest_Tag: JSON.stringify(tags || null),
 							_State_Notes: "Please go " + "here".tag("/files.view") + " to manage your holdings."
-						}, {ID: fileID} ] );
+						}, {ID: file.ID} ] );
 						
 						sql.release();
 					});
 				})
 				.on("error", err => {
 					Log("totem upload error", err);
-					sqlThread( sql => {
+					SQL.thread( sql => {
 						sql.query("UPDATE app.files SET ? WHERE ?", [ {
 							_State_Notes: "Upload failed: " + err 
-						}, {ID: fileID} ] );
+						}, {ID: file.ID} ] );
 
 						sql.release();
 					});
@@ -2395,7 +2400,7 @@ specified client.  Optional tags are logged with the upload.
 
 		Log("uploading to", sinkPath);
 
-		if (cb) cb(fileID);  // callback if provided
+		if (cb) cb(file.ID);  // callback if provided
 		
 		if (srcStream)   // if a source stream was provided, start pipe to copy source to sink
 			srcStream.pipe(sinkStream);  
@@ -2556,7 +2561,7 @@ Challenge a client with specified profile parameters
 				: profile.Message;
 
 	if (reply && TOTEM.IO) 
-		sqlThread( sql => {
+		SQL.thread( sql => {
 			sql.query("REPLACE INTO openv.riddles SET ?", {
 				Riddle: rid.join(",").replace(/ /g,""),
 				Client: client,
@@ -2726,7 +2731,7 @@ byActionTable, or byAction routers.
 						bytes = sock.bytesWritten;
 						//log = req.log;
 
-					sqlThread( sql => {
+					SQL.thread( sql => {
 
 						sql.query(logMetrics, [ Copy(log, {
 							Delay: secs,
@@ -3108,7 +3113,7 @@ The session is validated and logged, and the client is challenged as necessary.
 		
 		if (sock = req.reqSocket )
 			if (TOTEM.mysql)  // running with database so attach a sql connection 
-				sqlThread( sql => {
+				SQL.thread( sql => {
 					req.sql = sql;
 
 					validateClient(req, err => {
@@ -3601,7 +3606,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 
 				Trace(`UPLOAD ${file.filename} INTO ${area} FOR ${client}`, sql);
 
-				uploadFile( client, srcStream, "./"+area+"/"+file.filename, tags, function (fileID) {
+				uploadFile( client, srcStream, "./"+area+"/"+file.filename, tags, file => {
 
 					if (false)
 					sql.query(	// this might be generating an extra geo=null record for some reason.  works thereafter.
