@@ -1,5 +1,22 @@
-# neo4j
+# neo4j - via standalone tarball
 
+download latest at https://neo4j.com/download-center/
+Extract the contents of the archive, using tar -xf <filename>
+Refer to the top-level extracted directory as: NEO4J_HOME
+Change directory to: $NEO4J_HOME
+Run ./bin/neo4j console
+
+open localhost:7474 in browser
+connect to db with ":server connect" using neo4j/neo4j as user/password (uses
+bolt:7687 to access dbms functions like login, new users, etc)
+will prompt to change default password
+
+CALL dbms.security.createUser("root", "NGA", false)
+to create new root user
+
+test nodejs connect with "node flex.js F1".  Log should reflect good proxy.
+# neo4j - via 
+yum
 First, you'll want our key:
 
 cd /tmp
