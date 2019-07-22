@@ -170,7 +170,7 @@ mysql.)
 #
 
 snap.)
-	zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* engine/ifs/*.cpp engine/ifs/*/*.cpp engine/ifs/*/*.h
+	zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* atomic/ifs/*.cpp atomic/ifs/*/*.cpp atomic/ifs/*/*.h
 	;;
 	
 start.)		# status and start dependent services
