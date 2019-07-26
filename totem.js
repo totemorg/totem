@@ -76,7 +76,7 @@ var
 		
 	/**
 	@cfg {Object}
-	Plugins for tasker engine context
+	Plugins for runTask engine context
 	*/
 	plugins: {
 		console: console,
@@ -97,12 +97,12 @@ var
 		
 	/**
 	@cfg {Function}
-	@method tasker
+	@method runTask
 	@member TOTEM
 
 	Spread one or more tasks to workers residing in a compute node cloud as follows:
 	
-		tasker({  		// example
+		runTask({  		// example
 			keys: "i,j,k",  	// e.g. array indecies
 			i: [0,1,2,3],  		// domain of index i
 			j: [4,8],				// domain of index j
@@ -120,10 +120,10 @@ var
 		);
 	
 	@param {Object} opts tasking options (see example)
-	@param {Function} task tasker of the form ($) => {return msg} where $ contains process info
+	@param {Function} task runTask of the form ($) => {return msg} where $ contains process info
 	@param {Function} cb callback of the form (msg) => {...} to process msg returned by task
 	*/				
-	tasker: function (opts, task, cb) {
+	runTask: function (opts, task, cb) {
 
 		function genDomain(depth, keys, opts, index, lastIndex, cb) {
 			var
@@ -148,7 +148,7 @@ var
 		
 		var 
 			paths = TOTEM.paths,
-			fetcher = TOTEM.fetcher,
+			getSite = TOTEM.getSite,
 			fetches = 0, 
 			node = 0,
 			nodeURL = paths.nodes[node],
@@ -186,12 +186,12 @@ var
 						if ( isArray(task) )
 							task.forEach( task => {		// multiple tasks supplied
 								nodeReq.task = task+"";
-								fetcher( nodeURL, nodeReq, nodeCB);
+								getSite( nodeURL, nodeReq, nodeCB);
 							});
 
 						else {	// post the task request to the node
 							nodeReq.task = task+"";
-							fetcher( nodeURL, nodeReq, nodeCB);
+							getSite( nodeURL, nodeReq, nodeCB);
 						}
 
 					else
@@ -277,7 +277,7 @@ var
 	/**
 	@cfg {Number}
 	@member TOTEM
-	Max files to index by the indexFile() method (0 disables).
+	Max files to index by the getIndex() method (0 disables).
 	*/
 	maxIndex: 1000,						//< max files to index
 
@@ -646,13 +646,13 @@ var
 	@param {Object} post POST parameters or null
 	@param {Function} cb callback(string results)
 	 */
-	fetcher: Copy({
+	getSite: Copy({
 		/**
 		@cfg {Number} [retries=5]
 		@member TOTEM	
-		Maximum number of retries the data fetcher will user
+		Maximum number of retries the data getSite will user
 		*/				
-		retries: 5,			//< Maximum number of retries the data fetcher will user
+		retries: 5,			//< Maximum number of retries the data getSite will user
 
 		/**
 		@cfg {Boolean} [trace=true]
@@ -660,7 +660,7 @@ var
 		Enable/disable tracing of data fetchers
 		*/		
 		trace: true 		//< Enable/disable tracing of data fetchers		
-	}, function fetcher(path, post, cb) {	//< data fetching
+	}, function getSite(path, post, cb) {	//< data fetching
 	
 			function retry(cmd, cb) {  // wget-curl retry logic
 
@@ -1068,7 +1068,7 @@ var
 	@member TOTEM	
  	File indexer
 	*/		
-	indexFile: indexFile,
+	getIndex: getIndex,
 
 	/**
 	@method 
@@ -1091,7 +1091,7 @@ var
 	@member TOTEM	
 	Server toobusy check period in seconds
 	*/		
-	busycycle: 5000,  //< site too-busy check interval [ms] (0 disables)
+	busyTime: 5000,  //< site too-busy check interval [ms] (0 disables)
 			
 	/**
 	@cfg {Function}
@@ -1511,7 +1511,7 @@ function configService(opts,cb) {
 
 			reroute: TOTEM.reroute,  // db translators
 			
-			fetcher: TOTEM.fetcher,
+			getSite: TOTEM.getSite,
 			
 			mysql: Copy({ 
 				opts: {
@@ -1661,8 +1661,8 @@ function startService(server,cb) {
 	// service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
 	// service attacks.  (Alas latest versions do not compile in latest NodeJS.)
 	
-	if (BUSY && TOTEM.busycycle) 
-		BUSY.maxLag(TOTEM.busycycle);
+	if (BUSY && TOTEM.busyTime) 
+		BUSY.maxLag(TOTEM.busyTime);
 	
 	// listening on-routes message
 
@@ -2275,10 +2275,10 @@ error is null if session is admitted by admitClient.
 File cacheing, indexing and uploading
  */
 
-function indexFile(path,cb) {	
+function getIndex(path,cb) {	
 /**
 @private
-@method indexFile
+@method getIndex
 @param {String} path file path
 @param {Function} cb totem response
 */
@@ -3539,7 +3539,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 				}
 				
 			else
-				indexFile( path, files => {  // Send list of files under specified folder
+				getIndex( path, files => {  // Send list of files under specified folder
 
 					files.forEach( (file,n) => {
 						files[n] = file.tag( file );
@@ -4094,9 +4094,9 @@ Testing tasker with database and 3 cores at /test endpoint.
 				test: function (req,res) {
 					res(" here we go");  // endpoint must always repond to its client 
 					if (CLUSTER.isMaster)  // setup tasking examples on on master
-						switch (req.query.opt || 1) {  // test example tasker
+						switch (req.query.opt || 1) {  // test example runTask
 							case 1: 
-								TOTEM.tasker({  // setup tasking for loops over these keys
+								TOTEM.runTask({  // setup tasking for loops over these keys
 									keys: "i,j",
 									i: [1,2,3],
 									j: [4,5]
@@ -4110,7 +4110,7 @@ Testing tasker with database and 3 cores at /test endpoint.
 								break;
 
 							case 2:
-								TOTEM.tasker({
+								TOTEM.runTask({
 									qos: 1,
 									keys: "i,j",
 									i: [1,2,3],
@@ -4129,7 +4129,7 @@ Testing tasker with database and 3 cores at /test endpoint.
 			}
 
 		}, err => {
-			Trace( err || "Testing tasker with database and 3 cores at /test endpoint" );
+			Trace( err || "Testing runTask with database and 3 cores at /test endpoint" );
 		});
 		break;
 		
