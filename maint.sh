@@ -157,9 +157,7 @@ mysql.)
 		;;
 		
 	start.)
-		cd /local/mysql
-		bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" --max_allowed_packet=64M &
-		cd /local/service/debe
+		source ./maint.sh start_mysql
 		;;
 
 	esac
@@ -172,30 +170,42 @@ mysql.)
 snap.)
 	zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* atomic/ifs/*.cpp atomic/ifs/*/*.cpp atomic/ifs/*/*.h
 	;;
-	
-start.)		# status and start dependent services
+
+start_mysql.)
 	if P=$(pgrep mysqld); then
 		echo -e "mysql service running: \n$P"
 	else
 		#rm /var/lib/mysql/mysql.sock      # in case its hanging around
 		cd /local/mysql
-		bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" &
+		bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" --max_allowed_packet=64M &
+		cd /local/service
 	fi
+	;;
 
+start_neo4j.)
+	cd /local/neo4j
+	./bin/neo4j console &
+	;;
+	
+start_cesium.)
 	if P=$(pgrep cesium); then
 		echo -e "cesium service running: \n$P"
 	else
 		#node $BASE/cesium/geonode/geocesium --port 8083 --public &
 		node $BASE/cesium/server --port 8083 --public &
 	fi
+	;;
 
+start_nodered.)
 	if P=$(pgrep node-red); then
 		echo -e "nodered service running: \n$P"
 	else
 		#node $BASE/nodered/node_modules/node-red/red &
 		node $RED/red -s $RED/settings.js &
 	fi
+	;;
 
+start_docker.)
 	# docker
 	# probe to expose /dev/nvidia device drivers to docker
 	/base/nvidia/bin/x86_64/linux/release/deviceQuery
@@ -204,11 +214,16 @@ start.)		# status and start dependent services
 
 	echo "docked containers"
 	docker ps -a
+	;;
 
+startup.)		# status and start dependent services
+	source ./maint.sh start_mysql
+	source ./maint.sh start_cesium
+	source ./maint.sh start_nodered
+	source ./maint.sh start_docker
 	# office products
 	#acroread 										# starts adobe reader for indexing pdfs.  
 	#openoffice4 									# starts openoffice server for indexing docs.  
-
 	;;
 
 restyle.)
