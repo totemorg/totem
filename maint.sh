@@ -116,6 +116,14 @@ edit.) 		# startup edits
 # DB maint
 #
 
+neo4j.)
+
+	case "$2." in
+	start.)
+		cd /local/neo4j
+		source ./bin/neo4j console
+		;;
+		
 mysql.)
 
 	case "$2." in
@@ -209,6 +217,9 @@ start.)		# status and start dependent services
 	#acroread 										# starts adobe reader for indexing pdfs.  
 	#openoffice4 									# starts openoffice server for indexing docs.  
 
+	# neo4j
+	cd /local/neo4j
+	source ./bin/neo4j console	
 	;;
 
 restyle.)
