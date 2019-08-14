@@ -119,11 +119,15 @@ edit.) 		# startup edits
 neo4j.)
 
 	case "$2." in
+	
 	start.)
 		cd /local/neo4j
-		source ./bin/neo4j console
+		./bin/neo4j console &
 		;;
-		
+
+	esac
+	;;
+
 mysql.)
 
 	case "$2." in
@@ -165,7 +169,14 @@ mysql.)
 		;;
 		
 	start.)
-		source ./maint.sh start_mysql
+		if P=$(pgrep mysqld); then
+			echo -e "mysql service running: \n$P"
+		else
+			#rm /var/lib/mysql/mysql.sock      # in case its hanging around
+			cd /local/mysql
+			bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" --max_allowed_packet=64M &
+			cd /local/service
+		fi
 		;;
 
 	esac
@@ -179,22 +190,6 @@ snap.)
 	zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* atomic/ifs/*.cpp atomic/ifs/*/*.cpp atomic/ifs/*/*.h
 	;;
 
-start_mysql.)
-	if P=$(pgrep mysqld); then
-		echo -e "mysql service running: \n$P"
-	else
-		#rm /var/lib/mysql/mysql.sock      # in case its hanging around
-		cd /local/mysql
-		bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" --max_allowed_packet=64M &
-		cd /local/service
-	fi
-	;;
-
-start_neo4j.)
-	cd /local/neo4j
-	./bin/neo4j console &
-	;;
-	
 start_cesium.)
 	if P=$(pgrep cesium); then
 		echo -e "cesium service running: \n$P"
@@ -225,20 +220,15 @@ start_docker.)
 	;;
 
 startup.)		# status and start dependent services
-	source ./maint.sh start_mysql
+	source ./maint.sh mysql start
 	source ./maint.sh start_cesium
 	source ./maint.sh start_nodered
 	source ./maint.sh start_docker
+	source ./maint.sh neo4j start
 	# office products
 	#acroread 										# starts adobe reader for indexing pdfs.  
 	#openoffice4 									# starts openoffice server for indexing docs.  
-<<<<<<< HEAD
 
-	# neo4j
-	cd /local/neo4j
-	source ./bin/neo4j console	
-=======
->>>>>>> 4a90904a6cc2f682bc5d4aec345885a03f240458
 	;;
 
 restyle.)
