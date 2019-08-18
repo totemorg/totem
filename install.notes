@@ -1,3 +1,7 @@
+# install spacy
+python -m pip install -U socketIO-client
+installs: socketIO-client requests six websocket-client idna certifi chardet urllib3
+
 # neo4j - via standalone tarball
 
 download latest at https://neo4j.com/download-center/
