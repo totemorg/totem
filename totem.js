@@ -226,35 +226,41 @@ var
 		
 		mTimes[path] = 0; 
 
-		FS.watch(path, function (ev, file) {  
-			var 
-				isSwap = file.charAt(0) == ".";
+		try {
+			FS.watch(path, function (ev, file) {  
+				var 
+					isSwap = file.charAt(0) == ".";
 
-			if (file && !isSwap)
-				switch (ev) {
-					case "change":
-						SQL.thread( sql => {
-							Trace(ev.toUpperCase()+" "+file, sql);
+				if (file && !isSwap)
+					switch (ev) {
+						case "change":
+							SQL.thread( sql => {
+								Trace(ev.toUpperCase()+" "+file, sql);
 
-							FS.stat(path, function (err, stats) {
+								FS.stat(path, function (err, stats) {
 
-								//Log(path, err, stats);
-								if ( !err && (mTimes[path] != stats.mtime) ) {
-									mTimes[path] = stats.mtime;
-									cb(sql, file, path);
-								}
+									//Log(path, err, stats);
+									if ( !err && (mTimes[path] != stats.mtime) ) {
+										mTimes[path] = stats.mtime;
+										cb(sql, file, path);
+									}
 
+								});
 							});
-						});
 
-						break;
+							break;
 
-					case "delete":
-					case "rename":
-					default:
+						case "delete":
+						case "rename":
+						default:
 
-				}
-		});
+					}
+			});
+		}
+		
+		catch (err) {
+			Log("watch file", err);
+		}
 	},
 		
 	/**
