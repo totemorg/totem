@@ -3741,7 +3741,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 	},
 	
-	function parseJS(query, cb) {
+	function _parseJS(query, cb) {
 	/**
 	@member String
 	Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
@@ -3760,7 +3760,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 	},
 	
-	function parseJSS(ctx, cb) {
+	function parseJS(ctx, cb) {
 	/**
 	@member String
 	Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
