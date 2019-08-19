@@ -3760,6 +3760,25 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 	},
 	
+	function parseJSS(ctx, cb) {
+	/**
+	@member String
+	Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
+	@param {Object} ctx context hash
+	*/
+		try {
+			return VM.runInContext( this+"", VM.createContext(ctx));
+		}
+		catch (err) {
+			//Log("parseJS", this+"", err);
+			if ( cb ) 
+				return cb(err);
+			
+			else
+				return null;
+		}
+	},
+	
 	function parseEMAC(query) {
 	/**
 	@member String
