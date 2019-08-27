@@ -804,8 +804,8 @@ var
 						cb( "" );
 					});
 
-					if ( body )
-						Req.write( JSON.stringify( body ) );  // body parms
+					if ( post )
+						Req.write( JSON.stringify( post ) );  // body parms
 
 					Req.end();
 					break;
