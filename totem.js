@@ -229,7 +229,7 @@ var
 		try {
 			FS.watch(path, function (ev, file) {  
 				var 
-					isSwap = file.charAt(0) == ".";
+					isSwap = file.startsWith(".");
 
 				if (file && !isSwap)
 					switch (ev) {
@@ -709,7 +709,7 @@ var
 			}
 
 			var 
-				url = (path.charAt(0) == "/") ? TOTEM.host.master + path : path,
+				url = path.startsWith("/") ? TOTEM.host.master + path : path,
 				opts = URL.parse(url),
 				protocol = opts.protocol || "",
 				trace = this.trace,
@@ -1111,7 +1111,10 @@ var
 			paths = TOTEM.paths,
 			mysql = paths.mysql;
 		
-		site.pocs = {};
+		site.pocs = {
+			admin: "admin@undefined",
+			overlord: "overlord@undefined"
+		};
 
 		if (pocs = mysql.pocs) 
 			sql.query(pocs)
@@ -1843,9 +1846,7 @@ function initializeService(sql) {
 
 			else
 				files.forEach( file => {
-					var first = file.charAt(0);
-					
-					if (first != "." && first != "_") 
+					if ( !file.startsWith(".") && !file.startsWith("_") )
 						TOTEM.watchFile( area+file, cb );
 				});
 		});	
@@ -2253,7 +2254,11 @@ error is null if session is admitted by admitClient.
 	if (TOTEM.mysql)  // derive client's profile from db
 		sql.query(paths.getProfile, {client: req.client}, function (err,profs) {
 			
-			if ( profile = profs[0] || makeGuest(sql, req.client) ) 
+			if ( profile = profs[0] ) // admit known client
+				admitClient(req, profile, res);
+			
+			else	// admit guest client
+			if ( profile = guestProfile(sql, req.client)  )
 				admitClient(req, profile, res);
 			
 			else
@@ -2262,11 +2267,11 @@ error is null if session is admitted by admitClient.
 		});
 	
 	else 
-	if ( req.encrypted )  // db required on encrypted service
+	if ( req.encrypted )  // db required on https service
 		res( errors.noDB );
 
 	else
-	if ( profile = makeGuest(sql, req.client) )  { // guests allowed
+	if ( profile = guestProfile(sql, req.client) )  { // admit guest on http service
 		//req.socket = null;
 		req.reqSocket = null;   // disable guest session metrics
 		admitClient(req, profile, res);	
@@ -2297,7 +2302,7 @@ function getIndex(path,cb) {
 	*/
 		try {
 			FS.readdirSync(path).forEach( function (file) {
-				if (file.charAt(0) != "_" && file.charAt(file.length-1) != "~") 
+				if ( !file.startsWith("_") && !file.endsWith("~") )
 					cb(file);
 			});
 		}
@@ -2643,7 +2648,7 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 			trap(req);
 			
 	for (var key in body) 		// remap body flags
-		if (key.charAt(0) == prefix) {  
+		if ( key.startsWith(prefix) ) {  
 			flags[key.substr(1)] = body[key];
 			delete body[key];
 		}
@@ -3382,34 +3387,24 @@ Log("TCP server accepting connection on port: " + LOCAL_PORT);
 	
 }
 
-function makeGuest( sql, client ) {  // return a suitable guest profile or null
-	
-	function userID(client) {  // return suitable userID given a client name
-		var 
-			parts = client.split("@"),
-			parts = (parts[0]+".x.x").split("."),
-			userid = (parts[2]=="x") 
-					? parts[1].substr(0,6) + parts[0].charAt(0) 
-					: parts[2].substr(0,6) + parts[0].charAt(0) + parts[1].charAt(0);
-
-		//Log(client,parts,userid);
-		return userid;
-	}
+function guestProfile( sql, client ) {  // return a suitable guest profile or null
 	
 	var paths = TOTEM.paths.mysql;
 	
 	if (profile = TOTEM.guestProfile) {  // allowing guests
-		return Copy({
-			Client: client,
-			User: userID(client),
-			Login: client,
-			Requested: new Date()
-		}, new Object(profile));
+		var
+			guest = Copy({
+				Client: client,
+				User: client.replace(/(.*)\@(.*)/g,(x,L,R) => L ).replace(/\./g,"").substr(0,6),
+				Login: client,
+				Requested: new Date()
+			}, new Object(profile));
 
-		sql.query( paths.newProfile, profile );
+		sql.query( paths.newProfile, guest );
+		return guest;
 	}
 	
-	else
+	else	// blocking guests
 		return null;
 }
 		
