@@ -59,7 +59,7 @@ esac
 # define server domains
 export SERVICE_NAME=Totem1
 export SERVICE_MASTER_URL=http://localhost:8080
-export SERVICE_WORKER_URL=https://localhost:8080
+export SERVICE_WORKER_URL=https://localhost:8081
 #export SERVICE_WORKER_URL=https://localhost:8443
 #export SERVICE_WORKER_URL=http://localhost:8081  # in debug mode
 

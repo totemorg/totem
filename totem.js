@@ -33,8 +33,8 @@ var
 	ENV = process.env,
 	
 	// NodeJS modules
-	CRYPTO = require("crypto"),
-	TLS = require("TLS)",
+	//CRYPTO = require("crypto"),
+	//TLS = require("TLS"),
 				  
 	STREAM = require("stream"), 	// pipe-able streams
 	HTTP = require("http"),						//< http interface
@@ -650,10 +650,11 @@ var
 	@cfg {Function} 
 	@private
 	@member TOTEM	
-	Fetches data from this/other service and forward returned information (as a string, "" if an error occured) to the provided callback.
-	@param {String} path "http || https || curl || curls || wget || wgets || / "-prefixed url
+	Fetches data from service at url and forwards returned information as a string ("" if an error 
+	occured) to the callback cb(info).
+	@param {String} path a "http || https || curl || curls || wget || wgets" prefixed url or "/" prefixed to use host.worker.
 	@param {Object} post POST parameters or null
-	@param {Function} cb callback(string results)
+	@param {Function} cb callback(string info)
 	 */
 	getSite: Copy({
 		/**
@@ -671,6 +672,7 @@ var
 		trace: true 		//< Enable/disable tracing of data fetchers		
 	}, function getSite(path, post, cb) {	//< data fetching
 	
+		
 			function retry(cmd, cb) {  // wget-curl retry logic
 
 				function trycmd(retries, cmd, cb) {
@@ -707,6 +709,10 @@ var
 				});
 
 				Res.on("end", function () {
+					//Log("fetch>>>>>>", body);
+					//Log('fetch statusCode:', Res.statusCode);
+					//Log('fetch headers:', Res.headers['public-key-pins']);	// Print the HPKP values
+
 					cb( body );
 				});
 			}
@@ -716,15 +722,13 @@ var
 			}
 		
 			var 
-				//url = path.startsWith("/") ? TOTEM.host.master + path : path,
-				opts = URL.parse(path),
-				protocol = opts.protocol || "",
+				url = path.startsWith("/") ? TOTEM.host.worker + path : path,
+				opts = URL.parse(url),
 				trace = this.trace,
 				retries = this.retries,
 				cert = TOTEM.cache.certs.fetch;
 
 			opts.rejectUnauthorized = false;
-			opts.agent = false;
 			opts.method = post ? "PUT" : "GET";
 			// opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
 			// opts.cipher = " ... "
@@ -738,10 +742,9 @@ var
 				opts.method = "POST";
 			}*/
 
-			//Log(opts,url);
 			Trace("FETCH "+url);
 
-			switch (protocol) {
+			switch ( opts.protocol || "" ) {
 				case "curl:": 
 					retry( `curl ` + url.replace(protocol, "http:"), (err,out) => {
 						cb( err ? "" : out );
@@ -796,9 +799,8 @@ var
 					break;
 
 				case "https:":
-					opts.pfx = cert.pfx;
-					opts.passphrase = cert._pass;
 					/*
+					// experiment pinning tests
 					opts.checkServerIdentity = function(host, cert) {
 						// Make sure the certificate is issued to the host we are connected to
 						const err = TLS.checkServerIdentity(host, cert);
@@ -841,13 +843,16 @@ var
 
 						};
 					*/
-					
-					opts.agent = false; //new HTTPS.Agent(opts);
+
+					opts.agent = new HTTPS.Agent({
+						//pfx: cert.pfx,	// pfx or use cert-and-key
+						cert: cert.crt,
+						key: cert.key,
+						passphrase: cert._pass
+					});
 					
 					try {
 						var Req = HTTPS.request(opts, getResponse);
-						console.log('statusCode:', res.statusCode);
-						console.log('headers:', res.headers['public-key-pins']);	// Print the HPKP values
 					}
 					catch (err) {
 						Log("FETCH ERROR", err);
@@ -1811,8 +1816,8 @@ function connectService(cb) {
 
 	certs.fetch = { 		// data fetching certs
 		pfx: FS.readFileSync(`${paths.certs}fetch.pfx`),
-		key: "", //FS.readFileSync(`${paths.certs}fetch.key`),
-		crt: "", //FS.readFileSync(`${paths.certs}fetch.crt`),
+		key: FS.readFileSync(`${paths.certs}fetch.key`),
+		crt: FS.readFileSync(`${paths.certs}fetch.crt`),
 		ca: "", //FS.readFileSync(`${paths.certs}fetch.ca`),			
 		_pfx: `${paths.certs}fetch.pfx`,
 		_crt: `${paths.certs}fetch.crt`,
