@@ -1054,6 +1054,7 @@ var
 		
 		home: "",	
 		certs: "./certs/", 
+		sockets: ".", // path to socket.io
 		
 		mysql: {
 			//logThreads: "show session status like 'Thread%'",
@@ -1080,7 +1081,7 @@ var
 			
 		mime: { // default static file areas
 			files: ".", // path to shared files 
-			"socket.io": ".", // path to socket.io
+			//"socket.io": ".", // path to socket.io
 			captcha: ".",  // path to antibot captchas
 			index: { //< paths for allowed file indexers ("" to use url path)
 				files: ""
@@ -2857,6 +2858,10 @@ byActionTable, or byAction routers.
 	//Log([action,path,area,table,type]);
 	
 	if (area)
+		if ( area == paths.sockets ) 
+			res( "hush" );	// remind socket.io to hush-up
+	
+		else
 		if ( route = TOTEM.byArea[area] )
 			followRoute( route, req, res );
 	
