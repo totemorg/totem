@@ -1179,12 +1179,12 @@ var
 
 		if (pocs = mysql.pocs) 
 			sql.query(pocs)
-			.on("result", poc => site.pocs[poc.Role] = poc.Clients || "" )
+			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() )
 			.on("end", () => Log(TRACE, "POCs", site.pocs) );
 
 		if (users = mysql.users) 
 			sql.query(users)
-			.on("result", poc => site.pocs[poc.Role] = poc.Clients || "" )
+			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() )
 			.on("end", () => Log(TRACE, "POCs", site.pocs) );
 		
 		if (guest = mysql.guest)
@@ -1197,7 +1197,7 @@ var
 		if (derive = mysql.derive)  // derive site context vars
 			sql.query(derive, {Nick:TOTEM.host.name})
 			.on("result", opts => {
-				Each(opts, function (key,val) {
+				Each(opts, (key,val) => {
 					key = key.toLowerCase();
 					site[key] = val;
 
@@ -2308,9 +2308,9 @@ error is null if session is admitted by admitClient.
 	
 	req.cert = certs[req.client] = cert ? new Object(cert) : null;
 	req.joined = new Date();
-	req.client = cert 
+	req.client = ( cert 
 		? (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || guest).split(",")[0].replace("email:","")
-		: guest;
+		: guest ).toLowerCase();
 
 	if (TOTEM.mysql)  // derive client's profile from db
 		sql.query(paths.getProfile, {client: req.client}, function (err,profs) {
@@ -2678,11 +2678,17 @@ the req .table, .path, .filearea, .filename, .type and the req .query, .index, .
 		path = req.path = "." + req.node.parseURL(query, index, flags, where),	//  ./area1/area2/.../table.type
 		areas = path.split("/"),						// [".", area1, area2, ...]
 		file = req.file = areas.pop() || "",		// table.type
+		/*
 		parts = file.split("."),							// [table, type, ...]
 		table = req.table = parts[0] || "",	
-		type = req.type = parts[1] || "",
+		type = req.type = parts[1] || "json",
+		*/
+		[x,table,type] = file.match( /(.*)\.(.*)/ ) || ["", file, "json"],
 		area = req.area = areas[1] || "",
 		site = req.site = TOTEM.site;
+
+	req.table = table;
+	req.type = type;
 	
 	var 
 		reqFlags = TOTEM.reqFlags,
@@ -3043,6 +3049,15 @@ The session is validated and logged, and the client is challenged as necessary.
 			paths = TOTEM.paths;
 
 		Res.setHeader("Content-Type", mime);
+/*
+Res.setHeader("Access-Control-Allow-Origin", "*");
+Res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+Res.setHeader("Access-Control-Allow-Headers", '*');
+Res.setHeader("Status", "200 OK");
+Res.setHeader("Vary", "Accept");
+//self.send_header('Content-Type', 'application/octet-stream')
+*/
+		
 		Res.statusCode = 200;
 			
 		if (data)
