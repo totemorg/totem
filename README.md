@@ -70,22 +70,22 @@ Clone [JSDB database agnosticaor](https://github.com/acmesds/jsdb) into your PRO
 
 * openv.profiles Updates when a client arrives  
 * openv.sessions Updates when a client session is established   
-* openv.riddles Builds on config() and updates when a client arrives  
-* openv.apps Read on config() to override config options and to define site context keys  
-* openv.aspreqts Read on config() to define asp requirements  
-* openv.ispreqts Read on config() to define isp requirements  
-* openv.hwreqts Read on config() to define hardware requirements  
+* openv.riddles Builds on config and updates when a client arrives  
+* openv.apps Read on config to override config options and to define site context keys  
+* openv.aspreqts Read on config to define asp requirements  
+* openv.ispreqts Read on config to define isp requirements  
+* openv.hwreqts Read on config to define hardware requirements  
 * app.files Updated/read during file download/upload
 
 ## Usage
 
 Simply require, configure and start TOTEM:
 	
-	var TOTEM = require("totem").config({
+	var TOTEM = require("totem")({
 		key: value, 						// set key
 		"key.key": value, 					// indexed set
 		"key.key.": value					// indexed append
-	}, function (err) {
+	}, err => {
 		console.log( err ? "something evil is lurking" : "look mom - Im running!");
 	});
 
@@ -105,11 +105,11 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 	
 ### T2 - A do-little service
 
-	var TOTEM = require("../totem").config({
+	var TOTEM = require("../totem")({
 		name: "iamwhoiam",
 		faultless: true,
 		cores: 2
-	}, function (err) {
+	}, err => {
 
 		Trace( err || 
 			`I'm a Totem service running in fault protection mode, no database, no UI; but I am running
@@ -119,7 +119,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 
 ### T3 - A service with a database
 
-	var TOTEM = require("../totem").config({
+	var TOTEM = require("../totem")({
 		name: "Totem",
 
 		mysql: {
@@ -127,7 +127,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 			user: ENV.MYSQL_USER,
 			pass: ENV.MYSQL_PASS
 		}
-	},  function (err) {				
+	},  err => {				
 		Trace( err ||
 			`I'm a Totem service with no cores. I do, however, now have a mysql database from which I've derived 
 			my startup options (see the openv.apps table for the Nick="Totem").  
@@ -138,7 +138,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 		
 ### T4 - A service with custom endpoints
 	
-	var TOTEM = require("../totem").config({
+	var TOTEM = require("../totem")({
 		mysql: {
 			host: ENV.MYSQL_HOST,
 			user: ENV.MYSQL_USER,
@@ -167,7 +167,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 				});
 			}
 		}
-	}, function (err) {
+	}, err => {
 		Trace( err || {
 			msg:
 				`As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
@@ -181,7 +181,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 		
 ### T5 - A service with antibot protection
 	
-	var TOTEM = require("../totem").config({
+	var TOTEM = require("../totem")({
 		mysql: {
 			host: ENV.MYSQL_HOST,
 			user: ENV.MYSQL_USER,
@@ -191,7 +191,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 		name: "allmine",
 
 		riddles: 20
-	}, function (err) {
+	}, err => {
 		Trace( err || {
 			msg:
 				`I am Totem client, with no cores but I do have mysql database and I have an anti-bot shieldhttps://totem.west.ile.nga.ic.gov  Anti-bot
@@ -202,7 +202,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 
 ### T6 - A service with tasking endpoints
 
-	var TOTEM = require("../totem").config({  // configure the service for tasking
+	var TOTEM = require("../totem")({  // configure the service for tasking
 		name: "Totem1",  // default parms from openv.apps nick=Totem1
 		faultless: false,	// ex override default 
 		cores: 3,		// ex override default
@@ -249,7 +249,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 			}
 		}
 
-	}, function (err) {
+	}, err => {
 		Trace( err || "Testing tasker with database and 3 cores at /test endpoint" );
 	});
 

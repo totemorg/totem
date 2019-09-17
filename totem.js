@@ -29,7 +29,6 @@
 
 var	
 	// globals
-	TRACE = "T>",
 	ENV = process.env,
 	
 	// NodeJS modules
@@ -59,23 +58,147 @@ var
 	JS2CSV = require('json2csv'),				//< JSON to CSV parser	
 	
 	// Totem modules
-	SQL = require("jsdb");				//< SQL database agnosticator
+	ENUM = require("enum"),
+	DB = require("jsdb");				//< DB database agnosticator
 
-const { Copy,Each,Log,isError,isArray,isString,isFunction,isEmpty } = require("enum");
-	
-function Trace(msg,sql) {
-	TRACE.trace(msg,sql);
-}
+const { Copy,Each,Log,isError,isArray,isString,isFunction,isEmpty } = ENUM;
 
 var
-	TOTEM = module.exports = {
+	TOTEM = module.exports = (opts,cb) => {
+	/**
+	@private
+	@method configService
+	@param {Object} opts configuration options following the ENUM.Copy() conventions.
+	@param {Function} cb callback(err) after service configured
+	Configure and start the service with options and optional callback when started.
+	Configure DB, define site context, then protect, connect, start and initialize this server.
+	 */
 
-	queues: SQL.queues, 	// pass along
+		function protectService(cb) {
+		/**
+		 @private
+		 @method protectService
+		 Create the server's PKI certs (if they dont exist), setup site urls, then connect, start and initialize this service.  
+		 @param {Function} cb callback(err) when protected
+		 */
+
+			var 
+				host = TOTEM.host,
+				name = host.name,
+				paths = TOTEM.paths,
+				sock = TOTEM.sockets ? paths.url.socketio : "", 
+				urls = TOTEM.site.urls = TOTEM.cores   // establish site urls
+					? {  
+						socketio: sock,
+						worker:  host.worker, 
+						master:  host.master
+					}
+					: {
+						socketio: sock,
+						worker:  host.master,
+						master:  host.master
+					},
+				doms = TOTEM.doms = {
+					master: URL.parse(urls.master),
+					worker: URL.parse(urls.worker)
+				},
+				pfx = `${paths.certs}${name}.pfx`,
+				onEncrypted = TOTEM.onEncrypted = {
+					true: doms.master.protocol == "https:",   //  at master 
+					false: doms.worker.protocol == "https:"		// at worker
+				};
+
+			//Log(onEncrypted, doms);
+			Trace( `PROTECTING ${name} USING ${pfx}` );
+
+			if ( onEncrypted )   // derive a pfx cert if protecting an encrypted service
+				FS.access( pfx, FS.F_OK, err => {
+
+					if (err) 
+						createCert(name,host.encrypt, function () {
+							connectService(cb);
+						});				
+
+					else
+						connectService(cb);
+
+				});
+
+			else 
+				connectService(cb);
+		}
+
+		//TOTEM.Extend(opts);
+		if (opts) Copy(opts, TOTEM, ".");
+
+		var
+			name  = TOTEM.host.name,
+			paths = TOTEM.paths,
+			site = TOTEM.site;
+
+		Trace(`CONFIG ${name}`); 
+
+		TOTEM.started = new Date();
+
+		Copy(paths.mime.extensions, MIME.types);
+
+		if (mysql = TOTEM.mysql) 
+			DB({   // establish the db agnosticator 
+				//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server started
+
+				reroute: TOTEM.reroute,  // db translators
+
+				getSite: TOTEM.getSite,
+
+				mysql: Copy({ 
+					opts: {
+						host: mysql.host,   // hostname 
+						user: mysql.user, 	// username
+						password : mysql.pass,				// passphrase
+						connectionLimit : mysql.sessions || 100, 		// max simultaneous connections
+						//acquireTimeout : 10000, 			// connection acquire timer
+						queueLimit: 100,  						// max concections to queue (0=unlimited)
+						waitForConnections: true			// allow connection requests to be queued
+					}
+				}, mysql)
+			}, err => {  // derive server vars and site context vars
+				if (err)
+					Trace(err);
+
+				else
+					DB.thread( sql => {
+						Trace(`DERIVE ${name}`);
+
+						for (var key in mysql)   // derive server paths
+							if (key in paths) paths[key] = mysql[key];
+
+						if (name)	// derive site context
+							TOTEM.setContext(sql, () => {
+								protectService(cb || function (err) {
+									Trace(err || `STARTED ${name} ENCRYPTED`, sql);
+								});
+							});
+
+						//TOTEM.dsAttrs = DB.dsAttrs;
+						sql.release();
+					});
+			});	
+
+		else
+			protectService(cb || function (err) {
+				Trace(err || `STARTED ${name} STANDALONE`);
+			});
+
+		return TOTEM;
+	};
+
+Copy({
+	queues: DB.queues, 	// pass along
 		
 	reroute: { //< table -> db.table translators
 	},
 		
-	init: function () {},
+	//init: function () {},
 		
 	/**
 	@cfg {Object}
@@ -237,7 +360,7 @@ var
 				if (file && !isSwap)
 					switch (ev) {
 						case "change":
-							SQL.thread( sql => {
+							DB.thread( sql => {
 								Trace(ev.toUpperCase()+" "+file, sql);
 
 								FS.stat(path, function (err, stats) {
@@ -309,21 +432,11 @@ var
 	/**
 	@cfg {Object}
 	@member TOTEM
-	Reserved for dataset attributes derived by SQL.config
+	Reserved for dataset attributes derived by DB config
 	*/
 	dsAttrs: {
 	},
 		
-	/**
-	@cfg {Function}
-	@member TOTEM
-	@method config
-	Configure and start the service with options and optional callback when started.
-	@param {Object} opts configuration options following ENUM.Copy() conventions
-	@param {Function} cb callback(err) when service started
-	*/
-	config: configService,	
-	
 	/**
 	@cfg {Function}
 	@member TOTEM	
@@ -336,10 +449,10 @@ var
 	@cfg {Function}
 	@member TOTEM	
 	@method thread
-	Thread a new sql connection to a callback.  Unless overridden, will default to the SQL thread method.
+	Thread a new sql connection to a callback.  Unless overridden, will default to the DB thread method.
 	@param {Function} cb callback(sql connector)
 	 * */
-	thread: SQL.thread,
+	sqlThread: DB.thread,
 		
 	/**
 	@cfg {Object}  
@@ -376,7 +489,7 @@ var
 			{"":1, "_":1, leaf:1, _dc:1}, 		
 
 		//ops: "<>!*$|%/^~",
-		id: "ID", 					//< SQL record id
+		id: "ID", 					//< DB record id
 		prefix: "_",				//< Prefix that indicates a field is a flag
 		trace: "_trace",		//< Echo flags before and after parse	
 		blog: function (recs, req, res) {  //< Default blogger
@@ -517,7 +630,7 @@ var
 	By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
 	*/				
 	byTable: {			  //< by-table routers	
-		riddle: sysValidate,
+		riddle: checkClient,
 		task: sysTask,
 		ping: sysPing
 	},
@@ -1180,12 +1293,12 @@ var
 		if (pocs = mysql.pocs) 
 			sql.query(pocs)
 			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() )
-			.on("end", () => Log(TRACE, "POCs", site.pocs) );
+			.on("end", () => Log("POCs", site.pocs) );
 
 		if (users = mysql.users) 
 			sql.query(users)
 			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() )
-			.on("end", () => Log(TRACE, "POCs", site.pocs) );
+			.on("end", () => Log("POCs", site.pocs) );
 		
 		if (guest = mysql.guest)
 			sql.query(guest)
@@ -1261,371 +1374,16 @@ var
 		certs: {} 		// cache client crts (pfx, crt, and key reserved for server)
 	}
 	
-};
-
-/**
- * @class TOTEM.End_Points.CRUD_Interface
- * Create / insert / post, Read / select / get, Update / put, Delete methods.
- */
-
-function selectDS(req, res) {
-	/**
-	@private
-	@method selectDS
-	@param {Object} req Totem's request
-	@param {Function} res Totem's response callback
-	*/
-	var 
-		sql = req.sql,							// sql connection
-		flags = req.flags,
-		where = req.where,
-		index = flags.index || req.index;
-	
-	sql.runQuery({
-		trace: flags.trace,
-		crud: req.action,
-		from: req.table,
-		db: req.group || "app",
-		pivot: flags.pivot,
-		browse: flags.browse,		
-		where: where,
-		index: index,
-		having: {},
-		client: req.client
-	}, null, function (err,recs) {
-
-		if ( isEmpty(index) )
-			res( err || recs );
-		
-		else
-		if (err) 
-			res( err );
-
-		else {
-			recs.forEach( (rec) => {
-				Each(index, (key) => {
-					try {
-						rec[key] = JSON.parse( rec[key] );
-					}
-					catch (err) {
-					}
-				});
-			});
-			res( recs );
-		}
-	});
-}
-
-function insertDS(req, res) {
-	/**
-	@private
-	@method insertDS
-	@param {Object} req Totem's request
-	@param {Function} res Totem's response callback
-	*/
-	var 
-		sql = req.sql,							// sql connection
-		flags = req.flags,
-		body = req.body,
-		escapeId = MYSQL.escapeId,
-		escape = MYSQL.escape;
-
-	for (var key in body) body[key] = `${escapeId(key)} = ${escape(body[key])}`;
-	
-	sql.runQuery({
-		trace: flags.trace,
-		crud: req.action,
-		from: req.table,
-		db: req.group || "app",
-		set: body,
-		client: req.client
-	}, TOTEM.emitter, function (err,info) {
-
-		//Log(info);
-		res( err || info );
-
-	});
-	
-}
-
-function deleteDS(req, res) {
-	/**
-	@private
-	@method deleteDS
-	@param {Object} req Totem's request
-	@param {Function} res Totem's response callback
-	*/		
-	var 
-		sql = req.sql,							// sql connection
-		flags = req.flags,
-		where = req.where;
-
-	if ( where.ID )
-		sql.runQuery({
-			trace: flags.trace,			
-			crud: req.action,
-			from: req.table,
-			db: req.group || "app",
-			where: where,
-			client: req.client
-		}, TOTEM.emitter, function (err,info) {
-
-			//Log(info);
-			res( err || info );
-
-		});
-	
-	else
-		res( TOTEM.errors.noID );
-	
-}
-
-function updateDS(req, res) {
-	/**
-	@private
-	@method updateDS
-	@param {Object} req Totem's request
-	@param {Function} res Totem's response callback
-	*/	
-	var 
-		sql = req.sql,							// sql connection
-		flags = req.flags,
-		body = req.body,
-		ds = req.table,
-		where = req.where,
-		escapeId = MYSQL.escapeId,
-		escape = MYSQL.escape;
-
-	Log(req.action, where, body);
-	//for (var key in body) body[key] = `${escapeId(key)} = ${escape(body[key])}`;
-	//Log(body);
-	
-	if ( isEmpty(body) )
-		res( TOTEM.errors.noBody );
-	
-	else
-	if ( where.ID )
-		sql.runQuery({
-			trace: flags.trace,
-			crud: req.action,
-			from: req.table,
-			db: req.group || "app",
-			where: where,
-			set: body,
-			client: req.client
-		}, TOTEM.emitter, function (err,info) {
-
-			//Log(info);
-			res( err || info );
-
-			if ( onUpdate = TOTEM.onUpdate ) 
-				onUpdate(sql, ds, body);
-			
-		});
-	
-	else
-		res( TOTEM.errors.noID );
-	
-}
-
-/*
-function selectDS(req,res) {	//< Default virtual table logic is real table
-/ **
- * @private
- * @method deleteDS
- * @param {Object} req Totem's request
- * @param {Function} res Totem's response callback
- * * /
-	if (TOTEM.mysql)
-		req.sql.query("SELECT * FROM ??.??", [req.group,req.table], function (err,data) {
-			res(err || data);
-		});
-	
-	else
-		res(TOTEM.errors.noDB);
-} */
-
-/*
-function updateDS(req,res) {
-/ **
- * @private
- * @method updateDS
- * @param {Object} req Totem's request
- * @param {Function} res Totem's response callback
- * * /
-	//Log(req.table, TOTEM.byTable);
-	
-	if ( route = TOTEM.byTable[req.table] )
-		route(req, res);
-	
-	else
-		res( TOTEM.errors.noRoute );
-} */
-
-/*
-function insertDS(req,res) {
-/ **
- * @private
- * @method insertDS
- * @param {Object} req Totem's request
- * @param {Function} res Totem's response callback
- * * /
-	res( TOTEM.errors.notAllowed );
-} */
-
-/*
-function deleteDS(req,res) {
-/ **
- * @private
- * @method deleteDS
- * @param {Object} req Totem's request
- * @param {Function} res Totem's response callback
- * * /
-	res( TOTEM.errors.notAllowed );
-}  */
-
-function executeDS(req,res) {
-/**
- @private
- @method executeDS
- @param {Object} req Totem's request
- @param {Function} res Totem's response callback
- */
-	res( TOTEM.errors.notAllowed );
-}
+}, TOTEM);
 
 /**
  * @class TOTEM.Utilities.Configuration_and_Startup
  **/
 
-function configService(opts,cb) {
-/**
- @private
- @method configService
- @param {Object} opts configuration options following the ENUM.Copy() conventions.
- @param {Function} cb callback(err) after service configured
- Configure SQL, define site context, then protect, connect, start and initialize this server.
- */
-
-	function protectService(cb) {
-	/**
-	 @private
-	 @method protectService
-	 Create the server's PKI certs (if they dont exist), setup site urls, then connect, start and initialize this service.  
-	 @param {Function} cb callback(err) when protected
-	 */
-
-		var 
-			host = TOTEM.host,
-			name = host.name,
-			paths = TOTEM.paths,
-			sock = TOTEM.sockets ? paths.url.socketio : "", 
-			urls = TOTEM.site.urls = TOTEM.cores   // establish site urls
-				? {  
-					socketio: sock,
-					worker:  host.worker, 
-					master:  host.master
-				}
-				: {
-					socketio: sock,
-					worker:  host.master,
-					master:  host.master
-				},
-			doms = TOTEM.doms = {
-				master: URL.parse(urls.master),
-				worker: URL.parse(urls.worker)
-			},
-			pfx = `${paths.certs}${name}.pfx`,
-			onEncrypted = TOTEM.onEncrypted = {
-				true: doms.master.protocol == "https:",   //  at master 
-				false: doms.worker.protocol == "https:"		// at worker
-			};
-
-		//Log(onEncrypted, doms);
-		Trace( `PROTECTING ${name} USING ${pfx}` );
-
-		if ( onEncrypted )   // derive a pfx cert if protecting an encrypted service
-			FS.access( pfx, FS.F_OK, err => {
-
-				if (err) 
-					createCert(name,host.encrypt, function () {
-						connectService(cb);
-					});				
-
-				else
-					connectService(cb);
-
-			});
-
-		else 
-			connectService(cb);
-	}
-
-	//TOTEM.Extend(opts);
-	if (opts) Copy(opts, TOTEM, ".");
-	
-	var
-		name  = TOTEM.host.name,
-		paths = TOTEM.paths,
-		site = TOTEM.site;
-
-	Trace(`CONFIG ${name}`); 
-	
-	TOTEM.started = new Date();
-
-	Copy(paths.mime.extensions, MIME.types);
-
-	if (mysql = TOTEM.mysql) 
-		SQL.config({   // establish the db agnosticator 
-			//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server started
-
-			reroute: TOTEM.reroute,  // db translators
-			
-			getSite: TOTEM.getSite,
-			
-			mysql: Copy({ 
-				opts: {
-					host: mysql.host,   // hostname 
-					user: mysql.user, 	// username
-					password : mysql.pass,				// passphrase
-					connectionLimit : mysql.sessions || 100, 		// max simultaneous connections
-					//acquireTimeout : 10000, 			// connection acquire timer
-					queueLimit: 100,  						// max concections to queue (0=unlimited)
-					waitForConnections: true			// allow connection requests to be queued
-				}
-			}, mysql)
-		}, err => {  // derive server vars and site context vars
-		
-			if (err)
-				Trace(err);
-			
-			else
-				SQL.thread( sql => {
-					Trace(`DERIVE ${name}`);
-
-					for (var key in mysql)   // derive server paths
-						if (key in paths) paths[key] = mysql[key];
-
-					if (name)	// derive site context
-						TOTEM.setContext(sql, () => {
-							protectService(cb || function (err) {
-								Trace(err || `STARTED ${name} ENCRYPTED`, sql);
-							});
-						});
-
-					//TOTEM.dsAttrs = SQL.dsAttrs;
-					sql.release();
-				});
-		});	
-
-	else
-		protectService(cb || function (err) {
-			Trace(err || `STARTED ${name} STANDALONE`);
-		});
-	
-	return TOTEM;
+function Trace(msg,sql) {
+	"T>".trace(msg,sql);
 }
-
+	
 function startService(server,cb) {
 /**
  @private
@@ -1682,7 +1440,7 @@ function startService(server,cb) {
 				socket.on("select", req => { 		// Trap connect raised on client "select/join request"
 					
 					Trace(`CONNECTING ${req.client}`);
-					SQL.thread( sql => {	
+					DB.thread( sql => {	
 
 						if (newSession = paths.newSession) 
 							sql.query(newSession,  {
@@ -1699,7 +1457,7 @@ function startService(server,cb) {
 								
 								if ( profile = profs[0] )							 // || guestProfile(sql, req.client) 
 									if ( profile.Challenge)
-										challengeClient(req.client, profile);	
+										challengeClient(sql, req.client, profile);	
 								
 							});
 
@@ -1785,9 +1543,9 @@ function startService(server,cb) {
 
 	if (TOTEM.riddles) initChallenger();
 		
-	SQL.thread( sql => {
-		if (CLUSTER.isMaster) initializeService(sql);
-		TOTEM.init(sql);
+	DB.thread( sql => {
+		if (CLUSTER.isMaster) initializeService(sql,cb);
+		//TOTEM.init(sql);
 		sql.release();
 	});
 	
@@ -1872,7 +1630,7 @@ function stopService() {
 		});
 }
 
-function initializeService(sql) {
+function initializeService(sql,cb) {
 /**
  @private
  @method initializeService
@@ -1919,10 +1677,10 @@ function initializeService(sql) {
 		if ( dog.cycle ) {  // attach sql threaders and setup watchdog interval
 			//Trace("DOGING "+key);
 			dog.trace = dog.name.toUpperCase();
-			dog.forEach = SQL.forEach;
-			dog.forAll = SQL.forAll;
-			dog.forFirst = SQL.forFirst;
-			dog.thread = SQL.thread;
+			dog.forEach = DB.forEach;
+			dog.forAll = DB.forAll;
+			dog.forFirst = DB.forFirst;
+			dog.thread = DB.thread;
 			dog.site = TOTEM.site;
 			
 			setInterval( function (args) {
@@ -1936,248 +1694,8 @@ function initializeService(sql) {
 			});
 		}
 	});	
-}
-/**
-@class TOTEM.End_Points.User_Managment
-Legacy endpoints to manage users and their profiles.  Moved to FLEX.
- */
-
-function selectUser(req,res) {
-/**
-@private
-@deprecated
-@method selectUser
-Return user profile information
-@param {Object} req Totem session request 
-@param {Function} res Totem response
- */
 	
-	var sql = req.sql, query = req.query || 1, isHawk = req.cert.isHawk;
-			
-	isHawk = 1;
-	if (isHawk)
-		Trace(sql.query(
-			"SELECT * FROM openv.profiles WHERE least(?,1)", 
-			[ query ], 
-			function (err,users) {
-				res( err || users );
-		}).sql);
-
-	else
-		sql.query(
-			"SELECT * FROM openv.profiles WHERE ? AND least(?,1)", 
-			[ {client:req.client}, req.query ], 
-			function (err,users) {
-				res( err || users );
-		});
-}
-
-function updateUser(req,res) {
-/**
-@private
-@deprecated
-@method updateUser
-Update user profile information
-@param {Object} req Totem session request 
-@param {Function} res Totem response
- */
-			
-	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk; 
-	
-	if (sql.query)
-		if (isHawk) 
-			// sql.context({users:{table:"openv.profile",where:{client:query.user},rec:query}});
-			Trace(sql.query(
-				"UPDATE openv.profiles SET ? WHERE ?", 
-				[ query, {client:query.user} ], 
-				function (err,info) {
-					res( err || TOTEM.errors.failedUser );
-			}).sql);
-		
-		else
-			sql.query(
-				"UPDATE openv.profiles SET ? WHERE ?", 
-				[ query, {client:req.client} ],
-				function (err,info) {
-					
-					res( err || TOTEM.errors.failedUser );
-			});
-	else
-		res( TOTEM.errors.failedUser );
-			
-}
-
-function deleteUser(req,res) {
-/**
-@private
-@deprecated
-@method deleteUser
-Remove user profile.
-@param {Object} req Totem session request 
-@param {Function} res Totem response
- */
-			
-	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk;  
-
-	if (query)
-		if (isHawk)
-			// sql.context({users:{table:"openv.profiles",where:[ {client:query.user}, req.query ],rec:res}});
-			Trace(sql.query(
-				"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
-				[ {client:query.user}, req.query ], 
-				function (err,info) {
-					res( err || TOTEM.errors.failedUser );
-					
-					// res should remove their files and other 
-					// allocated resources
-			}).sql);
-
-		else
-			sql.query(
-				"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
-				[ {client:req.client}, req.query ], 
-				function (err,info) {
-					res( err || TOTEM.errors.failedUser );
-			});
-	else
-		res( TOTEM.errors.failedUser );
-}
-			
-function insertUser (req,res) {
-/**
-@private
-@deprecated
-@method insertUser
-Create user profile, associated certs and distribute info to user
-@param {Object} req Totem session request 
-@param {Function} res Totem response
- */
-			
-	var sql = req.sql, query = req.query || {}, isHawk = req.cert.isHawk, url = TOTEM.paths.url;
-	
-	if (req.cert.isHawk)
-		if (query.pass)
-			sql.query(
-				"SELECT * FROM openv.profiles WHERE Requested AND NOT Approved AND least(?,1)", 
-				query.user ? {User: query.user} : 1 )
-				
-			.on("result", function (user) {
-				var init = Copy({	
-					Approved: new Date(),
-					Banned: url.resetpass
-						? "Please "+"reset your password".tag( url.resetpass )+" to access"
-						: "",
-
-					Client: user.User,					
-					QoS: 0,
-
-					Message:
-
-`Greetings from ${site.Nick.tag(site.urls.master)}-
-
-Admin:
-	Please create an AWS EC2 account for ${owner} using attached cert.
-
-To connect to ${site.Nick} from Windows:
-
-1. Establish gateway using 
-
-		Putty | SSH | Tunnels
-		
-	with the following LocalPort, RemotePort map:
-	
-		5001, ${site.urls.master}:22
-		5100, ${site.urls.master}:3389
-		5200, ${site.urls.master}:8080
-		5910, ${site.urls.master}:5910
-		5555, Dynamic
-	
-	and, for convienience:
-
-		Pageant | Add Keys | your private ppk cert
-
-2. Start a ${site.Nick} session using one of these methods:
-
-	${Putty} | Session | Host Name = localhost:5001 
-	Remote Desktop Connect| Computer = localhost:5100 
-	${FF} | Options | Network | Settings | Manual Proxy | Socks Host = localhost, Port = 5555, Socks = v5 `
-
-.replace(/\n/g,"<br>")					
-					
-				}, Copy(TOTEM.guestProfile,{}) );
-
-				sql.query(
-					"UPDATE openv.profiles SET ? WHERE ?",
-					[ init, {User: user.User} ],
-					err => {
-						
-						createCert(user.User, pass, function () {
-
-							Trace(`CREATE CERT FOR ${user.User}`, sql);
-							
-							CP.exec(
-								`sudo adduser ${user.User} -gid ${user.Group}; sudo id ${user.User}`,
-								function (err,out) {
-									
-									sql.query(
-										"UPDATE openv.profiles SET ? WHERE ?",
-										[ {uid: out}, {User:user.User} ]
-									);
-
-									Log( err 
-										? `Account failed for ${user.User} - require "sudo adduser" to protect this service`
-										: `Account created and group rights assigned to ${user.User}`
-									);
-							});
-						});
-				});
-			})
-			.on("end", function() {
-				res("User creation working");
-			});
-		
-		else
-			res( TOTEM.errors.missingPass );
-
-	else
-		sql.query(
-			"INSERT openv.profiles SET ? WHERE ?", 
-			[ req.query , {User:req.User} ], 
-			function (err,info) {
-				
-				res( err || TOTEM.errors.failedUser );
-		});
-}
-
-function executeUser(req,res) {	
-/**
-@private
-@deprecated
-@method executeUser
-Fetch user profile for processing
-@param {Object} req Totem session request 
-@param {Function} res Totem response
-*/
-	var 
-		access = TOTEM.user,
-		query = req.query;
-		
-	query.user = query.user || query.select || query.delete || query.update || query.insert;
-	
-	if (access) {
-		for (var n in {select:1,delete:1,update:1,insert:1})			
-			if (query[n]) {
-				delete query[n];
-				return access[n](req,res);
-			}
-		
-		if (call = query.call) {
-			delete query.call;
-			return access[call](req,res);
-		}
-	}
-	
-	res( TOTEM.errors.failedUser );
+	if (cb) cb(null);
 }
 
 /**
@@ -2393,7 +1911,7 @@ Get (or create if needed) a file with callback cb(fileID, sql) if no errors
 @param {Function} cb callback(file, sql) if no errors
 */
 
-	SQL.thread( sql => {
+	DB.thread( sql => {
 		sql.forFirst( 
 			"FILE", 
 			"SELECT ID FROM app.files WHERE least(?,1) LIMIT 1", {
@@ -2450,7 +1968,7 @@ specified client.  Optional tags are logged with the upload.
 				.on("finish", function() {  // establish sink stream for export pipe
 
 					Trace("UPLOADED FILE");
-					SQL.thread( sql => {
+					DB.thread( sql => {
 						sql.query("UPDATE apps.files SET ? WHERE ?", [{
 							_Ingest_Tag: JSON.stringify(tags || null),
 							_State_Notes: "Please go " + "here".tag("/files.view") + " to manage your holdings."
@@ -2461,7 +1979,7 @@ specified client.  Optional tags are logged with the upload.
 				})
 				.on("error", err => {
 					Log("totem upload error", err);
-					SQL.thread( sql => {
+					DB.thread( sql => {
 						sql.query("UPDATE app.files SET ? WHERE ?", [ {
 							_State_Notes: "Upload failed: " + err 
 						}, {ID: file.ID} ] );
@@ -2478,183 +1996,6 @@ specified client.  Optional tags are logged with the upload.
 			srcStream.pipe(sinkStream);  
 	});
 
-}
-
-/**
-@class TOTEM.Utilities.Antibot_Protection
-Data theft protection
- */
-
-function sysValidate(req,res) {	//< endpoint to check clients response to a riddle
-/**
-@private
-@method sysValidate
-Endpoint to check clients response req.query to a riddle created by challengeClient.
-@param {Object} req Totem session request
-@param {Function} res Totem response callback
-*/
-	var 
-		query = req.query,
-		sql = req.sql,
-		id = query.ID || query.id;
-		
-	if (id)
-		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:id}, function (err,rids) {
-			
-			if ( rid = rids[0] ) {
-				var 
-					ID = {Client:rid.ID},
-					guess = (query.guess+"").replace(/ /g,"");
-
-				Log([rid,query]);
-
-				if (rid.Riddle == guess) {
-					res( "pass" );
-					sql.query("DELETE FROM openv.riddles WHERE ?",ID);
-				}
-				else
-				if (rid.Attempts > rid.maxAttempts) {
-					res( "fail" );
-					sql.query("DELETE FROM openv.riddles WHERE ?",ID);
-				}
-				else {
-					res( "retry" );
-					sql.query("UPDATE openv.riddles SET Attempts=Attempts+1 WHERE ?",ID);
-				}
-				
-			}
-			
-			else
-				res( TOTEM.errors.noSession  );
-
-		});
-	
-	else
-		res( TOTEM.errors.noID );
-}
-
-function initChallenger() {
-/**
-@private
-@method initChallenger
-Create a set of TOTEM.riddles challenges.
-*/
-	function Riddle(map, ref) {
-		var 
-			Q = {
-				x: Math.floor(Math.random()*10),
-				y: Math.floor(Math.random()*10),
-				z: Math.floor(Math.random()*10),
-				n: Math.floor(Math.random()*map["0"].length)
-			},
-			
-			A = {
-				x: "".tag("img", {src: `${ref}/${Q.x}/${map[Q.x][Q.n]}.jpg`}),
-				y: "".tag("img", {src: `${ref}/${Q.y}/${map[Q.y][Q.n]}.jpg`}),
-				z: "".tag("img", {src: `${ref}/${Q.z}/${map[Q.z][Q.n]}.jpg`})
-			};
-		
-		return {
-			Q: `${A.x} * ${A.y} + ${A.z}`,
-			A: Q.x * Q.y + Q.z
-		};
-	}
-	
-	var 
-		riddle = TOTEM.riddle,
-		N = TOTEM.riddles,
-		map = TOTEM.riddleMap,
-		ref = "/captcha";
-	
-	for (var n=0; n<N; n++) 
-		riddle.push( Riddle(map,ref) );
-}
-
-function makeRiddles(msg,rid,ids) { //< turn msg with riddle markdown into a riddle
-/**
-@private
-@method makeRiddles
-Endpoint to check clients response req.query to a riddle created by challengeClient.
-@param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
-@param {Array} rid List of riddles returned
-@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
-*/
-	var 
-		riddles = TOTEM.riddle,
-		N = riddles.length;
-	
-	if (N)
-		return msg
-			.replace(/\(riddle\)/g, (pat) => {
-				var QA = riddles[Math.floor( Math.random() * N )];
-				rid.push( QA.A );
-				return QA.Q;
-			})
-			.replace(/\(yesno\)/g, (pat) => {
-				var QA = riddles[Math.floor( Math.random() * N )];
-				rid.push( QA.A );
-				return QA.Q;
-			})
-			.replace(/\(ids\)/g, (pat) => {
-				var rtn = [];
-				Each(ids, function (key, val) {
-					rtn.push( key );
-					rid.push( val );
-				});
-				return rtn.join(", ");
-			})
-			.replace(/\(rand\)/g, (pat) => {
-				rid.push( Math.floor(Math.random()*10) );
-				return "random integer between 0 and 9";		
-			})
-			.replace(/\(card\)/g, (pat) => {
-				return "cac card challenge TBD";
-			})
-			.replace(/\(bio\)/g, (pat) => {
-			return "bio challenge TBD";
-		});
-	
-	else
-		return msg;
-}
-
-function challengeClient(client, profile) { //< create a challenge and rely it to the client
-/**
-@private
-@method challengeClient
-Challenge a client with specified profile parameters
-@param {String} client being challenged
-@param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
-*/
-	var 
-		rid = [],
-		reply = (TOTEM.riddleMap && TOTEM.riddles)
-				? makeRiddles( profile.Message, rid, (profile.IDs||"").parseJSON( {} ) )
-				: profile.Message;
-
-	if (reply && TOTEM.IO) 
-		SQL.thread( sql => {
-			sql.query("REPLACE INTO openv.riddles SET ?", {
-				Riddle: rid.join(",").replace(/ /g,""),
-				Client: client,
-				Made: new Date(),
-				Attempts: 0,
-				maxAttempts: profile.Retries
-			}, function (err,info) {
-
-				TOTEM.IO.emit("select", {
-					message: reply,
-					riddles: rid.length,
-					rejected: false,
-					retries: profile.Retries,
-					timeout: profile.Timeout,
-					ID: client, //info.insertId,
-					callback: TOTEM.paths.url.riddler
-				});
-
-				sql.release();
-			});
-		});
 }
 
 /**
@@ -2809,7 +2150,7 @@ byActionTable, or byAction routers.
 						bytes = sock.bytesWritten;
 						//log = req.log;
 
-					SQL.thread( sql => {
+					DB.thread( sql => {
 
 						sql.query(logMetrics, [ Copy(log, {
 							Delay: secs,
@@ -2915,7 +2256,7 @@ byActionTable, or byAction routers.
 }
 
 /**
-@class TOTEM.Utilities.Thread_Processing
+@class TOTEM.Utilities.Session_Threading
 sql and session thread processing
 */
 
@@ -3204,7 +2545,7 @@ Res.setHeader("Vary", "Accept");
 		
 		if (sock = req.reqSocket )
 			if (TOTEM.mysql)  // running with database so attach a sql connection 
-				SQL.thread( sql => {
+				DB.thread( sql => {
 					req.sql = sql;
 
 					validateClient(req, err => {
@@ -3487,7 +2828,602 @@ function guestProfile( sql, client ) {  // return a suitable guest profile or nu
 	else	// blocking guests
 		return null;
 }
+
+/**
+@class TOTEM.Utilities.Antibot_Protection
+Data theft protection
+ */
+
+function checkClient (req,res) {	//< endpoint to check clients response to a riddle
+/**
+@private
+@method checkClient
+Endpoint to check clients response req.query to a riddle created by challengeClient.
+@param {Object} req Totem session request
+@param {Function} res Totem response callback
+*/
+	var 
+		query = req.query,
+		sql = req.sql,
+		id = query.ID || query.id;
+
+	if (id)
+		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:id}, function (err,rids) {
+
+			if ( rid = rids[0] ) {
+				var 
+					ID = {Client:rid.ID},
+					guess = (query.guess+"").replace(/ /g,"");
+
+				Log([rid,query]);
+
+				if (rid.Riddle == guess) {
+					res( "pass" );
+					sql.query("DELETE FROM openv.riddles WHERE ?",ID);
+				}
+				else
+				if (rid.Attempts > rid.maxAttempts) {
+					res( "fail" );
+					sql.query("DELETE FROM openv.riddles WHERE ?",ID);
+				}
+				else {
+					res( "retry" );
+					sql.query("UPDATE openv.riddles SET Attempts=Attempts+1 WHERE ?",ID);
+				}
+
+			}
+
+			else
+				res( TOTEM.errors.noSession  );
+
+		});
+
+	else
+		res( TOTEM.errors.noID );
+}
+
+function initChallenger () {
+/**
+@private
+@method initChallenger
+Create a set of TOTEM.riddles challenges.
+*/
+	function Riddle(map, ref) {
+		var 
+			Q = {
+				x: Math.floor(Math.random()*10),
+				y: Math.floor(Math.random()*10),
+				z: Math.floor(Math.random()*10),
+				n: Math.floor(Math.random()*map["0"].length)
+			},
+
+			A = {
+				x: "".tag("img", {src: `${ref}/${Q.x}/${map[Q.x][Q.n]}.jpg`}),
+				y: "".tag("img", {src: `${ref}/${Q.y}/${map[Q.y][Q.n]}.jpg`}),
+				z: "".tag("img", {src: `${ref}/${Q.z}/${map[Q.z][Q.n]}.jpg`})
+			};
+
+		return {
+			Q: `${A.x} * ${A.y} + ${A.z}`,
+			A: Q.x * Q.y + Q.z
+		};
+	}
+
+	var 
+		riddle = TOTEM.riddle,
+		N = TOTEM.riddles,
+		map = TOTEM.riddleMap,
+		ref = "/captcha";
+
+	for (var n=0; n<N; n++) 
+		riddle.push( Riddle(map,ref) );
+}
+
+function makeRiddles (msg,rid,ids) { //< turn msg with riddle markdown into a riddle
+/**
+@private
+@method makeRiddles
+Endpoint to check clients response req.query to a riddle created by challengeClient.
+@param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
+@param {Array} rid List of riddles returned
+@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
+*/
+	var 
+		riddles = TOTEM.riddle,
+		N = riddles.length;
+
+	if (N)
+		return msg
+			.replace(/\(riddle\)/g, (pat) => {
+				var QA = riddles[Math.floor( Math.random() * N )];
+				rid.push( QA.A );
+				return QA.Q;
+			})
+			.replace(/\(yesno\)/g, (pat) => {
+				var QA = riddles[Math.floor( Math.random() * N )];
+				rid.push( QA.A );
+				return QA.Q;
+			})
+			.replace(/\(ids\)/g, (pat) => {
+				var rtn = [];
+				Each(ids, function (key, val) {
+					rtn.push( key );
+					rid.push( val );
+				});
+				return rtn.join(", ");
+			})
+			.replace(/\(rand\)/g, (pat) => {
+				rid.push( Math.floor(Math.random()*10) );
+				return "random integer between 0 and 9";		
+			})
+			.replace(/\(card\)/g, (pat) => {
+				return "cac card challenge TBD";
+			})
+			.replace(/\(bio\)/g, (pat) => {
+			return "bio challenge TBD";
+		});
+
+	else
+		return msg;
+}
+
+function challengeClient (sql, client, profile) { //< create a challenge and rely it to the client
+/**
+@private
+@method challengeClient
+Challenge a client with specified profile parameters
+@param {String} client being challenged
+@param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
+*/
+	var 
+		rid = [],
+		reply = (TOTEM.riddleMap && TOTEM.riddles)
+				? makeRiddles( profile.Message, rid, (profile.IDs||"").parseJSON( {} ) )
+				: profile.Message;
+
+	if (reply && TOTEM.IO) 
+		DB.thread( sql => {
+			sql.query("REPLACE INTO openv.riddles SET ?", {
+				Riddle: rid.join(",").replace(/ /g,""),
+				Client: client,
+				Made: new Date(),
+				Attempts: 0,
+				maxAttempts: profile.Retries
+			}, function (err,info) {
+
+				TOTEM.IO.emit("select", {
+					message: reply,
+					riddles: rid.length,
+					rejected: false,
+					retries: profile.Retries,
+					timeout: profile.Timeout,
+					ID: client, //info.insertId,
+					callback: TOTEM.paths.url.riddler
+				});
+
+				sql.release();
+			});
+		});
+}
+
+/**
+ * @class TOTEM.End_Points.CRUD_Interface
+ * Create / insert / post, Read / select / get, Update / put, Delete methods.
+ */
+
+function selectDS(req, res) {
+	/**
+	@private
+	@method selectDS
+	@param {Object} req Totem's request
+	@param {Function} res Totem's response callback
+	*/
+	var 
+		sql = req.sql,							// sql connection
+		flags = req.flags,
+		where = req.where,
+		index = flags.index || req.index;
+	
+	sql.runQuery({
+		trace: flags.trace,
+		crud: req.action,
+		from: req.table,
+		db: req.group || "app",
+		pivot: flags.pivot,
+		browse: flags.browse,		
+		where: where,
+		index: index,
+		having: {},
+		client: req.client
+	}, null, function (err,recs) {
+
+		if ( isEmpty(index) )
+			res( err || recs );
 		
+		else
+		if (err) 
+			res( err );
+
+		else {
+			recs.forEach( (rec) => {
+				Each(index, (key) => {
+					try {
+						rec[key] = JSON.parse( rec[key] );
+					}
+					catch (err) {
+					}
+				});
+			});
+			res( recs );
+		}
+	});
+}
+
+function insertDS(req, res) {
+	/**
+	@private
+	@method insertDS
+	@param {Object} req Totem's request
+	@param {Function} res Totem's response callback
+	*/
+	var 
+		sql = req.sql,							// sql connection
+		flags = req.flags,
+		body = req.body,
+		escapeId = MYSQL.escapeId,
+		escape = MYSQL.escape;
+
+	for (var key in body) body[key] = `${escapeId(key)} = ${escape(body[key])}`;
+	
+	sql.runQuery({
+		trace: flags.trace,
+		crud: req.action,
+		from: req.table,
+		db: req.group || "app",
+		set: body,
+		client: req.client
+	}, TOTEM.emitter, function (err,info) {
+
+		//Log(info);
+		res( err || info );
+
+	});
+	
+}
+
+function deleteDS(req, res) {
+	/**
+	@private
+	@method deleteDS
+	@param {Object} req Totem's request
+	@param {Function} res Totem's response callback
+	*/		
+	var 
+		sql = req.sql,							// sql connection
+		flags = req.flags,
+		where = req.where;
+
+	if ( where.ID )
+		sql.runQuery({
+			trace: flags.trace,			
+			crud: req.action,
+			from: req.table,
+			db: req.group || "app",
+			where: where,
+			client: req.client
+		}, TOTEM.emitter, function (err,info) {
+
+			//Log(info);
+			res( err || info );
+
+		});
+	
+	else
+		res( TOTEM.errors.noID );
+	
+}
+
+function updateDS(req, res) {
+	/**
+	@private
+	@method updateDS
+	@param {Object} req Totem's request
+	@param {Function} res Totem's response callback
+	*/	
+	var 
+		sql = req.sql,							// sql connection
+		flags = req.flags,
+		body = req.body,
+		ds = req.table,
+		where = req.where,
+		escapeId = MYSQL.escapeId,
+		escape = MYSQL.escape;
+
+	Log(req.action, where, body);
+	//for (var key in body) body[key] = `${escapeId(key)} = ${escape(body[key])}`;
+	//Log(body);
+	
+	if ( isEmpty(body) )
+		res( TOTEM.errors.noBody );
+	
+	else
+	if ( where.ID )
+		sql.runQuery({
+			trace: flags.trace,
+			crud: req.action,
+			from: req.table,
+			db: req.group || "app",
+			where: where,
+			set: body,
+			client: req.client
+		}, TOTEM.emitter, function (err,info) {
+
+			//Log(info);
+			res( err || info );
+
+			if ( onUpdate = TOTEM.onUpdate ) 
+				onUpdate(sql, ds, body);
+			
+		});
+	
+	else
+		res( TOTEM.errors.noID );
+	
+}
+
+function executeDS(req,res) {
+/**
+ @private
+ @method executeDS
+ @param {Object} req Totem's request
+ @param {Function} res Totem's response callback
+ */
+	res( TOTEM.errors.notAllowed );
+}
+
+/**
+@class TOTEM.End_Points.User_Managment
+Legacy endpoints to manage users and their profiles.  Moved to FLEX.
+ */
+
+function selectUser(req,res) {
+/**
+@private
+@deprecated
+@method selectUser
+Return user profile information
+@param {Object} req Totem session request 
+@param {Function} res Totem response
+ */
+	
+	var sql = req.sql, query = req.query || 1, isHawk = req.cert.isHawk;
+			
+	isHawk = 1;
+	if (isHawk)
+		Trace(sql.query(
+			"SELECT * FROM openv.profiles WHERE least(?,1)", 
+			[ query ], 
+			function (err,users) {
+				res( err || users );
+		}).sql);
+
+	else
+		sql.query(
+			"SELECT * FROM openv.profiles WHERE ? AND least(?,1)", 
+			[ {client:req.client}, req.query ], 
+			function (err,users) {
+				res( err || users );
+		});
+}
+
+function updateUser(req,res) {
+/**
+@private
+@deprecated
+@method updateUser
+Update user profile information
+@param {Object} req Totem session request 
+@param {Function} res Totem response
+ */
+			
+	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk; 
+	
+	if (sql.query)
+		if (isHawk) 
+			// sql.context({users:{table:"openv.profile",where:{client:query.user},rec:query}});
+			Trace(sql.query(
+				"UPDATE openv.profiles SET ? WHERE ?", 
+				[ query, {client:query.user} ], 
+				function (err,info) {
+					res( err || TOTEM.errors.failedUser );
+			}).sql);
+		
+		else
+			sql.query(
+				"UPDATE openv.profiles SET ? WHERE ?", 
+				[ query, {client:req.client} ],
+				function (err,info) {
+					
+					res( err || TOTEM.errors.failedUser );
+			});
+	else
+		res( TOTEM.errors.failedUser );
+			
+}
+
+function deleteUser(req,res) {
+/**
+@private
+@deprecated
+@method deleteUser
+Remove user profile.
+@param {Object} req Totem session request 
+@param {Function} res Totem response
+ */
+			
+	var sql = req.sql, query = req.query, isHawk = req.cert.isHawk;  
+
+	if (query)
+		if (isHawk)
+			// sql.context({users:{table:"openv.profiles",where:[ {client:query.user}, req.query ],rec:res}});
+			Trace(sql.query(
+				"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
+				[ {client:query.user}, req.query ], 
+				function (err,info) {
+					res( err || TOTEM.errors.failedUser );
+					
+					// res should remove their files and other 
+					// allocated resources
+			}).sql);
+
+		else
+			sql.query(
+				"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
+				[ {client:req.client}, req.query ], 
+				function (err,info) {
+					res( err || TOTEM.errors.failedUser );
+			});
+	else
+		res( TOTEM.errors.failedUser );
+}
+			
+function insertUser (req,res) {
+/**
+@private
+@deprecated
+@method insertUser
+Create user profile, associated certs and distribute info to user
+@param {Object} req Totem session request 
+@param {Function} res Totem response
+ */
+			
+	var sql = req.sql, query = req.query || {}, isHawk = req.cert.isHawk, url = TOTEM.paths.url;
+	
+	if (req.cert.isHawk)
+		if (query.pass)
+			sql.query(
+				"SELECT * FROM openv.profiles WHERE Requested AND NOT Approved AND least(?,1)", 
+				query.user ? {User: query.user} : 1 )
+				
+			.on("result", function (user) {
+				var init = Copy({	
+					Approved: new Date(),
+					Banned: url.resetpass
+						? "Please "+"reset your password".tag( url.resetpass )+" to access"
+						: "",
+
+					Client: user.User,					
+					QoS: 0,
+
+					Message:
+
+`Greetings from ${site.Nick.tag(site.urls.master)}-
+
+Admin:
+	Please create an AWS EC2 account for ${owner} using attached cert.
+
+To connect to ${site.Nick} from Windows:
+
+1. Establish gateway using 
+
+		Putty | SSH | Tunnels
+		
+	with the following LocalPort, RemotePort map:
+	
+		5001, ${site.urls.master}:22
+		5100, ${site.urls.master}:3389
+		5200, ${site.urls.master}:8080
+		5910, ${site.urls.master}:5910
+		5555, Dynamic
+	
+	and, for convienience:
+
+		Pageant | Add Keys | your private ppk cert
+
+2. Start a ${site.Nick} session using one of these methods:
+
+	${Putty} | Session | Host Name = localhost:5001 
+	Remote Desktop Connect| Computer = localhost:5100 
+	${FF} | Options | Network | Settings | Manual Proxy | Socks Host = localhost, Port = 5555, Socks = v5 `
+
+.replace(/\n/g,"<br>")					
+					
+				}, Copy(TOTEM.guestProfile,{}) );
+
+				sql.query(
+					"UPDATE openv.profiles SET ? WHERE ?",
+					[ init, {User: user.User} ],
+					err => {
+						
+						createCert(user.User, pass, function () {
+
+							Trace(`CREATE CERT FOR ${user.User}`, sql);
+							
+							CP.exec(
+								`sudo adduser ${user.User} -gid ${user.Group}; sudo id ${user.User}`,
+								function (err,out) {
+									
+									sql.query(
+										"UPDATE openv.profiles SET ? WHERE ?",
+										[ {uid: out}, {User:user.User} ]
+									);
+
+									Log( err 
+										? `Account failed for ${user.User} - require "sudo adduser" to protect this service`
+										: `Account created and group rights assigned to ${user.User}`
+									);
+							});
+						});
+				});
+			})
+			.on("end", function() {
+				res("User creation working");
+			});
+		
+		else
+			res( TOTEM.errors.missingPass );
+
+	else
+		sql.query(
+			"INSERT openv.profiles SET ? WHERE ?", 
+			[ req.query , {User:req.User} ], 
+			function (err,info) {
+				
+				res( err || TOTEM.errors.failedUser );
+		});
+}
+
+function executeUser(req,res) {	
+/**
+@private
+@deprecated
+@method executeUser
+Fetch user profile for processing
+@param {Object} req Totem session request 
+@param {Function} res Totem response
+*/
+	var 
+		access = TOTEM.user,
+		query = req.query;
+		
+	query.user = query.user || query.select || query.delete || query.update || query.insert;
+	
+	if (access) {
+		for (var n in {select:1,delete:1,update:1,insert:1})			
+			if (query[n]) {
+				delete query[n];
+				return access[n](req,res);
+			}
+		
+		if (call = query.call) {
+			delete query.call;
+			return access[call](req,res);
+		}
+	}
+	
+	res( TOTEM.errors.failedUser );
+}
+
 /*
 function simThread(sock) { 
 	//Req.setSocketKeepAlive(true);
@@ -3513,6 +3449,7 @@ function simThread(sock) {
 /**
 @class TOTEM.End_Points.System
 */
+
 function sysTask(req,res) {  //< task sharding
 /**
 @method sysTask
@@ -4061,23 +3998,23 @@ switch (process.argv[2]) { //< unit tests
 	@method T1
 	Create simple service but dont start it.
 	*/
-		var TOTEM = require("../totem");
+		var T = TOTEM;
 
 		Trace({
 			msg: "Im simply a Totem interface so Im not even running as a service", 
-			default_fetcher_endpts: TOTEM.byTable,
-			default_protect_mode: TOTEM.faultless,
-			default_cores_used: TOTEM.cores
+			default_fetcher_endpts: T.byTable,
+			default_protect_mode: T.faultless,
+			default_cores_used: T.cores
 		});
 		break;
 
 	case "T2": 
 	/**
 	@method T2
-Totem service running in fault protection mode, no database, no UI; but I am running
-with 2 workers and the default endpoint routes.
+	Totem service running in fault protection mode, no database, no UI; but I am running
+	with 2 workers and the default endpoint routes.
 	*/
-		var TOTEM = require("../totem").config({
+		var T = TOTEM({
 			mysql: null,
 			faultless: true,
 			cores: 2
@@ -4093,13 +4030,13 @@ with 2 workers and the default endpoint routes` );
 	case "T3": 
 	/**
 	@method T3
-I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
-my startup options (see the openv.apps table for the Nick="Totem1").  
-No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
-these files. 
+	I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
+	my startup options (see the openv.apps table for the Nick="Totem1").  
+	No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
+	these files. 
 	*/
 
-		var TOTEM = require("../totem").config({
+		var T = TOTEM({
 		},  err => {
 			Trace( err ||
 `I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
@@ -4113,14 +4050,14 @@ these files. `
 	case "T4": 
 	/**
 	@method T4
-As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
-and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
-aka core), Im running unprotected, and have a mysql database.  
-[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
-associated public NICK.crt and private NICK.key certs it creates.
+	As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
+	and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
+	aka core), Im running unprotected, and have a mysql database.  
+	[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
+	associated public NICK.crt and private NICK.key certs it creates.
 	*/
 		
-		var TOTEM = require("../totem").config({
+		var T = TOTEM({
 			byTable: {
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 					res( "123" );
@@ -4152,7 +4089,7 @@ and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only
 aka core), Im running unprotected, and have a mysql database.  
 [*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
 associated public NICK.crt and private NICK.key certs it creates.`,
-				my_endpoints: TOTEM.byTable
+				my_endpoints: T.byTable
 			});
 		});
 		break;
@@ -4160,18 +4097,18 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 	case "T5": 
 	/**
 	@method T5
-I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
-shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.
+	I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
+	shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.
 	*/
 		
-		var TOTEM = require("../totem").config({
+		var T = TOTEM({
 			riddles: 20
 		}, err => {
 			Trace( err || {
 				msg:
 `I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
 shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.`, 
-				mysql_derived_parms: TOTEM.site
+				mysql_derived_parms: T.site
 			});
 		});
 		break;
@@ -4179,10 +4116,10 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 	case "T6":
 	/**
 	@method T6
-Testing tasker with database and 3 cores at /test endpoint.
+	Testing tasker with database and 3 cores at /test endpoint.
 	*/
 		
-		var TOTEM = require("../totem").config({
+		var T = TOTEM({
 			faultless: false,	// ex override default 
 			cores: 3,		// ex override default
 			mysql: { 		// provide a database
@@ -4196,7 +4133,7 @@ Testing tasker with database and 3 cores at /test endpoint.
 					if (CLUSTER.isMaster)  // setup tasking examples on on master
 						switch (req.query.opt || 1) {  // test example runTask
 							case 1: 
-								TOTEM.runTask({  // setup tasking for loops over these keys
+								T.runTask({  // setup tasking for loops over these keys
 									keys: "i,j",
 									i: [1,2,3],
 									j: [4,5]
@@ -4210,7 +4147,7 @@ Testing tasker with database and 3 cores at /test endpoint.
 								break;
 
 							case 2:
-								TOTEM.runTask({
+								T.runTask({
 									qos: 1,
 									keys: "i,j",
 									i: [1,2,3],
@@ -4238,13 +4175,12 @@ Testing tasker with database and 3 cores at /test endpoint.
 	@method T7
 	*/
 		
-		var TOTEM = require("../totem").config({
+		var T = TOTEM({
 		},  err => {				
 			Trace( err || "db maintenance" );
 
 			if (CLUSTER.isMaster)
-			TOTEM.thread( sql => {
-
+			T.sqlThread( sql => {
 				switch (process.argv[3]) {
 					case 1: 
 						sql.query( "select voxels.id as voxelID, chips.id as chipID from app.voxels left join app.chips on voxels.Ring = chips.Ring", function (err,recs) {
@@ -4337,7 +4273,6 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 						});
 						break;	
 				}
-
 			});
 		});		
 		break;
