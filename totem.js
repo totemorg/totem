@@ -174,9 +174,7 @@ var
 
 						if (name)	// derive site context
 							TOTEM.setContext(sql, () => {
-								protectService(cb || function (err) {
-									Trace(err || `STARTED ${name} ENCRYPTED`, sql);
-								});
+								protectService(cb);
 							});
 
 						//TOTEM.dsAttrs = DB.dsAttrs;
@@ -185,14 +183,16 @@ var
 			});	
 
 		else
-			protectService(cb || function (err) {
-				Trace(err || `STARTED ${name} STANDALONE`);
-			});
+			protectService(cb);
 
 		return TOTEM;
 	};
 
 Copy({
+	initialize: () => {
+		Trace( "STARTED" );
+	},
+	
 	queues: DB.queues, 	// pass along
 		
 	reroute: { //< table -> db.table translators
@@ -202,13 +202,13 @@ Copy({
 		
 	/**
 	@cfg {Object}
-	Plugins for runTask engine context
+	Common methods for task sharding
 	*/
-	plugins: {
+	tasking: {
 		console: console,
 		log: console.log
 	},
-		
+	
 	/**
 	@cfg {Boolean}
 	@member TOTEM
@@ -1068,7 +1068,7 @@ Copy({
 					admit( (log) => {
 						req.log = log ? new Object(log) : null;
 						req.profile = new Object( profile );
-						req.group = profile.Group;
+						//req.group = profile.Group;
 						cb( null );
 					});
 			}
@@ -1084,7 +1084,7 @@ Copy({
 			admit( (log) => {
 				req.log = log ? new Object(log) : null;
 				req.profile = new Object( profile );
-				req.group = profile.Group;
+				//req.group = profile.Group;
 				cb( null );
 			});
 	},
@@ -1156,7 +1156,7 @@ Copy({
 		
 		url: {
 			//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
-			//default: "/home",
+			//default: "/gohome",
 			//resetpass: "/resetpass",
 			wget: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 			curl: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
@@ -1165,7 +1165,7 @@ Copy({
 			riddler: "/riddle"
 		},
 		
-		home: "",	
+		gohome: "",	
 		certs: "./certs/", 
 		sockets: ".", // path to socket.io
 		
@@ -1474,17 +1474,12 @@ function startService(server,cb) {
 			IO.on("disconnection", socket => {
 				Log(">>DISCONNECT CLIENT");
 			});	*/
-			
-			cb(null);
 		}
 		
 		else 
-			return cb( TOTEM.errors.noSockets );	
+			return TOTEM.initialize( TOTEM.errors.noSockets );	
 	}
 	
-	else
-		cb(null);
-		
 	// The BUSY interface provides a mean to limit client connections that would lock the 
 	// service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
 	// service attacks.  (Alas latest versions do not compile in latest NodeJS.)
@@ -1544,8 +1539,7 @@ function startService(server,cb) {
 	if (TOTEM.riddles) initChallenger();
 		
 	DB.thread( sql => {
-		if (CLUSTER.isMaster) initializeService(sql,cb);
-		//TOTEM.init(sql);
+		if (CLUSTER.isMaster) initializeService(sql, cb );
 		sql.release();
 	});
 	
@@ -1695,7 +1689,8 @@ function initializeService(sql,cb) {
 		}
 	});	
 	
-	if (cb) cb(null);
+	TOTEM.initialize();
+	if (cb) cb( null );
 }
 
 /**
@@ -3023,23 +3018,23 @@ function selectDS(req, res) {
 		flags = req.flags,
 		where = req.where,
 		index = flags.index || req.index;
-	
+
 	sql.runQuery({
 		trace: flags.trace,
 		crud: req.action,
 		from: req.table,
-		db: req.group || "app",
+		//db: req.group || "app",
 		pivot: flags.pivot,
 		browse: flags.browse,		
 		where: where,
 		index: index,
 		having: {},
 		client: req.client
-	}, null, function (err,recs) {
+	}, null, (err,recs) => {
 
 		if ( isEmpty(index) )
 			res( err || recs );
-		
+
 		else
 		if (err) 
 			res( err );
@@ -3079,10 +3074,10 @@ function insertDS(req, res) {
 		trace: flags.trace,
 		crud: req.action,
 		from: req.table,
-		db: req.group || "app",
+		//db: req.group || "app",
 		set: body,
 		client: req.client
-	}, TOTEM.emitter, function (err,info) {
+	}, TOTEM.emitter, (err,info) => {
 
 		//Log(info);
 		res( err || info );
@@ -3108,10 +3103,10 @@ function deleteDS(req, res) {
 			trace: flags.trace,			
 			crud: req.action,
 			from: req.table,
-			db: req.group || "app",
+			//db: req.group || "app",
 			where: where,
 			client: req.client
-		}, TOTEM.emitter, function (err,info) {
+		}, TOTEM.emitter, (err,info) => {
 
 			//Log(info);
 			res( err || info );
@@ -3152,11 +3147,11 @@ function updateDS(req, res) {
 			trace: flags.trace,
 			crud: req.action,
 			from: req.table,
-			db: req.group || "app",
+			//db: req.group || "app",
 			where: where,
 			set: body,
 			client: req.client
-		}, TOTEM.emitter, function (err,info) {
+		}, TOTEM.emitter, (err,info) => {
 
 			//Log(info);
 			res( err || info );
@@ -3182,8 +3177,8 @@ function executeDS(req,res) {
 }
 
 /**
-@class TOTEM.End_Points.User_Managment
-Legacy endpoints to manage users and their profiles.  Moved to FLEX.
+ * @class TOTEM.End_Points.Users_Interface
+ * Create user maint end points
  */
 
 function selectUser(req,res) {
@@ -3234,7 +3229,7 @@ Update user profile information
 			Trace(sql.query(
 				"UPDATE openv.profiles SET ? WHERE ?", 
 				[ query, {client:query.user} ], 
-				function (err,info) {
+				(err,info) => {
 					res( err || TOTEM.errors.failedUser );
 			}).sql);
 		
@@ -3242,7 +3237,7 @@ Update user profile information
 			sql.query(
 				"UPDATE openv.profiles SET ? WHERE ?", 
 				[ query, {client:req.client} ],
-				function (err,info) {
+				(err,info) => {
 					
 					res( err || TOTEM.errors.failedUser );
 			});
@@ -3269,7 +3264,7 @@ Remove user profile.
 			Trace(sql.query(
 				"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
 				[ {client:query.user}, req.query ], 
-				function (err,info) {
+				(err,info) => {
 					res( err || TOTEM.errors.failedUser );
 					
 					// res should remove their files and other 
@@ -3280,7 +3275,7 @@ Remove user profile.
 			sql.query(
 				"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
 				[ {client:req.client}, req.query ], 
-				function (err,info) {
+				(err,info) => {
 					res( err || TOTEM.errors.failedUser );
 			});
 	else
@@ -3387,7 +3382,7 @@ To connect to ${site.Nick} from Windows:
 		sql.query(
 			"INSERT openv.profiles SET ? WHERE ?", 
 			[ req.query , {User:req.User} ], 
-			function (err,info) {
+			(err,info) => {
 				
 				res( err || TOTEM.errors.failedUser );
 		});
@@ -3449,7 +3444,6 @@ function simThread(sock) {
 /**
 @class TOTEM.End_Points.System
 */
-
 function sysTask(req,res) {  //< task sharding
 /**
 @method sysTask
@@ -3468,8 +3462,7 @@ Totem (req,res)-endpoint to shard a task to totem compute nodes.
 			worker: CLUSTER.isWorker ? CLUSTER.worker.id : 0,
 			node: process.env.HOSTNAME
 		}),
-		engine = `(${cb})( (${task})(${$}) )`,
-		plugins = TOTEM.plugins;
+		engine = `(${cb})( (${task})(${$}) )`;
 
 	res( "ok" );
 
@@ -3477,7 +3470,7 @@ Totem (req,res)-endpoint to shard a task to totem compute nodes.
 		dom.forEach( function (index) {
 
 			function runEngine(idx) {
-				VM.runInContext( engine, VM.createContext( Copy(plugins, idx) ));
+				VM.runInContext( engine, VM.createContext( Copy( TOTEM.tasking || {}, idx) ));
 			}
 
 			if (body.qos) 
@@ -3513,7 +3506,8 @@ Totem (req,res)-endpoint to test client connection
 @param {Object} req Totem request
 @param {Function} res Totem response
 */
-	res("hello " + req.client + " " + TOTEM.paths.home );
+	req.type = "html";
+	res("hello " + req.client + " " + TOTEM.paths.gohome );
 }
 
 function sysFile(req, res) {
@@ -3628,9 +3622,9 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 
 					if (false)
 					sql.query(	// this might be generating an extra geo=null record for some reason.  works thereafter.
-						   "INSERT INTO ??.files SET ?,Location=GeomFromText(?) "
+						   "INSERT INTO app.files SET ?,Location=GeomFromText(?) "
 						+ "ON DUPLICATE KEY UPDATE Client=?,Added=now(),Revs=Revs+1,Location=GeomFromText(?)", [ 
-							req.group, {
+							{
 									Client: req.client,
 									Name: file.filename,
 									Area: area,
@@ -4077,7 +4071,7 @@ these files. `
 					Trace({
 						msg: `Like dothis, but needs an ?x=value query`, 
 						or_query: req.query,
-						or_user: [req.client,req.group]
+						or_user: req.client
 					});
 				}
 			}
