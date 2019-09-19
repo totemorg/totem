@@ -835,7 +835,7 @@ Copy({
 			}
 		
 			var 
-				url = path.startsWith("/") ? TOTEM.host.worker + path : path,
+				url = path.startsWith("/") ? TOTEM.host.master + path : path,
 				opts = URL.parse(url),
 				trace = this.trace,
 				retries = this.retries,
