@@ -63,72 +63,17 @@ var
 
 const { Copy,Each,Log,isError,isArray,isString,isFunction,isEmpty } = ENUM;
 
-var
-	TOTEM = module.exports = (opts,cb) => {
-	/**
-	@private
-	@method configService
-	@param {Object} opts configuration options following the ENUM.Copy() conventions.
-	@param {Function} cb callback(err) after service configured
-	Configure and start the service with options and optional callback when started.
-	Configure DB, define site context, then protect, connect, start and initialize this server.
-	 */
-
-		function protectService(cb) {
+var	TOTEM = module.exports = {		
+	config: (opts,cb) => {
 		/**
-		 @private
-		 @method protectService
-		 Create the server's PKI certs (if they dont exist), setup site urls, then connect, start and initialize this service.  
-		 @param {Function} cb callback(err) when protected
+		@private
+		@method configService
+		@param {Object} opts configuration options following the ENUM.Copy() conventions.
+		@param {Function} cb callback(err) after service configured
+		Configure and start the service with options and optional callback when started.
+		Configure DB, define site context, then protect, connect, start and initialize this server.
 		 */
 
-			var 
-				host = TOTEM.host,
-				name = host.name,
-				paths = TOTEM.paths,
-				sock = TOTEM.sockets ? paths.url.socketio : "", 
-				urls = TOTEM.site.urls = TOTEM.cores   // establish site urls
-					? {  
-						socketio: sock,
-						worker:  host.worker, 
-						master:  host.master
-					}
-					: {
-						socketio: sock,
-						worker:  host.master,
-						master:  host.master
-					},
-				doms = TOTEM.doms = {
-					master: URL.parse(urls.master),
-					worker: URL.parse(urls.worker)
-				},
-				pfx = `${paths.certs}${name}.pfx`,
-				onEncrypted = TOTEM.onEncrypted = {
-					true: doms.master.protocol == "https:",   //  at master 
-					false: doms.worker.protocol == "https:"		// at worker
-				};
-
-			//Log(onEncrypted, doms);
-			Trace( `PROTECTING ${name} USING ${pfx}` );
-
-			if ( onEncrypted )   // derive a pfx cert if protecting an encrypted service
-				FS.access( pfx, FS.F_OK, err => {
-
-					if (err) 
-						createCert(name,host.encrypt, function () {
-							connectService(cb);
-						});				
-
-					else
-						connectService(cb);
-
-				});
-
-			else 
-				connectService(cb);
-		}
-
-		//TOTEM.Extend(opts);
 		if (opts) Copy(opts, TOTEM, ".");
 
 		var
@@ -143,7 +88,7 @@ var
 		Copy(paths.mime.extensions, MIME.types);
 
 		if (mysql = TOTEM.mysql) 
-			DB({   // establish the db agnosticator 
+			DB.config({   // establish the db agnosticator 
 				//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server started
 
 				reroute: TOTEM.reroute,  // db translators
@@ -184,11 +129,8 @@ var
 
 		else
 			protectService(cb);
+	},
 
-		return TOTEM;
-	};
-
-Copy({
 	initialize: () => {
 		Trace( "STARTED" );
 	},
@@ -1153,7 +1095,7 @@ Copy({
 	*/		
 	paths: { 			
 		nourl: "/ping",
-		
+
 		url: {
 			//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 			//default: "/gohome",
@@ -1164,11 +1106,11 @@ Copy({
 			socketio: "/socket.io/socket.io.js",
 			riddler: "/riddle"
 		},
-		
+
 		gohome: "",	
 		certs: "./certs/", 
 		sockets: ".", // path to socket.io
-		
+
 		mysql: {
 			//logThreads: "show session status like 'Thread%'",
 			users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM app.dblogs WHERE instr(dataset,'@')",
@@ -1184,14 +1126,14 @@ Copy({
 			guest: "SELECT * FROM openv.profiles WHERE Client='guest@guest.org' LIMIT 1",
 			pocs: "SELECT lower(Hawk) AS Role, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Clients FROM openv.roles GROUP BY hawk"
 		},
-		
+
 		nodes: {  // available nodes for task sharding
 			0: ENV.SHARD0 || "http://localhost:8080/task",
 			1: ENV.SHARD1 || "http://localhost:8080/task",
 			2: ENV.SHARD2 || "http://localhost:8080/task",
 			3: ENV.SHARD3 || "http://localhost:8080/task"
 		},
-			
+
 		mime: { // default static file areas
 			files: ".", // path to shared files 
 			//"socket.io": ".", // path to socket.io
@@ -1246,7 +1188,7 @@ Copy({
 	@method 
 	@cfg {Function}
 	@member TOTEM	
- 	File indexer
+	File indexer
 	*/		
 	getIndex: getIndex,
 
@@ -1254,10 +1196,10 @@ Copy({
 	@method 
 	@cfg {Function}
 	@member TOTEM	
- 	Get a file and make it if it does not exist
+	Get a file and make it if it does not exist
 	*/
 	getFile: getFile,
-		
+
 	/**
 	@cfg {Function}
 	@method uploadFile
@@ -1265,14 +1207,14 @@ Copy({
 	File uploader 
 	*/			
 	uploadFile: uploadFile,
-	
+
 	/**
 	@cfg {Number}
 	@member TOTEM	
 	Server toobusy check period in seconds
 	*/		
 	busyTime: 5000,  //< site too-busy check interval [ms] (0 disables)
-			
+
 	/**
 	@cfg {Function}
 	@private
@@ -1284,7 +1226,7 @@ Copy({
 			site = TOTEM.site,
 			paths = TOTEM.paths,
 			mysql = paths.mysql;
-		
+
 		site.pocs = {
 			admin: "admin@undefined",
 			overlord: "overlord@undefined"
@@ -1299,7 +1241,7 @@ Copy({
 			sql.query(users)
 			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() )
 			.on("end", () => Log("POCs", site.pocs) );
-		
+
 		if (guest = mysql.guest)
 			sql.query(guest)
 			.on("result", rec => {
@@ -1324,10 +1266,10 @@ Copy({
 					if (key in TOTEM) 
 						TOTEM[key] = site[key];
 				});
-				
+
 				if (cb) cb();
 			});
-		
+
 		sql.query("SELECT count(ID) AS Fails FROM openv.aspreqts WHERE Status LIKE '%fail%'", [], function (err,asp) {
 		sql.query("SELECT count(ID) AS Fails FROM openv.ispreqts WHERE Status LIKE '%fail%'", [], function (err,isp) {
 		sql.query("SELECT count(ID) AS Fails FROM openv.swreqts WHERE Status LIKE '%fail%'", [], function (err,sw) {
@@ -1345,7 +1287,7 @@ Copy({
 		});
 		});
 		});
-		
+
 	},
 
 	/**
@@ -1355,26 +1297,26 @@ Copy({
 	File cache
 	*/		
 	cache: { 				//< cacheing options
-		
+
 		never: {	//< files to never cache - useful while debugging client side stuff
 			"base.js": 1,
 			"extjs.js": 1,
 			"jquery.js":1,
 			"jade": 1
 		},
-		
+
 		clients: {  // cache clients area
 		},
-		
+
 		"socket.io": {  // cache socketio area
 		},
-		
+
 		learnedTables: true, 
-		
+
 		certs: {} 		// cache client crts (pfx, crt, and key reserved for server)
 	}
-	
-}, TOTEM);
+
+};
 
 /**
  * @class TOTEM.Utilities.Configuration_and_Startup
@@ -1544,7 +1486,59 @@ function startService(server,cb) {
 	});
 	
 }
-		
+
+function protectService(cb) {
+/**
+ @private
+ @method protectService
+ Create the server's PKI certs (if they dont exist), setup site urls, then connect, start and initialize this service.  
+ @param {Function} cb callback(err) when protected
+ */
+
+	var 
+		host = TOTEM.host,
+		name = host.name,
+		paths = TOTEM.paths,
+		sock = TOTEM.sockets ? paths.url.socketio : "", 
+		urls = TOTEM.site.urls = TOTEM.cores   // establish site urls
+			? {  
+				socketio: sock,
+				worker:  host.worker, 
+				master:  host.master
+			}
+			: {
+				socketio: sock,
+				worker:  host.master,
+				master:  host.master
+			},
+		doms = TOTEM.doms = {
+			master: URL.parse(urls.master),
+			worker: URL.parse(urls.worker)
+		},
+		pfx = `${paths.certs}${name}.pfx`,
+		onEncrypted = TOTEM.onEncrypted = {
+			true: doms.master.protocol == "https:",   //  at master 
+			false: doms.worker.protocol == "https:"		// at worker
+		};
+
+	//Log(onEncrypted, doms);
+	Trace( `PROTECTING ${name} USING ${pfx}` );
+
+	if ( onEncrypted )   // derive a pfx cert if protecting an encrypted service
+		FS.access( pfx, FS.F_OK, err => {
+			if (err) 
+				createCert(name,host.encrypt, function () {
+					connectService(cb);
+				});				
+
+			else
+				connectService(cb);
+		});
+
+	else 
+		connectService(cb);
+}
+
 function connectService(cb) {
 /**
  @private
@@ -3992,8 +3986,6 @@ switch (process.argv[2]) { //< unit tests
 	@method T1
 	Create simple service but dont start it.
 	*/
-		var T = TOTEM;
-
 		Trace({
 			msg: "Im simply a Totem interface so Im not even running as a service", 
 			default_fetcher_endpts: T.byTable,
@@ -4008,7 +4000,7 @@ switch (process.argv[2]) { //< unit tests
 	Totem service running in fault protection mode, no database, no UI; but I am running
 	with 2 workers and the default endpoint routes.
 	*/
-		var T = TOTEM({
+		TOTEM.config({
 			mysql: null,
 			faultless: true,
 			cores: 2
@@ -4030,7 +4022,7 @@ with 2 workers and the default endpoint routes` );
 	these files. 
 	*/
 
-		var T = TOTEM({
+		TOTEM.config({
 		},  err => {
 			Trace( err ||
 `I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
@@ -4051,7 +4043,7 @@ these files. `
 	associated public NICK.crt and private NICK.key certs it creates.
 	*/
 		
-		var T = TOTEM({
+		TOTEM.config({
 			byTable: {
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 					res( "123" );
@@ -4095,7 +4087,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 	shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.
 	*/
 		
-		var T = TOTEM({
+		TOTEM.config({
 			riddles: 20
 		}, err => {
 			Trace( err || {
@@ -4113,7 +4105,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 	Testing tasker with database and 3 cores at /test endpoint.
 	*/
 		
-		var T = TOTEM({
+		TOTEM.config({
 			faultless: false,	// ex override default 
 			cores: 3,		// ex override default
 			mysql: { 		// provide a database
@@ -4169,12 +4161,12 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 	@method T7
 	*/
 		
-		var T = TOTEM({
+		TOTEM.config({
 		},  err => {				
 			Trace( err || "db maintenance" );
 
 			if (CLUSTER.isMaster)
-			T.sqlThread( sql => {
+			TOTEM.sqlThread( sql => {
 				switch (process.argv[3]) {
 					case 1: 
 						sql.query( "select voxels.id as voxelID, chips.id as chipID from app.voxels left join app.chips on voxels.Ring = chips.Ring", function (err,recs) {

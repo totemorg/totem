@@ -94,7 +94,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 
 ### T1 - Just an interface
 		
-	var TOTEM = require("../totem");
+	var TOTEM = require("totem");
 
 	Trace({
 		msg: "Im simply a Totem interface so Im not even running as a service", 
@@ -105,7 +105,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 	
 ### T2 - A do-little service
 
-	var TOTEM = require("../totem")({
+	TOTEM.config({
 		name: "iamwhoiam",
 		faultless: true,
 		cores: 2
@@ -119,7 +119,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 
 ### T3 - A service with a database
 
-	var TOTEM = require("../totem")({
+	TOTEM.config({
 		name: "Totem",
 
 		mysql: {
@@ -138,7 +138,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 		
 ### T4 - A service with custom endpoints
 	
-	var TOTEM = require("../totem")({
+	TOTEM.config({
 		mysql: {
 			host: ENV.MYSQL_HOST,
 			user: ENV.MYSQL_USER,
@@ -181,7 +181,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 		
 ### T5 - A service with antibot protection
 	
-	var TOTEM = require("../totem")({
+	TOTEM.config({
 		mysql: {
 			host: ENV.MYSQL_HOST,
 			user: ENV.MYSQL_USER,
@@ -202,7 +202,7 @@ the [ENUM deep copy conventions](https://github.com/acmesds/enum).
 
 ### T6 - A service with tasking endpoints
 
-	var TOTEM = require("../totem")({  // configure the service for tasking
+	TOTEM.config({  // configure the service for tasking
 		name: "Totem1",  // default parms from openv.apps nick=Totem1
 		faultless: false,	// ex override default 
 		cores: 3,		// ex override default
