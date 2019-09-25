@@ -1,3 +1,37 @@
+# install R
+
+R packages are available in the EPEL repositories. If you don’t have EPEL repository installed on your machine you can do it by typing:
+
+sudo yum install epel-release
+
+Copy
+
+You will be prompted to accept the repository GPG key, type y and hit Enter.
+
+Once the repository is added, install R by typing:
+
+sudo yum install R
+
+Copy
+
+R is a meta package that contains all the necessary R components.
+
+Verify the installation by typing the following command which will print the R version:
+
+R --version
+
+Copy
+
+R version 3.5.0 (2018-04-23) -- "Joy in Playing"
+Copyright (C) 2018 The R Foundation for Statistical Computing
+Platform: x86_64-redhat-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under the terms of the
+GNU General Public License versions 2 or 3.
+For more information about these matters see
+http://www.gnu.org/licenses/.
+
 # install spacy
 python -m pip install -U socketIO-client
 installs: socketIO-client requests six websocket-client idna certifi chardet urllib3
