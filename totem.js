@@ -1261,7 +1261,7 @@ var	TOTEM = module.exports = {
 				Each(opts, (key,val) => {
 					key = key.toLowerCase();
 					site[key] = val;
-
+					
 					if ( isString(val||0) )
 						try {
 							site[key] = JSON.parse( val );
