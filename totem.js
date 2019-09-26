@@ -81,11 +81,17 @@ var	TOTEM = module.exports = {
 			paths = TOTEM.paths,
 			site = TOTEM.site;
 
-		Trace(`CONFIG ${name}`); 
+		Trace(`CONFIGURING ${name}`); 
 
 		TOTEM.started = new Date();
 
-		Copy(paths.mime.extensions, MIME.types);
+		//Copy(paths.mime.extensions, MIME.types);
+		Each( paths.mime.extensions, (key,val) => {
+			if ( val ) 
+				MIME.types[key] = val;
+			else
+				delete MIME.types[key];
+		});
 
 		if (mysql = TOTEM.mysql) 
 			DB.config({   // establish the db agnosticator 
@@ -1341,7 +1347,7 @@ function startService(server,cb) {
 		onEncrypted = TOTEM.onEncrypted[CLUSTER.isMaster],
 		paths = TOTEM.paths.mysql;
 	
-	Trace(`START ${name}`);
+	Trace(`STARTING ${name}`);
 	
 	TOTEM.server = server || { 	// define server
 		listen: function () {
@@ -1436,7 +1442,7 @@ function startService(server,cb) {
 	if (TOTEM.cores) 					// Start for master-workers
 		if (CLUSTER.isMaster) {			// Establish master port
 			server.listen( parseInt(TOTEM.doms.master.port), function() {  // Establish master  TOTEM.masterport
-				Trace(`MASTER AT ${site.urls.master}`);
+				Trace("MASTER LISTENING");
 			});
 			
 			CLUSTER.on('exit', function(worker, code, signal) {
@@ -1460,7 +1466,7 @@ function startService(server,cb) {
 	
 	else 								// Establish master-only
 		server.listen( TOTEM.doms.master.port, function() {  //TOTEM.workerport
-			Trace(`MASTER AT ${site.urls.master}`);
+			Trace("MASTER LISTENING");
 		});
 			
 	if ( TOTEM.faultless)  { // catch core faults
@@ -1630,8 +1636,8 @@ function initializeService(sql,cb) {
 	
 	Trace([ // splash
 		"HOSTING " + site.nick,
-		"AT "+site.urls.master,
-		"USING " + site.db ,
+		"AT "+`(${site.urls.master}, ${site.urls.worker})`,
+		"DATABASE " + site.db ,
 		"FROM " + process.cwd(),
 		"WITH " + (site.urls.socketio||"NO")+" SOCKETS",
 		"WITH " + (TOTEM.faultless?"GUARDED":"UNGUARDED")+" THREADS",
@@ -2373,10 +2379,9 @@ The session is validated and logged, and the client is challenged as necessary.
 			req = Req.req,
 			sql = req.sql,
 			errors = TOTEM.errors,
-			mime = isError(data||0)
-				? MIME.types.html
-				: MIME.types[req.type] || MIME.types.html || "text/plain",
-			paths = TOTEM.paths;
+			paths = TOTEM.paths,
+			mimes = MIME.types,
+			mime = mimes[ isError(data||0) ? "html" : req.type ] || mimes.html;
 
 		Res.setHeader("Content-Type", mime);
 /*
