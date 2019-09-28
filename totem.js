@@ -97,6 +97,8 @@ var	TOTEM = module.exports = {
 			DB.config({   // establish the db agnosticator 
 				//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server started
 
+				track: TOTEM.dbTrack,
+				
 				reroute: TOTEM.reroute,  // db translators
 
 				getSite: TOTEM.getSite,
@@ -143,7 +145,7 @@ var	TOTEM = module.exports = {
 	
 	queues: DB.queues, 	// pass along
 		
-	reroute: { //< table -> db.table translators
+	reroute: { //< db.table -> db.table translators
 	},
 		
 	//init: function () {},
@@ -2606,6 +2608,7 @@ Res.setHeader("Vary", "Accept");
 				.post = raw body text
 				.url = clean url
 			*/
+			
 			var 
 				paths = TOTEM.paths,		// parse request url into /area/nodes
 				onEncrypted = TOTEM.onEncrypted[CLUSTER.isMaster],  // request being made to encrypted service
@@ -2647,7 +2650,7 @@ Res.setHeader("Vary", "Accept");
 								}
 						});
 
-	//Log(files);
+						//Log(files);
 						return {files: files};
 					}),		// body parameters
 					post: body,		// raw body text
@@ -3001,8 +3004,8 @@ Challenge a client with specified profile parameters
 }
 
 /**
- * @class TOTEM.End_Points.CRUD_Interface
- * Create / insert / post, Read / select / get, Update / put, Delete methods.
+ * @class TOTEM.End_Points.CRUDE_Interface
+ * Create / insert / post, Read / select / get, Update / put, Delete and Execute methods.
  */
 
 function selectDS(req, res) {
@@ -3022,7 +3025,6 @@ function selectDS(req, res) {
 		trace: flags.trace,
 		crud: req.action,
 		from: req.table,
-		//db: req.group || "app",
 		pivot: flags.pivot,
 		browse: flags.browse,		
 		where: where,
@@ -3039,8 +3041,8 @@ function selectDS(req, res) {
 			res( err );
 
 		else {
-			recs.forEach( (rec) => {
-				Each(index, (key) => {
+			recs.forEach( rec => {
+				Each(index, key => {
 					try {
 						rec[key] = JSON.parse( rec[key] );
 					}
@@ -3067,18 +3069,14 @@ function insertDS(req, res) {
 		escapeId = MYSQL.escapeId,
 		escape = MYSQL.escape;
 
-	for (var key in body) body[key] = `${escapeId(key)} = ${escape(body[key])}`;
-	
 	sql.runQuery({
 		trace: flags.trace,
 		crud: req.action,
 		from: req.table,
-		//db: req.group || "app",
 		set: body,
 		client: req.client
 	}, TOTEM.emitter, (err,info) => {
 
-		//Log(info);
 		res( err || info );
 
 	});
@@ -3102,7 +3100,6 @@ function deleteDS(req, res) {
 			trace: flags.trace,			
 			crud: req.action,
 			from: req.table,
-			//db: req.group || "app",
 			where: where,
 			client: req.client
 		}, TOTEM.emitter, (err,info) => {
@@ -3146,7 +3143,6 @@ function updateDS(req, res) {
 			trace: flags.trace,
 			crud: req.action,
 			from: req.table,
-			//db: req.group || "app",
 			where: where,
 			set: body,
 			client: req.client
@@ -3441,7 +3437,7 @@ function simThread(sock) {
 } */
 
 /**
-@class TOTEM.End_Points.System
+@class TOTEM.End_Points.System_Probes
 */
 function sysTask(req,res) {  //< task sharding
 /**
