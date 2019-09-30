@@ -4017,7 +4017,8 @@ with 2 workers and the default endpoint routes` );
 	case "T3": 
 	/**
 	@method T3
-	I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
+	I'm a Totem serv
+	ice with no workers. I do, however, have a mysql database from which I've derived 
 	my startup options (see the openv.apps table for the Nick="Totem1").  
 	No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
 	these files. 
