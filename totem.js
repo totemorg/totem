@@ -3989,9 +3989,9 @@ switch (process.argv[2]) { //< unit tests
 	*/
 		Trace({
 			msg: "Im simply a Totem interface so Im not even running as a service", 
-			default_fetcher_endpts: T.byTable,
-			default_protect_mode: T.faultless,
-			default_cores_used: T.cores
+			default_fetcher_endpts: TOTEM.byTable,
+			default_protect_mode: TOTEM.faultless,
+			default_cores_used: TOTEM.cores
 		});
 		break;
 
