@@ -2126,27 +2126,18 @@ byActionTable, or byAction routers.
 			}
 		}
 
+		function myCore() {
+			return CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
+		}
+		
 		if ( !req.area && req.encrypted )   // log if file path unspecified
 			if ( sock = req.reqSocket )  // log if http request socket
 				if ( log = req.log )  // log if logging enabled
 					logMetrics( log, sock );  
 
-		var myid = CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
-
-		Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.file} FOR ${req.client} ON CORE${myid}`, req.sql );
+		Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.file} FOR ${req.client} ON CORE${myCore()}`, req.sql );
 
 		route(req, res);
-
-		/*
-		if ( CLUSTER.isWorker || !TOTEM.cores ) {
-		}
-		else
-		if (route.name == "simThread")
-			route(req,res);
-
-		else
-			res(errors.noAccess);
-		*/
 	}
 
 	var
@@ -2160,18 +2151,17 @@ byActionTable, or byAction routers.
 
 	//Log([action,path,area,table,type]);
 	
-	if (area) {	// route file
-		if ( area == paths.sockets ) 
-			res( "hush" );	// remind socket.io to hush-up
+	if ( area == "socket.io" && !table )
+		res( "hush" );
 	
-		else
-		if ( route = byArea[area] )
-			followRoute( route, req, res );
+	else
+	if ( route = byArea[area] )
+		followRoute( route, req, res );
 	
-		else
-			followRoute( sendFile, req, res );
-	}
-	
+	else
+	if ( area ) 
+		followRoute( sendFile, req, res);
+		
 	else
 	if ( route = byType[type] ) // route by type
 		followRoute(route,req,res);
@@ -2290,7 +2280,7 @@ The session is validated and logged, and the client is challenged as necessary.
 	
 	function sendRecords(recs, req) {  // Send records via converter
 		if (recs)
-			if ( route = byFilter[req.type] )  // process record conversions
+			if ( route = byFilter[req.type] || byFilter.default )  // process record conversions
 				route(recs, req, recs => {
 					
 					if (recs) 
@@ -3488,7 +3478,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 					files.forEach( (file,n) => {
 						files[n] = file.tag( file );
 					});
-
+					req.type = "html"; // sort of a kludge, but default type is json.
 					res(`Index of ${path}:<br>` + files.join("<br>") );
 				});
 			
