@@ -575,6 +575,8 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 	By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
 	*/				
 	byTable: {			  //< by-table routers	
+		uploads: sysFile,
+		stores: sysFile,
 		riddle: checkClient,
 		task: sysTask,
 		ping: sysPing
@@ -1922,7 +1924,7 @@ specified client.  Optional tags are logged with the upload.
 			sinkStream = FS.createWriteStream( sinkPath, "utf-8")
 				.on("finish", function() {  // establish sink stream for export pipe
 
-					Trace("UPLOADED FILE");
+					//Trace("UPLOADED FILE");
 					sqlThread( sql => {
 						sql.query("UPDATE apps.files SET ? WHERE ?", [{
 							_Ingest_Tag: JSON.stringify(tags || null),
@@ -1943,7 +1945,7 @@ specified client.  Optional tags are logged with the upload.
 					});
 				});
 
-		Log("uploading to", sinkPath);
+		//Log("uploading to", sinkPath);
 
 		if (cb) cb(file.ID);  // callback if provided
 		
@@ -2534,9 +2536,9 @@ Res.setHeader("Vary", "Accept");
 			return Req.socket;
 	}
 		
-	startSession( function() {  // process if session not busy
+	startSession( () => {  // start session if not busy.  Define request req and body parms.
 		
-		getBody( body => {  // setup request with body parms 
+		getBody( body => {  // setup request and body parms 
 			/* 
 			Define request req 
 				.method = GET | PUT | POST | DELETE
@@ -2560,11 +2562,23 @@ Res.setHeader("Vary", "Accept");
 					encrypted: onEncrypted,	// on encrypted worker
 					socketio: onEncrypted ? TOTEM.site.urls.socketio : "",		// path to socket.io
 					body: body.parseJSON( body => {  // get parameters or yank files from body 
-					
-						var files = [], parms = {};
+						var files = [], parms = {}, file = "", rem,filename,name,type;
 
-						body.split("\r\n").forEach( line => {
-							if (line) 
+						if (body)
+							body.split("\r\n").forEach( (line,idx) => {
+								if ( idx % 2 )
+									files.push({
+										filename: filename.replace(/'/g,""),
+										name: name,
+										data: line,
+										type: type,
+										size: line.length
+									});
+
+								else 
+									[rem,filename,name,type] = line.match( /<; filename=(.*) name=(.*) ><\/;>type=(.*)/ ) || [];
+								
+								/*
 								if (parms.type) {  // type was defined so have the file data
 									files.push( Copy(parms,{data: line, size: line.length}) );
 									parms = {};
@@ -2572,8 +2586,8 @@ Res.setHeader("Vary", "Accept");
 								else {
 									//Trace("LOAD "+line);
 
-									line.split(";").forEach( arg => {  // process one file at a time
-
+									line.split(";").forEach( (arg,idx) => {  // process one file at a time
+	Log("line ",idx,line.length);
 										var tok = arg
 											.replace("Content-Disposition: ","disposition=")
 											.replace("Content-Type: ","type=")
@@ -2584,12 +2598,12 @@ Res.setHeader("Vary", "Accept");
 
 										if (key)
 											parms[key.replace(/ /g,"")] = val.replace(/"/g,"");
-
 									});
 								}
-						});
+								*/										
+							});
 
-						//Log(files);
+						//Log("body files=", files.length);
 						return {files: files};
 					}),		// body parameters
 					post: body,		// raw body text
@@ -3451,27 +3465,13 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 @param {Object} req Totem request
 @param {Function} res Totem response
 */
-	
+	const {sql, query, body, client, action, table, path} = req;
+		   
 	var 
-		sql = req.sql, 
-		query = req.query, 
-		index = req.index,
-		body = req.body,
-		client = req.client,
-		action = req.action,
-		area = req.table,
-		path = req.path,
+		area = table,
 		now = new Date();
 	
-	/*Log({
-		p: path,
-		q: query,
-		b: body,
-		a: area,
-		c: client,
-		n: req.file
-	}); */
-	
+	//Log(">>>>sysFile", action,area,path, body);
 	switch (action) {
 		case "select":
 			
@@ -3485,7 +3485,6 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 				
 			else
 				getIndex( path, files => {  // Send list of files under specified folder
-
 					files.forEach( (file,n) => {
 						files[n] = file.tag( file );
 					});
@@ -3504,12 +3503,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			var
 				canvas = body.canvas || {objects:[]},
 				attach = [],
-				image = body.image,
-				files = image ? [{
-					filename: client, //name, // + ( files.length ? "_"+files.length : ""), 
-					size: image.length/8, 
-					image: image
-				}] : body.files || [],
+				files = body.files,
 				tags = Copy(query.tag || {}, {Location: query.location || "POINT(0 0)"});
 
 			res( "uploading" );
@@ -3537,8 +3531,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 				}
 			});
 
-			files.forEach( function (file, n) {
-
+			files.forEach( file => {
 				var 
 					buf = new Buffer(file.data,"base64"),
 					srcStream = new STREAM.Readable({  // source stream for event ingest
@@ -3547,11 +3540,12 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 							this.push( buf );
 							buf = null;
 						}
-					});
+					}),
+					path = area+"/"+client+"_"+file.filename;
 
 				Trace(`UPLOAD ${file.filename} INTO ${area} FOR ${client}`, sql);
 
-				uploadFile( client, srcStream, "./"+area+"/"+file.filename, tags, file => {
+				uploadFile( client, srcStream, "./"+path, tags, file => {
 
 					if (false)
 					sql.query(	// this might be generating an extra geo=null record for some reason.  works thereafter.
@@ -3575,31 +3569,27 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 							1000, file.size, {Client: req.client} 
 						]);
 
-					if (false) //(file.image)
-						switch (area) {
-							case "proofs": 
+					switch (area) {
+						case "proofs": 
+							sql.query("REPLACE INTO proofs SET ?", {
+								top: 0,
+								left: 0,
+								width: file.Width,
+								height: file.Height,
+								label: tag,
+								made: now,
+								name: area+"."+name
+							});
 
-								sql.query("REPLACE INTO proofs SET ?", {
-									top: 0,
-									left: 0,
-									width: file.Width,
-									height: file.Height,
-									label: tag,
-									made: now,
-									name: area+"."+name
-								});
-
-								sql.query(
-									"SELECT detectors.ID, count(ID) AS counts FROM app.detectors LEFT JOIN proofs ON proofs.label LIKE detectors.PosCases AND proofs.name=? HAVING counts",
-									[area+"."+name]
-								)
-								.on("result", function (det) {
-									sql.query("UPDATE detectors SET Dirty=Dirty+1");
-								});
-
-								break;
-
-						}
+							sql.query(
+								"SELECT detectors.ID, count(ID) AS counts FROM app.detectors LEFT JOIN proofs ON proofs.label LIKE detectors.PosCases AND proofs.name=? HAVING counts",
+								[area+"."+name]
+							)
+							.on("result", function (det) {
+								sql.query("UPDATE detectors SET Dirty=Dirty+1");
+							});
+							break;
+					}
 				});
 			});
 			break;
