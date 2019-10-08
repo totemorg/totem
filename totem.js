@@ -94,12 +94,10 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 
 		if (mysql = TOTEM.mysql) 
 			DB.config({   // establish the db agnosticator 
-				//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server started
-
+				//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server starte
 				track: TOTEM.dbTrack,
-				
+				probeSite: TOTEM.probeSite,				
 				reroute: TOTEM.reroute,  // db translators
-
 				mysql: Copy({ 
 					opts: {
 						host: mysql.host,   // hostname 
@@ -306,7 +304,7 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 					switch (ev) {
 						case "change":
 							sqlThread( sql => {
-								Trace(ev.toUpperCase()+" "+file, sql);
+								Trace(ev.toUpperCase()+" "+file);
 
 								FS.stat(path, function (err, stats) {
 
@@ -1294,8 +1292,8 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
  * @class TOTEM.Utilities.Configuration_and_Startup
  **/
 
-function Trace(msg,sql) {
-	"T>".trace(msg,sql);
+function Trace(msg,req,fwd) {
+	"T>".trace(msg,req,fwd);
 }
 	
 function startService(server,cb) {
@@ -2135,19 +2133,12 @@ byActionTable, or byAction routers.
 				if ( log = req.log )  // log if logging enabled
 					logMetrics( log, sock );  
 
-		Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.file} FOR ${req.client} ON CORE${myCore()}`, req.sql );
+		Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.file} FOR ${req.client} ON CORE${myCore()}` );
 
 		route(req, res);
 	}
 
-	var
-		sql = req.sql,
-		node = req.node,
-		table = req.table,
-		type = req.type,
-		action = req.action,
-		area = req.area,
-		path = req.path;
+	const { sql, node, table, type, action, area, path } = req;
 
 	//Log([action,path,area,table,type]);
 	
@@ -3290,7 +3281,7 @@ To connect to ${site.Nick} from Windows:
 						
 						createCert(user.User, pass, function () {
 
-							Trace(`CREATE CERT FOR ${user.User}`, sql);
+							Trace(`CREATE CERT FOR ${user.User}`, req);
 							
 							CP.exec(
 								`sudo adduser ${user.User} -gid ${user.Group}; sudo id ${user.User}`,
@@ -3499,7 +3490,6 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			res( "uploading" );
 
 			canvas.objects.forEach( obj => {	// upload provided canvas objects
-
 				switch (obj.type) {
 					case "image": // ignore blob
 						break;
@@ -3533,7 +3523,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 					}),
 					path = area+"/"+client+"_"+file.filename;
 
-				Trace(`UPLOAD ${file.filename} INTO ${area} FOR ${client}`, sql);
+				Trace(`UPLOAD ${file.filename} INTO ${area} FOR ${client}`, req);
 
 				uploadFile( client, srcStream, "./"+path, tags, file => {
 
