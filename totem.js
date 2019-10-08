@@ -1614,8 +1614,8 @@ function initializeService(sql,cb) {
 	
 	var mTimes = TOTEM.mTimes;
 
-	Each(TOTEM.onFile, function (area, cb) {  // callback cb(sql,name,area) when file changed
-		FS.readdir( area, function (err, files) {
+	Each(TOTEM.onFile, (area, cb) => {  // callback cb(sql,name,area) when file changed
+		FS.readdir( area, (err, files) => {
 			if (err) 
 				Log(err);
 
@@ -1629,7 +1629,7 @@ function initializeService(sql,cb) {
 	
 	// start watch dogs
 	
-	Each( TOTEM.dogs, function (key, dog) {
+	Each( TOTEM.dogs, (key, dog) => {
 		if ( dog.cycle ) {  // attach sql threaders and setup watchdog interval
 			//Trace("DOGING "+key);
 			dog.trace = dog.name.toUpperCase();
@@ -1639,7 +1639,7 @@ function initializeService(sql,cb) {
 			dog.thread = sqlThread;
 			dog.site = TOTEM.site;
 			
-			setInterval( function (args) {
+			setInterval( args => {
 
 				//Trace("DOG "+args.name);
 
@@ -1895,8 +1895,6 @@ Get (or create if needed) a file with callback cb(fileID, sql) if no errors
 								Client: client
 							});
 						});
-
-				sql.release();
 			});	
 		
 		sql.release();
