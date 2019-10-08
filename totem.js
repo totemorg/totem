@@ -1897,7 +1897,9 @@ Get (or create if needed) a file with callback cb(fileID, sql) if no errors
 						});
 
 				sql.release();
-			});		
+			});	
+		
+		sql.release();
 	});
 }
 
@@ -2223,12 +2225,12 @@ The session is validated and logged, and the client is challenged as necessary.
 	
 	// Session terminating functions to respond with a string, file, db structure, or error message.
 	
-	function sendString( data ) {  // Send string
+	function sendString( data ) {  // Send string - terminate sql connection
 		Res.end( data );
 		Req.req.sql.release();
 	}
 		
-	function sendFile(path,file,type,area) { // Cache and send file to client
+	function sendFile(path,file,type,area) { // Cache and send file to client - terminate sql connection
 		
 		// Trace(`SENDING ${path}`);
 		
@@ -2252,9 +2254,9 @@ The session is validated and logged, and the client is challenged as necessary.
 			});
 	}		
 
-	function sendError(err) {  // Send pretty error message
+	function sendError(err) {  // Send pretty error message - terminate sql connection
 		Res.end( errors.pretty(err) );
-		//Req.req.sql.release();
+		Req.req.sql.release();
 	}
 
 	function sendObject(obj) {
@@ -2462,7 +2464,7 @@ Res.setHeader("Vary", "Accept");
 		if (sock = req.reqSocket )
 			if (TOTEM.mysql)  // running with database so attach a sql connection 
 				sqlThread( sql => {
-					req.sql = sql;
+					req.sql = sql;	// gets released when res calledback
 
 					validateClient(req, err => {
 						if (err)
@@ -2917,8 +2919,7 @@ Challenge a client with specified profile parameters
 				Made: new Date(),
 				Attempts: 0,
 				maxAttempts: profile.Retries
-			}, function (err,info) {
-
+			}, (err,info) => {
 				TOTEM.IO.emit("select", {
 					message: reply,
 					riddles: rid.length,
@@ -2928,9 +2929,9 @@ Challenge a client with specified profile parameters
 					ID: client, //info.insertId,
 					callback: paths.url.riddler
 				});
-
-				sql.release();
 			});
+
+			sql.release();
 		});
 }
 
@@ -4166,6 +4167,8 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 						});
 						break;	
 				}
+				
+				sql.release();
 			});
 		});		
 		break;
