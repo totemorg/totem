@@ -979,7 +979,7 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 					cb( new Error( msg ) );
 
 				else
-					admit( (log) => {
+					admit( log => {
 						req.log = log ? new Object(log) : null;
 						req.profile = new Object( profile );
 						//req.group = profile.Group;
@@ -995,7 +995,7 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 			cb( errors.rejectedClient );
 		
 		else 
-			admit( (log) => {
+			admit( log => {
 				req.log = log ? new Object(log) : null;
 				req.profile = new Object( profile );
 				//req.group = profile.Group;
@@ -1087,7 +1087,7 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 			//logThreads: "show session status like 'Thread%'",
 			users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM app.dblogs WHERE instr(dataset,'@')",
 			derive: "SELECT * FROM openv.apps WHERE ? LIMIT 1",
-			//logMetrics: "INSERT INTO app.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
+			// logMetrics: "INSERT INTO app.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
 			search: "SELECT * FROM app.files HAVING Score > 0.1",
 			//credit: "SELECT * FROM app.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 1",
 			getProfile: "SELECT * FROM openv.profiles WHERE ? LIMIT 1",
@@ -2088,50 +2088,47 @@ byActionTable, or byAction routers.
 	@param {Function} res Totem response callback
 	*/
 
-		function logMetrics(log, sock) { //< log session metrics 
-			if ( logMetrics = paths.mysql.logMetrics ) {
+		function logMetrics( sqlQuery, log, sock) { //< log session metrics 
+			sock._started = new Date();
 
-				sock._started = new Date();
+			/*
+			If maxlisteners is not set to infinity=0, the connection becomes sensitive to a sql 
+			connector t/o and there will be random memory leak warnings.
+			*/
 
-				/*
-				If maxlisteners is not set to infinity=0, the connection becomes sensitive to a sql 
-				connector t/o and there will be random memory leak warnings.
-				*/
+			sock.setMaxListeners(0);
+			sock.on('close', function () { 		// cb when connection closed
+				var 
+					secs = sock._started ? ((new Date()).getTime() - sock._started.getTime()) / 1000 : 0,
+					bytes = sock.bytesWritten;
 
-				sock.setMaxListeners(0);
-				sock.on('close', function () { 		// cb when connection closed
-					var 
-						secs = sock._started ? ((new Date()).getTime() - sock._started.getTime()) / 1000 : 0,
-						bytes = sock.bytesWritten;
-						//log = req.log;
+				sqlThread( sql => {
 
-					sqlThread( sql => {
+					sql.query(sqlQuery, [ Copy(log, {
+						Delay: secs,
+						Transfer: bytes,
+						Event: sock._started,
+						Dataset: "",
+						Client: req.client,
+						Actions: 1
+					}), bytes, secs, log.Event  ], err => Log("dblog", err) );
 
-						sql.query(logMetrics, [ Copy(log, {
-							Delay: secs,
-							Transfer: bytes,
-							Event: sock._started,
-							Dataset: "",
-							Client: req.client,
-							Actions: 1
-						}), bytes, secs, log.Event  ]);
+					sql.release();
 
-						sql.release();
-
-					});
 				});
-
-			}
+			});
 		}
 
 		function myCore() {
 			return CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
 		}
 		
-		if ( !req.area && req.encrypted )   // log if file path unspecified
-			if ( sock = req.reqSocket )  // log if http request socket
-				if ( log = req.log )  // log if logging enabled
-					logMetrics( log, sock );  
+		//Log("log check", req.area, req.reqSocket?true:false, req.log );
+		if ( !req.area )   // log if file not being specified
+			if ( sock = req.reqSocket )  // log if http has a request socket
+				if ( log = req.log )  // log if session logged
+					if ( sqlQuery = paths.mysql.logMetrics )	// log if logging enabled
+						logMetrics( sqlQuery, log, sock );  
 
 		Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.file} FOR ${req.client} ON CORE${myCore()}` );
 
