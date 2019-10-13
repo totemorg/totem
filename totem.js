@@ -32,8 +32,6 @@ var
 	ENV = process.env,
 	
 	// NodeJS modules
-	//CRYPTO = require("crypto"),
-	//TLS = require("TLS"),
 				  
 	STREAM = require("stream"), 	// pipe-able streams
 	HTTP = require("http"),						//< http interface
@@ -61,6 +59,10 @@ var
 	ENUM = require("enum"),
 	DB = require("jsdb");				//< DB database agnosticator
 
+function Trace(msg,req,fwd) {
+	"totem".trace(msg,req,fwd);
+}
+	
 const { Copy,Each,Log,isError,isArray,isString,isFunction,isEmpty,typeOf } = ENUM;
 
 const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable } = TOTEM = module.exports = {		
@@ -137,6 +139,8 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 	initialize: () => {
 		Trace( "STARTED" );
 	},
+	
+	requestFile: sysFile,
 	
 	queues: DB.queues, 	// pass along
 		
@@ -573,8 +577,8 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 	By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
 	*/				
 	byTable: {			  //< by-table routers	
-		uploads: sysFile,
-		stores: sysFile,
+		//uploads: sysFile,
+		//stores: sysFile,
 		riddle: checkClient,
 		task: sysTask,
 		ping: sysPing
@@ -1292,10 +1296,6 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
  * @class TOTEM.Utilities.Configuration_and_Startup
  **/
 
-function Trace(msg,req,fwd) {
-	"T>".trace(msg,req,fwd);
-}
-	
 function startService(server,cb) {
 /**
  @private
@@ -2139,16 +2139,16 @@ byActionTable, or byAction routers.
 
 	//Log([action,path,area,table,type]);
 	
-	if ( area == "socket.io" && !table )
-		res( "hush" );
-	
-	else
-	if ( route = byArea[area] )
-		followRoute( route, req, res );
-	
-	else
-	if ( area ) 
-		followRoute( sendFile, req, res);
+	if ( area )
+		if ( area == "socket.io" && !table )	// ignore socket keep-alives
+			res( "hush" );
+		
+		else
+		if ( route = byArea[area] )		// send uncached, static file
+			followRoute( route, req, res );
+
+		else	// send cashed file
+			followRoute( sendFile, req, res);
 		
 	else
 	if ( route = byType[type] ) // route by type
@@ -2255,6 +2255,7 @@ The session is validated and logged, and the client is challenged as necessary.
 	function sendError(err) {  // Send pretty error message - terminate sql connection
 		Res.end( errors.pretty(err) );
 		Req.req.sql.release();
+		Req.req.type = "html";
 	}
 
 	function sendObject(obj) {
@@ -3442,7 +3443,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 @param {Object} req Totem request
 @param {Function} res Totem response
 */
-	const {sql, query, body, client, action, table, path} = req;
+	const {sql, query, body, client, action, table, path, file} = req;
 		   
 	var 
 		area = table,
@@ -3452,8 +3453,8 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 	switch (action) {
 		case "select":
 			
-			if ( req.file )
-				try {		// sysFile files are never static so we never cache them
+			if ( file )
+				try {		// these files are static so we never cache them
 					FS.readFile(path,  (err,buf) => res( err || new Buffer(buf) ) );
 				}
 				catch (err) {

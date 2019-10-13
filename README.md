@@ -1,13 +1,13 @@
 /**
 @class TOTEM
 	[SourceForge](https://sourceforge.net/acmesds/totem) 
-	[github](https://github.com/acmesds/totem) 
+	[github](http://sc.appdev.proj.coe/acmesds/totem) 
 	[geointapps](https://git.geointapps.org/acmesds/totem) 
 	[gitlab](https://gitlab.west.nga.ic.gov/acmesds/totem)
 
 # TOTEM
 
-TOTEM replaces a slew of god-awful middleware by providing a basic http/https web service 
+[TOTEM](https://totem.west.ile.nga.ic.gov/api.view) replaces a slew of god-awful middleware by providing a basic http/https web service 
 having the following configurable features:
 
 	+ routing methods for table, engine, and file objects
@@ -33,11 +33,10 @@ TOTEM defines the following CRUD endpoint interfaces:
 	PUT /NODE ?? NODE ...
 	DELETE /NODE ?? NODE ...
 
-where a NODE references a dataset, a plugin, a file or a command:
+where a NODE references a dataset, a file or a command:
 
 	DATASET.TYPE ? QUERY
-	PLUGIN.TYPE ? QUERY
-	FILE.TYPE ? QUERY
+	AREA/PATH/FILE.TYPE ? QUERY
 	COMMAND.TYPE ? QUERY
 
 By default, TOTEM provides the TYPEs:
@@ -48,19 +47,19 @@ for converting DATASETs; the COMMANDs:
 
 	riddle | task | ping
 	
-for validating a session, sharding a task, and testing a connection; and the FILE areas:
+for validating a session, sharding tasks, and testing a connection; and the file AREAs:
 
 	stores | uploads | shares
 
-for storing (no change monitoring), uploading (change monitored) and sharing files.
+for supervised/unsupervised FILE sharing.
 
 ## Installation
 
-Clone [TOTEM base web service](https://github.com/acmesds/totem) into your PROJECT/totem folder.   
-Clone [ENUM basic enumerators](https://github.com/acmesds/enum) into your PROJECT/enum folder.   
-Clone [JSDB database agnosticaor](https://github.com/acmesds/jsdb) into your PROJECT/jsdb folder.
+Clone [TOTEM base web service](http://sc.appdev.proj.coe/acmesds/totem) into your PROJECT/totem folder.   
+Clone [ENUM basic enumerators](http://sc.appdev.proj.coe/acmesds/enum) into your PROJECT/enum folder.   
+Clone [JSDB database agnosticator](http://sc.appdev.proj.coe/acmesds/jsdb) into your PROJECT/jsdb folder.
 
-### Manage 
+### Start 
 
 	npm run [ edit || start ]			# Configure environment
 	npm test [ ? || T1 || T2 || ...]			# Unit test
@@ -90,7 +89,7 @@ Simply require, configure and start TOTEM:
 	});
 
 where [its configuration keys](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) follow 
-the [ENUM deep copy conventions](https://github.com/acmesds/enum).
+the [ENUM deep copy conventions](http://sc.appdev.proj.coe/acmesds/enum).
 
 ### T1 - Just an interface
 		
