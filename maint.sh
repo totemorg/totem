@@ -128,6 +128,11 @@ neo4j.)
 	esac
 	;;
 
+jnb.)
+	cd /anaconda/bin
+	jupyter-notebook --ip 0.0.0.0 --port 8081
+	;;
+	
 mysql.)
 
 	case "$2." in
