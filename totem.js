@@ -2,12 +2,13 @@
 
 /**
 @class TOTEM
+Provides basic web service as documented in README.md.
 
 @requires http
 @requires https
 @requires fs
 @requires constants
-@requires clusters
+@requires cluster
 @requires child-process
 @requires os
 @requires stream
@@ -2103,10 +2104,6 @@ byActionTable, or byAction routers.
 			});
 		}
 
-		function myCore() {
-			return CLUSTER.isMaster ? 0 : CLUSTER.worker.id;
-		}
-		
 		//Log("log check", req.area, req.reqSocket?true:false, req.log );
 		if ( !req.area )   // log if file not being specified
 			if ( sock = req.reqSocket )  // log if http has a request socket
@@ -2114,7 +2111,7 @@ byActionTable, or byAction routers.
 					if ( sqlQuery = paths.mysql.logMetrics )	// log if logging enabled
 						logMetrics( sqlQuery, log, sock );  
 
-		Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.file} FOR ${req.client} ON CORE${myCore()}` );
+		Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.file}` );
 
 		route(req, res);
 	}
