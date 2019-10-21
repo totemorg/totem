@@ -3569,6 +3569,27 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 
 		if (!at) { at = {href: el}; el = "a"; }
 		
+		if ( isFunction(at) ) {
+			var args = [];
+			this.split(el).forEach( (arg,n) => args.push( at(arg,n) ) );
+			return args.join(el);
+		}
+		
+		else
+		if ( isArray(at) ) {
+			var args = [];
+			this.split(el).forEach( (arg,n) => args.push( arg.tag( at[n] || "" ) ) );
+			return args.join(el);
+		}
+		
+		else
+		if ( isString(at) ) {
+			var args = [], tags = at.split(el);
+			this.split(el).forEach( (arg,n) => args.push( arg.tag( tags[n] || "" ) ) );
+			return args.join(el);
+		}
+		
+		else
 		if ( el == "?" || el == "&" ) {  // tag a url
 			var rtn = this;
 
