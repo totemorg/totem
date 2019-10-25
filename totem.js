@@ -1831,7 +1831,7 @@ function getIndex(path,cb) {
 	*/
 		try {
 			FS.readdirSync(path).forEach( function (file) {
-				if ( !file.startsWith("_") && !file.endsWith("~") && !file.startsWith("~") )
+				if ( !file.endsWith("~") && !file.startsWith("~") )
 					cb(file);
 			});
 		}
