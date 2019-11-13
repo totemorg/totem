@@ -1943,225 +1943,6 @@ specified client.  Optional tags are logged with the upload.
 }
 
 /**
-@class TOTEM.Utilities.Endpoint_Routing 
-Methods to route notes byType, byAction, byTable, byActionTable, byArea.
-*/
-
-function parseNode(req) {
-/**
-@private
-@method parseNode
-Parse node request req.node = /TABLE?QUERY&INDEX || /FILEAREA/FILENAME to define 
-the req .table, .path, .filearea, .filename, .type and the req .query, .index, .joins and .flags.
-@param {Object} req Totem session request
-*/
-	var
-		query = req.query = {},
-		index = req.index = {},	
-		where = req.where = {},
-		flags = req.flags = {},
-		path = req.path = "." + req.node.parseURL(query, index, flags, where),	//  ./area1/area2/.../table.type
-		areas = path.split("/"),						// [".", area1, area2, ...]
-		file = req.file = areas.pop() || "",		// table.type
-		/*
-		parts = file.split("."),							// [table, type, ...]
-		table = req.table = parts[0] || "",	
-		type = req.type = parts[1] || "json",
-		*/
-		[x,table,type] = file.match( /(.*)\.(.*)/ ) || ["", file, "json"],
-		area = req.area = areas[1] || "",
-		site = req.site = TOTEM.site;
-
-	req.table = table;
-	req.type = type;
-	
-	var 
-		reqFlags = TOTEM.reqFlags,
-		strips = reqFlags.strips,
-		prefix = reqFlags.prefix,
-		traps = reqFlags.traps,
-		id = reqFlags.id,
-		body = req.body;
-
-	/*
-	Log({before: {
-		a: req.action,
-		q: query,
-		b: body,
-		f: flags
-	}}); */
-
-	for (var key in query) 		// strip or remap bogus keys
-		if ( key in strips )
-			delete query[key];
-
-	for (var key in flags) 	// trap special flags
-		if ( trap = traps[key] )
-			trap(req);
-			
-	for (var key in body) 		// remap body flags
-		if ( key.startsWith(prefix) ) {  
-			flags[key.substr(1)] = body[key];
-			delete body[key];
-		}
-
-	if (id in body) {  			// remap body record id
-		query[id] = body[id];
-		where[id] = `${id} = ${body[id]}`;
-		delete body[id];
-	}
-
-	/*
-	Log({after: {
-		a: req.action,
-		q: query,
-		b: body,
-		f: flags
-	}}); */
-}						
-
-function routeNodes(nodes, acks, req, res) {
-/**
-@private
-@method routeNodes
-Submit nodes=[/dataset.type, /dataset.type ...]  on the current request thread req to the routeNode() 
-method, aggregate results, then send with supplied response().
-@param {Array} nodes
-@param {Object} acks
-@param {Object} req Totem session request
-@param {Function} res Totem response callback
-*/
-	
-	if ( node = req.node = nodes.pop() )  	// grab last node
-		routeNode( req, function (data) { 	// route it and intercept its data
-			acks[req.table] = data;
-			routeNodes( nodes, acks, Copy(req,{}), res );
-		});
-
-	else
-	if (nodes.length) 	// still more nodes
-		routeNodes( nodes, acks, Copy(req,{}), res );
-	
-	else  				// no more nodes
-		res(acks);
-}
-
-function routeNode(req, res) {
-/**
-@private
-@method routeNode
-
-Parse the node=/dataset.type on the current req thread, then route using byArea, byType, byTable,
-byActionTable, or byAction routers.
-
-@param {Object} req Totem session request
-@param {Function} res Totem response callback
-*/
-	
-	parseNode(req);
-
-	function sendFile(req,res) {
-		res( function () {return req.path; } );
-	}
-
-	function followRoute(route,req,res) {
-	/**
-	@private
-	@method followRoute
-
-	Log session metrics, trace the current route, then callback route on the supplied 
-	request-response thread
-
-	@param {Function} route method endpoint to process session 
-	@param {Object} req Totem session request
-	@param {Function} res Totem response callback
-	*/
-
-		function logMetrics( sqlQuery, log, sock) { //< log session metrics 
-			sock._started = new Date();
-
-			/*
-			If maxlisteners is not set to infinity=0, the connection becomes sensitive to a sql 
-			connector t/o and there will be random memory leak warnings.
-			*/
-
-			sock.setMaxListeners(0);
-			sock.on('close', function () { 		// cb when connection closed
-				var 
-					secs = sock._started ? ((new Date()).getTime() - sock._started.getTime()) / 1000 : 0,
-					bytes = sock.bytesWritten;
-
-				sqlThread( sql => {
-					sql.query(sqlQuery, [ Copy(log, {
-						Delay: secs,
-						Transfer: bytes,
-						Event: sock._started,
-						Dataset: "",
-						Client: req.client,
-						Actions: 1
-					}), bytes, secs, log.Event  ], err => Log("dblog", err) );
-				});
-			});
-		}
-
-		//Log("log check", req.area, req.reqSocket?true:false, req.log );
-		if ( !req.area )   // log if file not being specified
-			if ( sock = req.reqSocket )  // log if http has a request socket
-				if ( log = req.log )  // log if session logged
-					if ( sqlQuery = paths.mysql.logMetrics )	// log if logging enabled
-						logMetrics( sqlQuery, log, sock );  
-
-		Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.file}` );
-
-		route(req, res);
-	}
-
-	const { sql, node, table, type, action, area, path } = req;
-
-	//Log([action,path,area,table,type]);
-	
-	if ( area )
-		if ( area == "socket.io" && !table )	// ignore socket keep-alives
-			res( "hush" );
-		
-		else
-		if ( route = byArea[area] )		// send uncached, static file
-			followRoute( route, req, res );
-
-		else	// send cashed file
-			followRoute( sendFile, req, res);
-		
-	else
-	if ( route = byType[type] ) // route by type
-		followRoute(route,req,res);
-	
-	else	
-	if ( route = byTable[table] ) 	// route by endpoint name
-		followRoute(route,req,res);
-	
-	else  
-	if ( route = byAction[action] ) 	// route by crud action
-		route(req, recs => {
-			if ( recs )
-				res( recs );
-			
-			else
-			if ( route = TOTEM[action] )
-				followRoute(route,req,res);
-
-			else 
-				res( errors.noRoute );
-		});
-		
-	else
-	if ( route = TOTEM[action] )	// route to database
-		followRoute(route,req,res);
-
-	else 
-		res( errors.noRoute );
-}
-
-/**
 @class TOTEM.Utilities.Session_Threading
 sql and session thread processing
 */
@@ -2266,8 +2047,8 @@ The session is validated and logged, and the client is challenged as necessary.
 								reqSocket: Req.socket,   // use supplied request socket 
 								resSocket: getSocket,		// use this method to return a response socket
 								encrypted: isEncrypted,	// on encrypted worker
-								socketio: isEncrypted ? TOTEM.site.urls.socketio : "",		// path to socket.io								
-								url: (Req.url == "/") ? paths.nourl : unescape(Req.url)		// requested url
+								socketio: isEncrypted ? TOTEM.site.urls.socketio : "",		// path to socket.io
+								url: unescape( Req.url.substr(1) || paths.nourl )
 								/*
 								There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
 								embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
@@ -2524,6 +2305,181 @@ The session is validated and logged, and the client is challenged as necessary.
 		Req.req = req;
 		startResponse( res => {	// start response if session validated.
 
+			function routeNode(node, req, cb) {
+			/**
+			@private
+			@method routeNode
+
+			Parse the node=/dataset.type on the current req thread, then route using byArea, byType, byTable,
+			byActionTable, or byAction routers.
+
+			@param {OFbject} req Totem session request
+			@param {Function} res Totem response callback
+			*/
+
+				function parseNode() {
+				/**
+				@private
+				@method parseNode
+				Parse node request req.node = /TABLE?QUERY&INDEX || /FILEAREA/FILENAME to define 
+				the req .table, .path, .filearea, .filename, .type and the req .query, .index, .joins and .flags.
+				@param {Object} req Totem session request
+				*/
+					var
+						query = req.query = {},
+						index = req.index = {},	
+						where = req.where = {},
+						flags = req.flags = {},
+						path = req.path = "./" + node.parseURL(query, index, flags, where),		//  .[/area1/area2/...]/table.type
+						areas = path.split("/"),						// [".", area1, area2, ...]
+						file = req.file = areas.pop() || "",		// table.type
+						[x,table,type] = [x,req.table,req.type] = file.match( /(.*)\.(.*)/ ) || ["", file, "json"],
+						area = req.area = areas[1] || "",
+						body = req.body,
+						site = req.site = TOTEM.site;
+
+					const { strips, prefix, traps, id } = TOTEM.reqFlags;
+
+					/*
+					Log({before: {
+						a: req.action,
+						q: query,
+						b: body,
+						f: flags
+					}}); */
+
+					for (var key in query) 		// strip or remap bogus keys
+						if ( key in strips )
+							delete query[key];
+
+					for (var key in flags) 	// trap special flags
+						if ( trap = traps[key] )
+							trap(req);
+
+					for (var key in body) 		// remap body flags
+						if ( key.startsWith(prefix) ) {  
+							flags[key.substr(1)] = body[key];
+							delete body[key];
+						}
+
+					if (id in body) {  			// remap body record id
+						query[id] = body[id];
+						where[id] = `${id} = ${body[id]}`;
+						delete body[id];
+					}
+
+					/*
+					Log({after: {
+						a: req.action,
+						q: query,
+						b: body,
+						f: flags
+					}}); */
+				}						
+				
+				function sendFile(req,res) {
+					res( function () {return req.path; } );
+				}
+
+				function followRoute(route) {
+				/**
+				@private
+				@method followRoute
+
+				Log session metrics, trace the current route, then callback route on the supplied 
+				request-response thread
+
+				@param {Function} route method endpoint to process session 
+				@param {Object} req Totem session request
+				@param {Function} res Totem response callback
+				*/
+
+					function logMetrics( logAccess, log, sock) { //< log session metrics 
+						sock._started = new Date();
+
+						/*
+						If maxlisteners is not set to infinity=0, the connection becomes sensitive to a sql 
+						connector t/o and there will be random memory leak warnings.
+						*/
+
+						sock.setMaxListeners(0);
+						sock.on('close', function () { 		// cb when connection closed
+							var 
+								secs = sock._started ? ((new Date()).getTime() - sock._started.getTime()) / 1000 : 0,
+								bytes = sock.bytesWritten;
+
+							sqlThread( sql => {
+								sql.query(logAccess, [ Copy(log, {
+									Delay: secs,
+									Transfer: bytes,
+									Event: sock._started,
+									Dataset: "",
+									Client: req.client,
+									Actions: 1
+								}), bytes, secs, log.Event  ], err => Log("dblog", err) );
+							});
+						});
+					}
+
+					//Log("log check", req.area, req.reqSocket?true:false, req.log );
+					if ( !req.area )   // log if file not being specified
+						if ( sock = req.reqSocket )  // log if http has a request socket
+							if ( log = req.log )  // log if session logged
+								if ( logAccess = paths.mysql.logMetrics )	// log if logging enabled
+									logMetrics( logAccess, log, sock );  
+
+					Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.file}` );
+
+					route(req, rtn => cb(req,rtn) );
+				}
+
+				parseNode();
+
+				const { sql, path, area, table, type, action } = req;
+				
+				// Log([action,path,area,table,type]);
+
+				if ( area )
+					if ( area == "socket.io" && !table )	// ignore socket keep-alives
+						res( "hush" );
+
+					else
+					if ( route = byArea[area] )		// send uncached, static file
+						followRoute( route );
+
+					else	// send cashed file
+						followRoute( sendFile );
+
+				else
+				if ( route = byType[type] ) // route by type
+					followRoute( route );
+
+				else	
+				if ( route = byTable[table] ) 	// route by endpoint name
+					followRoute( route );
+
+				else  
+				if ( route = byAction[action] ) 	// route by crud action
+					route(req, recs => {
+						if ( recs )
+							cb( req, recs );
+
+						else
+						if ( route = TOTEM[action] )
+							followRoute( route );
+
+						else 
+							cb( req, errors.noRoute );
+					});
+
+				else
+				if ( route = TOTEM[action] )	// route to database
+					followRoute( route );
+
+				else 
+					cb( req, errors.noRoute );
+			}
+			
 			req.body = req.post.parseJSON( post => {  // get parameters or yank files from body 
 				var files = [], parms = {}, file = "", rem,filename,name,type;
 
@@ -2571,20 +2527,25 @@ Log("line ",idx,line.length);
 			});		// get body parameters/files
 
 			var
-				url = req.url,
-				nodes = url
-					? TOTEM.nodeDivider  // get a list of all nodes on the url
-						? url.split(TOTEM.nodeDivider)
-						: [url]
-					: [];
+				nodes = TOTEM.nodeDivider ? req.url.split(TOTEM.nodeDivider) : [ req.url ];
+			
+			if (nodes.length == 1) 	// route just this node
+				routeNode( nodes[0], new Object(req), (req,rtn) => {
+					res(rtn);
+				});
 
-			if (nodes.length == 1) {	// route this node
-				node = req.node = nodes.pop();	
-				routeNode(req, res);
+			else {	// serialize nodes
+				var 
+					routed = 0,
+					rtns = {};
+						
+				nodes.forEach( node => {
+					routeNode( node, new Object(req), (req,rtn) => {
+						rtns[req.table] = rtn;
+						if ( ++routed == nodes.length ) res( rtns );
+					});
+				});
 			}
-
-			else 	// serialize nodes
-				routeNodes(nodes, {}, req, res);
 		});
 	});
 }
@@ -3829,14 +3790,13 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 				}
 			}
 		}
-		
+
+		const { escape, escapeId } = MYSQL;
 		var 
-			escape = MYSQL.escape,
-			escapeId = MYSQL.escapeId,
 			parts = this.split("?");
 
 		if ( parms = parts[1] )
-			parms.split("&").forEach( (parm) => {
+			parms.split("&").forEach( parm => {
 				if (parm) 
 					doParm( parm );
 			});
