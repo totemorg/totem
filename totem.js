@@ -2529,6 +2529,10 @@ Log("line ",idx,line.length);
 			var
 				nodes = TOTEM.nodeDivider ? req.url.split(TOTEM.nodeDivider) : [ req.url ];
 			
+			if ( !nodes.length )
+				res( null );
+			
+			else
 			if (nodes.length == 1) 	// route just this node
 				routeNode( nodes[0], new Object(req), (req,rtn) => {
 					res(rtn);
@@ -2540,8 +2544,9 @@ Log("line ",idx,line.length);
 					rtns = {};
 						
 				nodes.forEach( node => {
-					routeNode( node, new Object(req), (req,rtn) => {
+					routeNode( node, Copy(req,{}), (req,rtn) => {
 						rtns[req.table] = rtn;
+						//Log(">>>>>route", routed, nodes.length, ">>>save", req.table );
 						if ( ++routed == nodes.length ) res( rtns );
 					});
 				});
