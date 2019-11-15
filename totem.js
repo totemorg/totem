@@ -2567,11 +2567,11 @@ Log("line ",idx,line.length);
 					rtns = {};
 						
 				nodes.forEach( node => {
-					routeNode( node, Copy(req,{}), (req,rtn) => {
-						rtns[req.table] = rtn;
-						//Log(">>>>>route", routed, nodes.length, ">>>save", req.table );
-						if ( ++routed == nodes.length ) res( rtns );
-					});
+					if ( node )
+						routeNode( node, Copy(req,{}), (req,rtn) => {
+							rtns[req.table] = rtn;
+							if ( ++routed == nodes.length ) res( rtns );
+						});
 				});
 			}
 		});
@@ -3670,9 +3670,11 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 	@param {Object} query context hash
 	*/
 		try {
+			Log(this, query);
 			return VM.runInContext( "`" + this + "`" , VM.createContext(query));
 		}
 		catch (err) {
+			Log("parse err", err);
 			return err+"";
 		}
 	},
