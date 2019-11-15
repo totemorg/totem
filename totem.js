@@ -66,7 +66,7 @@ function Trace(msg,req,fwd) {
 	
 const { Copy,Each,Log,isError,isArray,isString,isFunction,isEmpty,typeOf } = ENUM;
 
-const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable } = TOTEM = module.exports = {		
+const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable,timeIntervals } = TOTEM = module.exports = {		
 	config: (opts,cb) => {
 		/**
 		@private
@@ -138,14 +138,37 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 		Trace( "STARTED" );
 	},
 	
+	/**
+	@cfg {Object}
+	Common time intervals for watchdogs, queues and setintervals.
+	*/
+	timeIntervals: {
+		ms: 1e-3,
+		second: 1,
+		sec: 1,
+		minute: 60,
+		min: 60,
+		hour: 3600,
+		hr: 3600,
+		day: 86400,
+		week: 604800,
+		wk: 604800,
+		month: 2419200,
+		mth: 2419200,
+		year: 31449600,
+		yr: 31449600
+	},
+
 	requestFile: sysFile,
 	
 	queues: DB.queues, 	// pass along
 		
-	reroute: { //< db.table -> db.table translators
+	/**
+	@cfg {Object}
+	Table security providers { "db.table": ctx => "db.table", ... }
+	*/
+	reroute: { //< table security providers
 	},
-		
-	//init: function () {},
 		
 	/**
 	@cfg {Object}
@@ -1640,7 +1663,7 @@ function initializeService(sql,cb) {
 
 				dog(dog);  // feed dog attributes as parameters
 
-			}, dog.cycle*1e3, {
+			}, timeIntervals[dog.cycle] || dog.cycle*1e3, {
 				name: key
 			});
 		}
