@@ -2051,7 +2051,7 @@ The session is validated and logged, and the client is challenged as necessary.
 			isBusy = BUSY ? BUSY() : false;
 		
 		if ( isBusy )
-			return Res.end( errors.pretty( busy ) );
+			return Res.end( errors.pretty( errors.toobusy ) );
 		
 		else 
 			switch ( Req.method ) {
