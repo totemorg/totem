@@ -2977,7 +2977,10 @@ function deleteDS(req, res) {
 		flags = req.flags,
 		where = req.where;
 
-	if ( where.ID )
+	if ( isEmpty(where.ID) )
+		res( errors.noID );
+		
+	else
 		sql.runQuery({
 			trace: flags.trace,			
 			crud: req.action,
@@ -2990,9 +2993,6 @@ function deleteDS(req, res) {
 			res( err || info );
 
 		});
-	
-	else
-		res( errors.noID );
 	
 }
 
@@ -3012,7 +3012,7 @@ function updateDS(req, res) {
 		escapeId = MYSQL.escapeId,
 		escape = MYSQL.escape;
 
-	Log(req.action, where, body);
+	//Log(req.action, where, body);
 	//for (var key in body) body[key] = `${escapeId(key)} = ${escape(body[key])}`;
 	//Log(body);
 	
@@ -3020,7 +3020,10 @@ function updateDS(req, res) {
 		res( errors.noBody );
 	
 	else
-	if ( where.ID )
+	if ( isEmpty( where ) )
+		res( errors.noID );
+	
+	else
 		sql.runQuery({
 			trace: flags.trace,
 			crud: req.action,
@@ -3033,13 +3036,10 @@ function updateDS(req, res) {
 			//Log(info);
 			res( err || info );
 
-			if ( onUpdate = TOTEM.onUpdate ) 
+			if ( onUpdate = TOTEM.onUpdate )
 				onUpdate(sql, ds, body);
 			
 		});
-	
-	else
-		res( errors.noID );
 	
 }
 
@@ -3625,25 +3625,6 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 	},
 	
-	function _parseJS(query, cb) {
-	/**
-	@member String
-	Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
-	@param {Object} query context hash
-	*/
-		try {
-			return VM.runInContext( this+"", VM.createContext(query));
-		}
-		catch (err) {
-			//Log("parseJS", this+"", err);
-			if ( cb ) 
-				return cb(this, err);
-			
-			else
-				return err+"";
-		}
-	},
-	
 	function parseJS(ctx, cb) {
 	/**
 	@member String
@@ -3663,18 +3644,16 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 	},
 	
-	function parseEMAC(query) {
+	function parse$(query) {
 	/**
 	@member String
 	Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
 	@param {Object} query context hash
 	*/
 		try {
-			Log(this, query);
 			return VM.runInContext( "`" + this + "`" , VM.createContext(query));
 		}
 		catch (err) {
-			Log("parse err", err);
 			return err+"";
 		}
 	},
