@@ -65,6 +65,7 @@ function Trace(msg,req,fwd) {
 }
 	
 const { Copy,Each,Log,isError,isArray,isString,isFunction,isEmpty,typeOf } = ENUM;
+const { escape, escapeId } = MYSQL;
 
 const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable,timeIntervals } = TOTEM = module.exports = {		
 	config: (opts,cb) => {
@@ -445,9 +446,7 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 				var 
 					flags = req.flags,
 					where = req.where,
-					filters = flags.filters,
-					escape = MYSQL.escape,
-					escapeId = MYSQL.escapeId;
+					filters = flags.filters;
 				
 				if (filters)
 				filters.forEach( (filter) => where[ filter.property ] = escapeId(filter.property).SQLfind( escape(filter.value) ) );
@@ -2550,7 +2549,7 @@ Log("line ",idx,line.length);
 			});		// get body parameters/files
 
 			var
-				nodes = TOTEM.nodeDivider ? req.url.split(TOTEM.nodeDivider) : [ req.url ];
+				nodes = req.url.split(TOTEM.nodeDivider);
 			
 			if ( !nodes.length )
 				res( null );
@@ -2947,9 +2946,7 @@ function insertDS(req, res) {
 	var 
 		sql = req.sql,							// sql connection
 		flags = req.flags,
-		body = req.body,
-		escapeId = MYSQL.escapeId,
-		escape = MYSQL.escape;
+		body = req.body;
 
 	sql.runQuery({
 		trace: flags.trace,
@@ -3008,9 +3005,7 @@ function updateDS(req, res) {
 		flags = req.flags,
 		body = req.body,
 		ds = req.table,
-		where = req.where,
-		escapeId = MYSQL.escapeId,
-		escape = MYSQL.escape;
+		where = req.where;
 
 	//Log(req.action, where, body);
 	//for (var key in body) body[key] = `${escapeId(key)} = ${escape(body[key])}`;
@@ -3800,7 +3795,6 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			}
 		}
 
-		const { escape, escapeId } = MYSQL;
 		var 
 			parts = this.split("?");
 
