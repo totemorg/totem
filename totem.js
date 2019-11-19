@@ -109,7 +109,7 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 						password : mysql.pass,				// passphrase
 						connectionLimit : mysql.sessions || 100, 		// max simultaneous connections
 						//acquireTimeout : 10000, 			// connection acquire timer
-						queueLimit: 500,  						// max concections to queue (0=unlimited)
+						queueLimit: 0,  						// max concections to queue (0=unlimited)
 						waitForConnections: true			// allow connection requests to be queued
 					}
 				}, mysql)
@@ -473,7 +473,7 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 		host: ENV.MYSQL_HOST || "localhost",
 		user: ENV.MYSQL_USER || "mysqluser",
 		pass: ENV.MYSQL_PASS || "mysqlpass",
-		sessions: 1000
+		sessions: 5000
 	},
 	
 	/**
