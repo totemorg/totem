@@ -448,8 +448,8 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 					where = req.where,
 					filters = flags.filters;
 				
-				if (filters)
-				filters.forEach( (filter) => where[ filter.property ] = escapeId(filter.property).SQLfind( escape(filter.value) ) );
+				if (filters && filters.forEach )
+					filters.forEach( filter => where[ filter.property ] = escapeId(filter.property || "" ).SQLfind( escape(filter.value) ) );
 			}
 		},
 		strips:	 			//< Flags to strips from request
