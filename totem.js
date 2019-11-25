@@ -3672,23 +3672,25 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			function doFlag(str) {
 				function doSet(str) {
 					function doTest(str) {
-						function doStore(str) {
-							function doVar(str) {
-								return str;
+						function doSimple(str) {
+							function doStore(str) {
+								return str.binop( /(.*)(\$)(.*)/, txt=>txt, (lhs,rhs,op) => {
+									var exs = rhs.split(",");
+									exs.forEach( (ex,n) => exs[n] = escape(op+ex) );
+									return `json_extract(${escapeId(lhs)}, ${exs.join(",")} )`;
+								});
 							}
-							
-							return str.binop( /(.*)(\$)(.*)/, doVar, (lhs,rhs,op) => {
-								var exs = rhs.split(",");
-								exs.forEach( (ex,n) => exs[n] = escape(op+ex) );
-								return `json_extract(${escapeId(lhs)}, ${exs.join(",")} )`;
+
+							return str.binop( /(.*)(<|>|=)(.*)/, doStore, (lhs,rhs,op) => {	// process wheres
+								return where[lhs] = escapeId(lhs) + op + escape(rhs);
 							});
 						}
-
+						
 						str.binop( /(.*)(=)(.*)/, txt => txt, (lhs,rhs,op) => {		// process queries verbatim
 							query[lhs] = rhs.parseJSON( txt => txt );
 						});
 						
-						return str.binop( /(.*)(<|>|=)(.*)/, doStore, (lhs,rhs,op) => {	// process wheres
+						return str.binop( /(.*)(<=|>=|\!=)(.*)/, doSimple, (lhs,rhs,op) => {	// process wheres
 							return where[lhs] = escapeId(lhs) + op + escape(rhs);
 						});
 					}
