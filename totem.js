@@ -67,7 +67,7 @@ function Trace(msg,req,fwd) {
 const { Copy,Each,Log,isError,isArray,isString,isFunction,isEmpty,typeOf } = ENUM;
 const { escape, escapeId } = MYSQL;
 
-const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable,timeIntervals } = TOTEM = module.exports = {		
+const { reqFlags,paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable,timeIntervals } = TOTEM = module.exports = {		
 	config: (opts,cb) => {
 		/**
 		@private
@@ -1168,7 +1168,7 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 		noFile: new Error("file not found"),
 		noIndex: new Error("cannot index files here"),
 		badType: new Error("no such dataset type"),
-		badReturn: new Error("data could not be returned"),
+		badReturn: new Error("no data returned"),
 		noSockets: new Error("socket.io failed"),
 		noService: new Error("no service  to start"),
 		noData: new Error("no data returned"),
@@ -2143,7 +2143,15 @@ The session is validated and logged, and the client is challenged as necessary.
 				}		
 
 				function sendError(err) {  // Send pretty error message - terminate sql connection
-					Res.end( errors.pretty(err) );
+					switch ( req.type ) {
+						case "html":
+						case "db":
+							Res.end( errors.pretty(err) );
+							break;
+							
+						default:
+							Res.end( err+"" );
+					}
 				}
 
 				function sendObject(obj) {
@@ -2184,7 +2192,7 @@ The session is validated and logged, and the client is challenged as necessary.
 							sendObject( recs );
 
 					else
-						sendErrror( errors.badReturn ); 
+						sendError( errors.badReturn ); 
 				}
 
 				var
@@ -2257,14 +2265,16 @@ The session is validated and logged, and the client is challenged as necessary.
 
 						case "Array": 			// send data records 
 
-							var flag = TOTEM.reqFlags;
+							var call = null;
+							for ( var key in req.flags )
+								if ( call = reqFlags[key] ) {
+									call( data, req, recs => {
+										sendRecords(recs);
+									});
+									break;
+								}
 
-							if ( req.flags.blog )   // blog back selected keys
-								flag.blog( data, req, recs => {
-									sendRecords(recs);
-								});
-
-							else
+							if ( !call )
 								sendRecords(data);
 
 							break;
@@ -3682,7 +3692,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 							}
 
 							return str.binop( /(.*)(<|>|=)(.*)/, doStore, (lhs,rhs,op) => {	// process wheres
-								return where[lhs] = escapeId(lhs) + op + escape(rhs);
+								return where[lhs] = escapeId(lhs) + (( (op=="=") && rhs.indexOf("%")>=0) ? " LIKE " : op )  + escape(rhs);
 							});
 						}
 						
