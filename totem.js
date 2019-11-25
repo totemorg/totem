@@ -449,7 +449,7 @@ const { paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable
 					filters = flags.filters;
 				
 				if (filters && filters.forEach )
-					filters.forEach( filter => where[ filter.property ] = escapeId(filter.property || "" ).SQLfind( escape(filter.value) ) );
+					filters.forEach( filter => where[ filter.property ] = escapeId(filter.property || "" ).sqlLike( escape(filter.value) ) );
 			}
 		},
 		strips:	 			//< Flags to strips from request
@@ -2896,22 +2896,21 @@ function selectDS(req, res) {
 	@param {Object} req Totem's request
 	@param {Function} res Totem's response callback
 	*/
-	var 
-		sql = req.sql,							// sql connection
-		flags = req.flags,
-		where = req.where,
-		index = flags.index || req.index;
+	const { sql, flags, client, where, index, action, table } = req;
 
 	sql.runQuery({
 		trace: flags.trace,
-		crud: req.action,
-		from: req.table,
+		crud: action,
+		from: table,
 		pivot: flags.pivot,
 		browse: flags.browse,		
+		//limit: flags.offset ? flags.limit : 0,
+		//offset: flags.offset,
 		where: where,
-		index: index,
+		index: flags.index || index,
+		sort: flags.sort,
 		having: {},
-		client: req.client
+		client: client
 	}, null, (err,recs) => {
 
 		if ( isEmpty(index) )
@@ -2943,17 +2942,14 @@ function insertDS(req, res) {
 	@param {Object} req Totem's request
 	@param {Function} res Totem's response callback
 	*/
-	var 
-		sql = req.sql,							// sql connection
-		flags = req.flags,
-		body = req.body;
+	const { sql, flags, body, client, action, table } = req;
 
 	sql.runQuery({
 		trace: flags.trace,
-		crud: req.action,
-		from: req.table,
+		crud: action,
+		from: table,
 		set: body,
-		client: req.client
+		client: client
 	}, TOTEM.emitter, (err,info) => {
 
 		res( err || info );
@@ -2969,10 +2965,7 @@ function deleteDS(req, res) {
 	@param {Object} req Totem's request
 	@param {Function} res Totem's response callback
 	*/	
-	var 
-		sql = req.sql,							// sql connection
-		flags = req.flags,
-		where = req.where;
+	const { sql, flags, where, client, action, table } = req;
 
 	if ( isEmpty(where.ID) )
 		res( errors.noID );
@@ -2980,10 +2973,10 @@ function deleteDS(req, res) {
 	else
 		sql.runQuery({
 			trace: flags.trace,			
-			crud: req.action,
-			from: req.table,
+			crud: action,
+			from: table,
 			where: where,
-			client: req.client
+			client: client
 		}, TOTEM.emitter, (err,info) => {
 
 			//Log(info);
@@ -3000,16 +2993,7 @@ function updateDS(req, res) {
 	@param {Object} req Totem's request
 	@param {Function} res Totem's response callback
 	*/	
-	var 
-		sql = req.sql,							// sql connection
-		flags = req.flags,
-		body = req.body,
-		ds = req.table,
-		where = req.where;
-
-	//Log(req.action, where, body);
-	//for (var key in body) body[key] = `${escapeId(key)} = ${escape(body[key])}`;
-	//Log(body);
+	const { sql, flags, body, where, client, action, table } = req;
 	
 	if ( isEmpty(body) )
 		res( errors.noBody );
@@ -3021,18 +3005,18 @@ function updateDS(req, res) {
 	else
 		sql.runQuery({
 			trace: flags.trace,
-			crud: req.action,
-			from: req.table,
+			crud: action,
+			from: table,
 			where: where,
 			set: body,
-			client: req.client
+			client: client
 		}, TOTEM.emitter, (err,info) => {
 
 			//Log(info);
 			res( err || info );
 
 			if ( onUpdate = TOTEM.onUpdate )
-				onUpdate(sql, ds, body);
+				onUpdate(sql, table, body);
 			
 		});
 	
@@ -3685,19 +3669,62 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 	*/
 		
 		function doParm(str) {  // expand parm str 
-			doSample( str, res => { // not sampling so try relation
-				doRelation(res, where, res => {	// not relation so try index
-					//Log("last guess", res);
-					return index[res] = escapeId(res);  
+			function doFlag(str) {
+				function doSet(str) {
+					function doTest(str) {
+						function doStore(str) {
+							function doVar(str) {
+								return str;
+							}
+							
+							return str.binop( /(.*)(\$)(.*)/, doVar, (lhs,rhs,op) => {
+								var exs = rhs.split(",");
+								exs.forEach( (ex,n) => exs[n] = escape(op+ex) );
+								return `json_extract(${escapeId(lhs)}, ${exs.join(",")} )`;
+							});
+						}
+
+						str.binop( /(.*)(=)(.*)/, txt => txt, (lhs,rhs,op) => {		// process queries verbatim
+							query[lhs] = rhs.parseJSON( txt => txt );
+						});
+						
+						return str.binop( /(.*)(<|>|=)(.*)/, doStore, (lhs,rhs,op) => {	// process wheres
+							return where[lhs] = escapeId(lhs) + op + escape(rhs);
+						});
+					}
+
+					return str.binop( /(.*)(:=)(.*)/, doTest, (lhs,rhs,op) => {
+						index[lhs] = rhs + " AS " + escapeId(lhs);
+						return lhs;
+					});
+				}
+				
+				return str.binop( /^_(.*)(=)(.*)/, doSet, (lhs,rhs,op) => {
+					switch (lhs) {
+						case "bin":
+							where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN BOOLEAN MODE)`;
+							break;
+						case "exp":
+							where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN QUERY EXPANSION)`;
+							break;
+						case "nlp":
+							where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN NATURAL LANGUAGE MODE)`;
+							break;
+						default:
+							flags[lhs] = rhs.parseJSON( str => str );
+					}	
 				});
-			});
+			}
+
+			doFlag(str);
 		}
 
-		function doSample(str, cb) {  // expand lhs := rhs or callback cb(str)
+		/*
+		function xdoSet(str, cb) {  // expand lhs := rhs or callback cb(str)
 			function rep(lhs,op,rhs) {
 				expand = true;
 				var
-					rel = doRelation(rhs, {}, res => {	// not relation so assume id
+					rel = doTest(rhs, {}, res => {	// not relation so assume id
 						//Log("no test", res);
 						return escapeId(res); 
 					});
@@ -3714,7 +3741,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			return expand ? res : cb( res );
 		}
 
-		function doStore(str, cb) {  // expand "store$expression, ..." or callback(str)
+		function xdoStore(str, cb) {  // expand "store$expression, ..." or callback(str)
 			function rep(lhs,op,rhs) {
 				expand = true;
 				
@@ -3732,7 +3759,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			return expand ? res : cb( str );
 		}
 
-		function doRelation(str, where, cb) {  // expand "where op val" || "_flag = json" or callback(str)
+		function xdoTest(str, where, cb) {  // expand "where op val" || "_flag = json" or callback(str)
 			
 			function rep(lhs,op,rhs) {
 				//Log("dotest", lhs, op, rhs);
@@ -3745,7 +3772,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 					}),
 					val = doStore(rhs, res => escape(res) );
 
-				return key.SQLfind(val);
+				return key.sqlLike(val);
 			}
 
 			var
@@ -3763,7 +3790,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 								where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN QUERY EXPANSION)`;
 								break;
 							case "nlp":
-								where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN NATURAL LANGUAuGE MODE)`;
+								where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN NATURAL LANGUAGE MODE)`;
 								break;
 							default:
 								flags[lhs] = rhs.parseJSON( res => res );
@@ -3794,7 +3821,8 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 				}
 			}
 		}
-
+		*/
+		
 		var 
 			parts = this.split("?");
 
@@ -3804,7 +3832,13 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 					doParm( parm );
 			});
 
-		//Log({query: query, index: index, flags: flags, where: where, path: parts[0]});
+		if (false)
+		Log({
+			q: query,
+			w: where,
+			i: index,
+			f: flags
+		});
 		
 		return parts[0];
 	},
@@ -3821,7 +3855,21 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		XML2JS.parseString(this, function (err,json) {				
 			cb( err ? null : json );
 		});
+	},
+	
+	function binop( reg, go, cb ) {
+		var 
+			[x,lhs,op,rhs] = this.match(reg) || [""],
+			rtn = x ? cb( go(lhs), go(rhs), op ) : go(this+"");
+		
+		//Log("bop", this, reg, x?true:false, [lhs, op, rhs], rtn);
+		return rtn;
+	},
+		
+	function sqlLike( val ) {
+		return ( val.indexOf("%")>=0) ? `${this} LIKE ${val} `  : `${this} = ${val} ` 
 	}
+		
 ].Extend(String);
 
 /**
