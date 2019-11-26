@@ -2438,6 +2438,7 @@ The session is validated and logged, and the client is challenged as necessary.
 
 					route(req, recs => {	// route request and capture records
 						var call = null;
+						//Log(">>>scan flags", req.flags);
 						for ( var key in req.flags )	// perform once-only data restructing conversion
 							if ( call = reqFlags[key] ) {
 								call( recs, req, recs => cb(req, recs) );
@@ -2476,7 +2477,14 @@ The session is validated and logged, and the client is challenged as necessary.
 
 				else  
 				if ( route = byAction[action] ) 	// route by crud action
-					route(req, recs => {
+					if ( route = route[table] )
+						followRoute( route );
+					else
+					if ( route = TOTEM[action] )
+						followRoute( route );				
+					else
+						cb( req, errors.noRoute);
+					/*route(req, recs => {
 						if ( recs )
 							cb( req, recs );
 
@@ -2486,7 +2494,7 @@ The session is validated and logged, and the client is challenged as necessary.
 
 						else 
 							cb( req, errors.noRoute );
-					});
+					}); */
 
 				else
 				if ( route = TOTEM[action] )	// route to database
