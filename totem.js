@@ -495,11 +495,11 @@ const { reqFlags,paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byActio
 
 		//ops: "<>!*$|%/^~",
 		id: "ID", 					//< DB record id
-		prefix: "_",				//< Prefix that indicates a field is a flag
-		trace: "_trace",		//< Echo flags before and after parse	
-		blog: function (recs, req, res) {  //< Default blogger
+		prefix: "_"				//< Prefix that indicates a field is a flag
+		//trace: "_trace",		//< Echo flags before and after parse	
+		/*blog: function (recs, req, res) {  //< Default blogger
 			res(recs);
-		}
+		} */
 	},
 
 	/**
@@ -2220,7 +2220,7 @@ The session is validated and logged, and the client is challenged as necessary.
 				Res.statusCode = 200;
 
 				if (data)
-					switch (data.constructor.name) {  // send based on its type
+					switch ( typeOf(data) ) {  // send based on its type
 						case "Error": 			// send error message
 
 							switch (req.type) {
@@ -2265,19 +2265,7 @@ The session is validated and logged, and the client is challenged as necessary.
 							break;
 
 						case "Array": 			// send data records 
-
-							var call = null;
-							for ( var key in req.flags )
-								if ( call = reqFlags[key] ) {
-									call( data, req, recs => {
-										sendRecords(recs);
-									});
-									break;
-								}
-
-							if ( !call )
-								sendRecords(data);
-
+							sendRecords(data);
 							break;
 
 						case "String":  			// send message
@@ -2448,7 +2436,17 @@ The session is validated and logged, and the client is challenged as necessary.
 
 					Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.file}` );
 
-					route(req, rtn => cb(req,rtn) );
+					route(req, recs => {	// route request and capture records
+						var call = null;
+						for ( var key in req.flags )	// perform once-only data restructing conversion
+							if ( call = reqFlags[key] ) {
+								call( recs, req, recs => cb(req, recs) );
+								break;
+							}
+
+						if ( !call )
+							cb(req,recs);
+					});
 				}
 
 				parseNode();
@@ -2558,14 +2556,15 @@ Log("line ",idx,line.length);
 
 			else {	// serialize nodes
 				var 
+					routes = nodes.length,
 					routed = 0,
 					rtns = {};
 						
-				nodes.forEach( node => {
+				nodes.forEach( node => {	// enumerate nodes
 					if ( node )
-						routeNode( node, Copy(req,{}), (req,rtn) => {
-							rtns[req.table] = rtn;
-							if ( ++routed == nodes.length ) res( rtns );
+						routeNode( node, Copy(req,{}), (req,recs) => {	// route the node and capture returned records
+							rtns[req.table] = recs;
+							if ( ++routed == routes ) res( rtns );
 						});
 				});
 			}
@@ -3717,6 +3716,17 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			doFlag(str);
 		}
 
+		function doLast( str ) {
+			var
+				[x,lhs,op,rhs] = str.match( /(.*?)(=)(.*)/ ) || [];
+
+			if ( op ) 
+				query[lhs] = rhs;
+
+			else
+				doParm( str );
+		}
+
 		/*
 		function xdoSet(str, cb) {  // expand lhs := rhs or callback cb(str)
 			function rep(lhs,op,rhs) {
@@ -3835,9 +3845,9 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		});
 		
 		if ( last )
-			if ( rem )
-				doParm( last + "?"+rem );
-
+			if ( rem ) 
+				doLast( last + "?" + rem );
+		
 			else
 				doParm( last );
 
@@ -3867,8 +3877,8 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 	
 	function binop( reg, go, cb ) {
 		var 
-			[x,lhs,op,rhs] = this.match(reg) || [""],
-			rtn = x ? cb( go(lhs), go(rhs), op ) : go(this+"");
+			[x,lhs,op,rhs] = this.match(reg) || [],
+			rtn = op ? cb( go(lhs), go(rhs), op ) : go(this+"");
 		
 		//Log("bop", this, reg, x?true:false, [lhs, op, rhs], rtn);
 		return rtn;
