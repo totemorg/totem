@@ -3682,7 +3682,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 							});
 						}
 						
-						str.binop( /(.*)(=)(.*)/, txt => txt, (lhs,rhs,op) => {		// process queries verbatim
+						str.binop( /(.*?)(=)(.*)/, txt => txt, (lhs,rhs,op) => {		// process queries verbatim
 							query[lhs] = rhs.parseJSON( txt => txt );
 						});
 						
@@ -3822,13 +3822,24 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		*/
 		
 		var 
-			parts = this.split("?");
+			parts = this.split("?"),
+			lhs = parts[0],
+			rhs = parts[1] || "",
+			rem = parts.slice(2).join("?"),
+			parms = rhs.split("&"),
+			last = parms.pop();
+			
+		parms.forEach( parm => {
+			if (parm) 
+				doParm( parm );
+		});
+		
+		if ( last )
+			if ( rem )
+				doParm( last + "?"+rem );
 
-		if ( parms = parts[1] )
-			parms.split("&").forEach( parm => {
-				if (parm) 
-					doParm( parm );
-			});
+			else
+				doParm( last );
 
 		if (false) Log({
 			q: query,
@@ -3837,7 +3848,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			f: flags
 		});
 		
-		return parts[0];
+		return lhs;
 	},
 
 	function parseXML(cb) {
