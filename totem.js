@@ -67,7 +67,45 @@ function Trace(msg,req,fwd) {
 const { Copy,Each,Log,isError,isArray,isString,isFunction,isEmpty,typeOf } = ENUM;
 const { escape, escapeId } = MYSQL;
 
-const { reqFlags,paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable,timeIntervals } = TOTEM = module.exports = {		
+const { reqFlags,paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable,timeIntervals } = TOTEM = module.exports = {
+	
+	/**
+	@cfg {Object} 
+	@private
+	@member TOTEM	
+	Error messages
+	*/		
+	errors: {
+		pretty: err => { 
+			return err+"";
+		},
+		badMethod: new Error("unsupported request method"),
+		noProtocol: new Error("no protocol specified to fetch"),
+		noRoute: new Error("no route"),
+		badQuery: new Error("invalid query"),
+		badGroup: new Error("invalid group requested"),
+		lostConnection: new Error("client connection lost"),
+		noDB: new Error("database unavailable"),
+		noProfile: new Error("user profile could not be determined"),
+		failedUser: new Error("failed modification of user profile"),
+		missingPass: new Error("missing initial user password"),
+		expiredCert: new Error("cert expired"),
+		rejectedClient: new Error("client rejected - bad cert, profile or session"),
+		tooBusy: new Error("too busy - try again later"),
+		noFile: new Error("file not found"),
+		noIndex: new Error("cannot index files here"),
+		badType: new Error("no such dataset type"),
+		badReturn: new Error("no data returned"),
+		noSockets: new Error("socket.io failed"),
+		noService: new Error("no service  to start"),
+		noData: new Error("no data returned"),
+		retry: new Error("data fetch retries exceeded"),
+		notAllowed: new Error("this endpoint is disabled"),
+		noID: new Error("missing record id"),
+		noSession: new Error("no such session started"),
+		noAccess: new Error("no access to master core at this endpoint")
+	},
+
 	config: (opts,cb) => {
 		/**
 		@private
@@ -1140,43 +1178,6 @@ const { reqFlags,paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byActio
 			extensions: {  // Extend mime types as needed
 			}
 		}
-	},
-
-	/**
-	@cfg {Object} 
-	@private
-	@member TOTEM	
-	Error messages
-	*/		
-	errors: {
-		pretty: err => { 
-			return err+"";
-		},
-		badMethod: new Error("unsupported request method"),
-		noProtocol: new Error("no protocol specified to fetch"),
-		noRoute: new Error("no route"),
-		badQuery: new Error("invalid query"),
-		badGroup: new Error("invalid group requested"),
-		lostConnection: new Error("client connection lost"),
-		noDB: new Error("database unavailable"),
-		noProfile: new Error("user profile could not be determined"),
-		failedUser: new Error("failed modification of user profile"),
-		missingPass: new Error("missing initial user password"),
-		expiredCert: new Error("cert expired"),
-		rejectedClient: new Error("client rejected - bad cert, profile or session"),
-		tooBusy: new Error("too busy - try again later"),
-		noFile: new Error("file not found"),
-		noIndex: new Error("cannot index files here"),
-		badType: new Error("no such dataset type"),
-		badReturn: new Error("no data returned"),
-		noSockets: new Error("socket.io failed"),
-		noService: new Error("no service  to start"),
-		noData: new Error("no data returned"),
-		retry: new Error("data fetch retries exceeded"),
-		notAllowed: new Error("this endpoint is disabled"),
-		noID: new Error("missing record id"),
-		noSession: new Error("no such session started"),
-		noAccess: new Error("no access to master core at this endpoint")
 	},
 
 	/**
@@ -2372,14 +2373,6 @@ The session is validated and logged, and the client is challenged as necessary.
 
 					const { strips, prefix, traps, id } = TOTEM.reqFlags;
 
-					/*
-					Log({before: {
-						a: req.action,
-						q: query,
-						b: body,
-						f: flags
-					}}); */
-
 					for (var key in query) 		// strip or remap bogus keys
 						if ( key in strips )
 							delete query[key];
@@ -2400,13 +2393,6 @@ The session is validated and logged, and the client is challenged as necessary.
 						delete body[id];
 					}
 
-					/*
-					Log({after: {
-						a: req.action,
-						q: query,
-						b: body,
-						f: flags
-					}}); */
 				}						
 				
 				function sendFile(req,res) {
@@ -3844,8 +3830,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 					doParm( parm );
 			});
 
-		if (false)
-		Log({
+		if (false) Log({
 			q: query,
 			w: where,
 			i: index,
