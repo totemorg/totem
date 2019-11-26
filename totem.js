@@ -2479,22 +2479,13 @@ The session is validated and logged, and the client is challenged as necessary.
 				if ( route = byAction[action] ) 	// route by crud action
 					if ( route = route[table] )
 						followRoute( route );
+					
 					else
 					if ( route = TOTEM[action] )
 						followRoute( route );				
+					
 					else
 						cb( req, errors.noRoute);
-					/*route(req, recs => {
-						if ( recs )
-							cb( req, recs );
-
-						else
-						if ( route = TOTEM[action] )
-							followRoute( route );
-
-						else 
-							cb( req, errors.noRoute );
-					}); */
 
 				else
 				if ( route = TOTEM[action] )	// route to database
