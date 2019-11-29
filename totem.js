@@ -67,8 +67,10 @@ function Trace(msg,req,fwd) {
 const { Copy,Each,Log,isError,isArray,isString,isFunction,isEmpty,typeOf } = ENUM;
 const { escape, escapeId } = MYSQL;
 
-const { reqFlags,paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable,timeIntervals } = TOTEM = module.exports = {
+const { operators, reqFlags,paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byAction,byTable,timeIntervals } = TOTEM = module.exports = {
 	
+	operators: ["=", "<", "<=", ">", ">=", "!=", ":bin:", ":exp:", ":nlp:"],
+
 	/**
 	@cfg {Object} 
 	@private
@@ -487,7 +489,7 @@ const { reqFlags,paths,errors,probeSite,sqlThread,byFilter,byArea,byType,byActio
 					filters = flags.filters;
 				
 				if (filters && filters.forEach )
-					filters.forEach( filter => where[ filter.property ] = escapeId(filter.property || "" ).sqlLike( escape(filter.value) ) );
+					filters.forEach( filter => where["="][ filter.property ] = filter.value || "" );
 			}
 		},
 		strips:	 			//< Flags to strips from request
@@ -2898,6 +2900,7 @@ function selectDS(req, res) {
 		from: table,
 		pivot: flags.pivot,
 		browse: flags.browse,		
+		except: flags.except,
 		//limit: flags.offset ? flags.limit : 0,
 		//offset: flags.offset,
 		where: where,
@@ -3662,57 +3665,30 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 	@param {Object} where hash of sql-ized conditional keys
 	*/
 		
-		function doParm(str) {  // expand parm str 
-			function doFlag(str) {
-				function doSet(str) {
-					function doTest(str) {
-						function doSimple(str) {
-							function doStore(str) {
-								return str.binop( /(.*)(\$)(.*)/, txt=>txt, (lhs,rhs,op) => {
-									var exs = rhs.split(",");
-									exs.forEach( (ex,n) => exs[n] = escape(op+ex) );
-									return `json_extract(${escapeId(lhs)}, ${exs.join(",")} )`;
-								});
+		function doParm(parm) {
+			function doFlag(parm) {
+				function doIndex(parm) {
+					function doTest(parm) {
+						function doSimple(parm) {
+							function doTag(parm) {
+								query[parm] = 1;
 							}
-
-							return str.binop( /(.*)(<|>|=)(.*)/, doStore, (lhs,rhs,op) => {	// process wheres
-								return where[lhs] = escapeId(lhs) + (( (op=="=") && rhs.indexOf("%")>=0) ? " LIKE " : op )  + escape(rhs);
-							});
+							
+							parm.binop( /(.*?)(=)(.*)/, null, (lhs,rhs,op) => query[lhs] = rhs.parseJSON( txt => txt ) );
+						
+							parm.binop( /(.*)(<|>|=)(.*)/, doTag, (lhs,rhs,op) => where[op][lhs] = rhs );
 						}
 						
-						str.binop( /(.*?)(=)(.*)/, txt => txt, (lhs,rhs,op) => {		// process queries verbatim
-							query[lhs] = rhs.parseJSON( txt => txt );
-						});
-						
-						return str.binop( /(.*)(<=|>=|\!=)(.*)/, doSimple, (lhs,rhs,op) => {	// process wheres
-							return where[lhs] = escapeId(lhs) + op + escape(rhs);
-						});
+						parm.binop( /(.*)(<=|>=|\!=|:bin:|:exp:|:nlp:)(.*)/, doSimple, (lhs,rhs,op) => where[op][lhs] = rhs );
 					}
 
-					return str.binop( /(.*)(:=)(.*)/, doTest, (lhs,rhs,op) => {
-						index[lhs] = rhs + " AS " + escapeId(lhs);
-						return lhs;
-					});
+					parm.binop( /(.*)(:=)(.*)/, doTest, (lhs,rhs,op) => index[lhs] = rhs );
 				}
 				
-				return str.binop( /^_(.*)(=)(.*)/, doSet, (lhs,rhs,op) => {
-					switch (lhs) {
-						case "bin":
-							where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN BOOLEAN MODE)`;
-							break;
-						case "exp":
-							where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN QUERY EXPANSION)`;
-							break;
-						case "nlp":
-							where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN NATURAL LANGUAGE MODE)`;
-							break;
-						default:
-							flags[lhs] = rhs.parseJSON( str => str );
-					}	
-				});
+				parm.binop( /^_(.*)(=)(.*)/, doIndex, (lhs,rhs,op) => flags[lhs] = rhs.parseJSON( txt => txt ) );
 			}
 
-			doFlag(str);
+			doFlag(parm);
 		}
 
 		function doLast( str ) {
@@ -3726,110 +3702,6 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 				doParm( str );
 		}
 
-		/*
-		function xdoSet(str, cb) {  // expand lhs := rhs or callback cb(str)
-			function rep(lhs,op,rhs) {
-				expand = true;
-				var
-					rel = doTest(rhs, {}, res => {	// not relation so assume id
-						//Log("no test", res);
-						return escapeId(res); 
-					});
-
-				return `${rel} AS ${escapeId(lhs)}`;
-			}
-				
-			var 
-				expand = false,
-				res = str.replace( 
-					/(.*)(:=)(.*)/, 
-					(rem,lhs,op,rhs) => index[lhs] = rep(lhs,op,rhs) );
-
-			return expand ? res : cb( res );
-		}
-
-		function xdoStore(str, cb) {  // expand "store$expression, ..." or callback(str)
-			function rep(lhs,op,rhs) {
-				expand = true;
-				
-				var exs = rhs.split(",");
-				exs.forEach( (ex,n) => exs[n] = escape(op+ex) );
-				return `json_extract(${escapeId(lhs)}, ${exs.join(",")} )`;
-			}
-
-			var 
-				expand = false,
-				res = str.replace( 
-					/(.*)(\$)(.*)/, 
-					(rem,lhs,op,rhs) => rep(lhs,op,rhs)  );
-
-			return expand ? res : cb( str );
-		}
-
-		function xdoTest(str, where, cb) {  // expand "where op val" || "_flag = json" or callback(str)
-			
-			function rep(lhs,op,rhs) {
-				//Log("dotest", lhs, op, rhs);
-				expand = true;
-				var
-					key = doStore(lhs, res => { // lhs not a store so assume keys
-						var keys = res.split(",");
-						keys.forEach( (key,n) => keys[n] = escapeId(key) );
-						return keys.join(",");
-					}),
-					val = doStore(rhs, res => escape(res) );
-
-				return key.sqlLike(val);
-			}
-
-			var
-				expand = false,
-				res = str.replace( 	// _flag=json
-					/^_(.*)(=)(.*)/, 
-					(rem,lhs,op,rhs) => {  
-						expand = true; 
-						
-						switch (lhs) {
-							case "bin":
-								where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN BOOLEAN MODE)`;
-								break;
-							case "exp":
-								where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN QUERY EXPANSION)`;
-								break;
-							case "nlp":
-								where[lhs] = `MATCH(Description) AGAINST( '${rhs}' IN NATURAL LANGUAGE MODE)`;
-								break;
-							default:
-								flags[lhs] = rhs.parseJSON( res => res );
-						}
-						return rhs;
-					});
-
-			if (expand) 
-				return res;
-			
-			else {
-				res = str.replace( // where op val
-					/(.*)(<=|>=|\!=)(.*)/, 		// \/=|\^=|\|=|
-					(rem,lhs,op,rhs) => where[lhs] = rep(lhs,op,rhs) );
-				
-				if (expand)
-					return res;
-				
-				else {				
-					res = str.replace( // where op val
-						/(.*)(=|<|>)(.*)/, 
-						(rem,lhs,op,rhs) => {
-							if (op == "=") query[lhs] = rhs.parseJSON(rhs);		// same raw to query as well
-							return where[lhs] = rep(lhs,op,rhs);
-						});
-
-					return expand ? res : doStore(str, cb );
-				}
-			}
-		}
-		*/
-		
 		var 
 			parts = this.split("?"),
 			lhs = parts[0],
@@ -3837,7 +3709,9 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			rem = parts.slice(2).join("?"),
 			parms = rhs.split("&"),
 			last = parms.pop();
-			
+		
+		operators.forEach( key => where[key] = {} );
+		
 		parms.forEach( parm => {
 			if (parm) 
 				doParm( parm );
@@ -3850,7 +3724,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			else
 				doParm( last );
 
-		if (false) Log({
+		if (true) Log({
 			q: query,
 			w: where,
 			i: index,
@@ -3874,19 +3748,18 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		});
 	},
 	
-	function binop( reg, go, cb ) {
+	function binop( reg, elsecb, ifcb ) {
 		var 
-			[x,lhs,op,rhs] = this.match(reg) || [],
-			rtn = op ? cb( go(lhs), go(rhs), op ) : go(this+"");
+			[x,lhs,op,rhs] = this.match(reg) || [];
 		
-		//Log("bop", this, reg, x?true:false, [lhs, op, rhs], rtn);
-		return rtn;
-	},
+		if ( op ) 
+			return ifcb( lhs, rhs, op );
 		
-	function sqlLike( val ) {
-		return ( val.indexOf("%")>=0) ? `${this} LIKE ${val} `  : `${this} = ${val} ` 
-	}
-		
+		else
+		if ( elsecb )
+			return elsecb(this+"");
+	} 
+	
 ].Extend(String);
 
 /**
