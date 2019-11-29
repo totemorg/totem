@@ -2896,16 +2896,15 @@ function selectDS(req, res) {
 
 	sql.runQuery({
 		trace: flags.trace,
-		crud: action,
-		from: table,
 		pivot: flags.pivot,
 		browse: flags.browse,		
-		except: flags.except,
+		sort: flags.sort,
 		//limit: flags.offset ? flags.limit : 0,
 		//offset: flags.offset,
+		crud: action,
+		from: table,
 		where: where,
-		index: flags.index || index,
-		sort: flags.sort,
+		index: index,
 		having: {},
 		client: client
 	}, null, (err,recs) => {
@@ -3670,9 +3669,13 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 				function doIndex(parm) {
 					function doTest(parm) {
 						function doSimple(parm) {
+							function doTag(parm) {
+								parm.split(",").forEach( arg =>	query[arg] = 1);
+							}
+							
 							parm.binop( /(.*?)(=)(.*)/, null, (lhs,rhs,op) => query[lhs] = rhs.parseJSON( txt => txt ) );
 						
-							parm.binop( /(.*?)(<|>|=)(.*)/, arg=>query[arg]=1, (lhs,rhs,op) => where[op][lhs] = rhs );
+							parm.binop( /(.*?)(<|>|=)(.*)/, doTag, (lhs,rhs,op) => where[op][lhs] = rhs );
 						}
 						
 						parm.binop( /(.*?)(<=|>=|\!=|:bin:|:exp:|:nlp:)(.*)/, doSimple, (lhs,rhs,op) => where[op][lhs] = rhs );
@@ -3722,7 +3725,9 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 
 		lhs.split("&").forEach( (parm,n) => {
 			if ( n )
-				parm.binop( /(.*?)(=)(.*)/, arg=>query[arg]=1, (lhs,rhs,op) => index[lhs] = rhs );
+				parm.binop( /(.*?)(=)(.*)/, 
+					args => args.split(",").forEach( arg => index[arg] = ""), 
+					(lhs,rhs,op) => index[lhs] = rhs );
 				
 			else
 				lhs = parm;
