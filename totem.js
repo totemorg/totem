@@ -3670,22 +3670,18 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 				function doIndex(parm) {
 					function doTest(parm) {
 						function doSimple(parm) {
-							function doTag(parm) {
-								query[parm] = 1;
-							}
-							
 							parm.binop( /(.*?)(=)(.*)/, null, (lhs,rhs,op) => query[lhs] = rhs.parseJSON( txt => txt ) );
 						
-							parm.binop( /(.*)(<|>|=)(.*)/, doTag, (lhs,rhs,op) => where[op][lhs] = rhs );
+							parm.binop( /(.*?)(<|>|=)(.*)/, arg=>query[arg]=1, (lhs,rhs,op) => where[op][lhs] = rhs );
 						}
 						
-						parm.binop( /(.*)(<=|>=|\!=|:bin:|:exp:|:nlp:)(.*)/, doSimple, (lhs,rhs,op) => where[op][lhs] = rhs );
+						parm.binop( /(.*?)(<=|>=|\!=|:bin:|:exp:|:nlp:)(.*)/, doSimple, (lhs,rhs,op) => where[op][lhs] = rhs );
 					}
 
-					parm.binop( /(.*)(:=)(.*)/, doTest, (lhs,rhs,op) => index[lhs] = rhs );
+					parm.binop( /(.*?)(:=)(.*)/, doTest, (lhs,rhs,op) => index[lhs] = rhs );
 				}
 				
-				parm.binop( /^_(.*)(=)(.*)/, doIndex, (lhs,rhs,op) => flags[lhs] = rhs.parseJSON( txt => txt ) );
+				parm.binop( /^_(.*?)(=)(.*)/, doIndex, (lhs,rhs,op) => flags[lhs] = rhs.parseJSON( txt => txt ) );
 			}
 
 			doFlag(parm);
@@ -3724,6 +3720,14 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			else
 				doParm( last );
 
+		lhs.split("&").forEach( (parm,n) => {
+			if ( n )
+				parm.binop( /(.*?)(=)(.*)/, arg=>query[arg]=1, (lhs,rhs,op) => index[lhs] = rhs );
+				
+			else
+				lhs = parm;
+		});
+		
 		if (true) Log({
 			q: query,
 			w: where,
