@@ -1402,7 +1402,10 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 		host: ENV.MYSQL_HOST || "localhost",
 		user: ENV.MYSQL_USER || "mysqluser",
 		pass: ENV.MYSQL_PASS || "mysqlpass",
-		sessions: 5000
+		sessions: 5000,
+		timeout: 60e3, 
+		acquireTimeout: 60e3,
+		connectTimeout: 60e3
 	},
 	
 	/**
