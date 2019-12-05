@@ -780,13 +780,10 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 											});
 
 										if (challenge = mysql.challenge)
-											sql.query(challenge, {Client:req.client}, function (err,profs) {
-
-												if ( profile = profs[0] )
-													if ( profile.Challenge)
-														challengeClient(sql, req.client, profile);	
-
-											});
+											sql.query(challenge, {Client:req.client}).on("results", profile => {
+											if ( profile.Challenge)
+												challengeClient(sql, req.client, profile);	
+										});
 									});
 								});
 							});	
@@ -1402,10 +1399,10 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 		host: ENV.MYSQL_HOST || "localhost",
 		user: ENV.MYSQL_USER || "mysqluser",
 		pass: ENV.MYSQL_PASS || "mysqlpass",
-		sessions: 5000,
-		timeout: 60e3, 
-		acquireTimeout: 60e3,
-		connectTimeout: 60e3
+		connectionLimit: 5e3,
+		timeout: 600e3, 
+		acquireTimeout: 600e3,
+		connectTimeout: 600e3
 	},
 	
 	/**
@@ -1480,7 +1477,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 	byFilter: {  //< record data convertors
 		db: function (data, req, res) {			
 			req.sql.query("select found_rows()")
-			.on('result', function (stat) {		// records sourced from sql				
+			.on('result', stat => {		// records sourced from sql				
 				res({ 
 					success: true,
 					msg: "ok",
@@ -1490,10 +1487,10 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 			})
 			.on("error", function () {  		// records sourced from virtual table
 				res({ 
-					success: true,
-					msg: "ok",
-					count: data.length,
-					data: data
+					success: false,
+					msg: "busy",
+					count: 0,
+					data: []
 				});
 			});
 		},
@@ -2160,17 +2157,18 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 				if (cb) cb();
 			});
 
-		sql.query("SELECT count(ID) AS Fails FROM openv.aspreqts WHERE Status LIKE '%fail%'", [], function (err,asp) {
-		sql.query("SELECT count(ID) AS Fails FROM openv.ispreqts WHERE Status LIKE '%fail%'", [], function (err,isp) {
-		sql.query("SELECT count(ID) AS Fails FROM openv.swreqts WHERE Status LIKE '%fail%'", [], function (err,sw) {
-		sql.query("SELECT count(ID) AS Fails FROM openv.hwreqts WHERE Status LIKE '%fail%'", [], function (err,hw) {
+		site.warning = "";
+		sql.query("SELECT count(ID) AS Fails FROM openv.aspreqts WHERE Status LIKE '%fail%'").on("result", asp => {
+		sql.query("SELECT count(ID) AS Fails FROM openv.ispreqts WHERE Status LIKE '%fail%'").on("result", isp => {
+		sql.query("SELECT count(ID) AS Fails FROM openv.swreqts WHERE Status LIKE '%fail%'").on("result", sw => {
+		sql.query("SELECT count(ID) AS Fails FROM openv.hwreqts WHERE Status LIKE '%fail%'").on("result", hw => {
 
 			site.warning = [
 				site.warning || "",
-				"ASP".fontcolor(asp[0].Fails ? "red" : "green").tag( "/help?from=asp" ),
-				"ISP".fontcolor(isp[0].Fails ? "red" : "green").tag( "/help?from=isp" ),
-				"SW".fontcolor(sw[0].Fails ? "red" : "green").tag( "/help?from=swap" ),   // mails list of failed swapIDs (and link to all sw reqts) to swap PMO
-				"HW".fontcolor(hw[0].Fails ? "red" : "green").tag( "/help?from=pmo" )   // mails list of failed hw reqts (and link to all hw reqts) to pod lead
+				"ASP".fontcolor(asp.Fails ? "red" : "green").tag( "/help?from=asp" ),
+				"ISP".fontcolor(isp.Fails ? "red" : "green").tag( "/help?from=isp" ),
+				"SW".fontcolor(sw.Fails ? "red" : "green").tag( "/help?from=swap" ),   // mails list of failed swapIDs (and link to all sw reqts) to swap PMO
+				"HW".fontcolor(hw.Fails ? "red" : "green").tag( "/help?from=pmo" )   // mails list of failed hw reqts (and link to all hw reqts) to pod lead
 			].join(" ");
 
 		});
@@ -2378,8 +2376,12 @@ error is null if session is admitted by admitClient.
 		: guest ).toLowerCase();
 
 	if (TOTEM.mysql)  // derive client's profile from db
-		sql.query(mysql.getProfile, {client: req.client}, function (err,profs) {
+		sql.query(mysql.getProfile, {client: req.client}, (err,profs) => {
 			
+			if ( err ) 
+				res(errors.rejectedClient);
+			
+			else			
 			if ( profile = profs[0] ) // admit known client
 				admitClient(req, profile, res);
 			
@@ -2854,6 +2856,8 @@ function selectDS(req, res) {
 		client: client
 	}, null, (err,recs) => {
 
+		res( err || recs );
+		/*
 		if ( isEmpty(index) )
 			res( err || recs );
 
@@ -2873,6 +2877,7 @@ function selectDS(req, res) {
 			});
 			res( recs );
 		}
+		*/
 	});
 }
 
