@@ -548,13 +548,12 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 
 											for (var key in body) 		// remap body flags
 												if ( key.startsWith(prefix) ) {  
-													flags[key.substr(1)] = body[key];
+													flags[key.substr(1)] = body[key]+"";
 													delete body[key];
 												}
 
 											if (id in body) {  			// remap body record id
-												query[id] = body[id];
-												where["="][id] = `${id} = ${body[id]}`;
+												where["="][id] = query[id] = body[id]+""; 
 												delete body[id];
 											}
 
@@ -616,11 +615,12 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 											route(req, recs => {	// route request and capture records
 												var call = null;
 												//Log(">>>scan flags", req.flags);
-												for ( var key in req.flags )	// perform once-only data restructing conversion
-													if ( call = reqFlags[key] ) {
-														call( recs, req, recs => cb(req, recs) );
-														break;
-													}
+												if ( recs )
+													for ( var key in req.flags )	// perform once-only data restructing conversion
+														if ( call = reqFlags[key] ) {
+															call( recs, req, recs => cb(req, recs) );
+															break;
+														}
 
 												if ( !call )
 													cb(req,recs);
