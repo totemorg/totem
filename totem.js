@@ -3680,7 +3680,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 				lhs = parm;
 		});
 		
-		if (true) Log({
+		if (false) Log({
 			q: query,
 			w: where,
 			i: index,
