@@ -101,7 +101,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 		badReturn: new Error("no data returned"),
 		noSockets: new Error("socket.io failed"),
 		noService: new Error("no service  to start"),
-		noData: new Error("no data returned"),
+		noData: new Error("invalid dataset or query"),
 		retry: new Error("data fetch retries exceeded"),
 		notAllowed: new Error("this endpoint is disabled"),
 		noID: new Error("missing record id"),
@@ -398,7 +398,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 										if (data)
 											switch ( typeOf(data) ) {  // send based on its type
 												case "Error": 			// send error message
-
 													switch (req.type) {
 														case "db":  
 															sendString( JSON.stringify({ 
@@ -415,9 +414,8 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 													break;
 
 												case "Function": 			// send file (search or direct)
-
 													if ( (search = req.query.search) && paths.mysql.search) 		// search for file via (e.g. nlp) score
-														sql.query(paths.mysql.search, {FullSearch:search}, function (err, files) {
+														sql.query(paths.mysql.search, {FullSearch:search}, (err, files) => {
 
 															if (err) 
 																sendError( errors.noFile );
@@ -430,7 +428,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 													else {			
 														if ( credit = paths.mysql.credit)  // credit/charge client when file pulled from file system
 															sql.query( credit, {Name:req.node,Area:req.area} )
-															.on("result", function (file) {
+															.on("result", file => {
 																if (file.Client != req.client)
 																	sql.query("UPDATE openv.profiles SET Credit=Credit+1 WHERE ?",{Client: file.Client});
 															});
@@ -452,12 +450,12 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 												case "Object":
 												default: 					// send data record
 													sendObject(data);
-													break;			
+													break;
 											}
 
 										else
-											sendString( data || "" );
-											//sendError( errors.noData );
+											//sendString( data || "" );
+											sendError( errors.noData );
 									}
 
 									if (sock = req.reqSocket )	// have a valid request socket so ....
@@ -2841,7 +2839,7 @@ function selectDS(req, res) {
 	*/
 	const { sql, flags, client, where, index, action, table } = req;
 
-	sql.runQuery({
+	sql.Query({
 		trace: flags.trace,
 		pivot: flags.pivot,
 		browse: flags.browse,		
@@ -2857,27 +2855,6 @@ function selectDS(req, res) {
 	}, null, (err,recs) => {
 
 		res( err || recs );
-		/*
-		if ( isEmpty(index) )
-			res( err || recs );
-
-		else
-		if (err) 
-			res( err );
-
-		else {
-			recs.forEach( rec => {
-				Each(index, key => {
-					try {
-						rec[key] = JSON.parse( rec[key] );
-					}
-					catch (err) {
-					}
-				});
-			});
-			res( recs );
-		}
-		*/
 	});
 }
 
@@ -2890,7 +2867,7 @@ function insertDS(req, res) {
 	*/
 	const { sql, flags, body, client, action, table } = req;
 
-	sql.runQuery({
+	sql.Query({
 		trace: flags.trace,
 		crud: action,
 		from: table,
@@ -2917,7 +2894,7 @@ function deleteDS(req, res) {
 		res( errors.noID );
 		
 	else
-		sql.runQuery({
+		sql.Query({
 			trace: flags.trace,			
 			crud: action,
 			from: table,
@@ -2925,7 +2902,6 @@ function deleteDS(req, res) {
 			client: client
 		}, TOTEM.emitter, (err,info) => {
 
-			//Log(info);
 			res( err || info );
 
 		});
@@ -2949,7 +2925,7 @@ function updateDS(req, res) {
 		res( errors.noID );
 	
 	else
-		sql.runQuery({
+		sql.Query({
 			trace: flags.trace,
 			crud: action,
 			from: table,
@@ -2958,7 +2934,6 @@ function updateDS(req, res) {
 			client: client
 		}, TOTEM.emitter, (err,info) => {
 
-			//Log(info);
 			res( err || info );
 
 			if ( onUpdate = TOTEM.onUpdate )
