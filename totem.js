@@ -343,22 +343,21 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 										function sendRecords(recs) {  // Send records via converter
 											if (recs)
 												if ( route = byFilter[req.type] || byFilter.default )  // process record conversions
-													route(recs, req, recs => {
-
-														if (recs) 
-															switch (recs.constructor.name) {
+													route(recs, req, data => {
+														if (data) 
+															switch ( typeOf(data) ) {
 																case "Error":
-																	sendError( recs );
+																	sendError( data );
 																	break;
 
 																case "String":
-																	sendString( recs );
+																	sendString( data );
 																	break;
 
 																case "Array":
 																case "Object":
 																default:
-																	sendObject( recs );
+																	sendObject( data );
 															} 
 
 														else
@@ -398,19 +397,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 										if (data)
 											switch ( typeOf(data) ) {  // send based on its type
 												case "Error": 			// send error message
-													switch (req.type) {
-														case "db":  
-															sendString( JSON.stringify({ 
-																success: false,
-																msg: data+"",
-																count: 0,
-																data: []
-															}) );
-															break;
-
-														default:
-															sendError( data );
-													}
+													sendError( data );
 													break;
 
 												case "Function": 			// send file (search or direct)
@@ -1473,49 +1460,25 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 	Endpoint byFilter cb(data data as string || error)
 	*/
 	byFilter: {  //< record data convertors
-		db: function (data, req, res) {			
-			req.sql.query("select found_rows()")
-			.on('result', stat => {		// records sourced from sql				
-				res({ 
-					success: true,
-					msg: "ok",
-					count: stat["found_rows()"] || 0,
-					data: data
-				});
-			})
-			.on("error", function () {  		// records sourced from virtual table
-				res({ 
-					success: false,
-					msg: "busy",
-					count: 0,
-					data: []
-				});
-			});
-		},
-		
-		csv: function (data, req, res) {
+		csv: (recs, req, res) => {
 			JS2CSV({ 
-				data: data, 
-				fields: Object.keys( data[0]||{} )
+				recs: recs, 
+				fields: Object.keys( recs[0]||{} )
 			} , function (err,csv) {
 					res( err || csv );
 			});
 		},
 		
-		"": function (data,req,res) {
-			res( data );
-		},
+		default: (recs,req,res) => res( recs.parseJSON() ),
 		
-		json: function (data,req,res) {
-			res( data );
-		},
+		json: (recs,req,res) => res( recs.parseJSON() ),
 		
-		xml: function (data, req, res) {
+		xml: (recs, req, res) => {
 			res( JS2XML.parse(req.table, {  
-				count: data.length,
-				data: data
+				count: recs.length,
+				recs: recs
 			}) );
-		}
+		}		
 	},
 
 	/**
@@ -3437,6 +3400,20 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			}
 		});
 		return ctx;
+	},
+	
+	function parseJSON( cb ) {
+		this.forEach( rec => {
+			Each(rec, (key,val) => {
+				try {
+					rec[key] = JSON.parse( val );
+				}
+				catch (err) {
+					if ( cb ) rec[key] = cb( val );
+				}
+			});
+		});
+		return this;
 	}
 ].Extend(Array);
 
