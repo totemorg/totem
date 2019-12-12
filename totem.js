@@ -3390,7 +3390,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 
 [ //< Array prototypes
 	function parseJSON(ctx,def) {
-		this.forEach( function (key) {
+		this.forEach( key => {
 			try {
 				ctx[key] = (ctx[key] || "").parseJSON( (val) => def || null );
 			}
@@ -3404,14 +3404,15 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 	
 	function parseJSON( cb ) {
 		this.forEach( rec => {
-			Each(rec, (key,val) => {
-				try {
-					rec[key] = JSON.parse( val );
-				}
-				catch (err) {
-					if ( cb ) rec[key] = cb( val );
-				}
-			});
+			if ( rec )
+				Each(rec, (key,val) => {
+					try {
+						rec[key] = JSON.parse( val );
+					}
+					catch (err) {
+						if ( cb ) rec[key] = cb( val );
+					}
+				});
 		});
 		return this;
 	}
