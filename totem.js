@@ -67,7 +67,7 @@ function Trace(msg,req,fwd) {
 const { Copy,Each,Log,isError,isArray,isString,isFunction,isEmpty,typeOf } = ENUM;
 const { escape, escapeId } = MYSQL;
 
-const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEncrypted,guestProfile,
+const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,isEncrypted,guestProfile,
 	   		byArea,byType,byAction,byTable,timeIntervals } = TOTEM = module.exports = {
 	
 	operators: ["=", "<", "<=", ">", ">=", "!=", "!bin=", "!exp=", "!nlp="],
@@ -341,34 +341,30 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 										}
 
 										function sendRecords(recs) {  // Send records via converter
-											if (recs)
-												if ( route = byFilter[req.type] || byFilter.default )  // process record conversions
-													route(recs, req, data => {
-														if (data) 
-															switch ( typeOf(data) ) {
-																case "Error":
-																	sendError( data );
-																	break;
+											if ( route = filterRecords[req.type] )  // process record conversions
+												route(recs, req, recs => {
+													if (recs) 
+														switch ( typeOf(recs) ) {
+															case "Error":
+																sendError( recs );
+																break;
 
-																case "String":
-																	sendString( data );
-																	break;
+															case "String":
+																sendString( recs );
+																break;
 
-																case "Array":
-																case "Object":
-																default:
-																	sendObject( data );
-															} 
+															case "Array":
+															case "Object":
+															default:
+																sendObject( recs );
+														} 
 
-														else
-															sendError( errors.badReturn );
-													});
+													else
+														sendError( errors.badReturn );
+												});
 
-												else 
-													sendObject( recs );
-
-											else
-												sendError( errors.badReturn ); 
+											else 
+												sendObject( recs );
 										}
 
 										var
@@ -381,16 +377,15 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 										if ( req.encrypted )
 											Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.host.name] );						
 
-
 										Res.setHeader("Content-Type", mime);
-								/*
-								Res.setHeader("Access-Control-Allow-Origin", "*");
-								Res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-								Res.setHeader("Access-Control-Allow-Headers", '*');
-								Res.setHeader("Status", "200 OK");
-								Res.setHeader("Vary", "Accept");
-								//self.send_header('Content-Type', 'application/octet-stream')
-								*/
+										/*
+										Res.setHeader("Access-Control-Allow-Origin", "*");
+										Res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+										Res.setHeader("Access-Control-Allow-Headers", '*');
+										Res.setHeader("Status", "200 OK");
+										Res.setHeader("Vary", "Accept");
+										//self.send_header('Content-Type', 'application/octet-stream')
+										*/
 
 										Res.statusCode = 200;
 
@@ -441,7 +436,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 											}
 
 										else
-											//sendString( data || "" );
 											sendError( errors.noData );
 									}
 
@@ -515,7 +509,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 												path = req.path = "./" + node.parseURL(query, index, flags, where),		//  .[/area1/area2/...]/table.type
 												areas = path.split("/"),						// [".", area1, area2, ...]
 												file = req.file = areas.pop() || "",		// table.type
-												[x,table,type] = [x,req.table,req.type] = file.match( /(.*)\.(.*)/ ) || ["", file, "json"],
+												[x,table,type] = [x,req.table,req.type] = file.match( /(.*)\.(.*)/ ) || ["", file, ""],
 												area = req.area = areas[1] || "",
 												body = req.body;
 
@@ -599,7 +593,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 
 											route(req, recs => {	// route request and capture records
 												var call = null;
-												//Log(">>>scan flags", req.flags);
 												if ( recs )
 													for ( var key in req.flags )	// perform once-only data restructing conversion
 														if ( call = reqFlags[key] ) {
@@ -618,7 +611,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 
 										// Log([action,path,area,table,type]);
 
-										if ( area )
+										if ( area ) {
 											if ( area == "socket.io" && !table )	// ignore socket keep-alives
 												res( "hush" );
 
@@ -628,7 +621,8 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 
 											else	// send cashed file
 												followRoute( sendFile );
-
+										}
+										
 										else
 										if ( route = byType[type] ) // route by type
 											followRoute( route );
@@ -638,7 +632,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 											followRoute( route );
 
 										else  
-										if ( route = byAction[action] ) 	// route by crud action
+										if ( route = byAction[action] ) {	// route by crud action
 											if ( route = route[table] )
 												followRoute( route );
 
@@ -648,6 +642,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 
 											else
 												cb( req, errors.noRoute);
+										}
 
 										else
 										if ( route = TOTEM[action] )	// route to database
@@ -711,8 +706,9 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 
 									else
 									if (nodes.length == 1) 	// route just this node
-										routeNode( nodes[0], new Object(req), (req,rtn) => {
-											res(rtn);
+										routeNode( nodes[0], new Object(req), (req,recs) => {
+//											Log("exit route node", typeOf(recs), typeOf(recs[0]) );
+											res(recs);
 										});
 
 									else {	// serialize nodes
@@ -1457,9 +1453,9 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 	/**
 	@cfg {Object} 
 	@member TOTEM	
-	Endpoint byFilter cb(data data as string || error)
+	Endpoint filterRecords cb(data data as string || error)
 	*/
-	byFilter: {  //< record data convertors
+	filterRecords: {  //< record data convertors
 		csv: (recs, req, res) => {
 			JS2CSV({ 
 				recs: recs, 
@@ -1469,9 +1465,9 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,byFilter,isEnc
 			});
 		},
 		
-		default: (recs,req,res) => res( recs.parseJSON() ),
-		
-		json: (recs,req,res) => res( recs.parseJSON() ),
+		"": (recs,req,res) => res( recs.unpack() ),
+			
+		json: (recs,req,res) => res( recs.unpack() ),
 		
 		xml: (recs, req, res) => {
 			res( JS2XML.parse(req.table, {  
@@ -3389,6 +3385,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 ].Extend(Date);
 
 [ //< Array prototypes
+	/*
 	function parseJSON(ctx,def) {
 		this.forEach( key => {
 			try {
@@ -3400,22 +3397,30 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			}
 		});
 		return ctx;
-	},
+	}, */
 	
-	function parseJSON( cb ) {
-		this.forEach( rec => {
-			if ( rec )
-				Each(rec, (key,val) => {
-					try {
-						rec[key] = JSON.parse( val );
-					}
-					catch (err) {
-						if ( cb ) rec[key] = cb( val );
-					}
-				});
+	function unpack( cb ) {
+		var 
+			recs = this;
+		
+		recs.forEach( (rec,n) => {
+			if ( rec ) 
+				if ( typeOf(rec) == "RowDataPacket" ) {
+					var Rec = recs[n] = Copy( rec, {} );
+		
+					Each(Rec, (key,val) => {
+						try {
+							Rec[key] = JSON.parse( val );
+						}
+						catch (err) {
+							if ( cb ) Rec[key] = cb( val );
+						}
+					});
+				}
 		});
-		return this;
-	}
+		
+		return recs;
+	} 
 ].Extend(Array);
 
 [ //< String prototypes
