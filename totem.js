@@ -594,7 +594,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 											route(req, recs => {	// route request and capture records
 												var call = null;
 												if ( recs )
-													for ( var key in req.flags ) {	// perform once-only data restructing conversion
+													for ( var key in req.flags ) if ( !call ) {	// perform once-only data restructing conversion
 														if ( key.startsWith("$") ) key = "$";
 														if ( call = reqFlags[key] ) {
 															call( recs, req, recs => cb(req, recs) );
@@ -1467,9 +1467,9 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 			});
 		},
 		
-		"": (recs,req,res) => res( recs.unpack() ),
+		"": (recs,req,res) => res( recs ),
 			
-		json: (recs,req,res) => res( recs.unpack() ),
+		json: (recs,req,res) => res( recs ),
 		
 		xml: (recs, req, res) => {
 			res( JS2XML.parse(req.table, {  
@@ -3400,7 +3400,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		});
 		return ctx;
 	}, */
-	
+	/*
 	function unpack( cb ) {
 		var 
 			recs = this;
@@ -3423,6 +3423,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		
 		return recs;
 	} 
+	*/
 ].Extend(Array);
 
 [ //< String prototypes
