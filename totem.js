@@ -389,7 +389,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 
 										Res.statusCode = 200;
 
-										if (data)
+										if (data != null)
 											switch ( typeOf(data) ) {  // send based on its type
 												case "Error": 			// send error message
 													sendError( data );
@@ -594,11 +594,13 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 											route(req, recs => {	// route request and capture records
 												var call = null;
 												if ( recs )
-													for ( var key in req.flags )	// perform once-only data restructing conversion
+													for ( var key in req.flags ) {	// perform once-only data restructing conversion
+														if ( key.startsWith("$") ) key = "$";
 														if ( call = reqFlags[key] ) {
 															call( recs, req, recs => cb(req, recs) );
 															break;
 														}
+													}
 
 												if ( !call )
 													cb(req,recs);
