@@ -396,6 +396,8 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 													break;
 
 												case "Function": 			// send file (search or direct)
+													sendFile( data(), req.file, req.type, req.area );
+													/*
 													if ( (search = req.query.search) && paths.mysql.search) 		// search for file via (e.g. nlp) score
 														sql.query(paths.mysql.search, {FullSearch:search}, (err, files) => {
 
@@ -416,7 +418,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 															});
 
 														sendFile( data(), req.file, req.type, req.area );
-													}
+													}  */
 
 													break;
 
@@ -721,7 +723,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 
 										nodes.forEach( node => {	// enumerate nodes
 											if ( node )
-												routeNode( node, Copy(req,{}), (req,recs) => {	// route the node and capture returned records
+												routeNode( node, new Object(req), (req,recs) => {	// route the node and capture returned records
 													rtns[req.table] = recs;
 													if ( ++routed == routes ) res( rtns );
 												});
@@ -3581,18 +3583,18 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 								parm.split(",").forEach( arg =>	query[arg] = 1);
 							}
 							
-							parm.binop( /(.*?)(=)(.*)/, null, (lhs,rhs,op) => query[lhs] = rhs.parseJSON( txt => txt ) );
+							parm.parseOP( /(.*?)(=)(.*)/, null, (lhs,rhs,op) => query[lhs] = rhs.parseJSON( txt => txt ) );
 						
-							parm.binop( /(.*?)(<|>|=)(.*)/, doTag, (lhs,rhs,op) => where[op][lhs] = rhs );
+							parm.parseOP( /(.*?)(<|>|=)(.*)/, doTag, (lhs,rhs,op) => where[op][lhs] = rhs );
 						}
 						
-						parm.binop( /(.*?)(<=|>=|\!=|\!bin=|\!exp=|\!nlp=)(.*)/, doSimple, (lhs,rhs,op) => where[op][lhs] = rhs );
+						parm.parseOP( /(.*?)(<=|>=|\!=|\!bin=|\!exp=|\!nlp=)(.*)/, doSimple, (lhs,rhs,op) => where[op][lhs] = rhs );
 					}
 
-					parm.binop( /(.*?)(:=)(.*)/, doTest, (lhs,rhs,op) => index[lhs] = rhs );
+					parm.parseOP( /(.*?)(:=)(.*)/, doTest, (lhs,rhs,op) => index[lhs] = rhs );
 				}
 				
-				parm.binop( /^_(.*?)(=)(.*)/, doIndex, (lhs,rhs,op) => flags[lhs] = rhs.parseJSON( txt => txt ) );
+				parm.parseOP( /^_(.*?)(=)(.*)/, doIndex, (lhs,rhs,op) => flags[lhs] = rhs.parseJSON( txt => txt ) );
 			}
 
 			doFlag(parm);
@@ -3610,7 +3612,8 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 
 		var 
-			parts = this.split("?"),
+			url = this+"",
+			parts = url.split("?"),
 			lhs = parts[0],
 			rhs = parts[1] || "",
 			rem = parts.slice(2).join("?"),
@@ -3633,7 +3636,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 
 		lhs.split("&").forEach( (parm,n) => {
 			if ( n )
-				parm.binop( /(.*?)(=)(.*)/, 
+				parm.parseOP( /(.*?)(=)(.*)/, 
 					args => args.split(",").forEach( arg => index[arg] = ""), 
 					(lhs,rhs,op) => index[lhs] = rhs );
 				
@@ -3665,7 +3668,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		});
 	},
 	
-	function binop( reg, elsecb, ifcb ) {
+	function parseOP( reg, elsecb, ifcb ) {
 		var 
 			[x,lhs,op,rhs] = this.match(reg) || [];
 		
