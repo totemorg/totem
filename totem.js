@@ -710,7 +710,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 
 									else
 									if (nodes.length == 1) 	// route just this node
-										routeNode( nodes[0], new Object(req), (req,recs) => {
+										routeNode( nodes[0], req, (req,recs) => {
 //											Log("exit route node", typeOf(recs), typeOf(recs[0]) );
 											res(recs);
 										});
@@ -723,7 +723,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 
 										nodes.forEach( node => {	// enumerate nodes
 											if ( node )
-												routeNode( node, new Object(req), (req,recs) => {	// route the node and capture returned records
+												routeNode( node, Copy(req,{}), (req,recs) => {	// route the node and capture returned records
 													rtns[req.table] = recs;
 													if ( ++routed == routes ) res( rtns );
 												});
