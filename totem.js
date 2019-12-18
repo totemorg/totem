@@ -442,41 +442,35 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 									}
 
 									if (sock = req.reqSocket )	// have a valid request socket so ....
-										if (TOTEM.mysql)  // running with database so can validate session
-											validateClient(req, err => {
-												if (err)
-													res(err);
+										validateClient(req, err => {
+											if (err)
+												res(err);
 
-												else 
-												if ( getSession = paths.mysql.getSession )
-													req.sql.query(getSession, {Client: req.client}, (err,ses) => {
-														if ( err )
-															res(err);
+											else 
+											if ( getSession = paths.mysql.getSession )
+												req.sql.query(getSession, {Client: req.client}, (err,ses) => {
+													if ( err )
+														res(err);
 
-														else {
-															req.session = new Object( ses[0] || {
-																Client: "guest@guest.org",
-																Connects: 1,
-																//ipAddress : "unknown",
-																Location: "unknown",
-																Joined: new Date()
-															});
-															cb( res );
-														}
-													});
+													else {
+														req.session = new Object( ses[0] || {
+															Client: "guest@guest.org",
+															Connects: 1,
+															//ipAddress : "unknown",
+															Location: "unknown",
+															Joined: new Date()
+														});
+														cb( res );
+													}
+												});
 
-												else {  // using dummy sessions
-													req.session = {};
-													cb( res );
-												}
-											});
+											else {  // using dummy sessions
+												req.session = {};
+												cb( res );
+											}
+										});
 
-										else {  // running w/o database so use dummy session
-											req.session = {};
-											cb( res );
-										}
-
-									else 
+									else 	// lost reqest socket for some reason so ...
 										res( errors.lostConnection );
 								}
 
@@ -1010,43 +1004,26 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 				delete MIME.types[key];
 		});
 
-		if (mysql = TOTEM.mysql) 
-			DB.config({   // establish the db agnosticator 
-				//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server starte
-				track: TOTEM.dbTrack,
-				probeSite: TOTEM.probeSite,				
-				reroute: TOTEM.reroute,  // db translators
-				mysql: Copy({ 
-					opts: {
-						host: mysql.host,   // hostname 
-						user: mysql.user, 	// username
-						password : mysql.pass,				// passphrase
-						connectionLimit : mysql.sessions || 100, 		// max simultaneous connections
-						//acquireTimeout : 10000, 			// connection acquire timer
-						queueLimit: 0,  						// max concections to queue (0=unlimited)
-						waitForConnections: true			// allow connection requests to be queued
-					}
-				}, mysql)
-			}, err => {  // derive server vars and site context vars
-				if (err)
-					Trace(err);
+		DB.config({   // establish the db agnosticator 
+			//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server starte
+			track: TOTEM.dbTrack,
+			probeSite: TOTEM.probeSite,				
+			reroute: TOTEM.reroute  // db translators
+		}, err => {  // derive server vars and site context vars
+			if (err)
+				Trace(err);
 
-				else
-					sqlThread( sql => {
-						Trace(`DERIVE ${name}`);
+			else
+				sqlThread( sql => {
+					Trace(`CONTEXTING ${name}`);
 
-						for (var key in mysql)   // derive server paths
-							if (key in paths) paths[key] = mysql[key];
+					//for (var key in mysql)   // derive server paths
+					//	if (key in paths) paths[key] = mysql[key];
 
-						if (name)	// derive site context
-							TOTEM.setContext(sql, () => {
-								protectService();
-							});
-					});
-			});	
-
-		else
-			protectService();
+					if (name)	// derive site context
+						TOTEM.setContext(sql, () => protectService() );
+				});
+		});	
 	},
 
 	initialize: () => {
@@ -1375,21 +1352,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 		} */
 	},
 
-	/**
-	@cfg {Object} 
-	@member TOTEM
-	MySQL connection options {host, user, pass, sessions} or nul l to disable
-	*/		
-	mysql: { //< null to disable database
-		host: ENV.MYSQL_HOST || "localhost",
-		user: ENV.MYSQL_USER || "mysqluser",
-		pass: ENV.MYSQL_PASS || "mysqlpass",
-		connectionLimit: 5e3,
-		timeout: 600e3, 
-		acquireTimeout: 600e3,
-		connectTimeout: 600e3
-	},
-	
 	/**
 	@cfg {Boolean} [sockets=false]
 	@member TOTEM
@@ -2183,8 +2145,7 @@ function stopService() {
 			Trace("STOPPED");
 		});
 	
-	if (mysql = TOTEM.mysql) 
-		sqlThread( sql => sql.end() );				  
+	sqlThread( sql => sql.end() );				  
 }
 
 /**
@@ -2336,38 +2297,33 @@ error is null if session is admitted by admitClient.
 		? (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || guest).split(",")[0].replace("email:","")
 		: guest ).toLowerCase();
 
-	if (TOTEM.mysql)  // derive client's profile from db
-		sql.query(mysql.getProfile, {client: req.client}, (err,profs) => {
-			
-			if ( err ) 
-				res(errors.rejectedClient);
-			
-			else			
-			if ( profile = profs[0] ) // admit known client
-				admitClient(req, profile, res);
-			
-			else	// admit guest client
-			if ( profile = makeProfile(sql, req.client)  )
-				admitClient(req, profile, res);
-			
+	sql.query(mysql.getProfile, {client: req.client}, (err,profs) => {
+
+		if ( err ) 
+			if ( req.encrypted )  // db required on https service
+				res( errors.noDB );
+
+			else
+			if ( profile = makeProfile(sql, req.client) )  { // admit guest on http service
+				//req.socket = null;
+				req.reqSocket = null;   // disable guest session metrics
+				admitClient(req, profile, res);	
+			}
+
 			else
 				res( errors.rejectedClient );
-					
-		});
-	
-	else 
-	if ( req.encrypted )  // db required on https service
-		res( errors.noDB );
+		
+		else			
+		if ( profile = profs[0] ) // admit known client
+			admitClient(req, profile, res);
 
-	else
-	if ( profile = makeProfile(sql, req.client) )  { // admit guest on http service
-		//req.socket = null;
-		req.reqSocket = null;   // disable guest session metrics
-		admitClient(req, profile, res);	
-	}
-	
-	else
-		res( errors.rejectedClient );
+		else	// admit guest client
+		if ( profile = makeProfile(sql, req.client)  )
+			admitClient(req, profile, res);
+
+		else
+			res( errors.rejectedClient );
+	});
 }
 
 /**
