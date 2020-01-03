@@ -179,7 +179,7 @@ mysql.)
 		else
 			#rm /var/lib/mysql/mysql.sock      # in case its hanging around
 			cd /local/mysql
-			bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" --max_allowed_packet=64M &
+			bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" --max_allowed_packet=64000000 &
 			cd /local/service
 		fi
 		;;

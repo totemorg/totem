@@ -4,11 +4,11 @@
   "description": "bare essentials web service",
   "main": "totem.js",
   "scripts": {
-	  "prmprep": "source ./maint.sh prmput",
-	  "prmload": "source ./maint.sh prmget",	 
-	 "edit": "vi ./config.sh ./pass.sh",
-	"start": "source ./config.sh && source ./pass.sh",
-	"test": "node totem.js "
+    "prmprep": "source ./maint.sh prmput",
+    "prmload": "source ./maint.sh prmget",
+    "edit": "vi ./config.sh ./pass.sh",
+    "start": "source ./config.sh && source ./pass.sh",
+    "test": "node totem.js "
   },
   "author": "ACME SDS",
   "license": "ISC",
@@ -17,10 +17,10 @@
     "json2csv": "^3.11.5",
     "mime": "^1.0.0",
     "mysql": "^2.17.1",
-    "socket.io": "^2.2.0",
+    "socket.io": "^2.3.0",
     "socket.io-clusterhub": "^0.2.1",
     "toobusy-js": "^0.5.1",
-    "xml2js": "^0.4.19",
+    "xml2js": "^0.4.23",
     "xml2json": "^0.11.2"
   },
   "devDependencies": {}
