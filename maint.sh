@@ -11,6 +11,41 @@ export MODULE=`basename $HERE`
 
 case "$1." in
 
+pkg.)
+	# one-time yum patch on the online centos
+	# yum install yum-plugin-downloadonly yum-utils createrepo 
+
+	## from the "online" centos that is building the s/a R rpm
+
+	mkdir /var/tmp/$2
+	mkdir /var/tmp/$2-installroot
+
+	# Download the RPMs. This uses the installroot trick suggested here to force a full download of 
+	# all dependencies since nothing is installed in that empty root. Yum will create some metadata in 
+	# there, but we're going to throw it all away. Note that for CentOS7 releasever would be "7".
+
+	yum install --downloadonly --installroot=/var/tmp/$2-installroot --releasever=7 --downloaddir=/var/tmp/$2 $2
+
+	# Generate the metadata needed to turn our new pile of RPMs into a YUM repo and clean up the stuff 
+	# we no longer need:
+
+	createrepo --database /var/tmp/$2
+	rm -rf /var/tmp/$2-installroot
+
+	# Configure the download directory as a repo. Note that for CentOS7 the gpgkey would be 
+	# named "7" instead of "6": 
+
+	cp maint.pkg /etc/yum.repos.d/offline-$2.repo
+	sed "s/PKG/$2/g" /etc/yum.repos.d/offline-$2.repo
+	echo "revise /etc/yum.repos.d/offline-$2.repo"
+	
+	# check for missing dependencies:
+	repoclosure --repoid=offline-$2
+
+	# make the s/a repo
+	zip -r $2.zip /var/tmp/$2/
+	;;
+
 all.)
 
 	for mod in "${MODULES[@]}"; do

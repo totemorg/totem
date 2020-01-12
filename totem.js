@@ -315,7 +315,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 														sendError( errors.noFile );
 
 													else
-														sendString( cache[path] = new Buffer(buf) );
+														sendString( cache[path] = Buffer.from(buf) ); //new Buffer(buf) );
 												});
 										}		
 
@@ -3222,7 +3222,8 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			
 			if ( file )
 				try {		// these files are static so we never cache them
-					FS.readFile(path,  (err,buf) => res( err || new Buffer(buf) ) );
+					FS.readFile(path,  (err,buf) => res( err || Buffer.from(buf) ) );
+														// new Buffer(buf) ) );
 				}
 				catch (err) {
 					res( errors.noFile );
@@ -3277,7 +3278,7 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 
 			files.forEach( file => {
 				var 
-					buf = new Buffer(file.data,"base64"),
+					buf = Buffer.from(file,"base64"); //new Buffer(file.data,"base64"),
 					srcStream = new STREAM.Readable({  // source stream for event ingest
 						objectMode: true,
 						read: function () {  // return null if there are no more events
