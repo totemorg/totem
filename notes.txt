@@ -137,15 +137,19 @@ make install
 #### standalone R
 # https://unix.stackexchange.com/questions/259640/how-to-use-yum-to-get-all-rpms-required-for-offline-use
 # and https://unix.stackexchange.com/questions/50642/download-all-dependencies-with-yumdownloader-even-if-already-installed
-# follow standalone PKG instructions with PKG=R,R-Rcpp,R-RInside
+# follow standalone PKG instructions below with PKG=R,R-Rcpp-devel,R-RInside-devel,R-RMariaDB (see its notes)
 
-#### standalone package PKG (tested with PKG=httpd and R)
+#### standalone package PKG
 
-## patch yum on the "online" centos
+## one-time yum patch on the "online" centos
 
+yum install -y epel-release
 yum install yum-plugin-downloadonly yum-utils createrepo 
 
-## from the "online" centos that is building the s/a R rpm
+## one-time yum setup to hit mariadb repo
+# Copy and paste below into a file under /etc/yum.repos.d/MariaDB.repo
+
+## from the "online" centos that is building the s/a rpm package PKG
 
 mkdir /var/tmp/PKG
 mkdir /var/tmp/PKG-installroot
@@ -195,10 +199,51 @@ gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
 yum --disablerepo=\* --enablerepo=offline-PKG install PKG
 
 
-#### standalone R for non-redhat targets
-# https://cran.cnr.berkeley.edu/
-# alas no redhat/centos versions
+### RMariaDB package install under R 
+#
+# Note that this is an alternative (sometimes necessary) to the "standalone PKG" approach when the 
+# PKG is not in the epel repo (e.g. the RMariaDB which is in the CRAN repo).
+#
+# Refs:
+#	https://downloads.mariadb.org/connector-c/3.1.6/
+#	https://github.com/r-dbi/RMariaDB
+#	https://mariadb.com/kb/en/yum/
+#	https://stackoverflow.com/questions/43530411/cannot-install-rmysql-on-centos
+#
+# No way to install the RMySQL (was replaced by RMariaDB).  But the install.packages("RMariaDB") ] from R 
+# will fail as various dependendies must be installed first.  "yum install mysql-devel" gets us one step closer
+# but the "R CMD INSTALL PKG.tar.gz" fails to install its dependencies as well.  Thus, must
+# download all RMariaDB dependencies (which alas are only available in the CRAN repo),
+# then download their sub-dependencies, then "R CMS INSTALL" them in reverse order.  
+# Required CRAN download:
+#
+# 	https://cran.r-project.org/web/packages/RMariaDB/
+#		https://cran.r-project.org/src/contrib/Rcpp_1.0.3.tar.gz   (if not already installed)
+#		https://cran.r-project.org/src/contrib/plogr_0.2.0.tar.gz
+#		https://cran.r-project.org/src/contrib/DBI_1.1.0.tar.gz
+#		https://cran.r-project.org/src/contrib/bit64_0.9-7.tar.gz
+#			https://cran.r-project.org/src/contrib/bit_1.1-15.1.tar.gz
+#		https://cran.r-project.org/src/contrib/BH_1.72.0-3.tar.gz
+#		https://cran.r-project.org/src/contrib/hms_0.5.3.tar.gz
+#			https://cran.r-project.org/src/contrib/pkgconfig_2.0.3.tar.gz
+#			https://cran.r-project.org/src/contrib/rlang_0.4.2.tar.gz
+#			https://cran.r-project.org/src/contrib/vctrs_0.2.1.tar.gz
+#				https://cran.r-project.org/src/contrib/zeallot_0.1.0.tar.gz
+#				https://cran.r-project.org/src/contrib/glue_1.3.1.tar.gz
+#				https://cran.r-project.org/src/contrib/digest_0.6.23.tar.gz
+#				https://cran.r-project.org/src/contrib/ellipsis_0.3.0.tar.gz
+#				https://cran.r-project.org/src/contrib/backports_1.1.5.tar.gz
+#				https://cran.r-project.org/src/contrib/rlang_0.4.2.tar.gz
+#				https://cran.r-project.org/src/contrib/backports_1.1.5.tar.gz
+#
+# Yet more swizels as we need to export location of mysql-devel libs (and possibly its include path)
+# before installing RMariaDB
 
+export LD_LIBRARY_PATH=/local/mysql/lib
+export INCLUDE_DIR=/usr/include/mysql
+
+# then "R CMD INSTALL TAR"  where TAR = downloads in reverse order.  At this point, should be able to
+# "library(RMariaDB)" from R.  
 
 #### nodejs
 # https://nodejs.org
