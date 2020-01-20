@@ -788,35 +788,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 					if (BUSY && TOTEM.busyTime) 
 						BUSY.maxLag(TOTEM.busyTime);
 
-					if (TOTEM.cores) 	// Using multiple cores
-						if (CLUSTER.isMaster) {		// Listen on master port
-							server.listen( parseInt(TOTEM.domain.master.port), () => {  
-								Trace("MASTER LISTENING");
-							});
-
-							CLUSTER.on('exit', (worker, code, signal)=>  {
-								Trace(`CORE${worker.id} TERMINATED ${code||"ok"}`);
-							});
-
-							CLUSTER.on('online', worker => {
-								Trace(`CORE${worker.id} CONNECTED`);
-							});
-
-							for (var core = 0; core < TOTEM.cores; core++) // create the worker cores
-								worker = CLUSTER.fork();
-						}
-
-						else 	// Listen on worker port			
-							server.listen( TOTEM.domain.worker.port , () => {  
-								Trace(`CORE${CLUSTER.worker.id} AT ${site.urls.worker}`);
-							});
-
-					else 	// Using only a single core
-						server.listen( TOTEM.domain.master.port, () => {  
-							Trace("MASTER LISTENING");
-						});
-
-					if ( TOTEM.faultless)  { // catch core faults
+					if (TOTEM.faultless)  { // catch core faults
 						process.on("uncaughtException", err => {
 							Trace(`FAULTED ${err}`);
 						});
@@ -833,7 +805,24 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 
 					if (TOTEM.riddles) initChallenger();
 
-					if (CLUSTER.isMaster)	// initialize service
+					TOTEM.initialize(null);	
+					
+					if (CLUSTER.isMaster)	{ // initialize service
+						server.listen( parseInt(TOTEM.domain.master.port), () => {  
+							Trace("LISTENING AT " + TOTEM.domain.master.host);
+						});
+
+						CLUSTER.on('exit', (worker, code, signal) =>  {
+							Trace("WORKER TERMINATED " + code || "ok");
+						});
+
+						CLUSTER.on('online', worker => {
+							Trace("WORKER CONNECTED");
+						});
+
+						for (var core = 0; core < TOTEM.cores; core++) // create workers
+							worker = CLUSTER.fork();
+						
 						sqlThread( sql => {	// get a sql connection
 							Trace( [ // splash
 								"HOSTING " + site.nick,
@@ -889,11 +878,15 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 									});
 								}
 							});	
-
-							TOTEM.initialize();
-							if (cb) cb( null );
 						});
+					}
 
+					else {
+						server.listen( parseInt(TOTEM.domain.worker.port) , () => {  
+							Trace("LISTENING AT " + TOTEM.domain.worker.host);
+						});
+					}
+								
 				}
 
 				var 
@@ -1026,8 +1019,8 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 		});	
 	},
 
-	initialize: () => {
-		Trace( "STARTED" );
+	initialize: err => {
+		Log("INITIALIZED", err || "ok");
 	},
 	
 	/**

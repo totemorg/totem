@@ -201,17 +201,18 @@ yum --disablerepo=\* --enablerepo=offline-PKG install PKG
 
 ### RMariaDB package install under R 
 #
-# Note that this is an alternative (sometimes necessary) to the "standalone PKG" approach when the 
-# PKG is not in the epel repo (e.g. the RMariaDB which is in the CRAN repo).
+# Note that this is an alternative to the "standalone PKG" approach which becomes necessary
+# for non-epel packages (e.g. the RMariaDB package which is in the CRAN repo).
 #
 # Refs:
 #	https://downloads.mariadb.org/connector-c/3.1.6/
 #	https://github.com/r-dbi/RMariaDB
 #	https://mariadb.com/kb/en/yum/
 #	https://stackoverflow.com/questions/43530411/cannot-install-rmysql-on-centos
+#	https://koolinus.wordpress.com/2011/03/11/how-to-install-rmysql-on-centos/
 #
-# No way to install the RMySQL (was replaced by RMariaDB).  But the install.packages("RMariaDB") ] from R 
-# will fail as various dependendies must be installed first.  "yum install mysql-devel" gets us one step closer
+# Since RMySQL replaced by RMariaDB, need RMariaDB.  Alas install.packages("RMariaDB") ] from R 
+# will fail, as various dependendies must be installed first.  "yum install mysql-devel" gets us one step closer
 # but the "R CMD INSTALL PKG.tar.gz" fails to install its dependencies as well.  Thus, must
 # download all RMariaDB dependencies (which alas are only available in the CRAN repo),
 # then download their sub-dependencies, then "R CMS INSTALL" them in reverse order.  
@@ -236,7 +237,7 @@ yum --disablerepo=\* --enablerepo=offline-PKG install PKG
 #				https://cran.r-project.org/src/contrib/rlang_0.4.2.tar.gz
 #				https://cran.r-project.org/src/contrib/backports_1.1.5.tar.gz
 #
-# Yet more swizels as we need to export location of mysql-devel libs (and possibly its include path)
+# Yet another swizel needed, as we need to point to the mysql-devel libs (and possibly its include path)
 # before installing RMariaDB
 
 export LD_LIBRARY_PATH=/local/mysql/lib
