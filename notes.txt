@@ -196,7 +196,7 @@ enabled=0
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
 
-yum --disablerepo=\* --enablerepo=offline-PKG install PKG
+yum --disablerepo=\* --enablerepo=offline-PKG --nogpgcheck install PKG
 
 
 ### RMariaDB package install under R 
@@ -233,18 +233,16 @@ yum --disablerepo=\* --enablerepo=offline-PKG install PKG
 #				https://cran.r-project.org/src/contrib/glue_1.3.1.tar.gz
 #				https://cran.r-project.org/src/contrib/digest_0.6.23.tar.gz
 #				https://cran.r-project.org/src/contrib/ellipsis_0.3.0.tar.gz
-#				https://cran.r-project.org/src/contrib/backports_1.1.5.tar.gz
 #				https://cran.r-project.org/src/contrib/rlang_0.4.2.tar.gz
 #				https://cran.r-project.org/src/contrib/backports_1.1.5.tar.gz
 #
-# Yet another swizel needed, as we need to point to the mysql-devel libs (and possibly its include path)
-# before installing RMariaDB
+# then "R CMD INSTALL TAR"  where TAR = downloads in reverse order.  Before installing RMariaDB,
+# yet another swizel needed ... as we need to point to the mysql-devel libs andits include path:
 
 export LD_LIBRARY_PATH=/local/mysql/lib
 export INCLUDE_DIR=/usr/include/mysql
 
-# then "R CMD INSTALL TAR"  where TAR = downloads in reverse order.  At this point, should be able to
-# "library(RMariaDB)" from R.  
+# At this point, should be able to  "library(RMariaDB)" from R.  
 
 #### nodejs
 # https://nodejs.org
@@ -1114,7 +1112,7 @@ BLAS: install ATLAS by sudo yum install atlas-devel or install OpenBLAS or MKL f
 Python (optional): if you use the default Python you will need to sudo yum install the python-devel package to have the Python headers for building the pycaffe wrapper.
 
 ############ anaconda
-bash ..../Anaconda-xxxx.sh
+sh /Anaconda-xxxx.sh
 # place install at /local/anaconda-xxxx
 # cd /local
 # ln -s anaconda anaconda-xxxx
