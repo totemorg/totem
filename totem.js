@@ -2339,9 +2339,11 @@ function getIndex(path,cb) {
 	@param {Function} cb totem response
 	*/
 		try {
-			FS.readdirSync(path).forEach( function (file) {
-				if ( !file.endsWith("~") && !file.startsWith("~") )
-					cb(file);
+			FS.readdirSync(path).forEach( file => {
+				var
+					ignore = file.endsWith("~") || file.startsWith("~") || file.startsWith("_");
+				
+				if ( !ignore ) cb(file);
 			});
 		}
 		catch (err) {
