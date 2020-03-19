@@ -35,7 +35,7 @@ pkg.)
 	# Configure the download directory as a repo. Note that for CentOS7 the gpgkey would be 
 	# named "7" instead of "6": 
 
-	cp maint.pkg /etc/yum.repos.d/offline-$2.repo
+	cp pkgrepo /etc/yum.repos.d/offline-$2.repo
 	sed "s/PKG/$2/g" /etc/yum.repos.d/offline-$2.repo
 	echo "revise /etc/yum.repos.d/offline-$2.repo"
 	
@@ -278,17 +278,19 @@ restyle.)
 prmput.)
 	
 	cd /local/babel
-	npm run $MODULE      # use babel to convert ES6 to ES5 saves to ducksrc area
-	cp ../service/$MODULE/README.md $DUCK/readmes/$MODULE.md
-	echo "uploaded $MODULE to jsduck host.  use 'maint prmget' to download jsduck output."
+	npm run $MODULE      # use babel to convert ES6 to ES5 saves to jsduck area
+	cd /local/service/$MODULE
+	#cp README.md $DUCK/readmes/$MODULE.md
+	echo "uploaded $MODULE to jsduck host"
 	;;
 
 prmget.)
-	cp -r $DUCK/output/$MODULE/* prm
-	echo "downloaded jsduck output into prm/$MODULE"
+	cd /local/service/$MODULE
+	cp -r /mnt/installs/jsduck/output/$MODULE/* prm
+	echo "downloaded jsduck output into $MODULE/prm"
 	;;
 		
-_duskpush.)
+_duckpush.)
 	# doxygen config.oxy
 	. maint.sh putduck totem
 	;;
