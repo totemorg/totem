@@ -1,8 +1,9 @@
 // UNCLASSIFIED 
 
 /**
-@class TOTEM
-Provides basic web service as documented in README.md.
+[Usage](https://totem.west.ile.nga.ic.gov/totem)
+
+@module TOTEM
 
 @requires http
 @requires https
