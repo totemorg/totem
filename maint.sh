@@ -275,7 +275,12 @@ restyle.)
 	echo "to be developed"
 	;;
 
-prmput.)
+prmgen.)
+
+	documentation build prm_*.js -f html -o prm -c /local/docconfig.json
+	;;
+	
+prmput.)	# legacy jsduck host
 	
 	cd /local/babel
 	npm run $MODULE      # use babel to convert ES6 to ES5 saves to jsduck area
@@ -284,7 +289,7 @@ prmput.)
 	echo "uploaded $MODULE to jsduck host"
 	;;
 
-prmget.)
+prmget.)	# legacy jsduck host
 	cd /local/service/$MODULE
 	cp -r /mnt/installs/jsduck/output/$MODULE/* prm
 	echo "downloaded jsduck output into $MODULE/prm"
