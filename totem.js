@@ -1,10 +1,9 @@
 // UNCLASSIFIED 
 
 /**
-[Usage](https://totem.west.ile.nga.ic.gov/totem)
+[Installation and Usage](https://sc.appdev.proj.coe/acmesds/totem)
 
 @module TOTEM
-
 @requires http
 @requires https
 @requires fs
@@ -990,8 +989,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 
 		TOTEM.started = new Date();
 
-		//Copy(paths.mime.extensions, MIME.types);
-		Each( paths.mime.extensions, (key,val) => {
+		Each( paths.mimes, (key,val) => {	// extend or remove mime types
 			if ( val ) 
 				MIME.types[key] = val;
 			else
@@ -1976,15 +1974,9 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 			3: ENV.SHARD3 || "http://localhost:8080/task"
 		},
 
-		mime: { // default static file areas
-			files: ".", // path to shared files 
-			//"socket.io": ".", // path to socket.io
-			captcha: ".",  // path to antibot captchas
-			index: { //< paths for allowed file indexers ("" to use url path)
-				files: ""
-			},
-			extensions: {  // Extend mime types as needed
-			}
+		captcha: "./captcha",  // path to antibot captchas
+			
+		mimes: {  // Extend and remove mime types as needed
 		}
 	},
 
@@ -2127,13 +2119,11 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
  * @class TOTEM.Utilities.Configuration_and_Startup
  **/
 
-function stopService() {
 /**
- @private
- @method stopService
- Stop the server.
- */
+Stop the server.
+*/
 		
+function stopService() {
 	if (server = TOTEM.server)
 		server.close(function () {
 			Trace("STOPPED");
@@ -2147,15 +2137,15 @@ function stopService() {
 Utilities to create and manage PKI certs
  */
 
-function createCert(owner,pass,cb) { 
 /**
-@private
-@method createCert
-Create a cert for the desired owner with the desired passphrase then callback cb() when complete.
+Create a cert for the desired owner with the desired passphrase then 
+callback cb() when complete.
+
 @param {String} owner userID to own this cert
 @param {String} password for this cert
 @param {Function} cb callback when completed
 */
+function createCert(owner,pass,cb) { 
 
 	function traceExecute(cmd,cb) {
 
@@ -2208,17 +2198,15 @@ Create a cert for the desired owner with the desired passphrase then callback cb
 
 }
 
-function validateClient(req,res) {  
 /**
-@private
-@method validateClient
-
-Attaches log, profile, group, client, cert and joined info to this req request (sql, reqSocket) with callback res(error) where
-error is null if session is admitted by admitClient.  
+Validate a client's session by attaching a log, profile, group, client, 
+cert and joined info to this req request then callback res(error) with 
+null error if session was validated.  
 
 @param {Object} req totem request
 @param {Function} res totem response
 */
+function validateClient(req,res) {  
 	
 	function getCert(sock) {  //< Return cert for https/http connection on this socket (w or w/o proxy).
 		var 
@@ -2325,20 +2313,14 @@ error is null if session is admitted by admitClient.
 File cacheing, indexing and uploading
  */
 
-function getIndex(path,cb) {	
 /**
-@private
-@method getIndex
+Callback cb(files) with files list under specified path.
+
 @param {String} path file path
 @param {Function} cb totem response
 */
+function getIndex(path,cb) {	
 	function findFile(path,cb) {
-	/**
-	@private
-	@method findFile
-	@param {String} path file path
-	@param {Function} cb totem response
-	*/
 		try {
 			FS.readdirSync(path).forEach( file => {
 				var
@@ -2363,15 +2345,14 @@ function getIndex(path,cb) {
 	cb( files );
 }	
 
-function getFile(client, name, cb) {  
 /**
-@private
-@method getFile
 Get (or create if needed) a file with callback cb(fileID, sql) if no errors
+
 @param {String} client owner of file
 @param {String} name of file to get/make
 @param {Function} cb callback(file, sql) if no errors
 */
+function getFile(client, name, cb) {  
 
 	sqlThread( sql => {
 		sql.forFirst( 
@@ -2406,18 +2387,17 @@ Get (or create if needed) a file with callback cb(fileID, sql) if no errors
 	});
 }
 
-function uploadFile( client, srcStream, sinkPath, tags, cb ) { 
 /**
-@private
-@method uploadFile
 Uploads a source stream srcStream to a target file sinkPath owned by a 
 specified client.  Optional tags are logged with the upload.
+
 @param {String} client file owner
 @param {Stream} source stream
 @param {String} sinkPath path to target file
 @param {Object} tags hach of tags to add to file
 @param {Function} cb callback(file) if upload sucessful
 */
+function uploadFile( client, srcStream, sinkPath, tags, cb ) { 
 	var
 		parts = sinkPath.split("/"),
 		name = parts.pop() || "";
@@ -2571,14 +2551,13 @@ Log("TCP server accepting connection on port: " + LOCAL_PORT);
 Data theft protection
  */
 
-function checkClient (req,res) {	//< endpoint to check clients response to a riddle
 /**
-@private
-@method checkClient
-Endpoint to check clients response req.query to a riddle created by challengeClient.
+Check clients response req.query to a antibot challenge.
+
 @param {Object} req Totem session request
 @param {Function} res Totem response callback
 */
+function checkClient (req,res) {	
 	var 
 		query = req.query,
 		sql = req.sql,
@@ -2619,25 +2598,25 @@ Endpoint to check clients response req.query to a riddle created by challengeCli
 		res( errors.noID );
 }
 
-function initChallenger () {
 /**
-@private
-@method initChallenger
-Create a set of TOTEM.riddles challenges.
+Create antibot challenges.
 */
-	function Riddle(map, ref) {
+function initChallenger () {
+	function Riddle(map, path) {
+		const { floor, random } = Math;
+		
 		var 
 			Q = {
-				x: Math.floor(Math.random()*10),
-				y: Math.floor(Math.random()*10),
-				z: Math.floor(Math.random()*10),
-				n: Math.floor(Math.random()*map["0"].length)
+				x: floor(random()*10),
+				y: floor(random()*10),
+				z: floor(random()*10),
+				n: floor(random()*map["0"].length)
 			},
 
 			A = {
-				x: "".tag("img", {src: `${ref}/${Q.x}/${map[Q.x][Q.n]}.jpg`}),
-				y: "".tag("img", {src: `${ref}/${Q.y}/${map[Q.y][Q.n]}.jpg`}),
-				z: "".tag("img", {src: `${ref}/${Q.z}/${map[Q.z][Q.n]}.jpg`})
+				x: "".tag("img", {src: `${path}/${Q.x}/${map[Q.x][Q.n]}.jpg`}),
+				y: "".tag("img", {src: `${path}/${Q.y}/${map[Q.y][Q.n]}.jpg`}),
+				z: "".tag("img", {src: `${path}/${Q.z}/${map[Q.z][Q.n]}.jpg`})
 			};
 
 		return {
@@ -2646,25 +2625,21 @@ Create a set of TOTEM.riddles challenges.
 		};
 	}
 
-	var 
-		riddle = TOTEM.riddle,
-		N = TOTEM.riddles,
-		map = TOTEM.riddleMap,
-		ref = "/captcha";
+	const {riddle, riddles, riddleMap} = TOTEM;
 
-	for (var n=0; n<N; n++) 
-		riddle.push( Riddle(map,ref) );
+	if ( captcha = paths.captcha )
+		for (var n=0; n<riddles; n++) 
+			riddle.push( Riddle(riddleMap,captcha) );
 }
 
-function makeRiddles (msg,rid,ids) { //< turn msg with riddle markdown into a riddle
 /**
-@private
-@method makeRiddles
-Endpoint to check clients response req.query to a riddle created by challengeClient.
+Check clients response req.query to a antibot challenge.
+
 @param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
 @param {Array} rid List of riddles returned
 @param {Object} ids Hash of {id: value, ...} replaced by (ids) key
 */
+function makeRiddles (msg,rid,ids) { 
 	var 
 		riddles = TOTEM.riddle,
 		N = riddles.length;
@@ -2704,14 +2679,13 @@ Endpoint to check clients response req.query to a riddle created by challengeCli
 		return msg;
 }
 
-function challengeClient (sql, client, profile) { //< create a challenge and rely it to the client
 /**
-@private
-@method challengeClient
-Challenge a client with specified profile parameters
+Create an antibot challenge and relay to client with specified profile parameters
+
 @param {String} client being challenged
 @param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
 */
+function challengeClient (sql, client, profile) { 
 	var 
 		rid = [],
 		reply = (TOTEM.riddleMap && TOTEM.riddles)
@@ -2745,13 +2719,12 @@ Challenge a client with specified profile parameters
  * Create / insert / post, Read / select / get, Update / put, Delete and Execute methods.
  */
 
+/**
+CRUD select endpoint.
+@param {Object} req Totem's request
+@param {Function} res Totem's response callback
+*/
 function selectDS(req, res) {
-	/**
-	@private
-	@method selectDS
-	@param {Object} req Totem's request
-	@param {Function} res Totem's response callback
-	*/
 	const { sql, flags, client, where, index, action, table } = req;
 
 	sql.Query({
@@ -2773,13 +2746,12 @@ function selectDS(req, res) {
 	});
 }
 
+/**
+CRUD insert endpoint.
+@param {Object} req Totem's request
+@param {Function} res Totem's response callback
+*/
 function insertDS(req, res) {
-	/**
-	@private
-	@method insertDS
-	@param {Object} req Totem's request
-	@param {Function} res Totem's response callback
-	*/
 	const { sql, flags, body, client, action, table } = req;
 
 	sql.Query({
@@ -2796,13 +2768,12 @@ function insertDS(req, res) {
 	
 }
 
+/**
+CRUD delete endpoint.
+@param {Object} req Totem's request
+@param {Function} res Totem's response callback
+*/	
 function deleteDS(req, res) {
-	/**
-	@private
-	@method deleteDS
-	@param {Object} req Totem's request
-	@param {Function} res Totem's response callback
-	*/	
 	const { sql, flags, where, client, action, table } = req;
 
 	if ( isEmpty(where.ID) )
@@ -2823,13 +2794,12 @@ function deleteDS(req, res) {
 	
 }
 
+/**
+CRUD update endpoint.
+@param {Object} req Totem's request
+@param {Function} res Totem's response callback
+*/	
 function updateDS(req, res) {
-	/**
-	@private
-	@method updateDS
-	@param {Object} req Totem's request
-	@param {Function} res Totem's response callback
-	*/	
 	const { sql, flags, body, where, client, action, table } = req;
 	
 	if ( isEmpty(body) )
@@ -2858,13 +2828,12 @@ function updateDS(req, res) {
 	
 }
 
-function executeDS(req,res) {
 /**
- @private
- @method executeDS
- @param {Object} req Totem's request
- @param {Function} res Totem's response callback
- */
+CRUD execute endpoint.
+@param {Object} req Totem's request
+@param {Function} res Totem's response callback
+*/
+function executeDS(req,res) {
 	res( errors.notAllowed );
 }
 
@@ -3133,13 +3102,14 @@ function simThread(sock) {
 /**
 @class TOTEM.End_Points.System_Probes
 */
-function sysTask(req,res) {  //< task sharding
+
 /**
-@method sysTask
-Totem (req,res)-endpoint to shard a task to totem compute nodes.
+Endpoint to shard a task to the compute nodes.
+
 @param {Object} req Totem request
 @param {Function} res Totem response
 */
+function sysTask(req,res) {  //< task sharding
 	var 
 		query = req.query,
 		body = req.body,
@@ -3188,24 +3158,24 @@ Totem (req,res)-endpoint to shard a task to totem compute nodes.
 		});
 }
 
-function sysPing(req,res) {
 /**
-@method sysPing
-Totem (req,res)-endpoint to test client connection
+Totem (req,res)-endpoint to test client connection.
+
 @param {Object} req Totem request
 @param {Function} res Totem response
 */
+function sysPing(req,res) {
 	req.type = "html";
 	res("hello " + req.client + " " + paths.gohome );
 }
 
-function sysFile(req, res) {
 /**
-@method sysFile
-Totem (req,res)-endpoint to send uncached, static files from a requested area.
+Endpoint to send uncached, static files from a requested area.
+
 @param {Object} req Totem request
 @param {Function} res Totem response
 */
+function sysFile(req, res) {
 	const {sql, query, body, client, action, table, path, file} = req;
 		   
 	var 
@@ -3219,7 +3189,6 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 			if ( file )
 				try {		// these files are static so we never cache them
 					FS.readFile(path,  (err,buf) => res( err || Buffer.from(buf) ) );
-														// new Buffer(buf) ) );
 				}
 				catch (err) {
 					res( errors.noFile );
@@ -3382,20 +3351,19 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 ].Extend(Array);
 
 [ //< String prototypes
-	function tag(el,at) {
 	/**
-	@member String
-	@method tag
-
 	Tag url (el = ? || &) or html (el = html tag) with specified attributes.
 
+	@memberof String
 	@param {String} el tag element = ? || & || html tag
 	@param {String} at tag attributes = {key: val, ...}
 	@return {String} tagged results
 	*/
+	function tag(el,at) {
 
 		if (!at) { at = {href: el}; el = "a"; }
 		
+		/*
 		if ( isFunction(at) ) {
 			var args = [];
 			this.split(el).forEach( (arg,n) => args.push( at(arg,n) ) );
@@ -3417,12 +3385,17 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 		
 		else
+		*/
+		
 		if ( el == "?" || el == "&" ) {  // tag a url
 			var rtn = this;
 
 			Each(at, (key,val) => {
-				rtn += el + key + "=" + ( (typeof val == "string") ? val : JSON.stringify(val) ); 
-				el = "&";
+				//rtn += el + key + "=" + ( (typeof val == "string") ? val : JSON.stringify(val) ); 
+				if ( val || (val==0) ) {
+					rtn += el + key + "=" + val;
+					el = "&";
+				}
 			});
 
 			return rtn;	
@@ -3431,7 +3404,10 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		else {  // tag html
 			var rtn = "<"+el+" ";
 
-			Each( at, (key,val) => rtn += key + "='" + val + "' " );
+			Each( at, (key,val) => {
+				if ( val )
+					rtn += key + "='" + val + "' ";
+			});
 
 			switch (el) {
 				case "embed":
@@ -3445,15 +3421,12 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 	},
 
-	function parseEval($) {
 	/**
-	@member String
-	@method parseEval
-
 	Parse "$.KEY" || "$[INDEX]" expressions given $ hash.
 
 	@param {Object} $ source hash
 	*/
+	function parseEval($) {
 		try {
 			return eval(this+"");
 		}
@@ -3463,12 +3436,12 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 	},
 	
-	function parseJS(ctx, cb) {
 	/**
-	@member String
 	Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
+	
 	@param {Object} ctx context hash
 	*/
+	function parseJS(ctx, cb) {
 		try {
 			return VM.runInContext( this+"", VM.createContext(ctx));
 		}
@@ -3482,12 +3455,13 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 	},
 	
-	function parse$(query) {
 	/**
-	@member String
 	Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
+	
+	@memberof String
 	@param {Object} query context hash
 	*/
+	function parse$(query) {
 		try {
 			return VM.runInContext( "`" + this + "`" , VM.createContext(query));
 		}
@@ -3496,14 +3470,13 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 	},
 	
-	function parseJSON(def) {
 	/**
-	@member String
-	@method parseJSON
 	Parse string into json.
+	
+	@memberof String
 	@param {Function,Object} def default object or callback that returns default
 	*/
-		
+	function parseJSON(def) {
 		try { 
 			return JSON.parse(this);
 		}
@@ -3512,21 +3485,18 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		}
 	},
 
-	function parseURL(query,index,flags,where) { 
 	/**
-	@member String
-	@method parseURL
-	
 	Parse a "PATH?PARM&PARM&..." url into the specified query, index, flags, or keys hash
 	as directed by the PARM = ASKEY := REL || REL || _FLAG = VALUE where 
 	REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY
 
+	@memberof String
 	@param {Object} query hash of query keys
 	@param {Object} index hash of sql-ized indexing keys
 	@param {Object} flags hash of flag keys
 	@param {Object} where hash of sql-ized conditional keys
 	*/
-		
+	function parseURL(query,index,flags,where) { 
 		function doParm(parm) {
 			function doFlag(parm) {
 				function doIndex(parm) {
@@ -3607,15 +3577,13 @@ Totem (req,res)-endpoint to send uncached, static files from a requested area.
 		return lhs;
 	},
 
-	function parseXML(cb) {
 	/**
-	@member String
-	@method parseXML
-	
 	Parse XML string into json and callback cb(json) 
 
+	@memberof String
 	@param {Function} cb callback( json || null if error )
 	*/
+	function parseXML(cb) {
 		XML2JS.parseString(this, function (err,json) {				
 			cb( err ? null : json );
 		});
