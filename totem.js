@@ -3391,8 +3391,7 @@ function sysFile(req, res) {
 			var rtn = this;
 
 			Each(at, (key,val) => {
-				//rtn += el + key + "=" + ( (typeof val == "string") ? val : JSON.stringify(val) ); 
-				if ( val || (val==0) ) {
+				if ( val ) {
 					rtn += el + key + "=" + val;
 					el = "&";
 				}
