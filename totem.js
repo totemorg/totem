@@ -1472,7 +1472,8 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 	byArea: {	//< by-area routers
 		stores: sysFile,
 		uploads: sysFile,
-		shares: sysFile
+		shares: sysFile,
+		stash: sysFile
 	},
 
 	/**
