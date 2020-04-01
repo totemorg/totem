@@ -60,8 +60,8 @@ var
 	ENUM = require("enum"),
 	DB = require("jsdb");				//< DB database agnosticator
 
-function Trace(msg,req,fwd) {
-	"totem".trace(msg,req,fwd);
+function Trace(msg,req,res) {
+	"totem".trace(msg,req,res);
 }
 	
 const { Copy,Each,Log,isError,isArray,isString,isFunction,isEmpty,typeOf } = ENUM;
@@ -3443,7 +3443,7 @@ function sysFile(req, res) {
 	*/
 	function parseJS(ctx, cb) {
 		try {
-			return VM.runInContext( this+"", VM.createContext(ctx));
+			return VM.runInContext( this+"", VM.createContext(ctx || {}));
 		}
 		catch (err) {
 			//Log("parseJS", this+"", err, ctx);
