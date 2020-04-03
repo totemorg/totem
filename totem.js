@@ -607,7 +607,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,sqlThread,filterRecords,
 
 										const { sql, path, area, table, type, action } = req;
 
-										// Log([action,path,area,table,type]);
+										//Log([action,path,area,table,type]);
 
 										if ( area ) {
 											if ( area == "socket.io" && !table )	// ignore socket keep-alives
