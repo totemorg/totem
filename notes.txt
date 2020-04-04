@@ -14,7 +14,41 @@ yum install git
 #Extract the contents of the archive, using tar -xf <filename>
 #Refer to the top-level extracted directory as: NEO4J_HOME
 #Change directory to: $NEO4J_HOME, then run
-./bin/neo4j console  # hit from browser on 4774
+./bin/neo4j console  # hit from browser on 7474
+# default neo4j/neo4j account/password => neo4j/NGA
+# to create root:  CALL dbms.security.createUser('root', 'NGA');
+
+# Use need the neo4j-driver nodejs connector (dont use the node-neo4j connector).
+
+var neo4j = require('neo4j-driver');
+
+var driver = neo4j.driver(
+  'bolt://localhost',
+  neo4j.auth.basic('neo4j', 'NGA')
+);
+
+var session = driver.session();
+
+session
+  .run('MERGE (alice:Person {name : $nameParam}) RETURN alice.name AS name', {
+    nameParam: 'Alice'
+  })
+  .subscribe({
+    onKeys: keys => {
+      console.log(keys)
+    },
+    onNext: record => {
+      console.log(record.get('name'))
+    },
+    onCompleted: () => {
+      session.close() // returns a Promise
+    },
+    onError: error => {
+      console.log(error)
+    }
+  });
+
+await driver.close();
 
 #### install notepadqq (as root)
 # https://www.javatpoint.com/how-to-install-notepadqq-on-centos
