@@ -24,6 +24,9 @@ export MYSQL_HOST=localhost
 export ODBC_NAME=totem-app
 export ODBC_USER=ileuser
 
+#NEO4J
+export NEO4J="bolt://localhost" # "http://root:NGA@localhost:7474"
+
 # doc and dev tools
 export PATH=/opt/cmake:$PATH 			# latest cmake
 #export PATH=$BASE/oxygen/bin:$PATH    	# doxygen code documenter if needed (jsduck used)
