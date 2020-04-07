@@ -100,7 +100,21 @@ function neoThread(cb) {
 
 		ses
 		.run( query, params )
-		.then( res => cb(null, res.records) )
+		.then( res => {
+			
+			var 
+				recs = res.records,
+				Recs = [];
+			
+			if (recs)
+				recs.forEach( (rec,n) => {
+					var Rec = {};
+					rec.keys.forEach( key => Rec[key] = rec.get(key).properties );
+					Recs.push( Rec );
+				});
+			
+			cb(null, Recs);
+		})
 		.catch( err => {
 			neo.trace(err);
 			cb( err, null );
@@ -110,14 +124,14 @@ function neoThread(cb) {
 		})
 	},
 
-	function declareActors(actors, res) {		// add typed-actors to neo4j
+	function declareActors(actors, created, res ) {		// add typed-actors to neo4j
 		var neo = this;
 
 		Stream( actors, (props, actor, cb) => {
 			//Log(">>neosave", actor,props);
 
 			if (cb) { // add actor
-				props.created = new Date();
+				props.created = created;
 			
 				neo.cypher({
 					query: `MERGE (n:${props.type} {name:$name}) ON CREATE SET n += $props`,
@@ -136,7 +150,7 @@ function neoThread(cb) {
 		});
 	},
 
-	function linkActors( topic, actors ) { // link existing typed-actors by topic
+	function linkActors( topic, actors, created ) { // link existing typed-actors by topic
 
 		var 
 			neo = this,
@@ -155,10 +169,15 @@ function neoThread(cb) {
 							`MATCH (a:${src.type} {name:$srcName}),(b:${tar.type} {name:$tarName}) `
 						+ "MERGE "
 						+ `(a)-[r:${topic}]-(b) `
-						+ "ON CREATE SET r.created = timestamp() ",
+						+ "ON CREATE SET r = $props ",
 						params: {
 							srcName: src.name,
-							tarName: tar.name
+							tarName: tar.name,
+							props: {
+								fromId: src.name,
+								toId: tar.name,
+								created: created
+							}
 						}
 					}, err => {
 						neo.trace( err || "add topic");
@@ -170,11 +189,14 @@ function neoThread(cb) {
 	},
 
 	function saveNet( net ) { // save AN
-		var neo = this;
+		var 
+			neo = this,
+			created = new Date();
+		
 		//Log(">>>> save net", net);  // declare actors then save topics
 		Each( net, (topic, actors) => {
-			neo.declareActors( actors, () => {
-				neo.linkActors( topic, actors );
+			neo.declareActors( actors, created, () => {
+				neo.linkActors( topic, actors, created );
 			});
 		});				
 	}
@@ -1205,7 +1227,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 				}, err => {
 					Trace( err || "CLEAR GRAPH DB" );
 				});  
-
 		});
 		
 		JSDB.config({   // establish the db agnosticator 
