@@ -65,42 +65,189 @@ function Trace(msg,req,res) {
 	"totem".trace(msg,req,res);
 }
 	
-const { Copy,Each,Log,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM;
+const { Copy,Each,Log,Stream,
+			 	isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM;
 const { escape, escapeId } = SQLDB;
 
 var
 	NEODRIVER = NEO4J.driver( ENV.NEO4J, NEO4J.auth.basic('neo4j', 'NGA') );
 
-function neoThread(cb) {
-	cb({ // return sql-style connector 
-		cypher: (opts, cb) => {	// for backward compatibility
-			
-			var 
-				ses = NEODRIVER.session(),
-				query = opts.query || "",
-				params = opts.params || {};
-			
-			Each( params, (key,val) => {	// fix stupid $tokens in this neo4j driver
-				if ( isObject(val) ) {
-					query = query.replace(new RegExp("\\$"+key,"g"), arg => "{".tag(":",val)+"}" );
-					delete params[key];
-				}
-			});
-			
-			//Log("neo", query, params);
-			
-			ses
-			.run( query, params )
-			.then( res => cb(null, res.records) )
-			.catch( err => cb( err, null ) )
-			.then( () => {
-				//console.log(">>>>>>>>>>>neo ses closed", query);
-				ses.close();
-			})
-		}
-	});
+function NEOCONNECTOR() {
+	this.trace = () => {};
 }
 	
+function neoThread(cb) {
+	cb( new NEOCONNECTOR( ) );
+}
+
+[
+	function cypher(opts,cb) {// submit cypher query to neo4j
+
+		var 
+			neo = this,
+			ses = NEODRIVER.session() ,	// no pooled connectors so must create and close them
+			query = opts.query || "",
+			params = opts.params || {};
+
+		Each( params, (key,val) => {	// fix stupid $tokens in neo4j driver
+			if ( isObject(val) ) {
+				query = query.replace(new RegExp("\\$"+key,"g"), arg => "{".tag(":",val)+"}" );
+				delete params[key];
+			}
+		});
+
+		neo.trace(query);
+
+		ses
+		.run( query, params )
+		.then( res => cb(null, res.records) )
+		.catch( err => {
+			neo.trace(err);
+			cb( err, null );
+		})
+		.then( () => {
+			ses.close();
+		})
+	},
+
+	function declareActors(actors, res) {		// add typed-actors to neo4j
+		var neo = this;
+
+		Stream( actors, (props, actor, cb) => {
+			//Log(">>neosave", actor,props);
+
+			if (cb) { // add actor
+				props.created = new Date();
+			
+				neo.cypher({
+					query: `MERGE (n:${props.type} {name:$name}) ON CREATE SET n += $props`,
+					params: {
+						name: actor,
+						props: props
+					}
+				}, err => {
+					neo.trace( err || "add actor" );
+					cb();
+				});
+			}
+					 
+			else	// all actors added so move forward
+				res( null );
+		});
+	},
+
+	function linkActors( topic, actors ) { // link existing typed-actors by topic
+
+		var 
+			neo = this,
+			hats = {};
+
+		Each( actors, (name,actor) => {	// org actors by hat type
+			var hat = hats[actor.type];
+			if ( !hat ) hat = hats[actor.type] = actor;
+		});
+
+		Each( hats, (source, src) => {
+			Each(hats, (target, tar) => {
+				if ( source != target ) {	// no self-loops
+					neo.cypher({
+						query: 
+							`MATCH (a:${src.type} {name:$srcName}),(b:${tar.type} {name:$tarName}) `
+						+ "MERGE "
+						+ `(a)-[r:${topic}]-(b) `
+						+ "ON CREATE SET r.created = timestamp() ",
+						params: {
+							srcName: src.name,
+							tarName: tar.name
+						}
+					}, err => {
+						neo.trace( err || "add topic");
+					});
+				}
+			});
+		});
+
+	},
+
+	function saveNet( net ) { // save AN
+		var neo = this;
+		//Log(">>>> save net", net);  // declare actors then save topics
+		Each( net, (topic, actors) => {
+			neo.declareActors( actors, () => {
+				neo.linkActors( topic, actors );
+			});
+		});				
+	}
+
+	/*
+	function saveAN(actors,edges,greedy) {// save associative network
+		Stream( actors, (act, actor, cb) => {
+			Log(">>neosave", actor,act);
+
+			var neo = this;
+
+			if (cb) // add actor
+				neo.cypher({
+					query: `MERGE (n:${act.type} {name:$name}) ON CREATE SET n += $props`,
+					params: {
+						name: actor,
+						props: {
+							name: actor,
+							email: "tbd",
+							tele: "tbd",
+							created: new Date()
+						}
+					}
+				}, err => Trace( err || "add actor" ) );
+
+			else	// all actors added so add edges
+			if ( greedy )		// make all possible edges
+				Each(actors, (source,src) => {
+					Each(actors, (target,tar) => {
+						if ( source != target )
+							Each( edges, (topic,info) => {
+								if ( topic != "dnc" ) 
+									neo.cypher({
+										query: `MATCH (a:${src.type} {name:$src}),(b:${tar.type} {name:$tar}) MERGE (a)-[r:${topic}]-(b) ON CREATE SET r.created = timestamp() `,
+										params: {
+											src: source,
+											tar: target
+										}
+									}, err => Trace( err || "add edge") );
+
+							});
+					});
+				});
+
+			else {	// make only required edges
+				var
+					keys = Object.keys(edges),
+					keys = keys.sort( (a,b) => edges[b].weight - edges[a].weight ),
+					topic = keys[0] || "dnc",
+					info = edges[topic];
+
+				//Log("nlpedges", keys, topic, info );
+
+				if ( topic != "dnc" ) // donotcare
+					Each(actors, (source, src) => {
+						Each(actors, (target, tar) => {
+							if ( source != target ) {
+								//Log( source, target, `MATCH (a:${src.type} {name:$src}),(b:${tar.type} {name:$tar}) MERGE (a)-[r:${topic}]-(b) ON CREATE SET r.created = timestamp() ` );
+								neo.cypher({
+									query: `MATCH (a:${src.type} {name:$src}),(b:${tar.type} {name:$tar}) MERGE (a)-[r:${topic}]-(b) ON CREATE SET r.created = timestamp() `,
+									params: {
+										src: source,
+										tar: target
+									}
+								}, err => Trace( err || "add edge") );
+							}
+						});
+					});
+			}
+		});
+
+	}  */
+].Extend(NEOCONNECTOR);
 
 const { operators, reqFlags,paths,errors,site,probeSite,
 			 	sqlThread,filterRecords,isEncrypted,guestProfile,
@@ -111,7 +258,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Error messages
 		@cfg {Object} 
-		@member TOTEM	
 	*/		
 	errors: {
 		pretty: err => { 
@@ -147,7 +293,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Configure and start the service with options and optional callback when started.
 		Configure JSDB, define site context, then protect, connect, start and initialize this server.
-		@method configService
+		@cfg {Function}
 		@param {Object} opts configuration options following the ENUM.Copy() conventions.
 		@param {Function} cb callback(err) after service configured
 	*/
@@ -185,54 +331,54 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 					if (server && name) 			// attach responder
 						server.on("request", (Req,Res) => {		// start session
 							/*
-							Creates a HTTP/HTTPS request-repsonse session thread, then uses the byTable, byArea, 
-							byType config to route this thread to the appropriate (req,res)-endpoint.
-							The newly formed request req contains:
+								Creates a HTTP/HTTPS request-repsonse session thread, then uses the byTable, byArea, 
+								byType config to route this thread to the appropriate (req,res)-endpoint.
+								The newly formed request req contains:
 
-									.method: "GET, ... " 		// http method and its ...
-									.action: "select, ...",		// corresponding crude name
-									.socketio: "path"  // filepath to client's socketio.js
-									.where: {...}, 		// sql-ized query keys from url
-									.body: {...},		// body keys from request 
-									.post: "..."			// raw body text
-									.flags: {...}, 		// flag keys from url
-									.index: {...}		// sql-ized index keys from url
-									.query: {...}, 		// raw keys from url
-									.files: [...] 		// files uploaded
-									.site: {...}			// skinning context keys
-									.sql: connector 		// sql database connector (dummy if no mysql config)
-									.url	: "url"				// complete "/area/.../name.type?query" url
-									.search: "query"		// query part
-									.path: "/..."			// path part 
-									.filearea: "area"		// area part
-									.filename: "name"	// name part
-									.type: "type" 			// type part 
-									.connection: socket		// http/https socket to retrieve client cert 
+										.method: "GET, ... " 		// http method and its ...
+										.action: "select, ...",		// corresponding crude name
+										.socketio: "path"  // filepath to client's socketio.js
+										.where: {...}, 		// sql-ized query keys from url
+										.body: {...},		// body keys from request 
+										.post: "..."			// raw body text
+										.flags: {...}, 		// flag keys from url
+										.index: {...}		// sql-ized index keys from url
+										.query: {...}, 		// raw keys from url
+										.files: [...] 		// files uploaded
+										.site: {...}			// skinning context keys
+										.sql: connector 		// sql database connector (dummy if no mysql config)
+										.url	: "url"				// complete "/area/.../name.type?query" url
+										.search: "query"		// query part
+										.path: "/..."			// path part 
+										.filearea: "area"		// area part
+										.filename: "name"	// name part
+										.type: "type" 			// type part 
+										.connection: socket		// http/https socket to retrieve client cert 
 
-							The newly formed response res method accepts a string, an objects, an array, an error, or 
-							a file-cache function to appropriately respond and close this thread and its sql connection.  
-							The session is validated and logged, and the client is challenged as necessary.
+								The newly formed response res method accepts a string, an objects, an array, an error, or 
+								a file-cache function to appropriately respond and close this thread and its sql connection.  
+								The session is validated and logged, and the client is challenged as necessary.
 
-							@param {Object} Req http/https request
-							@param {Object} Res http/https response
-							 */
-	
-							function startRequest( cb ) { //< callback cb() if not combating denial of service attacks
-							/**
-							@private
-							@method startRequest
-							@param {Function} callback() when completed
-							Start session and protect from denial of service attacks and, if unsuccessful then 
-							terminaate request, otherise callback with request:
-
-								method = GET | PUT | POST | DELETE
-								action = select | update | insert | delete
-								sql = sql connector
-								reqSocket = socket to complete request
-								resSocket = socket to complete response
-								socketio: path to client's socketio
-								url = clean url
+								@param {Object} Req http/https request
+								@param {Object} Res http/https response
 							*/
+	
+							/*
+								@private
+								@method startRequest
+								@param {Function} callback() when completed
+								Start session and protect from denial of service attacks and, if unsuccessful then 
+								terminaate request, otherise callback with request:
+
+									method = GET | PUT | POST | DELETE
+									action = select | update | insert | delete
+									sql = sql connector
+									reqSocket = socket to complete request
+									resSocket = socket to complete response
+									socketio: path to client's socketio
+									url = clean url
+							*/
+							function startRequest( cb ) { //< callback cb() if not combating denial of service attacks
 								function getSocket() {  // returns suitable response socket depending on cross/same domain session
 									if ( Req.headers.origin ) {  // cross domain session is in progress from master (on http) to its workers (on https)
 										Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
@@ -313,14 +459,14 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 							}
 							
 							startRequest( req => {  // start request if not busy.
+								/*
+									@private
+									@method startResponse
+									Start a session by attaching sql, cert, client, profile and session info to this request req with callback res(error).  
+									@param {Object} req request
+									@param {Function} res response
+								*/
 								function startResponse( cb ) {  
-								/**
-								 @private
-								 @method startResponse
-								 Start a session by attaching sql, cert, client, profile and session info to this request req with callback res(error).  
-								 @param {Object} req request
-								 @param {Function} res response
-								 * */
 									function res(data) {  // Session response callback
 
 										// Session terminators respond with a string, file, db structure, or error message.
@@ -512,7 +658,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 								startResponse( res => {	// start response if session validated.
 
 									function routeNode(node, req, cb) {
-									/**
+									/*
 									@private
 									@method routeNode
 
@@ -524,7 +670,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 									*/
 
 										function parseNode() {
-										/**
+										/*
 										@private
 										@method parseNode
 										Parse node request req.node = /TABLE?QUERY&INDEX || /FILEAREA/FILENAME to define 
@@ -573,7 +719,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 										}
 
 										function followRoute(route) {
-										/**
+										/*
 										@private
 										@method followRoute
 
@@ -874,7 +1020,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 
 							sql.query("UPDATE app.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
 
-							var mTimes = TOTEM.mTimes;
+							var modTimes = TOTEM.modTimes;
 
 							Each(TOTEM.onFile, (area, cb) => {  // callback cb(sql,name,area) when file changed
 								FS.readdir( area, (err, files) => {
@@ -1030,8 +1176,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 				delete MIME.types[key];
 		});
 
-		neoThread( neo => {	// add cypher prototype and test neo4j connection
-
+		neoThread( neo => {	// add prototypes and test neo4j connection
 			if (true) // test connection
 				neo.cypher({
 					query: 
@@ -1133,15 +1278,15 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Enabled when master/workers on encrypted service
 		@cfg {Boolean}
-		@member TOTEM
 	*/
 	isEncrypted: () => TOTEM.domain[ CLUSTER.isMaster ? "master" : "worker" ].protocol == "https:",
 
 	onUpdate: null,
 		
 	/**
-	Shard one or more tasks to workers residing in a compute node cloud as follows:
+	Shard one or more tasks to workers residing in a compute node cloud.
 	
+	@example
 		runTask({  		// example
 			keys: "i,j,k",  	// e.g. array indecies
 			i: [0,1,2,3],  		// domain of index i
@@ -1160,8 +1305,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 		);
 	
 	@cfg {Function}
-	@method runTask
-	@member TOTEM
 	@param {Object} opts tasking options (see example)
 	@param {Function} task runTask of the form ($) => {return msg} where $ contains process info
 	@param {Function} cb callback of the form (msg) => {...} to process msg returned by task
@@ -1244,8 +1387,8 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	},
 					
 	/**
-		Watchdogs {name: dog(sql, lims), ... } run every dog.cycle seconds with a dog.trace message using
-		specified dog.parms.  When the watchdog is invoked it is given a sql connector and its lims attributes.
+		Watchdogs {name: dog(sql, lims), ... } run at intervals dog.cycle seconds usings its
+		dog.trace, dog.parms, sql connector and threshold parameters.
 		@cfg {Object}
 	*/		
 	dogs: { //< watchdog functions(sql, lims)
@@ -1254,17 +1397,16 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Establish smart file watcher when file at area/name has changed.
 		@cfg {Function}
-		@method watchFile
 		@param {String} path to file being watched
 		@param {Function} callback cb(sql, name, path) when file at path has changed
 	*/
 	watchFile: function (path, cb) { 
 		var 
-			mTimes = TOTEM.mTimes;
+			modTimes = TOTEM.modTimes;
 		
 		Trace("WATCHING " + path);
 		
-		mTimes[path] = 0; 
+		modTimes[path] = 0; 
 
 		try {
 			FS.watch(path, function (ev, file) {  
@@ -1280,8 +1422,8 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 								FS.stat(path, function (err, stats) {
 
 									//Log(path, err, stats);
-									if ( !err && (mTimes[path] != stats.mtime) ) {
-										mTimes[path] = stats.mtime;
+									if ( !err && (modTimes[path] != stats.mtime) ) {
+										modTimes[path] = stats.mtime;
 										cb(sql, file, path);
 									}
 
@@ -1361,8 +1503,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Thread a new sql connection to a callback.  Unless overridden, will default to the JSDB thread method.
 		@cfg {Function}
-		@member TOTEM	
-		@method thread
 		@param {Function} cb callback(sql connector)
 	*/
 	sqlThread: JSDB.thread,
@@ -1372,7 +1512,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		REST-to-CRUD translations
 		@cfg {Object}  
-		@member TOTEM
 	*/
 	crud: {
 		GET: "select",
@@ -1384,7 +1523,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Options to parse request flags
 		@cfg {Object} 
-		@member TOTEM
 	*/
 	reqFlags: {				//< Properties for request flags
 		traps: { //< cb(query) traps to reorganize query
@@ -1413,7 +1551,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Enabled to support web sockets
 		@cfg {Boolean} [sockets=false]
-		@member TOTEM
 	*/
 	sockets: false, 	//< enabled to support web sockets
 		
@@ -1423,14 +1560,12 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 		encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
 		workers via the masterport.	
 		@cfg {Number} [cores=0]
-		@member TOTEM	
 	*/				
 	cores: 0,	//< Number of worker cores (0 for master-only)
 		
 	/**
 		Folder watching callbacks cb(path) 
 		@cfg {Object}
-		@member TOTEM	
 	*/				
 	onFile: {		//< File folder watchers with callbacks cb(path) 
 	},
@@ -1438,15 +1573,13 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		File mod-times tracked as OS will trigger multiple events when file changed
 		@cfg {Object}
-		@member TOTEM	
 	*/
-	mTimes: { 	//< File mod-times tracked as OS will trigger multiple events when file changed
+	modTimes: { 	//< File mod-times tracked as OS will trigger multiple events when file changed
 	},
 		
 	/**
 		Enable if https server being proxied
 		@cfg {Boolean} [behindProxy=false]
-		@member TOTEM	
 	*/				
 	behindProxy: false,		//< Enable if https server being proxied
 
@@ -1457,7 +1590,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 			3) identify server cert name.pfx file.
 		If the Nick=name is not located in openv.apps, the supplied	config() options are not overridden.
 		@cfg {String} [name="Totem"]
-		@member TOTEM	
 	*/	
 	host: { 
 		name: ENV.SERVICE_NAME || "Totem1",
@@ -1469,7 +1601,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Site context extended by the mysql derived query when service starts
 		@cfg {Object} 
-		@member TOTEM	
 	*/
 	site: {  	//< reserved for derived context vars		
 	},
@@ -1477,7 +1608,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Endpoint filterRecords cb(data data as string || error)
 		@cfg {Object} 
-		@member TOTEM	
 	*/
 	filterRecords: {  //< record data convertors
 		csv: (recs, req, res) => {
@@ -1504,7 +1634,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
 		@cfg {Object} 
-		@member TOTEM	
 	*/				
 	byTable: {			  //< by-table routers	
 		//uploads: sysFile,
@@ -1517,7 +1646,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		By-action endpoint routers for accessing engines
 		@cfg {Object} 
-		@member TOTEM	
 	*/				
 	byAction: { //< by-action routers
 	},
@@ -1525,7 +1653,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		By-type endpoint routers  {type: method(req,res), ... } for accessing dataset readers
 		@cfg {Object} 
-		@member TOTEM	
 	*/				
 	byType: {  //< by-type routers
 	},
@@ -1533,7 +1660,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		By-area endpoint routers {area: method(req,res), ... } for sending/cacheing files
 		@cfg {Object} 
-		@member TOTEM	
 	*/		
 	byArea: {	//< by-area routers
 		stores: sysFile,
@@ -1545,14 +1671,12 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Trust store extened with certs in the certs.truststore folder when the service starts in encrypted mode
 		@cfg {Object} 
-		@member TOTEM	
 	*/		
 	trustStore: [ ],   //< reserved for trust store
 		
 	/**
 		CRUDE (req,res) method to respond to Totem request
 		@cfg {Object} 
-		@member TOTEM	
 	*/				
 	server: null,  //< established by TOTEM at config
 	
@@ -1561,8 +1685,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		CRUDE (req,res) method to respond to a select||GET request
 		@cfg {Function}
-		@method selectDS
-		@member TOTEM	
 		@param {Object} req Totem session request
 		@param {Function} res Totem responder
 	*/				
@@ -1571,8 +1693,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		CRUDE (req,res) method to respond to a update||POST request
 		@cfg {Function}	
-		@method update
-		@member TOTEM	
 		@param {Object} req Totem session request
 		@param {Function} res Totem responder
 	*/				
@@ -1581,8 +1701,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		CRUDE (req,res) method to respond to a delete||DELETE request
 		@cfg {Function}	
-		@method delete
-		@member TOTEM	
 		@param {Object} req Totem session request
 		@param {Function} res Totem responder
 	*/				
@@ -1591,8 +1709,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		CRUDE (req,res) method to respond to a insert||PUT request
 		@cfg {Function}
-		@method insert
-		@member TOTEM	
 		@param {Object} req Totem session request
 		@param {Function} res Totem responder
 	*/				
@@ -1601,8 +1717,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		CRUDE (req,res) method to respond to a Totem request
 		@cfg {Function}
-		@method execute
-		@member TOTEM	
 		@param {Object} req Totem session request
 		@param {Function} res Totem responder
 	*/				
@@ -1614,7 +1728,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 		totem start time
 		@cfg {Date} 
 		@private
-		@member TOTEM	
 	*/		
 	started: null, 		//< totem start time
 		
@@ -1622,7 +1735,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 		Fetches data from service at url and, if a calback is provided for the method, will 
 		forward the returned information as a string (or "" if an error occured) to the callback.
 		@cfg {Function} 
-		@member TOTEM	
 		@param {String} path prefixed by http || https || curl || curls || wget || wgets || /path
 		@param {Object, Array, Function, null} method POST || PUT || GET || DELETE
 	*/
@@ -1630,14 +1742,12 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 		/**
 			Maximum number of retries the data probeSite will user
 			@cfg {Number} [retries=5]
-			@member TOTEM	
 		*/				
 		retries: 5,			//< Maximum number of retries the data probeSite will user
 
 		/**
 			Enable/disable tracing of data fetchers
 			@cfg {Boolean} [trace=true]
-			@member TOTEM	
 		*/		
 		trace: true 		//< Enable/disable tracing of data fetchers		
 	}, function probeSite(path, method) {	//< data fetching
@@ -1842,14 +1952,12 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Enable/disable service fault protection guards
 		@cfg {Boolean} 
-		@member TOTEM	
 	*/
 	faultless: false,  //< enable to use all defined guards
 		
 	/**
 		Service guard modes
 		@cfg {Object} 
-		@member TOTEM	
 	*/
 	guards:  {	// faults to trap 
 		//SIGUSR1:1,
@@ -1866,7 +1974,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Client admission rules
 		@cfg {Object} 
-		@member TOTEM	
 	*/
 	admitRules: {  // empty or null to disable rules
 		// CN: "james brian d jamesbd",
@@ -1879,7 +1986,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	Attaches the profile, group and a session metric log to this req request (cert,sql) with 
 	callback cb(error) where error reflects testing of client cert and profile credentials.
 	@cfg {Object} 
-	@member TOTEM
 	*/		
 	admitClient: function (req, profile, cb) { 
 		function admit(cb) {  // callback cb(log || null) with session log 
@@ -1942,7 +2048,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Default guest profile (unencrypted or client profile not found).  Null to bar guests.
 		@cfg {Object}
-		@member TOTEM	
 	*/		
 	guestProfile: {				//< null if guests are barred
 		Banned: "",  // nonempty to ban user
@@ -1964,7 +2069,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Number of riddles to protect site (0 to disable anti-bot)
 		@cfg {Number} [riddles=0]
-		@member TOTEM	
 	*/		
 	riddles: 0, 			
 	
@@ -1972,7 +2076,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 		Store generated riddles to protect site 
 		@cfg {Array} 
 		@private
-		@member TOTEM	
 	*/		
 	riddle: [],  //< reserved for riddles
 		
@@ -1980,7 +2083,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 		Riddle digit-to-jpeg map (null to disable riddles)
 		@cfg {Object} 
 		@private
-		@member TOTEM	
 	*/				
 	riddleMap: { 					
 		0: ["10","210"],
@@ -1998,7 +2100,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Default paths to service files
 		@cfg {Object} 
-		@member TOTEM	
 	*/		
 	paths: { 			
 		nourl: "/ping",
@@ -2051,7 +2152,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 		File indexer
 		@method 
 		@cfg {Function}
-		@member TOTEM	
 	*/		
 	getIndex: getIndex,
 
@@ -2059,7 +2159,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 		Get a file and make it if it does not exist
 		@method 
 		@cfg {Function}
-		@member TOTEM	
 	*/
 	getFile: getFile,
 
@@ -2067,21 +2166,18 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 		File uploader 
 		@cfg {Function}
 		@method uploadFile
-		@member TOTEM	
 	*/			
 	uploadFile: uploadFile,
 
 	/**
 		Server toobusy check period in seconds
 		@cfg {Number}
-		@member TOTEM	
 	*/		
 	busyTime: 5000,  //< site too-busy check interval [ms] (0 disables)
 
 	/**
 		Sets the site context parameters.
 		@cfg {Function}
-		@member TOTEM	
 	*/		
 	setContext: function (sql,cb) { 
 		var 
@@ -2156,7 +2252,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		File cache
 		@cfg {Object} 
-		@member TOTEM	
 	*/		
 	cache: { 				//< cacheing options
 
@@ -2186,6 +2281,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 
 /**
 	Stop the server.
+	@memberof Server_Utilities
 */
 		
 function stopService() {
@@ -2198,14 +2294,10 @@ function stopService() {
 }
 
 /**
-@class TOTEM.Utilities.PKI_Certs
-Utilities to create and manage PKI certs
- */
-
-/**
 	Create a cert for the desired owner with the desired passphrase then 
 	callback cb() when complete.
 
+	@memberof PKI_Utilities
 	@param {String} owner userID to own this cert
 	@param {String} password for this cert
 	@param {Function} cb callback when completed
@@ -2268,6 +2360,7 @@ function createCert(owner,pass,cb) {
 	cert and joined info to this req request then callback res(error) with 
 	null error if session was validated.  
 
+	@memberof PKI_Utilities
 	@param {Object} req totem request
 	@param {Function} res totem response
 */
@@ -2374,13 +2467,9 @@ function validateClient(req,res) {
 }
 
 /**
-@class TOTEM.Utilities.File_Access
-File cacheing, indexing and uploading
- */
-
-/**
 	Callback cb(files) with files list under specified path.
 
+	@memberof File_Utilities
 	@param {String} path file path
 	@param {Function} cb totem response
 */
@@ -2413,6 +2502,7 @@ function getIndex(path,cb) {
 /**
 	Get (or create if needed) a file with callback cb(fileID, sql) if no errors
 
+	@memberof File_Utilities
 	@param {String} client owner of file
 	@param {String} name of file to get/make
 	@param {Function} cb callback(file, sql) if no errors
@@ -2456,6 +2546,7 @@ function getFile(client, name, cb) {
 	Uploads a source stream srcStream to a target file sinkPath owned by a 
 	specified client.  Optional tags are logged with the upload.
 
+	@memberof File_Management
 	@param {String} client file owner
 	@param {Stream} source stream
 	@param {String} sinkPath path to target file
