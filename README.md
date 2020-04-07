@@ -9,18 +9,19 @@
 [TOTEM](https://totem.west.ile.nga.ic.gov/api.view) replaces a slew of god-awful middleware by providing a basic http/https web service 
 having the following configurable features:
 
-	+ routing methods for table, engine, and file objects
+	+ routing methods for node (table, engine, file) endpoints  
 	+ denial-of-service protection
 	+ web sockets for inter-client communications
 	+ client profiles (e.g. banning, journalling, hawking, challenging and polling)
-	+ account management by priviledged hawks and normal users
+	+ account management for priviledged hawks and normal users
 	+ hyper-threading in a master-worker or master-only relationship
 	+ PKI channel encryption and authentication
-	+ no-faulting (protected) run state
-	+ indexing, uploading, downloading and cacheing mime files
+	+ fault protected run states
+	+ indexing, uploading, downloading and cacheing static files
 	+ per-client antibot challenges: profile challenges like (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
 	+ syncronized crude operations on mutiple endpoints
 	+ database agnosticator (default MySQL-Cluster)
+	+ graph database
 	+ poll files and services
 	+ automattic server cert generation
 	+ task sharding
