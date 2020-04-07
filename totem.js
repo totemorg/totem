@@ -174,8 +174,8 @@ function neoThread(cb) {
 							srcName: src.name,
 							tarName: tar.name,
 							props: {
-								fromId: src.name,
-								toId: tar.name,
+								srcId: src.name,
+								tarId: tar.name,
 								created: created
 							}
 						}
@@ -191,11 +191,16 @@ function neoThread(cb) {
 	function saveNet( net ) { // save AN
 		var 
 			neo = this,
-			created = new Date();
+			created = new Date(),
+			Actors = {};
 		
-		//Log(">>>> save net", net);  // declare actors then save topics
-		Each( net, (topic, actors) => {
-			neo.declareActors( actors, created, () => {
+		Each( net, (topic,actors) => {	// condense actors
+			Each(actors, (name,actor) => Actors[name] = actor );
+		});
+		
+		neo.declareActors( Actors, created, () => {
+			//Log(">>>> save net", net);  // declare actors then save topics
+			Each( net, (topic, actors) => {
 				neo.linkActors( topic, actors, created );
 			});
 		});				
