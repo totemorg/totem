@@ -73,7 +73,8 @@ var
 	NEODRIVER = NEO4J.driver( ENV.NEO4J, NEO4J.auth.basic('neo4j', 'NGA') );
 
 function NEOCONNECTOR() {
-	this.trace = () => {};
+	this.trace = args => {};
+			//args => console.log(args); 
 }
 	
 function neoThread(cb) {
@@ -1219,7 +1220,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 
 					else 
 						if ( rec = recs[0] ) 
-							Log("neodb test alice user", rec.get("name") );
+							Log("neodb test alice user", rec );
 									// JSON.stringify(rec['u'], null, 4));
 
 						else
