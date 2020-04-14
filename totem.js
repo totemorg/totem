@@ -1630,6 +1630,11 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 		@cfg {Object} 
 	*/
 	site: {  	//< reserved for derived context vars		
+		pocs: {
+			admin: "admin@undefined.gov",
+			overlord: "overlord@undefined.gov",
+			sup: "supervisor@undefined.gov"
+		}		
 	},
 
 	/**
@@ -2209,11 +2214,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	setContext: function (sql,cb) { 
 		var 
 			mysql = paths.mysql;
-
-		site.pocs = {
-			admin: "admin@undefined",
-			overlord: "overlord@undefined"
-		};
 
 		if (pocs = mysql.pocs) 
 			sql.query(pocs)
