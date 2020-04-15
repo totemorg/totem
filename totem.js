@@ -1633,7 +1633,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 		pocs: {
 			admin: "admin@undefined.gov",
 			overlord: "overlord@undefined.gov",
-			sup: "supervisor@undefined.gov"
+			super: "supervisor@undefined.gov"
 		}		
 	},
 
