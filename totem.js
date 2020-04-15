@@ -279,8 +279,111 @@ function neoThread(cb) {
 
 const { operators, reqFlags,paths,errors,site,probeSite,
 			 	sqlThread,filterRecords,isEncrypted,guestProfile,
-	   		byArea,byType,byAction,byTable,timeIntervals } = TOTEM = module.exports = {
+	   		byArea,byType,byAction,byTable,startDogs } = TOTEM = module.exports = {
 	
+	startDogs: function (sql, dogs) {
+		sql.query(
+			"SELECT * FROM app.dogs WHERE Enabled AND ifnull(Starts,now()) <= now()", [])
+		
+		.on("result", task => {
+			
+			function queueWatchdog(task) {
+
+				var 
+					now = new Date(),
+					every = task.Every,
+					cycle = parseInt(every),
+					name = task.Name.toLowerCase(),
+					dog = TOTEM.dogs[name];
+
+				if ( dog ) { // found a watch dog
+					if ( cycle ) 	// relative cycle times [mins]
+						task.timer = setInterval( task => {
+							var now = new Date();
+							
+							if (now < task.Ends || !task.Ends)	// requeue
+								sqlThread( sql => {
+									Trace( `DOG ${task.Name}` );
+									dog(sql);
+								});
+							
+							else
+								clearInterval(task.timer);
+							
+						}, cycle*60e3, task );
+
+					else {	// absolute start time
+						var
+							[atInt,atHour,atMins] = (every||"day:01:00").split(":");
+						
+						switch ( atInt ) {
+							case "year": year += 1; break;
+							case "week": date += 7; break;
+							case "day": date += 1; break;
+							case "hour": hour += 1; break;
+
+							case "monday": 
+							case "tuesday":
+							case "wednesday":
+							case "thursday":
+							case "friday":
+							case "saturday":
+							case "sunday":
+							case "mon":
+							case "tue":
+							case "wed":
+							case "thr":
+							case "fri":
+							case "sat":
+							case "sun":
+								date += 7-day+1; 
+								hour = parseInt(atHour);
+								mins = parseInt(atMins);
+								break;
+						}
+
+						var 
+							year = now.getFullYear(),
+							month = now.getMonth(),
+							date = now.getDate(),
+							day = now.getDay(),
+							hour = now.getHours(),
+							mins = now.getMinutes(),
+							secs = now.getSeconds(),
+							next = new Date(year,month,date,hour,mins),
+							wait = next.getTime() - now.getTime();
+
+						//wait = 5e3;
+						Trace( `NOTICE ${wait}ms` );
+						/*
+						Log("notice", {
+							task: task, 
+							next: next, 
+							pocs: pocs,
+							wait: wait,
+							xMth: next.getMonth(),
+							xHr: next.getHours(),
+							xDay: next.getDay()
+						}); */
+
+						if ( wait > 0 )
+							if (now < task.Ends || !task.Ends)	// requeue
+								setTimeout( task => {
+									sqlThread( sql => {
+										Trace( `DOG ${task.Name}` );
+										dog(sql);
+									});
+									queueWatchdog(task);
+								}, wait, task );
+
+					}
+				}
+			}
+
+			queueWatchdog( new Object(task) );
+		});
+	},		
+
 	operators: ["=", "<", "<=", ">", ">=", "!=", "!bin=", "!exp=", "!nlp="],
 
 	/**
@@ -1065,27 +1168,8 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 
 							// start watch dogs
 
-							Each( TOTEM.dogs, (key, dog) => {
-								if ( dog.cycle ) {  // attach sql threaders and setup watchdog interval
-									//Trace("DOGING "+key);
-									dog.trace = dog.name.toUpperCase();
-									dog.forEach = JSDB.forEach;
-									dog.forAll = JSDB.forAll;
-									dog.forFirst = JSDB.forFirst;
-									dog.thread = sqlThread;
-									dog.site = site;
-
-									setInterval( args => {
-
-										//Trace("DOG "+args.name);
-
-										dog(dog);  // feed dog attributes as parameters
-
-									}, timeIntervals[dog.cycle] || dog.cycle*1e3, {
-										name: key
-									});
-								}
-							});	
+							if ( dogs = TOTEM.dogs )
+								TOTEM.startDogs( sql, dogs );
 						});
 					}
 
@@ -1264,7 +1348,8 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 	/**
 		Common time intervals for watchdogs, queues and setintervals.
 		@cfg {Object}
-	*/
+	*
+	/*
 	timeIntervals: {
 		ms: 1e-3,
 		second: 1,
@@ -1280,7 +1365,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 		mth: 2419200,
 		year: 31449600,
 		yr: 31449600
-	},
+	},  */
 
 	requestFile: sysFile,
 	
