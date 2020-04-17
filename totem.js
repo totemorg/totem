@@ -354,7 +354,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 							wait = next.getTime() - now.getTime();
 
 						//wait = 5e3;
-						Trace( `NOTICE ${wait}ms` );
+						Trace( `NOTICE ${task.Name} WAITING ${wait}ms` );
 						/*
 						Log("notice", {
 							task: task, 
@@ -3616,6 +3616,11 @@ function sysFile(req, res) {
 		return recs;
 	} 
 	*/
+	function hashify(key,hash) {
+		var rtn = hash || {};
+		this.forEach( rec => rtn[rec[key]] = rec );
+		return rtn;
+	}
 ].Extend(Array);
 
 [ //< String prototypes
