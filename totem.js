@@ -73,7 +73,8 @@ var
 	NEODRIVER = NEO4J.driver( ENV.NEO4J, NEO4J.auth.basic('neo4j', 'NGA') );
 
 function NEOCONNECTOR() {
-	this.trace = args => {};
+	this.trace = 
+			args => {};
 			//args => console.log(args); 
 }
 	
@@ -82,13 +83,11 @@ function neoThread(cb) {
 }
 
 [
-	function cypher(opts,cb) {// submit cypher query to neo4j
+	function cypher(query,params,cb) {// submit cypher query to neo4j
 
 		var 
 			neo = this,
-			ses = NEODRIVER.session() ,	// no pooled connectors so must create and close them
-			query = opts.query || "",
-			params = opts.params || {};
+			ses = NEODRIVER.session();	// no pooled connectors so must create and close them
 
 		Each( params, (key,val) => {	// fix stupid $tokens in neo4j driver
 			if ( isObject(val) ) {
@@ -114,64 +113,90 @@ function neoThread(cb) {
 					Recs.push( Rec );
 				});
 			
-			cb(null, Recs);
+			if (cb) cb(null, Recs);
 		})
 		.catch( err => {
 			neo.trace(err);
-			cb( err, null );
+			if (cb) cb( err, null );
 		})
 		.then( () => {
 			ses.close();
 		})
 	},
 
-	function declareActors(actors, created, res ) {		// add typed-actors to neo4j
+	function clearDatabase( db ) {
+		this.cypher( "MATCH (n {db:$db}) DETACH DELETE n", {
+			db: db
+		});
+	},
+	
+	function makeNodes(nodes, created, res ) {		// add typed-nodes to neo4j
 		var neo = this;
 
-		Stream( actors, (props, actor, cb) => {
-			//Log(">>neosave", actor,props);
+		Stream( nodes, (props, node, cb) => {
+			//Log(">>neosave", node,props);
 
-			if (cb) { // add actor
+			if (cb) { // add node
 				props.created = created;
 			
-				neo.cypher({
-					query: `MERGE (n:${props.type} {name:$name}) ON CREATE SET n += $props`,
-					params: {
-						name: actor,
+				neo.cypher(
+					`MERGE (n {name:$name,db:$db}) ON CREATE SET n += $props`, {
+						name: node,
+						db: props.db,
 						props: props
-					}
 				}, err => {
-					neo.trace( err || "add actor" );
+					neo.trace( err );
 					cb();
 				});
 			}
 					 
-			else	// all actors added so move forward
+			else	// all nodes added so move forward
 				res( null );
 		});
 	},
 
-	function linkActors( topic, actors, created ) { // link existing typed-actors by topic
+	function makeEdge( topic, created, src, tar ) { // link existing typed-nodes by topic
+		var 
+			neo = this;
+		
+		neo.cypher(
+			`MATCH (a {name:$srcName,db:$db}),(b {name:$tarName,db:$db}) `
+			+ "MERGE "
+			+ `(a)-[r:${topic}]-(b) `
+			+ "ON CREATE SET r = $props ", {
+					srcName: src.name,
+					tarName: tar.name,
+					db: src.db,
+					props: {
+						srcId: src.name,
+						tarId: tar.name,
+						topic: topic,
+						created: created
+					}
+		}, err => {
+			neo.trace( err );
+		});
+	},
+	
+	function linkNodes( topic, nodes, created ) { // link existing typed-nodes by topic
 
 		var 
 			neo = this,
 			hats = {};
 
-		Each( actors, (name,actor) => {	// org actors by hat type
-			var hat = hats[actor.type];
-			if ( !hat ) hat = hats[actor.type] = actor;
+		Each( nodes, (name,node) => {	// org nodes by hat type
+			var hat = hats[node.type];
+			if ( !hat ) hat = hats[node.type] = node;
 		});
 
 		Each( hats, (source, src) => {
 			Each(hats, (target, tar) => {
 				if ( source != target ) {	// no self-loops
-					neo.cypher({
-						query: 
-							`MATCH (a:${src.type} {name:$srcName}),(b:${tar.type} {name:$tarName}) `
+					neo.cypher(
+						`MATCH (a:${src.type} {name:$srcName}),(b:${tar.type} {name:$tarName}) `
 						+ "MERGE "
 						+ `(a)-[r:${topic}]-(b) `
-						+ "ON CREATE SET r = $props ",
-						params: {
+						+ "ON CREATE SET r = $props ", {
 							srcName: src.name,
 							tarName: tar.name,
 							props: {
@@ -179,9 +204,8 @@ function neoThread(cb) {
 								tarId: tar.name,
 								created: created
 							}
-						}
 					}, err => {
-						neo.trace( err || "add topic");
+						neo.trace( err );
 					});
 				}
 			});
@@ -195,43 +219,43 @@ function neoThread(cb) {
 			created = new Date(),
 			Actors = {};
 		
-		Each( net, (topic,actors) => {	// condense actors
-			Each(actors, (name,actor) => Actors[name] = actor );
+		Each( net, (topic,nodes) => {	// condense nodes
+			Each(nodes, (name,node) => Actors[name] = node );
 		});
 		
-		neo.declareActors( Actors, created, () => {
-			//Log(">>>> save net", net);  // declare actors then save topics
-			Each( net, (topic, actors) => {
-				neo.linkActors( topic, actors, created );
+		neo.makeNodes( Actors, created, () => {
+			//Log(">>>> save net", net);  // declare nodes then save topics
+			Each( net, (topic, nodes) => {
+				neo.linkNodes( topic, nodes, created );
 			});
 		});				
 	}
 
 	/*
-	function saveAN(actors,edges,greedy) {// save associative network
-		Stream( actors, (act, actor, cb) => {
-			Log(">>neosave", actor,act);
+	function saveAN(nodes,edges,greedy) {// save associative network
+		Stream( nodes, (act, node, cb) => {
+			Log(">>neosave", node,act);
 
 			var neo = this;
 
-			if (cb) // add actor
+			if (cb) // add node
 				neo.cypher({
 					query: `MERGE (n:${act.type} {name:$name}) ON CREATE SET n += $props`,
 					params: {
-						name: actor,
+						name: node,
 						props: {
-							name: actor,
+							name: node,
 							email: "tbd",
 							tele: "tbd",
 							created: new Date()
 						}
 					}
-				}, err => Trace( err || "add actor" ) );
+				}, err => Trace( err || "add node" ) );
 
-			else	// all actors added so add edges
+			else	// all nodes added so add edges
 			if ( greedy )		// make all possible edges
-				Each(actors, (source,src) => {
-					Each(actors, (target,tar) => {
+				Each(nodes, (source,src) => {
+					Each(nodes, (target,tar) => {
 						if ( source != target )
 							Each( edges, (topic,info) => {
 								if ( topic != "dnc" ) 
@@ -257,8 +281,8 @@ function neoThread(cb) {
 				//Log("nlpedges", keys, topic, info );
 
 				if ( topic != "dnc" ) // donotcare
-					Each(actors, (source, src) => {
-						Each(actors, (target, tar) => {
+					Each(nodes, (source, src) => {
+						Each(nodes, (target, tar) => {
 							if ( source != target ) {
 								//Log( source, target, `MATCH (a:${src.type} {name:$src}),(b:${tar.type} {name:$tar}) MERGE (a)-[r:${topic}]-(b) ON CREATE SET r.created = timestamp() ` );
 								neo.cypher({
@@ -1290,14 +1314,11 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 
 		neoThread( neo => {	// add prototypes and test neo4j connection
 			if (true) // test connection
-				neo.cypher({
-					query: 
-						'MERGE (alice:Person {name : $nameParam}) RETURN alice.name AS name',
-						// 'MATCH (u:User {email: {email}}) RETURN u',
-					params: {
+				neo.cypher(
+					// 'MATCH (u:User {email: {email}}) RETURN u',
+					'MERGE (alice:Person {name : $nameParam}) RETURN alice.name AS name', {
 						// email: 'alice@example.com',
 						nameParam: 'Alice'
-					},
 				}, (err, recs) => {
 					if (err) 
 						Trace( err );
@@ -1312,9 +1333,8 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 				});
 
 			if (false) // clear db on startup
-				neo.cypher({
-					query: "MATCH (n) DETACH DELETE n"
-				}, err => {
+				neo.cypher(
+					"MATCH (n) DETACH DELETE n", {}, err => {
 					Trace( err || "CLEAR GRAPH DB" );
 				});  
 		});
