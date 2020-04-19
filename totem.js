@@ -130,8 +130,10 @@ function neoThread(cb) {
 		});
 	},
 	
-	function makeNodes(nodes, created, res ) {		// add typed-nodes to neo4j
-		var neo = this;
+	function makeNodes(nodes, res ) {		// add typed-nodes to neo4j
+		var 
+			created = new Date(),
+			neo = this;
 
 		Stream( nodes, (props, node, cb) => {
 			//Log(">>neosave", node,props);
@@ -178,6 +180,29 @@ function neoThread(cb) {
 		});
 	},
 	
+	function saveNet( clear, db, nodes, edges ) {
+		var 
+			neo = this;
+		
+		if ( clear ) neo.clearDatabase( db );
+		neo.makeNodes( nodes, () => {
+			Each( edges, (name,pairs) => neo.savePairs( db, pairs ) );
+		});	
+	},
+	
+	function savePairs( db, pairs ) {
+		var 
+			now = new Date(),
+			neo = this;
+		
+		pairs.forEach( pair => {
+			var [srcNode,tarNode] = pair;
+			//Log(db, srcNode, tarNode);
+			neo.makeEdge( db, now, srcNode, tarNode );
+		});
+	}
+	
+	/*
 	function linkNodes( topic, nodes, created ) { // link existing typed-nodes by topic
 
 		var 
@@ -212,7 +237,9 @@ function neoThread(cb) {
 		});
 
 	},
-
+	*/
+	
+	/*
 	function saveNet( net ) { // save AN
 		var 
 			neo = this,
@@ -230,7 +257,8 @@ function neoThread(cb) {
 			});
 		});				
 	}
-
+	*/
+	
 	/*
 	function saveAN(nodes,edges,greedy) {// save associative network
 		Stream( nodes, (act, node, cb) => {
