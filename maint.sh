@@ -11,6 +11,10 @@ export MODULE=`basename $HERE`
 
 case "$1." in
 
+gnome.)
+	gsettings set org.gnode.desktop.session idle-delay 0
+	;;
+
 pkg.)
 	# one-time yum patch on the online centos
 	# yum install yum-plugin-downloadonly yum-utils createrepo 
