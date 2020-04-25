@@ -12,9 +12,14 @@ export MODULE=`basename $HERE`
 case "$1." in
 
 gnome.)
-	gsettings set org.gnode.desktop.session idle-delay 0
+	gsettings set org.gnome.desktop.session idle-delay 0
+	gsettings set org.gnome.desktop.lockdown disable-lock-screen 'true'
 	;;
 
+win.)
+	net use T: \\localhost\c$\Users\X\Desktop\totem
+	;;
+	
 pkg.)
 	# one-time yum patch on the online centos
 	# yum install yum-plugin-downloadonly yum-utils createrepo 
