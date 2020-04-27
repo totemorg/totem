@@ -333,7 +333,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 			 	sqlThread,filterRecords,isEncrypted,guestProfile,
 	   		byArea,byType,byAction,byTable,startDogs } = TOTEM = module.exports = {
 	
-	startDogs: function (sql, dogs) {
+	startDogs: (sql, dogs) => {
 		sql.query(
 			"SELECT * FROM app.dogs WHERE Enabled AND ifnull(Starts,now()) <= now()", [])
 		
@@ -600,7 +600,12 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 										case "DELETE":
 											getPost( post => {
 												sqlThread( sql => {
+													
+													Log(">>>>>>>>>host",Req.headers.host);
+													
 													cb({			// prime session request
+														host: Req.headers.host,
+														agent: Req.headers["user-agent"],
 														sql: sql,	// sql connector
 														post: post, // raw post body
 														method: Req.method,		// get,put, etc
