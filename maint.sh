@@ -14,6 +14,9 @@ case "$1." in
 gnome.)
 	gsettings set org.gnome.desktop.session idle-delay 0
 	gsettings set org.gnome.desktop.lockdown disable-lock-screen 'true'
+	eval $(ssh-agent -s)
+	ssh-add ~/.ssh/git/git_rsa.pri
+	# set get origins to git@github.com:stansds/repo
 	;;
 
 win.)
