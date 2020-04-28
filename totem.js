@@ -331,111 +331,266 @@ function neoThread(cb) {
 
 const { operators, reqFlags,paths,errors,site,probeSite,
 			 	sqlThread,filterRecords,isEncrypted,guestProfile,
-	   		byArea,byType,byAction,byTable,startDogs } = TOTEM = module.exports = {
+	   		byArea,byType,byAction,byTable,startDogs,startJob,endJob } = TOTEM = module.exports = {
 	
 	startDogs: (sql, dogs) => {
 		sql.query(
 			"SELECT * FROM app.dogs WHERE Enabled AND ifnull(Starts,now()) <= now()", [])
 		
 		.on("result", task => {
+			var dog = TOTEM.dogs[task.Name.toLowerCase()];
+			if ( dog )
+				startJob(sql, Copy(task, {
+					every: task.Every,
+					ends: task.Ends,
+					name: task.Name
+				}), (sql,job) => {
+					dog(sql,job);
+				});
+		});
+	},
+
+	endJob: (sql,job) => {
+		if (ID = job.ID) {
+			Trace(`DEQUEUE ${job.name} id=${ID}`);
+			sql.query(
+				"UPDATE app.queues SET Util=Util/Done,Done=0 WHERE ?", 
+				{ID:ID} );
+		}
+	},
+
+	startJob: (sql,job,cb) => {	// callsback cb(sql, job||null) on departure
+		
+		function regulate(job,cb) {		// callsback cb(job) on departure
+
+			const {qos,priority} = job;
 			
-			function queueWatchdog(task) {
+			var queue = DB.queues[qos];	// get job's qos queue
 
-				var 
-					now = new Date(),
-					every = task.Every,
-					cycle = parseInt(every),
-					name = task.Name.toLowerCase(),
-					dog = TOTEM.dogs[name];
+			if ( !queue )  // prime the queue if it does not yet exist
+				queue = DB.queues[qos] = new Object({	// reserve queue for requested qos polling level
+					timer: 0,	// reserved for setInterval
+					batch: {},	// each batch reserved for different priorities
+					rate: qos  // in seconds or interval name
+				});
 
-				if ( dog ) { // found a watch dog
-					if ( cycle ) 	// relative cycle times [mins]
-						task.timer = setInterval( task => {
-							var now = new Date();
-							
-							if (now < task.Ends || !task.Ends)	// requeue
-								sqlThread( sql => {
-									Trace( `DOG ${task.Name}` );
-									dog(sql);
-								});
-							
-							else
-								clearInterval(task.timer);
-							
-						}, cycle*60e3, task );
+			// access priority batch for this job 
 
-					else {	// absolute start time
-						var
-							[atInt,atHour,atMins] = (every||"day:01:00").split(":");
-						
-						switch ( atInt ) {
-							case "year": year += 1; break;
-							case "week": date += 7; break;
-							case "day": date += 1; break;
-							case "hour": hour += 1; break;
+			var batch = queue.batch[priority || 0]; 		// get job's priority batch (default priority = 0)
 
-							case "monday": 
-							case "tuesday":
-							case "wednesday":
-							case "thursday":
-							case "friday":
-							case "saturday":
-							case "sunday":
-							case "mon":
-							case "tue":
-							case "wed":
-							case "thr":
-							case "fri":
-							case "sat":
-							case "sun":
-								date += 7-day+1; 
-								hour = parseInt(atHour);
-								mins = parseInt(atMins);
-								break;
-						}
+			if ( !batch ) 
+				batch = queue.batch[priority || 0] = new Array();
 
-						var 
-							year = now.getFullYear(),
-							month = now.getMonth(),
-							date = now.getDate(),
-							day = now.getDay(),
-							hour = now.getHours(),
-							mins = now.getMinutes(),
-							secs = now.getSeconds(),
-							next = new Date(year,month,date,hour,mins),
-							wait = next.getTime() - now.getTime();
+			batch.push( Copy(job, {cb:cb}) );  // add job to queue
 
-						//wait = 5e3;
-						Trace( `NOTICE ${task.Name} WAITING ${wait}ms` );
-						/*
-						Log("notice", {
-							task: task, 
-							next: next, 
-							pocs: pocs,
-							wait: wait,
-							xMth: next.getMonth(),
-							xHr: next.getHours(),
-							xDay: next.getDay()
-						}); */
+			if ( !queue.timer ) 		// restart idle queue
+				queue.timer = setInterval( queue => {  // setup periodic poll for this job queue
 
-						if ( wait > 0 )
-							if (now < task.Ends || !task.Ends)	// requeue
-								setTimeout( task => {
-									sqlThread( sql => {
-										Trace( `DOG ${task.Name}` );
-										dog(sql);
+					var job = null;	// default job to empty queue
+					for (var priority in queue.batch) {  // index thru all priority batches
+						var batch = queue.batch[priority];
+
+						if ( job = batch.pop() ) {  // remove job from the queue (last-in first-out )
+	//Log("job depth="+batch.length+" job="+[job.name,job.qos]);
+
+							if ( jobcb = job.cb )	// has a callback so run it
+								if ( isString(jobcb) )  // this is a child job so spawn it and hold its pid
+									job.pid = CP.exec( jobcb, {cwd: "./public", env:process.env}, (err,stdout,stderr) => {
+										jobcb( err ? null : job );
 									});
-									queueWatchdog(task);
-								}, wait, task );
 
+								else // execute job's callback
+									jobcb(job);
+						}
 					}
-				}
+
+					if ( !job ) { // queue empty so it goes idle
+						clearInterval(queue.timer);
+						queue.timer = null;
+					}
+
+				}, queue.rate*1e3, queue);
+		}
+
+		function insert(cb) {	// insert job into queue or update job already in queue
+			function cpuUtil() {				// compute average cpu utilization
+				var avgUtil = 0;
+				var cpus = OS.cpus();
+
+				cpus.forEach( cpu => {
+					idle = cpu.times.idle;
+					busy = cpu.times.nice + cpu.times.sys + cpu.times.irq + cpu.times.user;
+					avgUtil += busy / (busy + idle);
+				});
+				return avgUtil / cpus.length;
 			}
 
-			queueWatchdog( new Object(task) );
-		});
-	},		
+			var util = cpuUtil();
+			
+			sql.query(  // increment work backlog for this job
+				"INSERT INTO app.queues SET ? ON DUPLICATE KEY UPDATE " +
+				"Util=Util+?, Departed=null, Work=Work+1, Done=Done+1, State=Done/Work*100, Age=now()-Arrived, ?", [{
+					// mysql unique keys should not be null
+					Client: client || "guest",
+					Class: job.class || "",
+					Task: task || "",
+					QoS: qos,  // [secs]
+					// others 
+					State: 0,
+					Arrived	: new Date(),
+					Departed: null,
+					Marked: 0,
+					Name: name,
+					Age: 0,
+					Classif : "",
+					Priority: priority || 0,
+					Notes: notes || "none",
+					Finished: 0,
+					Billed: 0,
+					Funded: credit ? 1 : 0,
+					Work: 1,
+					Util: util,
+					Done: 1
+				}, util, {
+					Notes: notes,
+					Task: task || ""
+				}
+			], (err,info) => {  // increment work backlog for this job
+				cb( err ? null : info );
+			});	
+		}
+		
+		function retask(cb) {
+			var
+				[atInt,atHour,atMins] = (every||"day:01:00").split(":");
 
+			switch ( atInt ) {
+				case "year": year += 1; break;
+				case "week": date += 7; break;
+				case "day": date += 1; break;
+				case "hour": hour += 1; break;
+
+				case "monday": 
+				case "tuesday":
+				case "wednesday":
+				case "thursday":
+				case "friday":
+				case "saturday":
+				case "sunday":
+				case "mon":
+				case "tue":
+				case "wed":
+				case "thr":
+				case "fri":
+				case "sat":
+				case "sun":
+					date += 7-day+1; 
+					hour = parseInt(atHour);
+					mins = parseInt(atMins);
+					break;
+			}
+
+			var 
+				now = new Date(),					
+				year = now.getFullYear(),
+				month = now.getMonth(),
+				date = now.getDate(),
+				day = now.getDay(),
+				hour = now.getHours(),
+				mins = now.getMinutes(),
+				secs = now.getSeconds(),
+				next = new Date(year,month,date,hour,mins),
+				wait = next.getTime() - now.getTime();
+
+			//wait = 5e3;
+			Log("tasking", {
+				task: name, 
+				next: next, 
+				wait: wait,
+				xMth: next.getMonth(),
+				xHr: next.getHours(),
+				xDay: next.getDay()
+			});
+
+			if ( wait > 0 )
+				if (now < ends || !ends)	// ok to retask job
+					setTimeout( job => {
+						sqlThread( sql => {
+							cb(sql,job);
+						});
+						retask(cb);
+					}, wait, job );
+		}
+			
+		const {qos,client,priority,task,name,notes,credit,every,ends} = job;
+					 
+		if ( qos )  // regulated job
+			insert( info => {
+				job.ID = info.insertId || 0;
+
+				if ( job.credit )				// client still has credit so place it in the regulator
+					regulate( Copy(job,{}) , job => { // clone job and provide a callback when job departs
+						sqlThread( sql => {  // start new sql thread to run job and save metrics
+							cb( sql, job );
+							/*
+							// this wont work because as soon as timer starts, the cpu
+							// gets allocated to the cb task (as it should), thus denying
+							// any cpu cycles to the timer loop.
+							job.util = cpuUtil();
+							job.poll = 1;
+							job.kill = 60e3/10;
+							job.poller = setInterval( job => {	// collect runtime metrics
+								job.util += cpuUtil();
+								job.poll ++;
+								if (job.poll>job.kill) {
+									Log(">>>kill!!!!!!");
+									clearInterval(job.poller);
+								}
+								Log(">>>poll", job.poll, job.util);
+							}, 10, job);
+									
+							Log("start polling", job.poller);
+							*/
+							
+							sql.query( // charge client
+								"UPDATE openv.profiles SET Charge=Charge+1,Credit=Credit-1 WHERE ?", 
+								{Client: client} 
+							);
+						});
+					});
+
+				else
+					cb(null); 	// signal error -- no credit
+			});
+
+		else
+		if ( cycle = parseInt(every||"0") )		// tasking by mins
+			job.tasker = setInterval( job => {
+				var now = new Date();
+
+				if (now < job.ends || !job.ends)	// requeue job
+					sqlThread( sql => {
+						cb(sql, job);
+					});
+
+				else	// stop job
+					clearInterval(job.tasker);
+
+			}, cycle*60e3, job );
+		
+		else
+		if ( every )   // absolute task time
+			retask( (sql,job) => {
+				Trace( `RESTART ${name}` );
+				cb(sql, job);
+			});
+		
+		else { // unregulated so callback on existing sql thread
+			job.ID = 0;
+			cb(sql, job);
+		}
+	},
+	
 	operators: ["=", "<", "<=", ">", ">=", "!=", "!bin=", "!exp=", "!nlp="],
 
 	/**
@@ -600,9 +755,6 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 										case "DELETE":
 											getPost( post => {
 												sqlThread( sql => {
-													
-													Log(">>>>>>>>>host",Req.headers.host);
-													
 													cb({			// prime session request
 														host: Req.headers.host,
 														agent: Req.headers["user-agent"],
@@ -1226,7 +1378,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 							// start watch dogs
 
 							if ( dogs = TOTEM.dogs )
-								TOTEM.startDogs( sql, dogs );
+								startDogs( sql, dogs );
 						});
 					}
 
@@ -3431,13 +3583,10 @@ function simThread(sock) {
 	@param {Function} res Totem response
 */
 function sysTask(req,res) {  //< task sharding
+	const {query,body,sql} = req;
+	const {task,domains,cb} = body;
+	
 	var 
-		query = req.query,
-		body = req.body,
-		sql = req.sql,
-		task = body.task,
-		doms = body.domains,
-		cb = body.cb,
 		$ = JSON.stringify({
 			worker: CLUSTER.isWorker ? CLUSTER.worker.id : 0,
 			node: process.env.HOSTNAME
@@ -3454,7 +3603,7 @@ function sysTask(req,res) {  //< task sharding
 			}
 
 			if (body.qos) 
-				sql.insertJob({ // job descriptor 
+				startJob(sql, { // job descriptor 
 					index: Copy(index,{}),
 					priority: 0,
 					qos: body.qos, 
@@ -3469,7 +3618,7 @@ function sysTask(req,res) {  //< task sharding
 							"RTP".tag( `/rtpsqd.view?task=${body.name}` ),
 							"PMR brief".tag( `/briefs.view?options=${body.name}` )
 					].join(" || ")
-				}, function (sql,job) {
+				}, (sql,job) => {
 					//Log("reg job" , job);
 					runEngine( job.index );
 				});
