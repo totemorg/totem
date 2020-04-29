@@ -3247,9 +3247,9 @@ function insertDS(req, res) {
 	@param {Function} res Totem's response callback
 */	
 function deleteDS(req, res) {
-	const { sql, flags, where, client, action, table } = req;
+	const { sql, flags, where, query, client, action, table } = req;
 
-	if ( isEmpty(where.ID) )
+	if ( isEmpty(where) )
 		res( errors.noID );
 		
 	else
