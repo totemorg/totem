@@ -354,8 +354,11 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 		if (ID = job.ID) {
 			Trace(`DEQUEUE ${job.name} id=${ID}`);
 			sql.query(
-				"UPDATE app.queues SET Util=Util/Done,Done=0 WHERE ?", 
-				{ID:ID} );
+				"UPDATE app.queues SET Util=Util/Done, "+
+				"Age=datediff(now(),Arrived)*24, " + 
+				"State=Age/Done, " +
+				"ECD=date_add(Arrived, interval State*Work hour) " +
+				"WHERE ?", {ID:ID} );
 		}
 	},
 
@@ -429,27 +432,32 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 			
 			sql.query(  // increment work backlog for this job
 				"INSERT INTO app.queues SET ? ON DUPLICATE KEY UPDATE " +
-				"Util=Util+?, Departed=null, Work=Work+1, Done=Done+1, State=Done/Work*100, Age=now()-Arrived, ?", [{
+				"Util=Util+?, Departed=null, Work=Work+1, Done=Done+1, " + 
+				"Age=datediff(now(),Arrived)*24, " + 
+				"State=Age/Done, " +
+				"ECD=date_add(Arrived, interval State*Work hour), ?", [{
 					// mysql unique keys should not be null
 					Client: client || "guest",
 					Class: job.class || "",
 					Task: task || "",
-					QoS: qos,  // [secs]
+					QoS: 0,
+					Priority: 0,
 					// others 
-					State: 0,
 					Arrived	: new Date(),
 					Departed: null,
-					Marked: 0,
 					Name: name,
-					Age: 0,
 					Classif : "",
-					Priority: priority || 0,
 					Notes: notes || "none",
-					Finished: 0,
 					Billed: 0,
+					Flagged: 0,
+					Finished: 0,
 					Funded: credit ? 1 : 0,
-					Work: 1,
+					// Completion estimates
+					Age: 0,
+					State: 0,
+					ECD: null,
 					Util: util,
+					Work: 1,
 					Done: 1
 				}, util, {
 					Notes: notes,
