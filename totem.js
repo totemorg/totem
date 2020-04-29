@@ -344,8 +344,9 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 					every: task.Every,
 					ends: task.Ends,
 					name: task.Name
-				}), (sql,job) => {
+				}), (sql,job,end) => {
 					dog(sql,job);
+					end(sql,job);
 				});
 		});
 	},
@@ -364,6 +365,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 
 	startJob: (sql,job,cb) => {	// callsback cb(sql, job||null) on departure
 		
+		/*
 		function regulate(job,cb) {		// callsback cb(job) on departure
 
 			const {qos,priority} = job;
@@ -414,7 +416,13 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 
 				}, queue.rate*1e3, queue);
 		}
-
+		*/
+		function regulate(rate,job,cb) {
+			setTimeout( () => {
+				sqlThread( sql => cb(sql,job) );
+			}, rate);
+		}
+		
 		function insert(cb) {	// insert job into queue or update job already in queue
 			function cpuUtil() {				// compute average cpu utilization
 				var avgUtil = 0;
@@ -530,47 +538,27 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 					}, wait, job );
 		}
 			
-		const {qos,client,priority,task,name,notes,credit,every,ends} = job;
+		const {client,task,name,notes,credit,every,ends} = job;
 					 
-		if ( qos )  // regulated job
+		if ( qos = parseInt(every||"0") )  // regulated job
 			insert( info => {
 				job.ID = info.insertId || 0;
 
 				if ( job.credit )				// client still has credit so place it in the regulator
-					regulate( Copy(job,{}) , job => { // clone job and provide a callback when job departs
-						sqlThread( sql => {  // start new sql thread to run job and save metrics
-							cb( sql, job );
-							/*
-							// this wont work because as soon as timer starts, the cpu
-							// gets allocated to the cb task (as it should), thus denying
-							// any cpu cycles to the timer loop.
-							job.util = cpuUtil();
-							job.poll = 1;
-							job.kill = 60e3/10;
-							job.poller = setInterval( job => {	// collect runtime metrics
-								job.util += cpuUtil();
-								job.poll ++;
-								if (job.poll>job.kill) {
-									Log(">>>kill!!!!!!");
-									clearInterval(job.poller);
-								}
-								Log(">>>poll", job.poll, job.util);
-							}, 10, job);
-									
-							Log("start polling", job.poller);
-							*/
-							
-							sql.query( // charge client
-								"UPDATE openv.profiles SET Charge=Charge+1,Credit=Credit-1 WHERE ?", 
-								{Client: client} 
-							);
-						});
+					regulate( qos*1e3, Copy(job,{}) , (sql,job) => { // clone job and provide a callback when job departs
+						cb( sql, job, () => endJob(sql,job) );
+
+						sql.query( // charge client
+							"UPDATE openv.profiles SET Charge=Charge+1,Credit=Credit-1 WHERE ?", 
+							{Client: client} 
+						);
 					});
 
 				else
 					cb(null); 	// signal error -- no credit
 			});
 
+		/*
 		else
 		if ( cycle = parseInt(every||"0") )		// tasking by mins
 			job.tasker = setInterval( job => {
@@ -585,6 +573,7 @@ const { operators, reqFlags,paths,errors,site,probeSite,
 					clearInterval(job.tasker);
 
 			}, cycle*60e3, job );
+		*/
 		
 		else
 		if ( every )   // absolute task time
@@ -3613,8 +3602,8 @@ function sysTask(req,res) {  //< task sharding
 			if (body.qos) 
 				startJob(sql, { // job descriptor 
 					index: Copy(index,{}),
-					priority: 0,
-					qos: body.qos, 
+					//priority: 0,
+					every: "1", 
 					class: req.table,
 					client: body.client,
 					credit: body.credit,
@@ -3626,8 +3615,9 @@ function sysTask(req,res) {  //< task sharding
 							"RTP".tag( `/rtpsqd.view?task=${body.name}` ),
 							"PMR brief".tag( `/briefs.view?options=${body.name}` )
 					].join(" || ")
-				}, (sql,job) => {
+				}, (sql,job,end) => {
 					//Log("reg job" , job);
+					end();
 					runEngine( job.index );
 				});
 		
