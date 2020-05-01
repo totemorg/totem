@@ -1563,7 +1563,7 @@ Log("line ",idx,line.length);
 	/**
 		Common time intervals for watchdogs, queues and setintervals.
 		@cfg {Object}
-	*
+	*/
 	/*
 	timeIntervals: {
 		ms: 1e-3,
