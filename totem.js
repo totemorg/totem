@@ -998,18 +998,18 @@ Log("line ",idx,line.length);
 											getPost( post => {
 												sqlThread( sql => {
 													cb({			// prime session request
-														host: Req.headers.host,	//
-														agent: Req.headers["user-agent"],
+														host: Req.headers.host,	// domain being requested
+														agent: Req.headers["user-agent"],	// requester info
 														sql: sql,	// sql connector
 														post: post, // raw post body
 														method: Req.method,		// get,put, etc
 														started: Req.headers.Date,  // time client started request
-														action: crudIF[Req.method],
+														action: crudIF[Req.method],	// crud action being requested
 														reqSocket: Req.socket,   // use supplied request socket 
 														resSocket: getSocket,		// use this method to return a response socket
 														encrypted: isEncrypted(),	// on encrypted worker
 														socketio: sockets ? paths.socketio : "",		// path to socket.io
-														url: unescape( Req.url || "/" )
+														url: unescape( Req.url || "/" )	// unescaped url
 														/*
 														There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
 														embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
