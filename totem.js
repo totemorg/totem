@@ -643,6 +643,7 @@ Log("line ",idx,line.length);
 				"Age=datediff(now(),Arrived)*24, " + 
 				"Finished=1, " +
 				"State=Age/Done, " +
+				"Departed=now(), " +
 				"ECD=date_add(Arrived, interval State*Work hour) " +
 				"WHERE ?", {ID:ID} );
 		}
