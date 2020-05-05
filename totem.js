@@ -1102,7 +1102,7 @@ Log("line ",idx,line.length);
 											}		
 										}
 
-										function sendRecords(recs) {  // Send records via converter
+										function sendRecords(recs) { // Send records via converter
 											if ( route = filterRecords[req.type] )  // process record conversions
 												route(recs, req, recs => {
 													if (recs) 
@@ -3214,8 +3214,8 @@ function selectDS(req, res) {
 		pivot: flags.pivot,
 		browse: flags.browse,		
 		sort: flags.sort,
-		//limit: flags.offset ? flags.limit : 0,	// having trouble with client
-		//offset: flags.offset,
+		limit: flags.limit || 0,	// trouble with extjs client ?
+		offset: flags.offset || 0,
 		crud: action,
 		from: table,
 		where: where,
