@@ -6,7 +6,7 @@
 #
 
 export HERE=`pwd`
-export MODULES=(totem atomic geohack flex enum reader debe jsdb man)
+export MODULES=(totem atomic geohack flex enum reader debe jsdb man randpr liegroup)
 export MODULE=`basename $HERE`
 
 case "$1." in
@@ -242,7 +242,12 @@ mysql.)
 #
 
 snap.)
-	zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* atomic/ifs/*.cpp atomic/ifs/*/*.cpp atomic/ifs/*/*.h
+	#rm $MAP/snapshots/totem.zip
+	for mod in "${MODULES[@]}"; do
+		echo "snapping $map"
+		zip -ry $MAP/snapshots/totem.zip $mod -x $mod/node_modules/\* $mod/.git/\* $mod/_\* $mod/~\* $mod/math/\* $mod/mljs/\* $mod/prm/\*
+	done
+	#zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* atomic/ifs/*.cpp atomic/ifs/*/*.cpp atomic/ifs/*/*.h
 	;;
 
 start_cesium.)
@@ -361,8 +366,11 @@ _bind.) 	# bind known genode c-modules
 
 _archive.) 	# archive service to archive area
 
-	echo "Archiving to $MAP/archives"
-	zip -ry $MAP/archives/totem-N.zip * -x \*.zip \*/dbs/\* \*/clients/\*  \*/captcha/\* \*.git/\*  \*/_\*  _\*
+	echo "Archiving to $MAP/snapshots"
+	
+	#rm $MAP/snapshots/totem.zip
+	#zip -ry $MAP/snapshots/totem.zip * -x */node_modules/\* */.git/\* _\* ~\*
+	#zip -ry $MAP/snapshots/totem.zip atomic -x atomic/.git/\* atomic/node_modules/\*	
 	;;
 
 #

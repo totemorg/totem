@@ -5,7 +5,7 @@ export BASE=/local
 export HERE=`pwd`
 
 # initialize dev/prod paths
-export MAP=/media/sf_vmshare
+export MAP=/mnt/public/totem
 export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin
 export REPO=git@git.geointapps.org:acmesds
 
