@@ -608,9 +608,12 @@ Log("line ",idx,line.length);
 				rtns = {};
 
 			nodes.forEach( node => {	// enumerate nodes
+				//Log(">>>>>>>>>>>node", node);
 				if ( node )
 					routeNode( node, Copy(req,{}), (req,recs) => {	// route the node and capture returned records
 						rtns[req.table] = recs;
+						//Log(">>node", req.table, recs);
+						
 						if ( ++routed == routes ) res( rtns );
 					});
 			});
