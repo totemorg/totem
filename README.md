@@ -25,6 +25,7 @@ having the following configurable features:
 	+ poll files and services
 	+ automattic server cert generation
 	+ task sharding
+	+ job queues
   
 TOTEM defines the following CRUD endpoints:
 

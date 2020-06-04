@@ -141,8 +141,10 @@ function neoThread(cb) {
 			if (cb) { // add node
 				props.created = created;
 			
+				//Log(">add", node, props);
+				
 				neo.cypher(
-					`MERGE (n {name:$name,db:$db}) ON CREATE SET n += $props`, {
+					`MERGE (n:${props.type} {name:$name,db:$db}) ON CREATE SET n += $props`, {
 						name: node,
 						db: props.db,
 						props: props
@@ -186,11 +188,12 @@ function neoThread(cb) {
 		
 		if ( clear ) neo.clearDatabase( db );
 		neo.makeNodes( nodes, () => {
-			Each( edges, (name,pairs) => neo.savePairs( db, pairs ) );
+			//Log(">> edges", edges, "db=", db);
+			Each( edges, (name,pairs) => neo.savePairs( name, pairs ) );
 		});	
 	},
 	
-	function savePairs( db, pairs ) {
+	function savePairs( name, pairs ) {
 		var 
 			now = new Date(),
 			neo = this;
@@ -198,7 +201,7 @@ function neoThread(cb) {
 		pairs.forEach( pair => {
 			var [srcNode,tarNode] = pair;
 			//Log(db, srcNode, tarNode);
-			neo.makeEdge( db, now, srcNode, tarNode );
+			neo.makeEdge( name, now, srcNode, tarNode );
 		});
 	}
 	
