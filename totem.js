@@ -74,8 +74,8 @@ var
 
 function NEOCONNECTOR() {
 	this.trace = 
-			args => {};
-			//args => console.log(args); 
+			//args => {};
+			args => console.log(args); 
 }
 	
 function neoThread(cb) {
@@ -89,12 +89,13 @@ function neoThread(cb) {
 			neo = this,
 			ses = NEODRIVER.session();	// no pooled connectors so must create and close them
 
-		Each( params, (key,val) => {	// fix stupid $tokens in neo4j driver
-			if ( isObject(val) ) {
-				query = query.replace(new RegExp("\\$"+key,"g"), arg => "{".tag(":",val)+"}" );
-				delete params[key];
-			}
-		});
+		if ( params )
+			Each( params, (key,val) => {	// fix stupid $tokens in neo4j driver
+				if ( isObject(val) ) {
+					query = query.replace(new RegExp("\\$"+key,"g"), arg => "{".tag(":",val)+"}" );
+					delete params[key];
+				}
+			});
 
 		neo.trace(query);
 
@@ -124,29 +125,26 @@ function neoThread(cb) {
 		})
 	},
 
-	function clearDatabase( db ) {
-		this.cypher( "MATCH (n {db:$db}) DETACH DELETE n", {
-			db: db
-		});
+	function clearNet( net ) {
+		this.cypher( `MATCH (n:${net}) DETACH DELETE n` );
 	},
 	
-	function makeNodes(nodes, res ) {		// add typed-nodes to neo4j
+	function makeNodes(net, nodes, res ) {		// add typed-nodes to neo4j
 		var 
-			created = new Date(),
+			now = new Date(),
 			neo = this;
 
 		Stream( nodes, (props, node, cb) => {
 			//Log(">>neosave", node,props);
 
 			if (cb) { // add node
-				props.created = created;
+				props.created = now;
 			
 				//Log(">add", node, props);
 				
 				neo.cypher(
-					`MERGE (n:${props.type} {name:$name,db:$db}) ON CREATE SET n += $props`, {
+					`MERGE (n:${net}:${props.type} {name:$name}) ON CREATE SET n += $props`, {
 						name: node,
-						db: props.db,
 						props: props
 				}, err => {
 					neo.trace( err );
@@ -159,18 +157,17 @@ function neoThread(cb) {
 		});
 	},
 
-	function makeEdge( topic, created, src, tar ) { // link existing typed-nodes by topic
+	function makeEdge( net, topic, created, src, tar ) { // link existing typed-nodes by topic
 		var 
 			neo = this;
 		
 		neo.cypher(
-			`MATCH (a {name:$srcName,db:$db}),(b {name:$tarName,db:$db}) `
+			`MATCH (a:${net} {name:$srcName}), (b:${net} {name:$tarName}) `
 			+ "MERGE "
 			+ `(a)-[r:${topic}]-(b) `
 			+ "ON CREATE SET r = $props ", {
 					srcName: src.name,
 					tarName: tar.name,
-					db: src.db,
 					props: {
 						srcId: src.name,
 						tarId: tar.name,
@@ -182,18 +179,21 @@ function neoThread(cb) {
 		});
 	},
 	
-	function saveNet( clear, db, nodes, edges ) {
+	function saveNet( net, nodes, edges ) {
 		var 
 			neo = this;
 		
-		if ( clear ) neo.clearDatabase( db );
-		neo.makeNodes( nodes, () => {
+		//neo.cypher( `CREATE CONSTRAINT ON (n:${net}) ASSERT n.name IS UNIQUE` );
+
+		//Log("save net", net, nodes);
+		
+		neo.makeNodes( net, nodes, () => {
 			//Log(">> edges", edges, "db=", db);
-			Each( edges, (name,pairs) => neo.savePairs( name, pairs ) );
+			Each( edges, (name,pairs) => neo.savePairs( net, name, pairs ) );
 		});	
 	},
 	
-	function savePairs( name, pairs ) {
+	function savePairs( net, name, pairs ) {
 		var 
 			now = new Date(),
 			neo = this;
@@ -201,7 +201,7 @@ function neoThread(cb) {
 		pairs.forEach( pair => {
 			var [srcNode,tarNode] = pair;
 			//Log(db, srcNode, tarNode);
-			neo.makeEdge( name, now, srcNode, tarNode );
+			neo.makeEdge( net, name, now, srcNode, tarNode );
 		});
 	}
 	
@@ -1513,7 +1513,7 @@ Log("line ",idx,line.length);
 		});
 
 		neoThread( neo => {	// add prototypes and test neo4j connection
-			if (true) // test connection
+			if (false) // test connection
 				neo.cypher(
 					// 'MATCH (u:User {email: {email}}) RETURN u',
 					'MERGE (alice:Person {name : $nameParam}) RETURN alice.name AS name', {
@@ -4396,6 +4396,46 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		});		
 		break;
 		
+	case "cn":
+		const {neoThread} = TOTEM;
+		const $ = require("../man/man.js");
+		TOTEM.config();
+		neoThread( neo => {
+			neo.cypher( "MATCH (n:gtd) RETURN n", {}, (err,nodes) => {
+				Log("nodes",err,nodes.length,nodes[0]);
+				var map = {};
+				nodes.forEach( (node,idx) => map[node.n.name] = idx );
+				//Log(">map",map);
+				
+				neo.cypher( "MATCH (a:gtd)-[r]->(b:gtd) RETURN r", {}, (err,edges) => {
+					Log("edges",err,edges.length,edges[0]);
+					var 
+						N = nodes.length,	
+						cap = $([N,N], (u,v,C) => C[u][v] = 0 ),
+						lambda = $([N,N], (u,v,L) => L[u][v] = 0),
+						lamlist = $(N, (n,L) => L[n] = [] );
+					
+					edges.forEach( edge => cap[map[edge.r.srcId]][map[edge.r.tarId]] = 1 );
+					
+					//Log(">cap",cap);
+					
+					for (var s=0; s<N; s++)
+						for (var t=s+1; t<N; t++) {
+							var 
+								{cutset} = $.MaxFlowMinCut(cap,s,t),
+								cut = lambda[s][t] = lambda[t][s] = cutset.length;
+							
+							lamlist[cut].push([s,t]);
+						}
+					
+					lamlist.forEach( (list,r) => {
+						if ( r && list.length ) Log(r,list);
+					});
+						
+				});
+			});
+		});
+
 }
 
 // UNCLASSIFIED
