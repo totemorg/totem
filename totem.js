@@ -110,7 +110,7 @@ function neoThread(cb) {
 			if (recs)
 				recs.forEach( (rec,n) => {
 					var Rec = {};
-					rec.keys.forEach( key => Rec[key] = rec.get(key).properties );
+					rec.keys.forEach( key => Rec[key] = rec.get(key) );
 					Recs.push( Rec );
 				});
 			
@@ -129,9 +129,8 @@ function neoThread(cb) {
 		this.cypher( `MATCH (n:${net}) DETACH DELETE n` );
 	},
 	
-	function makeNodes(net, nodes, res ) {		// add typed-nodes to neo4j
+	function makeNodes(net, now, nodes, res ) {		// add typed-nodes to neo4j
 		var 
-			now = new Date(),
 			neo = this;
 
 		Stream( nodes, (props, node, cb) => {
@@ -157,8 +156,9 @@ function neoThread(cb) {
 		});
 	},
 
-	function makeEdge( net, topic, created, src, tar ) { // link existing typed-nodes by topic
+	function makeEdge( net, topic, created, pair ) { // link existing typed-nodes by topic
 		var 
+			[src,tar,props] = pair,
 			neo = this;
 		
 		neo.cypher(
@@ -168,12 +168,9 @@ function neoThread(cb) {
 			+ "ON CREATE SET r = $props ", {
 					srcName: src.name,
 					tarName: tar.name,
-					props: {
-						srcId: src.name,
-						tarId: tar.name,
-						topic: topic,
+					props: Copy( props||{}, {
 						created: created
-					}
+					})
 		}, err => {
 			neo.trace( err );
 		});
@@ -181,27 +178,25 @@ function neoThread(cb) {
 	
 	function saveNet( net, nodes, edges ) {
 		var 
+			now = new Date(),
 			neo = this;
 		
 		//neo.cypher( `CREATE CONSTRAINT ON (n:${net}) ASSERT n.name IS UNIQUE` );
 
 		//Log("save net", net, nodes);
 		
-		neo.makeNodes( net, nodes, () => {
+		neo.makeNodes( net, now, nodes, () => {
 			//Log(">> edges", edges, "db=", db);
-			Each( edges, (name,pairs) => neo.savePairs( net, name, pairs ) );
+			Each( edges, (name,pairs) => neo.savePairs( net, now, name, pairs ) );
 		});	
 	},
 	
-	function savePairs( net, name, pairs ) {
+	function savePairs( net, now, name, pairs ) {
 		var 
-			now = new Date(),
 			neo = this;
 		
 		pairs.forEach( pair => {
-			var [srcNode,tarNode] = pair;
-			//Log(db, srcNode, tarNode);
-			neo.makeEdge( net, name, now, srcNode, tarNode );
+			neo.makeEdge( net, name, now, pair );
 		});
 	}
 	
