@@ -74,8 +74,8 @@ var
 
 function NEOCONNECTOR() {
 	this.trace = 
-			//args => {};
-			args => console.log(args); 
+			args => {};
+			//args => console.log(args); 
 }
 	
 function neoThread(cb) {
