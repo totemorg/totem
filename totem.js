@@ -70,7 +70,7 @@ const { Copy,Each,Log,Stream,
 const { escape, escapeId } = SQLDB;
 
 var
-	NEODRIVER = NEO4J.driver( ENV.NEO4J, NEO4J.auth.basic('neo4j', 'NGA') );
+	NEODRIVER = NEO4J.driver( ENV.NEO4J, NEO4J.auth.basic('neo4j', 'NGA'), { disableLosslessIntegers: true } );
 
 function NEOCONNECTOR() {
 	this.trace = 
@@ -126,6 +126,8 @@ function neoThread(cb) {
 	},
 
 	function clearNet( net ) {
+		Log( "clear net", net);	
+		
 		this.cypher( `MATCH (n:${net}) DETACH DELETE n` );
 	},
 	
@@ -156,7 +158,7 @@ function neoThread(cb) {
 		});
 	},
 
-	function makeEdge( net, topic, created, pair ) { // link existing typed-nodes by topic
+	function makeEdge( net, name, created, pair ) { // link existing typed-nodes by topic
 		var 
 			[src,tar,props] = pair,
 			neo = this;
@@ -164,7 +166,7 @@ function neoThread(cb) {
 		neo.cypher(
 			`MATCH (a:${net} {name:$srcName}), (b:${net} {name:$tarName}) `
 			+ "MERGE "
-			+ `(a)-[r:${topic}]-(b) `
+			+ `(a)-[r:${name}]-(b) `
 			+ "ON CREATE SET r = $props ", {
 					srcName: src.name,
 					tarName: tar.name,
@@ -183,7 +185,7 @@ function neoThread(cb) {
 		
 		//neo.cypher( `CREATE CONSTRAINT ON (n:${net}) ASSERT n.name IS UNIQUE` );
 
-		//Log("save net", net, nodes);
+		Log("save net", net);
 		
 		neo.makeNodes( net, now, nodes, () => {
 			//Log(">> edges", edges, "db=", db);
@@ -910,6 +912,9 @@ Log("line ",idx,line.length);
 		noID: new Error("missing record id"),
 		noSession: new Error("no such session started"),
 		noAccess: new Error("no access to master core at this endpoint")
+	},
+
+	api: {
 	},
 
 	/**
@@ -3036,19 +3041,18 @@ Log("TCP server accepting connection on port: " + LOCAL_PORT);
 */
 
 /**
-	Check clients response req.query to a antibot challenge.
+	Validate clients response to an antibot challenge.
 
 	@param {Object} req Totem session request
 	@param {Function} res Totem response callback
 */
-function checkClient (req,res) {	
-	var 
-		query = req.query,
-		sql = req.sql,
-		id = query.ID || query.id;
-
+function checkClient (req,res) {
+	const 
+		{ query, sql } = req,
+		{ id } = query;
+	
 	if (id)
-		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:id}, function (err,rids) {
+		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:id}, (err,rids) => {
 
 			if ( rid = rids[0] ) {
 				var 
