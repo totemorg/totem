@@ -1323,7 +1323,7 @@ Log("line ",idx,line.length);
 					if (BUSY && TOTEM.busyTime) 
 						BUSY.maxLag(TOTEM.busyTime);
 
-					if (TOTEM.faultless)  { // catch core faults
+					if (TOTEM.guard)  { // catch core faults
 						process.on("uncaughtException", err => {
 							Trace(`FAULTED ${err}`);
 						});
@@ -1358,7 +1358,7 @@ Log("line ",idx,line.length);
 						for (var core = 0; core < TOTEM.cores; core++) // create workers
 							worker = CLUSTER.fork();
 						
-						const { faultless, riddles, cores } = TOTEM;
+						const { guard, riddles, cores } = TOTEM;
 						
 						sqlThread( sql => {	// get a sql connection
 							Trace( [ // splash
@@ -1367,7 +1367,7 @@ Log("line ",idx,line.length);
 								"DATABASE " + site.db ,
 								"FROM " + process.cwd(),
 								"WITH " + (sockets||"NO")+" SOCKETS",
-								"WITH " + (faultless?"GUARDED":"UNGUARDED")+" THREADS",
+								"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
 								"WITH "+ (riddles?"ANTIBOT":"NO ANTIBOT") + " PROTECTION",
 								"WITH " + (site.sessions||"UNLIMITED")+" CONNECTIONS",
 								"WITH " + (cores ? cores + " WORKERS AT "+site.urls.worker : "NO WORKERS")
@@ -1469,7 +1469,7 @@ Log("line ",idx,line.length);
 					}
 					: {
 						//socketio: TOTEM.sockets ? paths.socketio : "",
-						worker:  host.master,
+						worker:  host.worker,
 						master:  host.master
 					},
 				pfx = `${paths.certs}${name}.pfx` ;
@@ -2292,22 +2292,22 @@ Log("line ",idx,line.length);
 		Enable/disable service fault protection guards
 		@cfg {Boolean} 
 	*/
-	faultless: false,  //< enable to use all defined guards
+	guard: false,  //< enable to use all defined guards
 		
 	/**
 		Service guard modes
 		@cfg {Object} 
 	*/
 	guards:  {	// faults to trap 
-		//SIGUSR1:1,
-		//SIGTERM:1,
-		//SIGINT:1,
-		//SIGPIPE:1,
-		//SIGHUP:1,
-		//SIGBREAK:1,
-		//SIGWINCH:1,
-		//SIGKILL:1,
-		//SIGSTOP:1 
+		SIGUSR1:1,
+		SIGTERM:1,
+		SIGINT:1,
+		SIGPIPE:1,
+		SIGHUP:1,
+		SIGBREAK:1,
+		SIGWINCH:1,
+		SIGKILL:1,
+		SIGSTOP:1 
 	},	
 	
 	/**
@@ -2326,7 +2326,7 @@ Log("line ",idx,line.length);
 	callback cb(error) where error reflects testing of client cert and profile credentials.
 	@cfg {Object} 
 	*/		
-	admitClient: function (req, profile, cb) { 
+	admitClient: function (req, cb) { 
 		function admit(cb) {  // callback cb(log || null) with session log 
 			cb({ 
 				Event: now,		 					// start time
@@ -2335,9 +2335,9 @@ Log("line ",idx,line.length);
 			});				
 		}
 		
+		const { cert, sql, profile } = req;
+		
 		var 
-			cert = req.cert,
-			sql = req.sql,
 			now = new Date(),
 			rules = TOTEM.admitRules;
 
@@ -2356,13 +2356,12 @@ Log("line ",idx,line.length);
 					else
 						return cb( errors.rejectedClient );
 
-				if ( msg = profile.Banned)  // block client if banned
+				if ( msg = profile.Banned )  // block client if banned
 					cb( new Error( msg ) );
 
 				else
 					admit( log => {
 						req.log = log ? new Object(log) : null;
-						req.profile = new Object( profile );
 						//req.group = profile.Group;
 						cb( null );
 					});
@@ -2745,7 +2744,7 @@ function validateClient(req,res) {
 					User: client.replace(/(.*)\@(.*)/g,(x,L,R) => L ).replace(/\./g,"").substr(0,6),
 					Login: client,
 					Requested: new Date()
-				}, new Object(guestProfile));
+				}, Copy(guestProfile,{}) );
 
 			sql.query( paths.mysql.newProfile, guest );
 			return guest;
@@ -2769,7 +2768,7 @@ function validateClient(req,res) {
 	req.client = ( cert 
 		? (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || guest).split(",")[0].replace("email:","")
 		: guest ).toLowerCase();
-
+	
 	sql.query(mysql.getProfile, {client: client}, (err,profs) => {
 
 		if ( err ) 
@@ -2780,19 +2779,24 @@ function validateClient(req,res) {
 			if ( profile = makeProfile(sql, req.client) )  { // admit guest on http service
 				//req.socket = null;
 				req.reqSocket = null;   // disable guest session metrics
-				admitClient(req, profile, res);	
+				req.profile = profile;
+				admitClient(req, res);	
 			}
 
 			else
 				res( errors.rejectedClient );
 		
 		else			
-		if ( profile = profs[0] ) // admit known client
-			admitClient(req, profile, res);
+		if ( profile = profs[0] ) { // admit known client
+			req.profile = Copy(profile,{});
+			admitClient(req, res);
+		}
 
 		else	// admit guest client
-		if ( profile = makeProfile(sql, req.client)  )
-			admitClient(req, profile, res);
+		if ( profile = makeProfile(sql, req.client) ) {
+			req.profile = profile;
+			admitClient(req, res);
+		}
 
 		else
 			res( errors.rejectedClient );
@@ -4120,7 +4124,7 @@ switch (process.argv[2]) { //< unit tests
 		Trace({
 			msg: "Im simply a Totem interface so Im not even running as a service", 
 			default_fetcher_endpts: TOTEM.byTable,
-			default_protect_mode: TOTEM.faultless,
+			default_protect_mode: TOTEM.guard,
 			default_cores_used: TOTEM.cores
 		});
 		break;
@@ -4133,7 +4137,7 @@ switch (process.argv[2]) { //< unit tests
 	*/
 		TOTEM.config({
 			mysql: null,
-			faultless: true,
+			guard: true,
 			cores: 2
 		}, err => {
 
@@ -4238,7 +4242,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 	*/
 		
 		TOTEM.config({
-			faultless: false,	// ex override default 
+			guard: false,	// ex override default 
 			cores: 3,		// ex override default
 			mysql: { 		// provide a database
 				host: ENV.MYSQL_HOST,
