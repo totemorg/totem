@@ -6,22 +6,21 @@
 
 # TOTEM
 
-[TOTEM](https://totem.west.ile.nga.ic.gov/api.view) replaces a slew of god-awful middleware by providing a basic http/https web service 
-having the following configurable features:
+[TOTEM](https://totem.west.ile.nga.ic.gov/api.view) provides a basic http/https 
+web service having the following configurable features:
 
-	+ routing methods for node (table, engine, file) endpoints  
+	+ endpoint routing
 	+ denial-of-service protection
 	+ web sockets for inter-client communications
-	+ client profiles (e.g. banning, journalling, hawking, challenging and polling)
+	+ client profiles 
 	+ account management for priviledged hawks and normal users
-	+ hyper-threading in a master-worker or master-only relationship
-	+ PKI channel encryption and authentication
+	+ PKI encryption and authentication
 	+ fault protected run states
 	+ indexing, uploading, downloading and cacheing static files
-	+ per-client antibot challenges: profile challenges like (riddle), (card), (ids), (yesno), (rand)om, (bio)metric
-	+ syncronized crude operations on mutiple endpoints
-	+ database agnosticator (default MySQL-Cluster)
-	+ graph database
+	+ antibot protection
+	+ crud interface
+	+ mysql database agnosticator 
+	+ neo4j graph database 
 	+ poll files and services
 	+ automattic server cert generation
 	+ task sharding
@@ -62,9 +61,9 @@ Clone [JSDB database agnosticator](http://sc.appdev.proj.coe/acmesds/jsdb) into 
 
 ### Start 
 
-	npm run [ edit || start ]			# Configure environment
 	npm test [ ? || T1 || T2 || ...]			# Unit test
 	npm run [ prmprep || prmload ]		# Revise PRM
+	npm run [ edit || start ]			# Configure environment
 
 ### Required MySQL databases
 

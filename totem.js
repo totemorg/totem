@@ -1,9 +1,7 @@
 // UNCLASSIFIED 
 
 /**
-[Installation and Usage](https://sc.appdev.proj.coe/acmesds/totem)
-
-@module TOTEM
+@module totem
 @requires http
 @requires https
 @requires fs
