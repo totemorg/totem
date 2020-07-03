@@ -327,7 +327,7 @@ function neoThread(cb) {
 	}  */
 ].Extend(NEOCONNECTOR);
 
-const { operators, reqFlags,paths,errors,site,probeSite, 
+const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 			 	sqlThread,filterRecords,isEncrypted,guestProfile,
 	   		startDogs,startJob,endJob } = TOTEM = module.exports = {
 	
@@ -1800,7 +1800,7 @@ Log("line ",idx,line.length);
 		@cfg {Number}
 		@member TOTEM
 	*/
-	maxIndex: 1000,						//< max files to index
+	maxFiles: 1000,						//< max files to index
 
 	/**
 		Communicate with socket.io clients
@@ -1916,11 +1916,16 @@ Log("line ",idx,line.length);
 	behindProxy: false,		//< Enable if https server being proxied
 
 	/**
-		Name of this service used to
+		Host information: service name, its https encryption passphrase,
+		domain name of workers, domain name of master.
+		
+		the service name is used to
 			1) derive site parms from mysql openv.apps by Nick=name
 			2) set mysql name.table for guest clients,
 			3) identify server cert name.pfx file.
-		If the Nick=name is not located in openv.apps, the supplied	config() options are not overridden.
+			
+		If the Nick=name is not located in openv.apps, the supplied	config() options 
+		are not overridden.
 		@cfg {String} [name="Totem"]
 	*/	
 	host: { 
@@ -1973,8 +1978,6 @@ Log("line ",idx,line.length);
 		@cfg {Object} 
 	*/				
 	byTable: {			  //< by-table routers	
-		//uploads: sysFile,
-		//stores: sysFile,
 		riddle: checkClient,
 		task: sysTask
 	},
@@ -2069,11 +2072,12 @@ Log("line ",idx,line.length);
 	started: null, 		//< totem start time
 		
 	/**
-		Fetches data from service at url and, if a calback is provided for the method, will 
-		forward the returned information as a string (or "" if an error occured) to the callback.
+		Probes service path using PUT || POST || DELETE method given Array || Object || null params,
+		or fetches data from service path using GET method with callsback to params.
+		
 		@cfg {Function} 
-		@param {String} path prefixed by http || https || curl || curls || wget || wgets || /path
-		@param {Object, Array, Function, null} method POST || PUT || GET || DELETE
+		@param {String} path prefixed by http || https || curl || curls || wget || wgets || /path protocol
+		@param {Object, Array, Function, null} method induces probe method
 	*/
 	probeSite: Copy({
 		/**
@@ -2136,7 +2140,7 @@ Log("line ",idx,line.length);
 			});
 		}
 
-		function sha256(s) {
+		function sha256(s) { // reserved for other functionality
 			return CRYPTO.createHash('sha256').update(s).digest('base64');
 		}
 
@@ -2154,7 +2158,7 @@ Log("line ",idx,line.length);
 			};
 
 		opts.rejectUnauthorized = false;
-		opts.method = crud[ method ? typeOf(method) : "Null" ];
+		opts.method = crud[ method ? typeOf(method) : "Null" ] ;
 		// opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
 		// opts.cipher = " ... "
 		// opts.headers = { ... }
@@ -2167,7 +2171,7 @@ Log("line ",idx,line.length);
 			opts.method = "POST";
 		}*/
 
-		Trace("FETCH "+url);
+		Trace("PROBE "+url);
 
 		switch ( opts.protocol || "" ) {
 			case "curl:": 
@@ -2809,9 +2813,10 @@ function validateClient(req,res) {
 	@param {Function} cb totem response
 */
 function getIndex(path,cb) {	
-	function findFile(path,cb) {
+	function listFile(path,cb) {
 		try {
 			FS.readdirSync(path).forEach( file => {
+				//Log(path,file);
 				var
 					ignore = file.endsWith("~") || file.startsWith("~") || file.startsWith("_");
 				
@@ -2823,11 +2828,11 @@ function getIndex(path,cb) {
 	}
 
 	var 
-		files = [],
-		maxIndex = TOTEM.maxIndex;
+		files = [];
 	
-	findFile(path, function (file) {
-		if ( files.length < maxIndex)
+	//Log("index>>>>",path);
+	listFile(path, file => {
+		if ( files.length < maxFiles )
 			files.push( (file.indexOf(".")<0) ? file+"/" : file );
 	});
 	
@@ -3658,7 +3663,7 @@ function sysPing(req,res) {
 }
 
 /**
-	Endpoint to send uncached, static files from a requested area.
+	Endpoint to send, remove, or upload a static file from a requested area.
 
 	@param {Object} req Totem request
 	@param {Function} res Totem response
@@ -3670,7 +3675,7 @@ function sysFile(req, res) {
 		area = table,
 		now = new Date();
 	
-	//Log(">>>>sysFile", action,area,path, body);
+	//Log(">>>>sysFile", action,area,path, file);
 	switch (action) {
 		case "select":
 			
@@ -3687,7 +3692,7 @@ function sysFile(req, res) {
 					files.forEach( (file,n) => {
 						files[n] = file.tag( file );
 					});
-					req.type = "html"; // sort of a kludge, but default type is json.
+					req.type = "html"; // otherwise default type is json.
 					res(`Index of ${path}:<br>` + files.join("<br>") );
 				});
 			
@@ -3854,7 +3859,8 @@ function sysFile(req, res) {
 	*/
 	function tag(el,at) {
 
-		/*
+		if (!at) { at = {href: el}; el = "a"; }
+		
 		if ( isFunction(at) ) {
 			var args = [];
 			this.split(el).forEach( (arg,n) => args.push( at(arg,n) ) );
@@ -3876,51 +3882,47 @@ function sysFile(req, res) {
 		}
 		
 		else
-		*/
-		
-		switch (el) {
-			case "?":
-			case "&":   // tag a url
-				var rtn = this;
+			switch (el) {
+				case "?":
+				case "&":   // tag a url
+					var rtn = this;
 
-				Each(at, (key,val) => {
-					if ( val ) {
-						rtn += el + key + "=" + val;
-						el = "&";
+					Each(at, (key,val) => {
+						if ( val ) {
+							rtn += el + key + "=" + val;
+							el = "&";
+						}
+					});
+
+					return rtn;	
+
+				case ":":
+				case "=":
+					var rtn = this, sep="";
+					Each(at, (key,val) => {
+						rtn += sep + key + el + JSON.stringify(val);
+						sep = ",";
+					});
+					return rtn;
+
+				default: // tag html
+					var rtn = "<"+el+" ";
+
+					Each( at, (key,val) => {
+						if ( val )
+							rtn += key + "='" + val + "' ";
+					});
+
+					switch (el) {
+						case "embed":
+						case "img":
+						case "link":
+						case "input":
+							return rtn+">" + this;
+						default:
+							return rtn+">" + this + "</"+el+">";
 					}
-				});
-
-				return rtn;	
-				
-			case ":":
-			case "=":
-				var rtn = this, sep="";
-				Each(at, (key,val) => {
-					rtn += sep + key + el + JSON.stringify(val);
-					sep = ",";
-				});
-				return rtn;
-				
-			default: // tag html
-				if (!at) { at = {href: el}; el = "a"; }
-		
-				var rtn = "<"+el+" ";
-				
-				Each( at, (key,val) => {
-					if ( val )
-						rtn += key + "='" + val + "' ";
-				});
-
-				switch (el) {
-					case "embed":
-					case "img":
-					case "link":
-					case "input":
-						return rtn+">" + this;
-					default:
-						return rtn+">" + this + "</"+el+">";
-				}
-		}
+			}
 	},
 
 	/**
@@ -4038,11 +4040,49 @@ function sysFile(req, res) {
 
 		var 
 			url = this+"",
+			[x,path,parms] = url.match(/(.*)\?(.*)/) || ["",url,""],
+			[x,path,src] = path.match(/(.*?)\?(.*)/) || ["",path,""];
+		
+		operators.forEach( key => where[key] = {} );
+		
+		//Log([path,parms,src]);
+		
+		parms.split("&").forEach( parm => {
+			if (parm) 
+				doParm( parm );
+		});
+		
+		if ( src ) 
+			query.src = src;
+		
+		path.split("&").forEach( (parm,n) => {
+			if ( n )
+				parm.parseOP( /(.*?)(=)(.*)/, 
+					args => args.split(",").forEach( arg => index[arg] = ""), 
+					(lhs,rhs,op) => index[lhs] = rhs );
+				
+			else
+				path = parm;
+		});
+		
+		if (false) Log({
+			q: query,
+			w: where,
+			i: index,
+			f: flags,
+			p: path
+		});
+		
+		return path;
+
+		/*
+		var 
+			url = this+"",
 			parts = url.split("?"),
-			lhs = parts[0],
-			rhs = parts[1] || "",
+			path = parts[0],
+			parms = parts[1] || "",
 			rem = parts.slice(2).join("?"),
-			parms = rhs.split("&"),
+			parms = parms.split("&"),
 			last = parms.pop();
 		
 		operators.forEach( key => where[key] = {} );
@@ -4059,14 +4099,14 @@ function sysFile(req, res) {
 			else
 				doParm( last );
 
-		lhs.split("&").forEach( (parm,n) => {
+		path.split("&").forEach( (parm,n) => {
 			if ( n )
 				parm.parseOP( /(.*?)(=)(.*)/, 
 					args => args.split(",").forEach( arg => index[arg] = ""), 
 					(lhs,rhs,op) => index[lhs] = rhs );
 				
 			else
-				lhs = parm;
+				path = parm;
 		});
 		
 		if (false) Log({
@@ -4076,7 +4116,8 @@ function sysFile(req, res) {
 			f: flags
 		});
 		
-		return lhs;
+		return path;
+		*/
 	},
 
 	/**
