@@ -4027,33 +4027,16 @@ function sysFile(req, res) {
 			doFlag(parm);
 		}
 
-		function doLast( str ) {
-			var
-				[x,lhs,op,rhs] = str.match( /(.*?)(=)(.*)/ ) || [];
-
-			if ( op ) 
-				query[lhs] = rhs;
-
-			else
-				doParm( str );
-		}
-
 		var 
-			url = this+"",
-			[x,path,parms] = url.match(/(.*)\?(.*)/) || ["",url,""],
-			[x,path,src] = path.match(/(.*?)\?(.*)/) || ["",path,""];
+			path = this+"",
+			[x,path,parms] = path.match(/(.*?)\?(.*)/) || ["",path,""];
 		
 		operators.forEach( key => where[key] = {} );
-		
-		//Log([path,parms,src]);
 		
 		parms.split("&").forEach( parm => {
 			if (parm) 
 				doParm( parm );
 		});
-		
-		if ( src ) 
-			query.src = src;
 		
 		path.split("&").forEach( (parm,n) => {
 			if ( n )
@@ -4076,6 +4059,18 @@ function sysFile(req, res) {
 		return path;
 
 		/*
+		function doLast( str ) {
+			var
+				[x,lhs,op,rhs] = str.match( /(.*?)(=)(.*)/ ) || [];
+
+			if ( op ) 
+				query[lhs] = rhs;
+
+			else
+				doParm( str );
+		}
+
+	
 		var 
 			url = this+"",
 			parts = url.split("?"),
