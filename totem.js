@@ -4017,7 +4017,7 @@ function sysFile(req, res) {
 						
 						parm.parseOP( /(.*?)(<=|>=|\!=|\!bin=|\!exp=|\!nlp=)(.*)/, doSimple, (lhs,rhs,op) => where[op][lhs] = rhs );
 					}
-
+					
 					parm.parseOP( /(.*?)(:=)(.*)/, doTest, (lhs,rhs,op) => index[lhs] = rhs );
 				}
 				
@@ -4048,13 +4048,7 @@ function sysFile(req, res) {
 				path = parm;
 		});
 		
-		if (false) Log({
-			q: query,
-			w: where,
-			i: index,
-			f: flags,
-			p: path
-		});
+		// Log({q: query,w: where,i: index,f: flags,p: path});
 		
 		return path;
 
