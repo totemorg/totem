@@ -2318,7 +2318,7 @@ Log("line ",idx,line.length);
 	*/
 	admitRules: {  // empty or null to disable rules
 		// CN: "james brian d jamesbd",
-		// O: "u.s. governement",
+		// O: "u.s. government",
 		// OU: ["nga", "dod"],
 		// C: "us"
 	},
@@ -2818,7 +2818,7 @@ function getIndex(path,cb) {
 			FS.readdirSync(path).forEach( file => {
 				//Log(path,file);
 				var
-					ignore = file.endsWith("~") || file.startsWith("~") || file.startsWith("_");
+					ignore = file.endsWith("~") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
 				
 				if ( !ignore ) cb(file);
 			});
