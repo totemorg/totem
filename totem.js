@@ -329,7 +329,181 @@ function neoThread(cb) {
 
 const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 			 	sqlThread,filterRecords,isEncrypted,guestProfile,
+			 	streamFile,
 	   		startDogs,startJob,endJob } = TOTEM = module.exports = {
+	
+	mysql: { 		// database connection or null to disable
+		host: ENV.MYSQL_HOST,
+		user: ENV.MYSQL_USER,
+		pass: ENV.MYSQL_PASS
+	},
+					
+	// data ingest
+	sql: (query,args,cb) => sqlThread(sql => {
+		//Log(sql);
+		sql.query(query,args,(err,recs) => { 
+			if (!err && cb) cb(recs); 
+			Log(err || "ok");
+		});
+	}),
+					
+	/*
+	ingest: (path,idx,samples) => {
+		var
+			abs = path.startsWith("/") || path.startsWith("."),
+			path = abs ? path : "./data/"+path,
+			isJson = path.endsWith(".json"),
+			isCsv = path.endsWith(".csv");
+
+		if ( isJson ) {
+			var recs = JSON.parse( FS.readFileSync(path, "utf8") );
+			var head = Object.keys(recs[0]);
+		}
+
+		if ( isCsv ) {
+			var 
+				data = FS.readFileSync(path,"utf8").split("\n"),
+				head = data[0].split(","),
+				recs = [];
+
+			data.forEach( (line,n) => {
+				if (n) {
+					var 
+						rec = {},
+						d = line.split(",");
+
+					head.forEach( (key,m) => rec[key] = parseFloat(d[m]) );
+					recs.push( rec );
+				}
+
+			});			
+		}
+
+		Log("keys =>", head);
+		if ( samples ) recs=recs.get({draw:samples});
+
+		return idx ? recs.get(idx) : recs;
+	},
+	*/
+	ingestFile: (path, table, keys, cb) => {
+		
+		function parse(buf,idx,keys) {
+			if ( idx ) {	/// at data row
+				var 
+					rec = {},
+					cols = buf.split(",");
+				
+				if ( cols.length == keys.length ) {	// full row buffer
+					keys.forEach( (key,m) => rec[key] = cols[m] );
+					/*if ( idx==1)  { //Log(rec);
+						keys.forEach( (key,m) => Log(m,escape(key),cols[m],"=>",rec[key], key == "eventid", key.length) );
+						for (var n=0,x=keys[0]; n<x.length; n++) Log(n,x.charCodeAt(n));
+					} */
+					return rec;
+				}
+				
+				else	// incomplete row buffer
+					return null;
+			}
+			
+			else {	// at header row
+				buf.split(",").forEach( key => keys.push(key));
+				Log(">>>header keys", keys);
+				return keys;
+			}
+		}
+		
+		if ( table ) {
+			Trace( `INGESTING ${path} => ${table}` );
+			var keeps = keys.split(",");
+			keeps.forEach( (key,i) => [keeps[i]] = key.split(" ") );
+			//Log("keeps", keeps);
+
+			sqlThread( sql => {
+				sql.query( `CREATE TABLE IF NOT EXISTS app.?? (ID float unique auto_increment,${keys})`, 
+					[table], err => {
+					Log(`CREATE ${table}`,err || "ok");
+
+					streamFile(path, 500, 0, 1e3, 1, parse, recs => {
+						if ( recs )
+							sqlThread(sql => {
+								sql.beginBulk();
+								recs.forEach( (rec,i) => {
+									var keep = {};
+									keeps.forEach( key => keep[key] = rec[key] );
+									if (cb) cb(rec,keep);
+									sql.query("INSERT INTO app.?? SET ?", [table,keep]);
+									// if (i==0) Log(">>>>",keep, keeps, rec);
+								});
+								sql.endBulk();
+							});
+
+						else 
+							Trace( `INGESTED ${path}` );
+					});
+				});
+			});
+		}
+		
+		else 
+			streamFile(path, 1, 0, 1, 1, parse, recs => Log(recs) );
+	},
+
+	streamFile: (path, batch, threshold, limit, skip, parse, cb) => {
+		var keys = [];
+		FS.open( path, "r", (err, fd) => {
+			if (err) 
+				cb(null);	// signal pipe end
+
+			else {	// start pipe stream
+				var 
+					tot = pos = 0,
+					recs = [],
+					rem = "",
+					src = FS.createReadStream( "", { fd:fd, encoding: "utf8" }),
+					sink = new STREAM.Writable({
+						objectMode: true,
+						write: (bufs,en,sinkcb) => {
+							(rem+bufs).split("\n").forEach( buf => {
+								if (buf)	// got non-empty buffer 
+									if ( !limit || tot < limit )	// below record limit
+										if ( rec = parse(	// parse record
+														pos ? buf : buf.substr(1),	// have to skip 1st char at start - why?
+														pos++,	// advance position marker
+														keys	// stash for header keys
+													) ) {	// valid event record so stack it
+											if ( !threshold || random() <= threshold ) {
+												if ( pos > skip ) {	// past the skip point
+													recs.push( rec );	// extend record batch
+													tot++;	// adjust total number of records processed
+
+													if ( batch && recs.length >= batch ) {	// flush this batch of records
+														cb( recs );
+														recs.length = 0;
+													}
+												}
+											}
+										}
+
+										else	// invalid event record so append to remainder
+											rem = buf;
+							});
+							sinkcb(null);  // signal no errors
+						}
+					});
+
+				sink
+					.on("finish", () => {
+						//Log(">>>>>>>>>>>>>>>>>fin",recs.length);
+						if ( recs.length ) cb( recs );
+						if ( batch ) cb( null ) ; 	// signal pipe end
+					})
+					.on("error", err => cb(null) );
+
+				src.pipe(sink);  // start the pipe
+			}
+		});			
+	},
 	
 	/**
 	Route node/nodes (byTable, byArea, byAction or byType) on 
@@ -942,7 +1116,7 @@ Log("line ",idx,line.length);
 					const { worker,master } = domain;
 					
 					var 
-						name = TOTEM.host.name,
+						name = TOTEM.name,
 						mysql = paths.mysql;
 
 					Trace(`STARTING ${name}`);
@@ -1142,7 +1316,7 @@ Log("line ",idx,line.length);
 
 										// set appropriate headers to prevent http-parse errors when using master-worker proxy
 										if ( req.encrypted )
-											Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.host.name] );						
+											Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
 
 										Res.setHeader("Content-Type", mime);
 										/*
@@ -1368,7 +1542,8 @@ Log("line ",idx,line.length);
 								"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
 								"WITH "+ (riddles?"ANTIBOT":"NO ANTIBOT") + " PROTECTION",
 								"WITH " + (site.sessions||"UNLIMITED")+" CONNECTIONS",
-								"WITH " + (cores ? cores + " WORKERS AT "+site.urls.worker : "NO WORKERS")
+								"WITH " + (cores ? cores + " WORKERS AT "+site.urls.worker : "NO WORKERS"),
+								"POCS " + JSON.stringify(site.pocs)
 							].join("\n- ") );
 
 							// initialize file watcher
@@ -1403,11 +1578,11 @@ Log("line ",idx,line.length);
 						});
 				}
 
+				const 
+					{host,name,cache,trustStore} = TOTEM,
+					{certs} = cache;
+				
 				var 
-					host = TOTEM.host,
-					name = host.name,
-					certs = TOTEM.cache.certs,
-					trustStore = TOTEM.trustStore,
 					cert = certs.totem = {  // totem service certs
 						pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
 						key: FS.readFileSync(`${paths.certs}${name}.key`),
@@ -1456,10 +1631,10 @@ Log("line ",idx,line.length);
 					startService( HTTP.createServer() );
 			}
 
-			var 
-				host = TOTEM.host,
-				name = host.name,
-				urls = site.urls = TOTEM.cores 
+			const
+				{host,name,cores} = TOTEM,
+			
+				urls = site.urls = cores 
 					? {  
 						//socketio: TOTEM.sockets ? paths.socketio : "",
 						worker:  host.worker, 
@@ -1470,6 +1645,7 @@ Log("line ",idx,line.length);
 						worker:  host.worker,
 						master:  host.master
 					},
+
 				pfx = `${paths.certs}${name}.pfx` ;
 
 			Trace( `PROTECTING ${name} USING ${pfx}` );
@@ -1496,12 +1672,7 @@ Log("line ",idx,line.length);
 
 		if (opts) Copy(opts, TOTEM, ".");
 
-		var
-			name = TOTEM.host.name;
-
-		Trace(`CONFIGURING ${name}`); 
-
-		TOTEM.started = new Date();
+		//Trace(`CONFIGURING ${name}`); 
 
 		Each( paths.mimes, (key,val) => {	// extend or remove mime types
 			if ( val ) 
@@ -1537,7 +1708,7 @@ Log("line ",idx,line.length);
 				});  
 		});
 		
-		const {dbTrack,probeSite,reroute,router,setContext} = TOTEM;
+		const {dbTrack,probeSite,reroute,router,setContext,name} = TOTEM;
 		
 		JSDB.config({   // establish the db agnosticator 
 			//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server starte
@@ -1550,19 +1721,18 @@ Log("line ",idx,line.length);
 
 			else
 				sqlThread( sql => {
-					Trace(`CONTEXTING ${name}`);
-
 					//for (var key in mysql)   // derive server paths
 					//	if (key in paths) paths[key] = mysql[key];
 
 					if (name)	// derive site context
 						setContext(sql, () => protectService(router) );
+					
 				});
 		});	
 	},
 
 	initialize: err => {
-		Log("INITIALIZED", err || "ok");
+		Trace( `INITIALIZING ${TOTEM.name}` );
 	},
 	
 	/**
@@ -1915,24 +2085,27 @@ Log("line ",idx,line.length);
 	*/				
 	behindProxy: false,		//< Enable if https server being proxied
 
-	/**
-		Host information: service name, its https encryption passphrase,
-		domain name of workers, domain name of master.
-		
-		the service name is used to
+	/**		
+		Service name used to
 			1) derive site parms from mysql openv.apps by Nick=name
 			2) set mysql name.table for guest clients,
 			3) identify server cert name.pfx file.
 			
 		If the Nick=name is not located in openv.apps, the supplied	config() options 
 		are not overridden.
+	*/
+	name: ENV.SERVICE_NAME || "Totem1",
+		
+	/**
+		Host information: https encryption passphrase,
+		domain name of workers, domain name of master.
 		@cfg {String} [name="Totem"]
 	*/	
+
 	host: { 
-		name: ENV.SERVICE_NAME || "Totem1",
 		encrypt: ENV.SERVICE_PASS || "",
-		worker:  ENV.SERVICE_WORKER_URL || "https://localhost:8443", 
-		master:  ENV.SERVICE_MASTER_URL || "http://localhost:8080"
+		worker:  ENV.SERVICE_WORKER || "https://localhost:8443", 
+		master:  ENV.SERVICE_MASTER || "http://localhost:8080"
 	},
 		
 	/**
@@ -1940,10 +2113,11 @@ Log("line ",idx,line.length);
 		@cfg {Object} 
 	*/
 	site: {  	//< reserved for derived context vars		
+		started: new Date(),
 		pocs: {
-			admin: "admin@undefined.gov",
-			overlord: "overlord@undefined.gov",
-			super: "supervisor@undefined.gov"
+			admin: ENV.ADMIN || "tbd@org.com",
+			overlord: ENV.OVERLORD || "tbd@org.com",
+			super: ENV.SUPER || "tbd@org.com"
 		}		
 	},
 
@@ -2063,13 +2237,6 @@ Log("line ",idx,line.length);
 	execute: executeDS,
 
 	//====================================== MISC
-		
-	/**
-		totem start time
-		@cfg {Date} 
-		@private
-	*/		
-	started: null, 		//< totem start time
 		
 	/**
 		Probes service path using PUT || POST || DELETE method given Array || Object || null params,
@@ -2333,7 +2500,7 @@ Log("line ",idx,line.length);
 			cb({ 
 				Event: now,		 					// start time
 				Action: req.action, 				// db action
-				Stamp: TOTEM.host.name  // site name
+				Stamp: TOTEM.name  // site name
 			});				
 		}
 		
@@ -2518,18 +2685,20 @@ Log("line ",idx,line.length);
 		@cfg {Function}
 	*/		
 	setContext: function (sql,cb) { 
+		Trace(`CONTEXTING ${TOTEM.name}`);
+	
 		var 
 			mysql = paths.mysql;
 
 		if (pocs = mysql.pocs) 
 			sql.query(pocs)
-			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() )
-			.on("end", () => Log("POCs", site.pocs) );
+			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() );
+			//.on("end", () => Log("POCs", site.pocs) );
 
 		if (users = mysql.users) 
 			sql.query(users)
-			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() )
-			.on("end", () => Log("POCs", site.pocs) );
+			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() );
+			//.on("end", () => Log("POCs", site.pocs) );
 
 		if (guest = mysql.guest)
 			sql.query(guest)
@@ -2541,7 +2710,7 @@ Log("line ",idx,line.length);
 			});
 
 		if (derive = mysql.derive)  // derive site context vars
-			sql.query(derive, {Nick:TOTEM.host.name})
+			sql.query(derive, {Nick:TOTEM.name})
 			.on("result", opts => {
 				Each(opts, (key,val) => {
 					key = key.toLowerCase();
@@ -4272,11 +4441,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 		TOTEM.config({
 			guard: false,	// ex override default 
 			cores: 3,		// ex override default
-			mysql: { 		// provide a database
-				host: ENV.MYSQL_HOST,
-				user: ENV.MYSQL_USER,
-				pass: ENV.MYSQL_PASS
-			},
+
 			"byTable.": {  // define endpoints
 				test: function (req,res) {
 					res(" here we go");  // endpoint must always repond to its client 

@@ -25,6 +25,7 @@ web service having the following configurable features:
 	+ automattic server cert generation
 	+ task sharding
 	+ job queues
+	+ file stream and ingest
   
 TOTEM defines the following CRUD endpoints:
 

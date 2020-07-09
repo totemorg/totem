@@ -24,7 +24,12 @@ export MYSQL_HOST=localhost
 export ODBC_NAME=totem-app
 export ODBC_USER=ileuser
 
-#NEO4J
+# POCs
+export ADMIN="admin_tbd@nga.mil"
+export OVERLORD="overlord_tbd@nga.mil"
+export SUPER="supervisor_tbd@nga.mil"
+			
+# NEO4J
 export NEO4J="bolt://localhost" # "http://root:NGA@localhost:7474"
 
 # doc and dev tools
