@@ -199,132 +199,7 @@ function neoThread(cb) {
 			neo.makeEdge( net, name, now, pair );
 		});
 	}
-	
-	/*
-	function linkNodes( topic, nodes, created ) { // link existing typed-nodes by topic
 
-		var 
-			neo = this,
-			hats = {};
-
-		Each( nodes, (name,node) => {	// org nodes by hat type
-			var hat = hats[node.type];
-			if ( !hat ) hat = hats[node.type] = node;
-		});
-
-		Each( hats, (source, src) => {
-			Each(hats, (target, tar) => {
-				if ( source != target ) {	// no self-loops
-					neo.cypher(
-						`MATCH (a:${src.type} {name:$srcName}),(b:${tar.type} {name:$tarName}) `
-						+ "MERGE "
-						+ `(a)-[r:${topic}]-(b) `
-						+ "ON CREATE SET r = $props ", {
-							srcName: src.name,
-							tarName: tar.name,
-							props: {
-								srcId: src.name,
-								tarId: tar.name,
-								created: created
-							}
-					}, err => {
-						neo.trace( err );
-					});
-				}
-			});
-		});
-
-	},
-	*/
-	
-	/*
-	function saveNet( net ) { // save AN
-		var 
-			neo = this,
-			created = new Date(),
-			Actors = {};
-		
-		Each( net, (topic,nodes) => {	// condense nodes
-			Each(nodes, (name,node) => Actors[name] = node );
-		});
-		
-		neo.makeNodes( Actors, created, () => {
-			//Log(">>>> save net", net);  // declare nodes then save topics
-			Each( net, (topic, nodes) => {
-				neo.linkNodes( topic, nodes, created );
-			});
-		});				
-	}
-	*/
-	
-	/*
-	function saveAN(nodes,edges,greedy) {// save associative network
-		Stream( nodes, (act, node, cb) => {
-			Log(">>neosave", node,act);
-
-			var neo = this;
-
-			if (cb) // add node
-				neo.cypher({
-					query: `MERGE (n:${act.type} {name:$name}) ON CREATE SET n += $props`,
-					params: {
-						name: node,
-						props: {
-							name: node,
-							email: "tbd",
-							tele: "tbd",
-							created: new Date()
-						}
-					}
-				}, err => Trace( err || "add node" ) );
-
-			else	// all nodes added so add edges
-			if ( greedy )		// make all possible edges
-				Each(nodes, (source,src) => {
-					Each(nodes, (target,tar) => {
-						if ( source != target )
-							Each( edges, (topic,info) => {
-								if ( topic != "dnc" ) 
-									neo.cypher({
-										query: `MATCH (a:${src.type} {name:$src}),(b:${tar.type} {name:$tar}) MERGE (a)-[r:${topic}]-(b) ON CREATE SET r.created = timestamp() `,
-										params: {
-											src: source,
-											tar: target
-										}
-									}, err => Trace( err || "add edge") );
-
-							});
-					});
-				});
-
-			else {	// make only required edges
-				var
-					keys = Object.keys(edges),
-					keys = keys.sort( (a,b) => edges[b].weight - edges[a].weight ),
-					topic = keys[0] || "dnc",
-					info = edges[topic];
-
-				//Log("nlpedges", keys, topic, info );
-
-				if ( topic != "dnc" ) // donotcare
-					Each(nodes, (source, src) => {
-						Each(nodes, (target, tar) => {
-							if ( source != target ) {
-								//Log( source, target, `MATCH (a:${src.type} {name:$src}),(b:${tar.type} {name:$tar}) MERGE (a)-[r:${topic}]-(b) ON CREATE SET r.created = timestamp() ` );
-								neo.cypher({
-									query: `MATCH (a:${src.type} {name:$src}),(b:${tar.type} {name:$tar}) MERGE (a)-[r:${topic}]-(b) ON CREATE SET r.created = timestamp() `,
-									params: {
-										src: source,
-										tar: target
-									}
-								}, err => Trace( err || "add edge") );
-							}
-						});
-					});
-			}
-		});
-
-	}  */
 ].Extend(NEOCONNECTOR);
 
 const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
@@ -348,7 +223,7 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 	}),
 					
 	/*
-	ingest: (path,idx,samples) => {
+	loadFile: (path,idx,samples) => {
 		var
 			abs = path.startsWith("/") || path.startsWith("."),
 			path = abs ? path : "./data/"+path,
@@ -679,8 +554,8 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 			}
 
 			else
-			if (!table) 
-				sysPing(req,res);
+			if ( !table && (route=byArea[""]) ) 
+				route(req,res); 
 
 			else
 			if ( route = byType[type] ) // route by type
@@ -2175,11 +2050,11 @@ Log("line ",idx,line.length);
 		@cfg {Object} 
 	*/		
 	byArea: {	//< by-area routers
-		ping: sysPing,
-		stores: sysFile,
-		uploads: sysFile,
-		shares: sysFile,
-		stash: sysFile
+		"": sysFile,
+		stores: sysFile
+		//uploads: sysFile,
+		//shares: sysFile,
+		//stash: sysFile
 	},
 
 	/**
@@ -2619,7 +2494,6 @@ Log("line ",idx,line.length);
 			riddler: "/riddle"
 		},
 
-		gohome: "",	
 		certs: "./certs/", 
 		sockets: ".", // path to socket.io
 		socketio: "/socket.io/socket.io.js",
@@ -2983,26 +2857,32 @@ function validateClient(req,res) {
 */
 function getIndex(path,cb) {	
 	function listFile(path,cb) {
-		try {
-			FS.readdirSync(path).forEach( file => {
-				//Log(path,file);
-				var
-					ignore = file.endsWith("~") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
-				
-				if ( !ignore ) cb(file);
+		
+		if ( path == "./" ) 
+			Object.keys(TOTEM.byArea).forEach( area => {
+				if (area) cb(area);
 			});
-		}
-		catch (err) {
-		}	
+		
+		else
+			try {
+				FS.readdirSync(path).forEach( file => {
+					//Log(path,file);
+					var
+						ignore = file.endsWith("~") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
+
+					if ( !ignore ) cb(file);
+				});
+			}
+			catch (err) {
+			}	
 	}
 
 	var 
 		files = [];
 	
-	//Log("index>>>>",path);
 	listFile(path, file => {
 		if ( files.length < maxFiles )
-			files.push( (file.indexOf(".")<0) ? file+"/" : file );
+			files.push( (file.indexOf(".")>=0) ? file : file+"/" );
 	});
 	
 	cb( files );
@@ -3821,17 +3701,6 @@ function sysTask(req,res) {  //< task sharding
 }
 
 /**
-	Totem (req,res)-endpoint to test client connection.
-
-	@param {Object} req Totem request
-	@param {Function} res Totem response
-*/
-function sysPing(req,res) {
-	req.type = "html";
-	res("hello " + req.client + " " + paths.gohome );
-}
-
-/**
 	Endpoint to send, remove, or upload a static file from a requested area.
 
 	@param {Object} req Totem request
@@ -3844,11 +3713,11 @@ function sysFile(req, res) {
 		area = table,
 		now = new Date();
 	
-	//Log(">>>>sysFile", action,area,path, file);
+	Log(">>>>sysFile", path,file);
 	switch (action) {
 		case "select":
 			
-			if ( file )
+			if ( file )	// requesting static file
 				try {		// these files are static so we never cache them
 					FS.readFile(path,  (err,buf) => res( err || Buffer.from(buf) ) );
 				}
@@ -3856,13 +3725,11 @@ function sysFile(req, res) {
 					res( errors.noFile );
 				}
 				
-			else
+			else	// requesting static folder
 				getIndex( path, files => {  // Send list of files under specified folder
-					files.forEach( (file,n) => {
-						files[n] = file.tag( file );
-					});
+					files.forEach( (file,n) => files[n] = file.tag( file ) );
 					req.type = "html"; // otherwise default type is json.
-					res(`Index of ${path}:<br>` + files.join("<br>") );
+					res(`hello ${req.client}<br>Index of ${path}:<br>` + files.join("<br>") );
 				});
 			
 			break;
