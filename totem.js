@@ -603,9 +603,15 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 							size: line.length
 						});
 
-					else 
+					else {
 						[rem,filename,name,type] = line.match( /<; filename=(.*) name=(.*) ><\/;>type=(.*)/ ) || [];
 
+						if ( !filename ) 
+							line.split("&").forEach( parm => {
+								var [rem,key,value] = parm.match( /(.*)=(.*)/ ) || ["",parm,""];
+								parms[key] = value;
+							});
+					}
 					/*
 					if (parms.type) {  // type was defined so have the file data
 						files.push( Copy(parms,{data: line, size: line.length}) );
@@ -632,9 +638,10 @@ Log("line ",idx,line.length);
 				});
 
 			//Log("body files=", files.length);
-			return {files: files};
+			return {files: files, parms: parms};
 		});		// get body parameters/files
-
+		
+		//Log(">>>>>>>>>>> body", req.body);
 		var
 			nodes = url.split(nodeDivider);
 
@@ -2856,7 +2863,7 @@ function validateClient(req,res) {
 	@param {Function} cb totem response
 */
 function getIndex(path,cb) {	
-	function listFile(path,cb) {
+	function sysNav(path,cb) {
 		
 		if ( path == "./" ) 
 			Object.keys(TOTEM.byArea).forEach( area => {
@@ -2880,7 +2887,7 @@ function getIndex(path,cb) {
 	var 
 		files = [];
 	
-	listFile(path, file => {
+	sysNav(path, file => {
 		if ( files.length < maxFiles )
 			files.push( (file.indexOf(".")>=0) ? file : file+"/" );
 	});
@@ -3298,6 +3305,7 @@ function selectDS(req, res) {
 function insertDS(req, res) {
 	const { sql, flags, body, client, action, table } = req;
 
+	Log(">>>>>>>>>>>>>>post", req.query);
 	sql.Query({
 		trace: flags.trace,
 		crud: action,
