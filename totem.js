@@ -4534,7 +4534,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 				TOTEM.ingestFile("./stores/gtd.csv", {
 					target: "gtd",
 					//filter: rec => rec.iyear == 1970,
-					keys: "gname varchar(32),_iyear int(11),targtype1_txt varchar(32),weaptype1_txt varchar(16),_eventid varchar(16)",
+					keys: "gname varchar(32),iyear int(11),targtype1_txt varchar(32),weaptype1_txt varchar(16),eventid varchar(16)",
 					batch: 500,
 					limit: 0
 				});
@@ -4549,7 +4549,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 				TOTEM.ingestFile("./stores/nartocracy/centam.csv", {
 					target: "centam",
 					filter: rec => rec.Country == "Mexico",
-					keys: "Criminal_group varchar(32),Year int(11),Outlet_name varchar(32),Event varchar(32),Rival_group varchar(32),eventid varchar(8)",
+					keys: "Criminal_group varchar(32),_Year int(11),Outlet_name varchar(32),Event varchar(32),Rival_group varchar(32),_Eventid varchar(8)",
 					batch: 500,
 					limit: 0
 				});
