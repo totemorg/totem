@@ -312,7 +312,7 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 									var keep = {};
 									keeps.forEach( key => keep[key] = rec[key] );
 									if ( acceptable(rec) )
-										sql.query("INSERT INTO app.?? SET ?", [target,keep]);
+										sql.query("INSERT INTO app.?? SET ?", [target,keep] );
 									// if (i==0) Log(">>>>",keep, keeps, rec);
 								});
 								//sql.endBulk();
@@ -324,6 +324,7 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 				});
 			});
 		}
+		
 		
 		else 
 			streamFile(path, 1, 0, 1, 1, parse, recs => Log(recs) );
@@ -348,7 +349,8 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 								if (buf)	// got non-empty buffer 
 									if ( !limit || tot < limit )	// below record limit
 										if ( rec = parse(	// parse record
-														pos ? buf : buf.substr(1),	// have to skip 1st char at start - why?
+														buf,
+														//pos ? buf : buf.substr(1),	// have to skip 1st char at start - why?
 														pos++,	// advance position marker
 														keys	// stash for header keys
 													) ) {	// valid event record so stack it
@@ -4535,6 +4537,21 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 					keys: "gname varchar(32),targtype1_txt varchar(32),weaptype1_txt varchar(16),eventid varchar(16)",
 					batch: 500,
 					limit: 1e3
+				});
+			});
+		});
+		break;
+		
+	case "T10":
+		prime( () => {
+			TOTEM.config({name:""}, err => {
+				Log("ready");
+				TOTEM.ingestFile("./stores/nartocracy/centam.csv", {
+					target: "centam",
+					filter: rec => rec.Country == "Mexico",
+					keys: "Criminal_group varchar(32),Outlet_name varchar(32),Event varchar(32),Rival_group varchar(32),eventid varchar(8)",
+					batch: 50,
+					limit: 100
 				});
 			});
 		});
