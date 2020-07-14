@@ -299,11 +299,12 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 				sql.query( `CREATE TABLE IF NOT EXISTS app.?? (ID float unique auto_increment,${keys})`, 
 					[target], err => {
 					Log(`CREATE ${target}`,err || "ok");
-
+					//var saved = 0;
 					streamFile(path, batch, 0, limit, 1, parse, recs => {
 						if ( recs )
 							sqlThread(sql => {
-								sql.beginBulk();
+								Log("Saving",recs.length);
+								//sql.beginBulk();
 								recs.forEach( (rec,i) => {
 									var keep = {};
 									keeps.forEach( key => keep[key] = rec[key] );
@@ -311,7 +312,7 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 									sql.query("INSERT INTO app.?? SET ?", [target,keep]);
 									// if (i==0) Log(">>>>",keep, keeps, rec);
 								});
-								sql.endBulk();
+								//sql.endBulk();
 							});
 
 						else 
@@ -4192,6 +4193,9 @@ function sysFile(req, res) {
 /**
 @class TOTEM.Unit_Tests_Use_Cases
 */
+async function prime(cb) {
+	cb();
+}
 
 switch (process.argv[2]) { //< unit tests
 	case "?":
@@ -4519,13 +4523,15 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		break;
 		
 	case "T9":
-		TOTEM.config({name:""}, err => {
-			Log("ready");
-			TOTEM.ingestFile("./stores/gtd.csv", {
-				target: "gtd",
-				keys: "gname varchar(32),region int(11),eventid varchar(16)",
-				batch: 500,
-				limit: 1e3
+		prime( () => {
+			TOTEM.config({name:""}, err => {
+				Log("ready");
+				TOTEM.ingestFile("./stores/gtd.csv", {
+					target: "gtd",
+					keys: "gname varchar(32),region int(11),eventid varchar(16)",
+					batch: 500,
+					limit: 1e3
+				});
 			});
 		});
 		break;
