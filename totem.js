@@ -260,7 +260,7 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 		return idx ? recs.get(idx) : recs;
 	},
 	*/
-	ingestFile: (path, table, keys, cb) => {
+	ingestFile: (path, opts, cb) => {
 		
 		function parse(buf,idx,keys) {
 			if ( idx ) {	/// at data row
@@ -287,19 +287,20 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 				return keys;
 			}
 		}
+		const {batch,limit,keys,target} = opts || {batch:1e3,limit:0};
 		
-		if ( table ) {
-			Trace( `INGESTING ${path} => ${table}` );
+		if ( target ) {
+			Trace( `INGESTING ${path} => ${target}` );
 			var keeps = keys.split(",");
 			keeps.forEach( (key,i) => [keeps[i]] = key.split(" ") );
 			//Log("keeps", keeps);
 
 			sqlThread( sql => {
 				sql.query( `CREATE TABLE IF NOT EXISTS app.?? (ID float unique auto_increment,${keys})`, 
-					[table], err => {
-					Log(`CREATE ${table}`,err || "ok");
+					[target], err => {
+					Log(`CREATE ${target}`,err || "ok");
 
-					streamFile(path, 500, 0, 1e3, 1, parse, recs => {
+					streamFile(path, batch, 0, limit, 1, parse, recs => {
 						if ( recs )
 							sqlThread(sql => {
 								sql.beginBulk();
@@ -307,7 +308,7 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 									var keep = {};
 									keeps.forEach( key => keep[key] = rec[key] );
 									if (cb) cb(rec,keep);
-									sql.query("INSERT INTO app.?? SET ?", [table,keep]);
+									sql.query("INSERT INTO app.?? SET ?", [target,keep]);
 									// if (i==0) Log(">>>>",keep, keeps, rec);
 								});
 								sql.endBulk();
@@ -993,329 +994,331 @@ Log("line ",idx,line.length);
 				/*
 				Attach port listener to server then start it.
 				*/
-				function startService(server) {
+				function startService() {
 					const { crudIF, router, domain, sockets } = TOTEM;
 					const { worker,master } = domain;
 					
 					var 
 						name = TOTEM.name,
+						server = TOTEM.server,
 						mysql = paths.mysql;
 
 					Trace(`STARTING ${name}`);
 
-					TOTEM.server = server || { 	// define server
+					/*
+					TOTEM.server = server;  || { 	// define server
 						listen: function () {
 							Trace("NO SERVER");
 						},
 						on: function () {
 							Trace("NO SERVER");
 						}
-					};
+					}; */
 
-					if (server && name) 			// attach responder
-						server.on("request", (Req,Res) => {		// start session
-							/**
-							Start session and protect from denial of service attacks and, if unsuccessful then 
-							terminaate request, otherise callback with phase1 request keys.
-							@private
-							*/
-							function startRequest( cb ) { //< callback cb() if not combating denial of service attacks
-								function getSocket() {  // returns suitable response socket depending on cross/same domain session
-									if ( Req.headers.origin ) {  // cross domain session is in progress from master (on http) to its workers (on https)
-										Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
-										Res.socket.write(Res._header);
-										Res._headerSent = true;
-										return Res.socket;
-									}
-
-									else   // same domain (http-to-http or https-to-https) so must use the request socket
-										return Req.socket;
+					//if (server) 			// attach responder
+					server.on("request", (Req,Res) => {		// start session
+						/**
+						Start session and protect from denial of service attacks and, if unsuccessful then 
+						terminaate request, otherise callback with phase1 request keys.
+						@private
+						*/
+						function startRequest( cb ) { //< callback cb() if not combating denial of service attacks
+							function getSocket() {  // returns suitable response socket depending on cross/same domain session
+								if ( Req.headers.origin ) {  // cross domain session is in progress from master (on http) to its workers (on https)
+									Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
+									Res.socket.write(Res._header);
+									Res._headerSent = true;
+									return Res.socket;
 								}
 
-								function getPost( cb ) { // Feed raw post to callback
-									var post = ""; 
-
-									Req
-									.on("data", function (chunk) {
-										post += chunk.toString();
-									})
-									.on("end", function () {
-										cb( post );
-									});
-								}
-
-								var
-									isBusy = BUSY ? BUSY() : false;
-
-								if ( isBusy )
-									return Res.end( errors.pretty( errors.toobusy ) );
-
-								else 	// phase1 connect
-									switch ( Req.method ) {
-										case "PUT":
-										case "GET":
-										case "POST":
-										case "DELETE":
-											getPost( post => {
-												sqlThread( sql => {
-													cb({			// prime session request
-														host: Req.headers.host,	// domain being requested
-														agent: Req.headers["user-agent"],	// requester info
-														sql: sql,	// sql connector
-														post: post, // raw post body
-														method: Req.method,		// get,put, etc
-														started: Req.headers.Date,  // time client started request
-														action: crudIF[Req.method],	// crud action being requested
-														reqSocket: Req.socket,   // use supplied request socket 
-														resSocket: getSocket,		// use this method to return a response socket
-														encrypted: isEncrypted(),	// on encrypted worker
-														socketio: sockets ? paths.socketio : "",		// path to socket.io
-														url: unescape( Req.url || "/" )	// unescaped url
-														/*
-														There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
-														embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
-														unescapes to /\\"ABC\\".  This is ok but can be confusing.
-														*/
-													});
-												});
-											});
-											break;
-
-										case "OPTIONS":  // client making cross-domain call - must respond with what are valid methods
-											//Req.method = Req.headers["access-control-request-method"];
-											Res.writeHead(200, {
-												"access-control-allow-origin": "*", 
-												"access-control-allow-methods": "POST, GET, DELETE, PUT, OPTIONS"
-											});
-											Res.end();
-											/*res.header = function () {
-												Res.writeHead(200);
-												Res.socket.write(Res._header);
-												Res.socket.write(Res._header);
-												Res._headerSent = true;
-											}; */
-											break;
-
-										default:
-											Res.end( errors.pretty(errors.badMethod) );
-									}
+								else   // same domain (http-to-http or https-to-https) so must use the request socket
+									return Req.socket;
 							}
-							
-							startRequest( req => {  // start request if not busy.
-								/**
-								Start a session by attaching sql, cert, client, profile and session info to this request req with callback res(error).  
-								
-								@private
-								@param {Object} req request
-								@param {Function} res response
-								*/
-								function startResponse( cb ) {  
-									function res(data) {  // Session response callback
 
-										// Session terminators respond with a string, file, db structure, or error message.
+							function getPost( cb ) { // Feed raw post to callback
+								var post = ""; 
 
-										function sendString( data ) {  // Send string - terminate sql connection
-											Res.end( data );
-										}
+								Req
+								.on("data", function (chunk) {
+									post += chunk.toString();
+								})
+								.on("end", function () {
+									cb( post );
+								});
+							}
 
-										function sendFile(path,file,type,area) { // Cache and send file to client - terminate sql connection
+							var
+								isBusy = BUSY ? BUSY() : false;
 
-											// Trace(`SENDING ${path}`);
+							if ( isBusy )
+								return Res.end( errors.pretty( errors.toobusy ) );
 
-											var 
-												cache = TOTEM.cache,
-												never = cache.never,
-												cache = (never[file] || never[type]) ? {} : cache[area] || cache[type] || {};
-
-											//Log(path, cache[path] ? "cached" : "!cached");
-
-											if ( buf = cache[path] )
-												sendString( buf );
-
-											else
-												FS.readFile( path, (err,buf) => {
-													if (err)
-														sendError( errors.noFile );
-
-													else
-														sendString( cache[path] = Buffer.from(buf) ); //new Buffer(buf) );
-												});
-										}		
-
-										function sendError(err) {  // Send pretty error message - terminate sql connection
-											switch ( req.type ) {
-												case "html":
-												case "db":
-													Res.end( errors.pretty(err) );
-													break;
-
-												default:
-													Res.end( err+"" );
-											}
-										}
-
-										function sendObject(obj) {
-											try {
-												sendString( JSON.stringify(obj) );
-											}
-											catch (err) {  // infinite cycle
-												sendError( errors.badReturn );
-											}		
-										}
-
-										function sendRecords(recs) { // Send records via converter
-											if ( route = filterRecords[req.type] )  // process record conversions
-												route(recs, req, recs => {
-													if (recs) 
-														switch ( typeOf(recs) ) {
-															case "Error":
-																sendError( recs );
-																break;
-
-															case "String":
-																sendString( recs );
-																break;
-
-															case "Array":
-															case "Object":
-															default:
-																sendObject( recs );
-														} 
-
-													else
-														sendError( errors.badReturn );
-												});
-
-											else 
-												sendObject( recs );
-										}
-
-										var
-											req = Req.req,
-											sql = req.sql,
-											mimes = MIME.types,
-											mime = mimes[ isError(data||0) ? "html" : req.type ] || mimes.html;
-
-										// set appropriate headers to prevent http-parse errors when using master-worker proxy
-										if ( req.encrypted )
-											Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
-
-										Res.setHeader("Content-Type", mime);
-										/*
-										Res.setHeader("Access-Control-Allow-Origin", "*");
-										Res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-										Res.setHeader("Access-Control-Allow-Headers", '*');
-										Res.setHeader("Status", "200 OK");
-										Res.setHeader("Vary", "Accept");
-										//self.send_header('Content-Type', 'application/octet-stream')
-										*/
-
-										Res.statusCode = 200;
-
-										if (data != null)
-											switch ( typeOf(data) ) {  // send based on its type
-												case "Error": 			// send error message
-													sendError( data );
-													break;
-
-												case "Function": 			// send file (search or direct)
-													sendFile( data(), req.file, req.type, req.area );
+							else 	// phase1 connect
+								switch ( Req.method ) {
+									case "PUT":
+									case "GET":
+									case "POST":
+									case "DELETE":
+										getPost( post => {
+											sqlThread( sql => {
+												cb({			// prime session request
+													host: Req.headers.host,	// domain being requested
+													agent: Req.headers["user-agent"],	// requester info
+													sql: sql,	// sql connector
+													post: post, // raw post body
+													method: Req.method,		// get,put, etc
+													started: Req.headers.Date,  // time client started request
+													action: crudIF[Req.method],	// crud action being requested
+													reqSocket: Req.socket,   // use supplied request socket 
+													resSocket: getSocket,		// use this method to return a response socket
+													encrypted: isEncrypted(),	// on encrypted worker
+													socketio: sockets ? paths.socketio : "",		// path to socket.io
+													url: unescape( Req.url || "/" )	// unescaped url
 													/*
-													if ( (search = req.query.search) && paths.mysql.search) 		// search for file via (e.g. nlp) score
-														sql.query(paths.mysql.search, {FullSearch:search}, (err, files) => {
+													There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
+													embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
+													unescapes to /\\"ABC\\".  This is ok but can be confusing.
+													*/
+												});
+											});
+										});
+										break;
 
-															if (err) 
-																sendError( errors.noFile );
+									case "OPTIONS":  // client making cross-domain call - must respond with what are valid methods
+										//Req.method = Req.headers["access-control-request-method"];
+										Res.writeHead(200, {
+											"access-control-allow-origin": "*", 
+											"access-control-allow-methods": "POST, GET, DELETE, PUT, OPTIONS"
+										});
+										Res.end();
+										/*res.header = function () {
+											Res.writeHead(200);
+											Res.socket.write(Res._header);
+											Res.socket.write(Res._header);
+											Res._headerSent = true;
+										}; */
+										break;
 
-															else
-																sendError( errors.noFile );  // reserved functionality
+									default:
+										Res.end( errors.pretty(errors.badMethod) );
+								}
+						}
 
-														});
+						startRequest( req => {  // start request if not busy.
+							/**
+							Start a session by attaching sql, cert, client, profile and session info to this request req with callback res(error).  
 
-													else {			
-														if ( credit = paths.mysql.credit)  // credit/charge client when file pulled from file system
-															sql.query( credit, {Name:req.node,Area:req.area} )
-															.on("result", file => {
-																if (file.Client != req.client)
-																	sql.query("UPDATE openv.profiles SET Credit=Credit+1 WHERE ?",{Client: file.Client});
-															});
+							@private
+							@param {Object} req request
+							@param {Function} res response
+							*/
+							function startResponse( cb ) {  
+								function res(data) {  // Session response callback
 
-														sendFile( data(), req.file, req.type, req.area );
-													}  */
+									// Session terminators respond with a string, file, db structure, or error message.
 
-													break;
+									function sendString( data ) {  // Send string - terminate sql connection
+										Res.end( data );
+									}
 
-												case "Array": 			// send data records 
-													sendRecords(data);
-													break;
+									function sendFile(path,file,type,area) { // Cache and send file to client - terminate sql connection
 
-												case "String":  			// send message
-												case "Buffer":
-													sendString(data);
-													break;
+										// Trace(`SENDING ${path}`);
 
-												case "Object":
-												default: 					// send data record
-													sendObject(data);
-													break;
-											}
+										var 
+											cache = TOTEM.cache,
+											never = cache.never,
+											cache = (never[file] || never[type]) ? {} : cache[area] || cache[type] || {};
+
+										//Log(path, cache[path] ? "cached" : "!cached");
+
+										if ( buf = cache[path] )
+											sendString( buf );
 
 										else
-											sendError( errors.noData );
+											FS.readFile( path, (err,buf) => {
+												if (err)
+													sendError( errors.noFile );
+
+												else
+													sendString( cache[path] = Buffer.from(buf) ); //new Buffer(buf) );
+											});
+									}		
+
+									function sendError(err) {  // Send pretty error message - terminate sql connection
+										switch ( req.type ) {
+											case "html":
+											case "db":
+												Res.end( errors.pretty(err) );
+												break;
+
+											default:
+												Res.end( err+"" );
+										}
 									}
 
-									if (sock = req.reqSocket )	// have a valid request socket so ....
-										validateClient(req, err => {	// phase2 admission
-											if (err)
-												res(err);
+									function sendObject(obj) {
+										try {
+											sendString( JSON.stringify(obj) );
+										}
+										catch (err) {  // infinite cycle
+											sendError( errors.badReturn );
+										}		
+									}
 
-											else  {
-												cb(res);
-												const {sql,client,cert} = req;
-												sql.query(paths.mysql.newSession, {
-													Client: client,
-													Message: JSON.stringify(cert),
-													Joined: new Date()
-												});
-											}
-											/*
-											if ( getSession = paths.mysql.getSession )
-												req.sql.query(getSession, {Client: req.client}, (err,ses) => {
-													if ( err )
-														res(err);
+									function sendRecords(recs) { // Send records via converter
+										if ( route = filterRecords[req.type] )  // process record conversions
+											route(recs, req, recs => {
+												if (recs) 
+													switch ( typeOf(recs) ) {
+														case "Error":
+															sendError( recs );
+															break;
 
-													else {
-														req.session = new Object( ses[0] || {
-															Client: "guest@guest.org",
-															Connects: 1,
-															//ipAddress : "unknown",
-															Location: "unknown",
-															Joined: new Date()
+														case "String":
+															sendString( recs );
+															break;
+
+														case "Array":
+														case "Object":
+														default:
+															sendObject( recs );
+													} 
+
+												else
+													sendError( errors.badReturn );
+											});
+
+										else 
+											sendObject( recs );
+									}
+
+									var
+										req = Req.req,
+										sql = req.sql,
+										mimes = MIME.types,
+										mime = mimes[ isError(data||0) ? "html" : req.type ] || mimes.html;
+
+									// set appropriate headers to prevent http-parse errors when using master-worker proxy
+									if ( req.encrypted )
+										Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
+
+									Res.setHeader("Content-Type", mime);
+									/*
+									Res.setHeader("Access-Control-Allow-Origin", "*");
+									Res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+									Res.setHeader("Access-Control-Allow-Headers", '*');
+									Res.setHeader("Status", "200 OK");
+									Res.setHeader("Vary", "Accept");
+									//self.send_header('Content-Type', 'application/octet-stream')
+									*/
+
+									Res.statusCode = 200;
+
+									if (data != null)
+										switch ( typeOf(data) ) {  // send based on its type
+											case "Error": 			// send error message
+												sendError( data );
+												break;
+
+											case "Function": 			// send file (search or direct)
+												sendFile( data(), req.file, req.type, req.area );
+												/*
+												if ( (search = req.query.search) && paths.mysql.search) 		// search for file via (e.g. nlp) score
+													sql.query(paths.mysql.search, {FullSearch:search}, (err, files) => {
+
+														if (err) 
+															sendError( errors.noFile );
+
+														else
+															sendError( errors.noFile );  // reserved functionality
+
+													});
+
+												else {			
+													if ( credit = paths.mysql.credit)  // credit/charge client when file pulled from file system
+														sql.query( credit, {Name:req.node,Area:req.area} )
+														.on("result", file => {
+															if (file.Client != req.client)
+																sql.query("UPDATE openv.profiles SET Credit=Credit+1 WHERE ?",{Client: file.Client});
 														});
-														cb( res );
-													}
-												});
 
-											else {  // using dummy sessions
-												req.session = {};
-												cb( res );
-											}*/
-												
-										});
+													sendFile( data(), req.file, req.type, req.area );
+												}  */
 
-									else 	// lost reqest socket for some reason so ...
-										res( errors.lostConnection );
+												break;
+
+											case "Array": 			// send data records 
+												sendRecords(data);
+												break;
+
+											case "String":  			// send message
+											case "Buffer":
+												sendString(data);
+												break;
+
+											case "Object":
+											default: 					// send data record
+												sendObject(data);
+												break;
+										}
+
+									else
+										sendError( errors.noData );
 								}
 
-								Req.req = req;
-								startResponse( res => {	// phase3 route 
-									router(req,res);
-								});
+								if (sock = req.reqSocket )	// have a valid request socket so ....
+									validateClient(req, err => {	// phase2 admission
+										if (err)
+											res(err);
+
+										else  {
+											cb(res);
+											const {sql,client,cert} = req;
+											sql.query(paths.mysql.newSession, {
+												Client: client,
+												Message: JSON.stringify(cert),
+												Joined: new Date()
+											});
+										}
+										/*
+										if ( getSession = paths.mysql.getSession )
+											req.sql.query(getSession, {Client: req.client}, (err,ses) => {
+												if ( err )
+													res(err);
+
+												else {
+													req.session = new Object( ses[0] || {
+														Client: "guest@guest.org",
+														Connects: 1,
+														//ipAddress : "unknown",
+														Location: "unknown",
+														Joined: new Date()
+													});
+													cb( res );
+												}
+											});
+
+										else {  // using dummy sessions
+											req.session = {};
+											cb( res );
+										}*/
+
+									});
+
+								else 	// lost reqest socket for some reason so ...
+									res( errors.lostConnection );
+							}
+
+							Req.req = req;
+							startResponse( res => {	// phase3 route 
+								router(req,res);
 							});
 						});
+					});
 
-					else
-						return cb( errors.noService );
+					//else
+					//	return cb( errors.noService );
 
 					if ( sockets ) {   // attach socket.io and setup connection listeners
 						var 
@@ -1498,7 +1501,7 @@ Log("line ",idx,line.length);
 					catch (err) {
 					}
 
-					startService( HTTPS.createServer({
+					TOTEM.server = HTTPS.createServer({
 						passphrase: host.encrypt,		// passphrase for pfx
 						pfx: cert.pfx,			// pfx/p12 encoded crt and key 
 						ca: trustStore,				// list of pki authorities (trusted serrver.trust)
@@ -1506,11 +1509,15 @@ Log("line ",idx,line.length);
 						requestCert: true,
 						rejectUnauthorized: true
 						//secureProtocol: CONS.SSL_OP_NO_TLSv1_2
-					}) );
+					});
+					
+					startService();
 				}
 
-				else // unencrpted services so start http service
-					startService( HTTP.createServer() );
+				else { // unencrpted services so start http service
+					TOTEM.server = HTTP.createServer();
+					startService();
+				}
 			}
 
 			const
@@ -1608,6 +1615,9 @@ Log("line ",idx,line.length);
 
 					if (name)	// derive site context
 						setContext(sql, () => protectService(router) );
+					
+					else
+						cb( null );
 					
 				});
 		});	
@@ -4467,7 +4477,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		});		
 		break;
 		
-	case "cn":
+	case "T8":
 		const {neoThread} = TOTEM;
 		const $ = require("../man/man.js");
 		TOTEM.config();
@@ -4506,7 +4516,20 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 				});
 			});
 		});
-
+		break;
+		
+	case "T9":
+		TOTEM.config({name:""}, err => {
+			Log("ready");
+			TOTEM.ingestFile("./stores/gtd.csv", {
+				target: "gtd",
+				keys: "gname varchar(32),region int(11),eventid varchar(16)",
+				batch: 500,
+				limit: 1e3
+			});
+		});
+		break;
+		
 }
 
 // UNCLASSIFIED
