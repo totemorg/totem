@@ -260,7 +260,7 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 		return idx ? recs.get(idx) : recs;
 	},
 	*/
-	ingestFile: (path, opts, cb) => {
+	ingestFile: (path, opts) => {
 		
 		function parse(buf,idx,keys) {
 			if ( idx ) {	/// at data row
@@ -287,7 +287,10 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 				return keys;
 			}
 		}
-		const {batch,limit,keys,target} = opts || {batch:1e3,limit:0};
+		
+		const 
+			{	batch,limit,keys,target,filter} = opts || {batch:1e3,limit:0},
+			acceptable = filter || (rec => true);
 		
 		if ( target ) {
 			Trace( `INGESTING ${path} => ${target}` );
@@ -303,13 +306,13 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 					streamFile(path, batch, 0, limit, 1, parse, recs => {
 						if ( recs )
 							sqlThread(sql => {
-								Log("Saving",recs.length);
+								Log("filtering",recs.length);
 								//sql.beginBulk();
 								recs.forEach( (rec,i) => {
 									var keep = {};
 									keeps.forEach( key => keep[key] = rec[key] );
-									if (cb) cb(rec,keep);
-									sql.query("INSERT INTO app.?? SET ?", [target,keep]);
+									if ( acceptable(rec) )
+										sql.query("INSERT INTO app.?? SET ?", [target,keep]);
 									// if (i==0) Log(">>>>",keep, keeps, rec);
 								});
 								//sql.endBulk();
@@ -4528,6 +4531,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 				Log("ready");
 				TOTEM.ingestFile("./stores/gtd.csv", {
 					target: "gtd",
+					filter: rec => rec.iyear == 1970,
 					keys: "gname varchar(32),region int(11),eventid varchar(16)",
 					batch: 500,
 					limit: 1e3
