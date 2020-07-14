@@ -4531,7 +4531,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		prime( () => {
 			TOTEM.config({name:""}, err => {
 				Log("ready");
-				TOTEM.ingestFile("./stores/gtd.csv", {
+				TOTEM.ingestFile("./stores/gtdaug/gtd.csv", {
 					target: "gtd",
 					//filter: rec => rec.iyear == 1970,
 					keys: "gname varchar(32),iyear int(11),targtype1_txt varchar(32),weaptype1_txt varchar(16),eventid varchar(16)",
