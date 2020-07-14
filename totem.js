@@ -4532,7 +4532,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 				TOTEM.ingestFile("./stores/gtd.csv", {
 					target: "gtd",
 					filter: rec => rec.iyear == 1970,
-					keys: "gname varchar(32),region int(11),eventid varchar(16)",
+					keys: "gname varchar(32),targtype1_txt varchar(32),weaptype1_txt varchar(16),eventid varchar(16)",
 					batch: 500,
 					limit: 1e3
 				});
