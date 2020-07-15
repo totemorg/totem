@@ -204,7 +204,7 @@ function neoThread(cb) {
 
 const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 			 	sqlThread,filterRecords,isEncrypted,guestProfile,
-			 	streamFile,
+			 	streamFile, streamTable,
 	   		startDogs,startJob,endJob } = TOTEM = module.exports = {
 	
 	mysql: { 		// database connection or null to disable
@@ -260,37 +260,41 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 		return idx ? recs.get(idx) : recs;
 	},
 	*/
-	ingestFile: (path, opts) => {
-		
-		function parse(buf,idx,keys) {
-			if ( idx ) {	/// at data row
-				var 
-					rec = {},
-					cols = buf.split(",");
-				
-				if ( cols.length == keys.length ) {	// full row buffer
-					keys.forEach( (key,m) => rec[key] = cols[m] );
-					/*if ( idx==1)  { //Log(rec);
-						keys.forEach( (key,m) => Log(m,escape(key),cols[m],"=>",rec[key], key == "eventid", key.length) );
-						for (var n=0,x=keys[0]; n<x.length; n++) Log(n,x.charCodeAt(n));
-					} */
-					return rec;
-				}
-				
-				else	// incomplete row buffer
-					return null;
-			}
-			
-			else {	// at header row
-				buf.split(",").forEach( key => keys.push(key));
-				Log(">>>header keys", keys);
-				return keys;
-			}
-		}
+	ingestFile: (sql, path, opts, filter) => {
 		
 		const 
-			{	batch,limit,keys,target,filter} = opts || {batch:1e3,limit:0},
-			acceptable = filter || (rec => true);
+			{batch,limit,keys,target} = opts || {batch:1e3,limit:0,keys:"",target:""},
+			streamOpts = {
+				batch: batch, 
+				limit: limit, 
+				filter: filter,
+				skip: 1, 
+				parse: (buf,idx,keys) => {
+					if ( idx ) {	/// at data row
+						var 
+							rec = {},
+							cols = buf.split(",");
+
+						if ( cols.length == keys.length ) {	// full row buffer
+							keys.forEach( (key,m) => rec[key] = cols[m] );
+							/*if ( idx==1)  { //Log(rec);
+								keys.forEach( (key,m) => Log(m,escape(key),cols[m],"=>",rec[key], key == "eventid", key.length) );
+								for (var n=0,x=keys[0]; n<x.length; n++) Log(n,x.charCodeAt(n));
+							} */
+							return rec;
+						}
+
+						else	// incomplete row buffer
+							return null;
+					}
+
+					else {	// at header row
+						buf.split(",").forEach( key => keys.push(key));
+						Log(">>>header keys", keys);
+						return keys;
+					}
+				}
+			};
 		
 		if ( target ) {
 			Trace( `INGESTING ${path} => ${target}` );
@@ -298,39 +302,52 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 			keeps.forEach( (key,i) => [keeps[i]] = key.split(" ") );
 			//Log("keeps", keeps);
 
-			sqlThread( sql => {
-				sql.query( `CREATE TABLE IF NOT EXISTS app.?? (ID float unique auto_increment,${keys})`, 
-					[target], err => {
-					Log(`CREATE ${target}`,err || "ok");
-					//var saved = 0;
-					streamFile(path, batch, 0, limit, 1, parse, recs => {
-						if ( recs )
-							sqlThread(sql => {
-								Log("filtering",recs.length);
-								//sql.beginBulk();
-								recs.forEach( (rec,i) => {
-									var keep = {};
-									keeps.forEach( key => keep[key] = rec[key] );
-									if ( acceptable(rec) )
-										sql.query("INSERT INTO app.?? SET ?", [target,keep] );
-									// if (i==0) Log(">>>>",keep, keeps, rec);
-								});
-								//sql.endBulk();
-							});
+			sql.query( `CREATE TABLE IF NOT EXISTS app.?? (ID float unique auto_increment,${keys})`, 
+				[target], err => {
+				Log(`CREATE ${target}`,err || "ok");
+				
+				streamFile(path, streamOpts, recs => {
+					if ( recs )
+						recs.forEach( (rec,i) => {
+							var keep = {};
+							keeps.forEach( key => keep[key] = rec[key] );
+							sql.query("INSERT INTO app.?? SET ?", [target,keep] );
+						});
 
-						else 
-							Trace( `INGESTED ${path}` );
-					});
+					else 
+						Trace( `INGESTED ${path}` );
 				});
 			});
 		}
 		
-		
-		else 
-			streamFile(path, 1, 0, 1, 1, parse, recs => Log(recs) );
+		else // debugging
+			streamFile(path, Copy({batch:1,limit:1},streamOpts), recs => Log(recs) );
 	},
 
-	streamFile: (path, batch, threshold, limit, skip, parse, cb) => {
+	streamTable: (sql, table, {batch, filter, limit, skip}, cb) => {
+		if ( batch ) 
+			sql.query( "SELECT count(id) AS recs FROM app.??", table, (err,info) => {
+				for (	var offset=skip||0,total=0,recs=info[0].recs; offset<recs; offset+=batch ) {
+					sql.query( 
+						"SELECT * FROM app.?? LIMIT ? OFFSET ?", 
+						[table,batch,offset], (err,recs) => {
+
+							if ( !limit || (total < limit) )
+								cb(recs);
+
+							total += recs.length;
+						});
+					
+				}
+			});
+				
+		else
+			sql.query( "SELECT * FROM app.??", [table], (err,recs) => {
+				cb( limit ? recs.slice(0,limit) : recs );
+			});			
+	},
+									
+	streamFile: (path, {batch, filter, limit, skip, parse}, cb) => {
 		var keys = [];
 		FS.open( path, "r", (err, fd) => {
 			if (err) 
@@ -354,7 +371,8 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 														pos++,	// advance position marker
 														keys	// stash for header keys
 													) ) {	// valid event record so stack it
-											if ( !threshold || random() <= threshold ) {
+											
+											if ( !filter || filter(rec) ) {	// stack valid records
 												if ( pos > skip ) {	// past the skip point
 													recs.push( rec );	// extend record batch
 													tot++;	// adjust total number of records processed
@@ -1001,14 +1019,11 @@ Log("line ",idx,line.length);
 				Attach port listener to server then start it.
 				*/
 				function startService() {
-					const { crudIF, router, domain, sockets } = TOTEM;
-					const { worker,master } = domain;
+					const 
+						{ crudIF, router, domain, sockets, name, server } = TOTEM,
+						{ worker,master } = domain,
+						{ mysql } = paths;
 					
-					var 
-						name = TOTEM.name,
-						server = TOTEM.server,
-						mysql = paths.mysql;
-
 					Trace(`STARTING ${name}`);
 
 					/*
@@ -1021,7 +1036,6 @@ Log("line ",idx,line.length);
 						}
 					}; */
 
-					//if (server) 			// attach responder
 					server.on("request", (Req,Res) => {		// start session
 						/**
 						Start session and protect from denial of service attacks and, if unsuccessful then 
@@ -1323,9 +1337,6 @@ Log("line ",idx,line.length);
 						});
 					});
 
-					//else
-					//	return cb( errors.noService );
-
 					if ( sockets ) {   // attach socket.io and setup connection listeners
 						var 
 							IO = TOTEM.IO = new SIO(server, { // use defaults but can override ...
@@ -1471,9 +1482,7 @@ Log("line ",idx,line.length);
 
 				const 
 					{host,name,cache,trustStore} = TOTEM,
-					{certs} = cache;
-				
-				var 
+					{certs} = cache,
 					cert = certs.totem = {  // totem service certs
 						pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
 						key: FS.readFileSync(`${paths.certs}${name}.key`),
@@ -1553,9 +1562,9 @@ Log("line ",idx,line.length);
 			if ( isEncrypted() )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
 					if (err) // create the pfx cert then connect
-						createCert(name,host.encrypt, () => {
+						createCert(name, host.encrypt, () => {
 							connectService();
-						});				
+						});	
 
 					else // got the pfx so connect
 						connectService();
@@ -1620,10 +1629,13 @@ Log("line ",idx,line.length);
 					//	if (key in paths) paths[key] = mysql[key];
 
 					if (name)	// derive site context
-						setContext(sql, () => protectService(router) );
+						setContext(sql, () => {
+							protectService(router);
+							cb(sql);
+						});
 					
 					else
-						cb( null );
+						cb( sql );
 					
 				});
 		});	
@@ -4230,9 +4242,9 @@ switch (process.argv[2]) { //< unit tests
 			mysql: null,
 			guard: true,
 			cores: 2
-		}, err => {
+		}, sql => {
 
-			Trace( err || 
+			Trace( 
 `I'm a Totem service running in fault protection mode, no database, no UI; but I am running
 with 2 workers and the default endpoint routes` );
 
@@ -4250,8 +4262,8 @@ with 2 workers and the default endpoint routes` );
 	*/
 
 		TOTEM.config({
-		},  err => {
-			Trace( err ||
+		}, sql => {
+			Trace( 
 `I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
 my startup options (see the openv.apps table for the Nick="Totem1").  
 No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
@@ -4294,8 +4306,8 @@ these files. `
 					});
 				}
 			}
-		}, err => {
-			Trace( err || {
+		}, sql => {
+			Trace({
 				msg:
 `As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
 and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
@@ -4316,8 +4328,8 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 		
 		TOTEM.config({
 			riddles: 20
-		}, err => {
-			Trace( err || {
+		}, sql => {
+			Trace({
 				msg:
 `I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
 shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.`, 
@@ -4374,8 +4386,8 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 				}
 			}
 
-		}, err => {
-			Trace( err || "Testing runTask with database and 3 cores at /test endpoint" );
+		}, sql => {
+			Trace( "Testing runTask with database and 3 cores at /test endpoint" );
 		});
 		break;
 		
@@ -4385,11 +4397,10 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 	*/
 		
 		TOTEM.config({
-		},  err => {				
-			Trace( err || "db maintenance" );
+		}, sql => {				
+			Trace( "db maintenance" );
 
 			if (CLUSTER.isMaster)
-			sqlThread( sql => {
 				switch (process.argv[3]) {
 					case 1: 
 						sql.query( "select voxels.id as voxelID, chips.id as chipID from app.voxels left join app.chips on voxels.Ring = chips.Ring", function (err,recs) {
@@ -4482,7 +4493,6 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 						});
 						break;	
 				}
-			});
 		});		
 		break;
 		
@@ -4529,34 +4539,42 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		
 	case "T9":
 		prime( () => {
-			TOTEM.config({name:""}, err => {
+			TOTEM.config({name:""}, sql => {
 				Log("ready");
-				TOTEM.ingestFile("./stores/gtdaug/gtd.csv", {
+				TOTEM.ingestFile(sql, "./stores/gtdaug/gtd.csv", {
 					target: "gtd",
-					//filter: rec => rec.iyear == 1970,
 					keys: "gname varchar(32),iyear int(11),targtype1_txt varchar(32),weaptype1_txt varchar(16),eventid varchar(16)",
 					batch: 500,
-					limit: 0
-				});
+					limit: 500
+				},
+					// rec => rec.iyear != 1970,												
+				);
 			});
 		});
 		break;
 		
 	case "T10":
 		prime( () => {
-			TOTEM.config({name:""}, err => {
+			TOTEM.config({name:""}, sql => {
 				Log("ready");
-				TOTEM.ingestFile("./stores/nartocracy/centam.csv", {
+				TOTEM.ingestFile(sql, "./stores/nartocracy/centam.csv", {
 					target: "centam",
-					filter: rec => rec.Country == "Mexico",
 					keys: "Criminal_group varchar(32),_Year int(11),Outlet_name varchar(32),Event varchar(32),Rival_group varchar(32),_Eventid varchar(8)",
 					batch: 500,
 					limit: 0
-				});
+				},
+					rec => rec.Country == "Mexico"
+				);
 			});
 		});
 		break;
 		
+	case "T11":
+		TOTEM.config({name:""}, sql => {
+			streamTable(sql,"gtd", {batch:100}, recs => {
+				Log("streamed", recs.length);
+			});
+		});
 }
 
 // UNCLASSIFIED
