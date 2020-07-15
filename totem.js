@@ -327,23 +327,33 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 	streamTable: (sql, table, {batch, filter, limit, skip}, cb) => {
 		if ( batch ) 
 			sql.query( "SELECT count(id) AS recs FROM app.??", table, (err,info) => {
-				for (	var offset=skip||0,total=0,recs=info[0].recs; offset<recs; offset+=batch ) {
-					sql.query( 
-						"SELECT * FROM app.?? LIMIT ? OFFSET ?", 
-						[table,batch,offset], (err,recs) => {
+				if ( recs=info[0].recs ) 
+					for (	var offset=skip||0,total=0,reads=0; offset<recs; offset+=batch ) {
+						sql.query( 
+							"SELECT * FROM app.?? LIMIT ? OFFSET ?", 
+							[table,batch,offset], (err,data) => {
 
-							if ( !limit || (total < limit) )
-								cb(recs);
+								//Log(total,limit,reads,recs);
 
-							total += recs.length;
-						});
-					
-				}
+								if ( !limit || (total < limit) )
+									cb(data);
+
+								reads += batch;
+								if ( reads >= recs )  // signal end
+									cb(null);
+
+								total += data.length;
+							});
+					}
+				
+				else	// signal end
+					cb(null);
 			});
 				
 		else
 			sql.query( "SELECT * FROM app.??", [table], (err,recs) => {
 				cb( limit ? recs.slice(0,limit) : recs );
+				cb( null ); // signal end
 			});			
 	},
 									
