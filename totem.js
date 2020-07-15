@@ -268,7 +268,7 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 				batch: batch, 
 				limit: limit, 
 				filter: filter,
-				skip: 1, 
+				skip: 1, // skip csv header
 				parse: (buf,idx,keys) => {
 					if ( idx ) {	/// at data row
 						var 
@@ -4547,7 +4547,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 					batch: 500,
 					limit: 500
 				},
-					// rec => rec.iyear != 1970,												
+					// rec => rec.iyear != 1970,
 				);
 			});
 		});
