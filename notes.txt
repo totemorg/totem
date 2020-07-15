@@ -1152,3 +1152,61 @@ sh /Anaconda-xxxx.sh
 # ln -s anaconda anaconda-xxxx
 conda init   # post install init
 conda install -c plotly plotly  # install plotly etc packages
+
+############ ocr
+# following https://medium.com/@jjagadish.in/install-tesseract-3-04-on-centos-7-4573465d8867
+
+Used versions:
+Tesseract: 3.04.01 tesseract-3.04.01.tar.gz
+Leptonica: 1.73 leptonica-1.73.tar.gz
+Tesseract-ocr 3.02 tesseract-ocr-3.02.deu.tar.gz, tesseract-ocr-3.02.eng.tar.gz, tesseract-ocr-3.02.nld.tar.gz
+GhostScript: Install Tesseract 3.04 on CentOs 7
+
+I executed all commands as root, but if you prefer, you can use another account and ‘sudo‘ the commands
+
+1) First update your system:
+yum update
+
+Because Tesseract-ocr is not available using yum, we need to download source and build both Tesseract-ocr and leptonica.
+This requires development tools to be installed.
+yum groupinstall “Development tools”
+yum -y install automake autoconf libtool zlib-devel libjpeg-devel giflib libtiff-devel libwebp libwebp-devel libicu-devel openjpeg-devel cairo-devel
+
+2) Now download and install Leptonica:
+wget http://www.leptonica.com/source/leptonica-1.73.tar.gz
+tar xzvf leptonica-1.73.tar.gz
+cd leptonica-1.73
+./configure
+make
+make install
+
+3) Download and install Tesseract:
+wget https://github.com/tesseract-ocr/tesseract/archive/3.04.01.tar.gz
+mv 3.04.01.tar.gz tesseract-3.04.01.tar.gz
+tar xzvf tesseract-3.04.01.tar.gz
+cd tesseract-3.04.01/
+./autogen.sh
+./configure
+make
+make install
+ldconfig
+
+4) Download and install Tesseract trainer files:
+wget https://sourceforge.net/projects/tesseract-ocr-alt/files/tesseract-ocr-3.02.eng.tar.gz
+wget https://sourceforge.net/projects/tesseract-ocr-alt/files/tesseract-ocr-3.02.nld.tar.gz
+wget https://sourceforge.net/projects/tesseract-ocr-alt/files/tesseract-ocr-3.02.deu.tar.gz
+tar xzvf tesseract-ocr-3.02.eng.tar.gz
+tar xzvf tesseract-ocr-3.02.nld.tar.gz
+tar xzvf tesseract-ocr-3.02.deu.tar.gz
+
+5) Export TESSDATA_PREFIX:
+export TESSDATA_PREFIX=/usr/share/tesseract-ocr/tessdata
+
+6) Last, install Ghostscript for processing png:
+wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs920/ghostscript-9.20.tar.gz
+tar xzvf ghostscript-9.20.tar.gz
+cd ghostscript-9.20/
+./autogen.sh
+./configure
+make
+make install
