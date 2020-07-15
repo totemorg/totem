@@ -325,13 +325,18 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 	},
 
 	streamTable: (sql, table, {batch, filter, limit, skip}, cb) => {
+		
 		if ( batch ) 
 			sql.query( "SELECT count(id) AS recs FROM app.??", table, (err,info) => {
 				if ( recs=info[0].recs ) 
 					for (	var offset=skip||0,total=0,reads=0; offset<recs; offset+=batch ) {
-						sql.query( 
-							"SELECT * FROM app.?? LIMIT ? OFFSET ?", 
-							[table,batch,offset], (err,data) => {
+						sql.query( filter
+							? "SELECT * FROM app.?? WHERE least(?,1) LIMIT ? OFFSET ?"
+							: "SELECT * FROM app.?? LIMIT ? OFFSET ?", 
+							
+							filter
+							? [table,filter,batch,offset]
+							: [table,batch,offset], (err,data) => {
 
 								//Log(total,limit,reads,recs);
 
@@ -351,7 +356,10 @@ const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
 			});
 				
 		else
-			sql.query( "SELECT * FROM app.??", [table], (err,recs) => {
+			sql.query( filter
+				? "SELECT * FROM app.?? WHERE least(?,1)"
+				: "SELECT * FROM app.??", [table,filter], (err,recs) => {
+				
 				cb( limit ? recs.slice(0,limit) : recs );
 				cb( null ); // signal end
 			});			
@@ -4555,7 +4563,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 					target: "gtd",
 					keys: "gname varchar(32),iyear int(11),targtype1_txt varchar(32),weaptype1_txt varchar(16),eventid varchar(16)",
 					batch: 500,
-					limit: 500
+					limit: 0
 				},
 					// rec => rec.iyear != 1970,
 				);
