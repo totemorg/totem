@@ -4593,6 +4593,19 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 				Log("streamed", recs.length);
 			});
 		});
+		break;
+			
+	case "T12":
+		prime( () => {
+			TOTEM.config({name:""}, sql => {
+				var q = sql.query("SELECT * FROM gtd where(?) LIMIT 1",{"a<":1}, err => Log(err));
+				Log(q.sql);
+			});
+		});
+		break;
+			
+
+			
 }
 
 // UNCLASSIFIED

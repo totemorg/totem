@@ -1172,6 +1172,15 @@ This requires development tools to be installed.
 yum groupinstall “Development tools”
 yum -y install automake autoconf libtool zlib-devel libjpeg-devel giflib libtiff-devel libwebp libwebp-devel libicu-devel openjpeg-devel cairo-devel
 
+1.1) make sue all image libs installbefore before installing leptaonica
+# see https://stackoverflow.com/questions/41558176/how-to-install-libpng-using-yum
+
+#yum install libgif-devel
+yum install libjpeg-devel
+yum install libpng-devel
+#yum install libtiff-devel
+yum install zlib-devel
+
 2) Now download and install Leptonica:
 wget http://www.leptonica.com/source/leptonica-1.73.tar.gz
 tar xzvf leptonica-1.73.tar.gz
