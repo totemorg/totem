@@ -202,11 +202,15 @@ function neoThread(cb) {
 
 ].Extend(NEOCONNECTOR);
 
-const { operators, reqFlags,paths,errors,site,probeSite, maxFiles,
+const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			 	sqlThread,filterRecords,isEncrypted,guestProfile,
-			 	streamFile, streamTable,
+			 	streamFile, streamTable, dsroutes,
 	   		startDogs,startJob,endJob } = TOTEM = module.exports = {
 	
+	dsroutes: {
+		default: ctx => "app."+ctx.table
+	},
+
 	mysql: { 		// database connection or null to disable
 		host: ENV.MYSQL_HOST,
 		user: ENV.MYSQL_USER,
@@ -985,7 +989,7 @@ Log("line ",idx,line.length);
 			return err+"";
 		},
 		badMethod: new Error("unsupported request method"),
-		noProtocol: new Error("no protocol specified to fetch"),
+		noProtocol: new Error("no fetch protocol specified"),
 		noRoute: new Error("no route"),
 		badQuery: new Error("invalid query"),
 		badGroup: new Error("invalid group requested"),
@@ -1004,7 +1008,7 @@ Log("line ",idx,line.length);
 		noSockets: new Error("socket.io failed"),
 		noService: new Error("no service  to start"),
 		noData: new Error("invalid dataset or query"),
-		retry: new Error("data fetch retries exceeded"),
+		retry: new Error("fetch retries exceeded"),
 		notAllowed: new Error("this endpoint is disabled"),
 		noID: new Error("missing record id"),
 		noSession: new Error("no such session started"),
@@ -1499,25 +1503,23 @@ Log("line ",idx,line.length);
 				}
 
 				const 
-					{host,name,cache,trustStore} = TOTEM,
-					{certs} = cache,
-					cert = certs.totem = {  // totem service certs
+					{host,name,cache,trustStore,certs} = TOTEM,
+					totem = certs.totem = {  // totem service certs
 						pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
 						key: FS.readFileSync(`${paths.certs}${name}.key`),
 						crt: FS.readFileSync(`${paths.certs}${name}.crt`)
+					},
+					fetch = certs.fetch = { 		// data fetching certs
+						pfx: FS.readFileSync(`${paths.certs}fetch.pfx`),
+						key: FS.readFileSync(`${paths.certs}fetch.key`),
+						crt: FS.readFileSync(`${paths.certs}fetch.crt`),
+						ca: "", //FS.readFileSync(`${paths.certs}fetch.ca`),			
+						_pfx: `${paths.certs}fetch.pfx`,
+						_crt: `${paths.certs}fetch.crt`,
+						_key: `${paths.certs}fetch.key`,
+						_ca: `${paths.certs}fetch.ca`,
+						_pass: ENV.FETCH_PASS
 					};
-
-				certs.fetch = { 		// data fetching certs
-					pfx: FS.readFileSync(`${paths.certs}fetch.pfx`),
-					key: FS.readFileSync(`${paths.certs}fetch.key`),
-					crt: FS.readFileSync(`${paths.certs}fetch.crt`),
-					ca: "", //FS.readFileSync(`${paths.certs}fetch.ca`),			
-					_pfx: `${paths.certs}fetch.pfx`,
-					_crt: `${paths.certs}fetch.crt`,
-					_key: `${paths.certs}fetch.key`,
-					_ca: `${paths.certs}fetch.ca`,
-					_pass: ENV.FETCH_PASS
-				};
 
 				//Log( TOTEM.isEncrypted, CLUSTER.isMaster, CLUSTER.isWorker );
 
@@ -1536,7 +1538,7 @@ Log("line ",idx,line.length);
 
 					TOTEM.server = HTTPS.createServer({
 						passphrase: host.encrypt,		// passphrase for pfx
-						pfx: cert.pfx,			// pfx/p12 encoded crt and key 
+						pfx: totem.pfx,			// pfx/p12 encoded crt and key 
 						ca: trustStore,				// list of pki authorities (trusted serrver.trust)
 						crl: [],						// pki revocation list
 						requestCert: true,
@@ -1630,13 +1632,12 @@ Log("line ",idx,line.length);
 				});  
 		});
 		
-		const {dbTrack,probeSite,reroute,router,setContext,name} = TOTEM;
+		const {dbTrack,fetch,router,setContext,name} = TOTEM;
 		
 		JSDB.config({   // establish the db agnosticator 
 			//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server starte
 			track: dbTrack,
-			probeSite: probeSite,				
-			reroute: reroute  // db translators
+			fetch: fetch			
 		}, err => {  // derive server vars and site context vars
 			if (err)
 				Trace(err);
@@ -1688,13 +1689,6 @@ Log("line ",idx,line.length);
 	requestFile: sysFile,
 	
 	queues: JSDB.queues, 	// pass along
-		
-	/**
-		Table security providers { "db.table": ctx => "db.table", ... }
-		@cfg {Object}
-	*/
-	reroute: { //< table security providers
-	},
 		
 	/**
 		Common methods for task sharding
@@ -1800,12 +1794,12 @@ Log("line ",idx,line.length);
 						if ( isArray(task) )
 							task.forEach( task => {		// multiple tasks supplied
 								nodeReq.task = task+"";
-								probeSite( nodeURL, nodeReq );
+								fetch( nodeURL, nodeReq );
 							});
 
 						else {	// post the task request to the node
 							nodeReq.task = task+"";
-							probeSite( nodeURL, nodeReq );
+							fetch( nodeURL, nodeReq );
 						}
 
 					else
@@ -2166,6 +2160,8 @@ Log("line ",idx,line.length);
 
 	//====================================== MISC
 		
+	fetchRetries: 5,		// fetch wget/curl retries
+		
 	/**
 		Probes service path using PUT || POST || DELETE method given Array || Object || null params,
 		or fetches data from service path using GET method with callsback to params.
@@ -2174,91 +2170,37 @@ Log("line ",idx,line.length);
 		@param {String} path prefixed by http || https || curl || curls || wget || wgets || /path protocol
 		@param {Object, Array, Function, null} method induces probe method
 	*/
-	probeSite: Copy({
-		/**
-			Maximum number of retries the data probeSite will user
-			@cfg {Number} [retries=5]
-		*/				
-		retries: 5,			//< Maximum number of retries the data probeSite will user
-
-		/**
-			Enable/disable tracing of data fetchers
-			@cfg {Boolean} [trace=true]
-		*/		
-		trace: true 		//< Enable/disable tracing of data fetchers		
-	}, function probeSite(path, method) {	//< data fetching
+	fetch: (path, data) => {	//< data fetching
 	
-		function retry(cmd, cb) {  // wget-curl retry logic
-
-			function trycmd(retries, cmd, cb) {
-
-				if (trace)
-					Trace(`TRY[${opts.retry}] ${cmd}`);
-
-				CP.exec(cmd, function (err,stdout,stderr) {
-					if (err) 
-						if ( retries ) 
-							trycmd( --retries, cmd, cb);
-
-						else
-							cb( errors.retry );
-
-					else
-					if (cb) cb(null, stdout);
-				});
-			}
-
-			if ( retries ) 
-				trycmd( retries, cmd, cb);
-
-			else
-				CP.exec(cmd, function (err,stdout,stderr) {			
-					cb( err , stdout );
-				});
-		}
-
-		function getResponse(Res) {
-			var body = "";
-			Res.on("data", function (chunk) {
-				body += chunk.toString();
-			});
-
-			Res.on("end", function () {
-				//Log('fetch statusCode:', Res.statusCode);
-				//Log('fetch headers:', Res.headers['public-key-pins']);	// Print the HPKP values
-
-				if ( opts.method == "GET" )
-					method( body );
-
-				else
-					Trace("PROBE "+body);
-			});
-		}
-
 		function sha256(s) { // reserved for other functionality
 			return CRYPTO.createHash('sha256').update(s).digest('base64');
 		}
 
-		var 
+		const
 			url = path.startsWith("/") ? TOTEM.host.master + path : path,
 			opts = URL.parse(url),
-			trace = this.trace,
-			retries = this.retries,
-			cert = TOTEM.cache.certs.fetch,
 			crud = {
 				"Function": "GET",
 				"Array": "PUT",
 				"Object": "POST",
 				"Null": "DELETE"
-			};
+			},
 
+			// for wget-curl
+			{ fetchRetries,certs } = TOTEM,
+			cert = certs.fetch,
+			wget = url.split("////"),
+			wurl = wget[0],
+			wout = wget[1] || "./temps/wget.jpg";
+		
 		opts.rejectUnauthorized = false;
-		opts.method = crud[ method ? typeOf(method) : "Null" ] ;
+		opts.method = crud[ data ? typeOf(data) : "Null" ] ;
 		// opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
 		// opts.cipher = " ... "
 		// opts.headers = { ... }
 		// opts.Cookie = ["x=y", ...]
-		/*if (opts.soap) {
+		/*
+		if (opts.soap) {
 			opts.headers = {
 				"Content-Type": "application/soap+xml; charset=utf-8",
 				"Content-Length": opts.soap.length
@@ -2266,39 +2208,29 @@ Log("line ",idx,line.length);
 			opts.method = "POST";
 		}*/
 
-		Trace("PROBE "+url);
+		Trace("FETCH "+url);
 
 		switch ( opts.protocol || "" ) {
 			case "curl:": 
-				retry( `curl ` + url.replace(protocol, "http:"), (err,out) => {
+				CP.exec( `curl --retry ${fetchRetries} ` + url.replace(protocol, "http:"), (err,out) => {
 					cb( err ? "" : out );
 				});
 				break;
 
 			case "curls:":
-				retry( `curl -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"), (err,out) => {
+				CP.exec( `curl --retry ${fetchRetries} -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"), (err,out) => {
 					cb( err ? "" : out );
 				});	
 				break;
 
 			case "wget:":
-				var 
-					parts = url.split("////"),
-					url = parts[0],
-					out = parts[1] || "./temps/wget.jpg";
-
-				retry( `wget -O ${out} ` + url.replace(protocol, "http:"), err => {
+				CP.exec( `wget --tries=${fetchRetries} -O ${wout} ` + wurl.replace(protocol, "http:"), err => {
 					cb( err ? "" : "ok" );
 				});
 				break;
 
 			case "wgets:":
-				var 
-					parts = url.split("////"),
-					url = parts[0],
-					out = parts[1] || "./temps/wget.jpg";
-
-				retry( `wget -O ${out} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + url.replace(protocol, "https:"), err => {
+				CP.exec( `wget --tries=${fetchRetries} -O ${wout} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + wurl.replace(protocol, "https:"), err => {
 					cb( err ? "" : "ok" );
 				});
 				break;
@@ -2349,20 +2281,28 @@ Log("line ",idx,line.length);
 					};
 				*/
 
-				opts.agent = new HTTPS.Agent({
-					//pfx: cert.pfx,	// pfx or use cert-and-key
-					cert: cert.crt,
-					key: cert.key,
-					passphrase: cert._pass
-				});
+				opts.agent = new HTTPS.Agent( false 
+					? {
+							//pfx: cert.pfx,	// pfx or use cert-and-key
+							cert: cert.crt,
+							key: cert.key,
+							passphrase: cert._pass
+						} 
+					: {
+						} );
 
 			case "http:":
-				try {
-					var Req = HTTP.request(opts, getResponse);
-				} 
-				catch (err) {
-					Trace(err+"");
-				}
+				var Req = HTTP.request(opts, Res => { // get reponse body text
+					var body = "";
+					Res.on("data", chunk => body += chunk.toString() );
+
+					Res.on("end", () => {
+						//Log('fetch statusCode:', Res.statusCode);
+						//Log('fetch headers:', Res.headers['public-key-pins']);	// Print the HPKP values
+
+						if ( opts.method == "GET" ) data( body );
+					});
+				});
 
 				Req.on('error', err => {
 					Trace(err+"");
@@ -2375,7 +2315,7 @@ Log("line ",idx,line.length);
 
 					case "POST":
 					case "PUT":
-						Req.write( JSON.stringify(method) );  // post parms
+						Req.write( JSON.stringify(data) );  // post parms
 						break;
 				}					
 
@@ -2383,7 +2323,7 @@ Log("line ",idx,line.length);
 				break;
 		}
 
-	}),
+	},
 
 	/**
 		Enable/disable service fault protection guards
@@ -2678,11 +2618,13 @@ Log("line ",idx,line.length);
 
 	},
 
+	certs: {}, 		// server and client cert cache (pfx, crt, and key)
+
 	/**
 		File cache
 		@cfg {Object} 
 	*/		
-	cache: { 				//< cacheing options
+	cache: { 				//< file cacheing options
 
 		never: {	//< files to never cache - useful while debugging client side stuff
 			"base.js": 1,
@@ -2695,11 +2637,7 @@ Log("line ",idx,line.length);
 		},
 
 		"socket.io": {  // cache socketio area
-		},
-
-		//learnedTables: true, 
-
-		certs: {} 		// cache client crts (pfx, crt, and key reserved for server)
+		}
 	}
 
 };
@@ -2852,16 +2790,14 @@ function validateClient(req,res) {
 			return null;
 	}
 	
-	const {sql,encrypted,reqSocket,client} = req;
-	const {admitClient} = TOTEM;
-	
-	var 
+	const 
+		{ sql,encrypted,reqSocket,client } = req,
+		{ admitClient } = TOTEM,
+		{ mysql } = paths,
 		cert = encrypted ? getCert( reqSocket ) : null,
-		certs = TOTEM.cache.certs,
-		guest = "guest@guest.org",
-		mysql = paths.mysql;
+		guest = "guest@guest.org" ;
 	
-	req.cert = certs[client] = cert ? new Object(cert) : null;
+	//req.cert = certs[client] = cert ? new Object(cert) : null;
 	req.joined = new Date();
 	req.client = ( cert 
 		? (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || guest).split(",")[0].replace("email:","")
@@ -3322,24 +3258,31 @@ function challengeClient (sql, client, profile) {
 	@param {Function} res Totem's response callback
 */
 function selectDS(req, res) {
-	const { sql, flags, client, where, index, action, table } = req;
+	const 
+		{ sql, flags, client, where, index, action, table } = req,
+		{ trace, pivot, browse, sort, limit, offset } = flags,
+		ds = (dsroutes[table] || dsroutes.default)(req);
+	
+	sql.Index( ds, index, [], (index,jsons) => {
+		sql.Query(
+			"SELECT SQL_CALC_FOUND_ROWS ${index} FROM ?? ${where} ${having} ${limit} ${offset}", 
+			[ ds ], {
+				trace: trace,
+				pivot: pivot,
+				browse: browse,		
+				sort: sort,
+				limit: limit || 0,
+				offset: offset || 0,
+				where: where,
+				index: index,
+				having: null,
+				jsons: jsons,
+				client: client
+			}, (err,recs) => {
+			
+			res( err || recs );
 
-	sql.Query({
-		trace: flags.trace,
-		pivot: flags.pivot,
-		browse: flags.browse,		
-		sort: flags.sort,
-		limit: flags.limit || 0,	// trouble with extjs client ?
-		offset: flags.offset || 0,
-		crud: action,
-		from: table,
-		where: where,
-		index: index,
-		having: {},
-		client: client
-	}, null, (err,recs) => {
-
-		res( err || recs );
+		});
 	});
 }
 
@@ -3349,21 +3292,23 @@ function selectDS(req, res) {
 	@param {Function} res Totem's response callback
 */
 function insertDS(req, res) {
-	const { sql, flags, body, client, action, table } = req;
+	const 
+		{ sql, flags, body, client, action, table } = req,
+		{ trace } = flags,
+		ds = (dsroutes[table] || dsroutes.default)(req);
 
-	Log(">>>>>>>>>>>>>>post", req.query);
-	sql.Query({
-		trace: flags.trace,
-		crud: action,
-		from: table,
-		set: body,
-		client: client
-	}, TOTEM.emitter, (err,info) => {
+	//Log(">>>>>>>>>>>>>>post", req.query);
+	sql.Query(
+		"INSERT INTO ?? ${set}", [ds], {
+			trace: trace,
+			set: body,
+			client: client,
+			emitter: TOTEM.emitter
+		}, (err,info) => {
 
-		res( err || info );
+			res( err || info );
 
-	});
-	
+		});
 }
 
 /**
@@ -3372,24 +3317,26 @@ function insertDS(req, res) {
 	@param {Function} res Totem's response callback
 */	
 function deleteDS(req, res) {
-	const { sql, flags, where, query, client, action, table } = req;
+	const 
+		{ sql, flags, where, query, client, action, table } = req,
+		{ trace } = flags,
+		ds = (dsroutes[table] || dsroutes.default)(req);
 
 	if ( isEmpty(where) )
 		res( errors.noID );
 		
 	else
-		sql.Query({
-			trace: flags.trace,			
-			crud: action,
-			from: table,
-			where: where,
-			client: client
-		}, TOTEM.emitter, (err,info) => {
+		sql.Query(
+			"DELETE FROM ?? ${where}", [ds], {
+				trace: trace,			
+				where: where,
+				client: client,
+				emitter: TOTEM.emitter
+			}, (err,info) => {
 
-			res( err || info );
+				res( err || info );
 
-		});
-	
+			});
 }
 
 /**
@@ -3398,7 +3345,10 @@ function deleteDS(req, res) {
 	@param {Function} res Totem's response callback
 */	
 function updateDS(req, res) {
-	const { sql, flags, body, where, client, action, table } = req;
+	const 
+		{ sql, flags, body, where, client, action, table } = req,
+		{ trace } = flags,
+		ds = (dsroutes[table] || dsroutes.default)(req);
 	
 	if ( isEmpty(body) )
 		res( errors.noBody );
@@ -3408,21 +3358,22 @@ function updateDS(req, res) {
 		res( errors.noID );
 	
 	else
-		sql.Query({
-			trace: flags.trace,
-			crud: action,
-			from: table,
-			where: where,
-			set: body,
-			client: client
-		}, TOTEM.emitter, (err,info) => {
+		sql.Query(
+			"UPDATE ?? ${set} ${where}", [ds], {
+				trace: trace,
+				from: table,
+				where: where,
+				set: body,
+				client: client,
+				emitter: TOTEM.emitter
+			}, (err,info) => {
 
-			res( err || info );
+				res( err || info );
 
-			if ( onUpdate = TOTEM.onUpdate )
-				onUpdate(sql, table, body);
-			
-		});
+				if ( onUpdate = TOTEM.onUpdate )
+					onUpdate(sql, table, body);
+
+			});
 	
 }
 
@@ -3556,7 +3507,7 @@ function insertUser (req,res) {
 				"SELECT * FROM openv.profiles WHERE Requested AND NOT Approved AND least(?,1)", 
 				query.user ? {User: query.user} : 1 )
 				
-			.on("result", function (user) {
+			.on("result", user => {
 				var init = Copy({	
 					Approved: new Date(),
 					Banned: url.resetpass
@@ -3606,13 +3557,13 @@ To connect to ${site.Nick} from Windows:
 					[ init, {User: user.User} ],
 					err => {
 						
-						createCert(user.User, pass, function () {
+						createCert(user.User, pass, () => {
 
 							Trace(`CREATE CERT FOR ${user.User}`, req);
 							
 							CP.exec(
 								`sudo adduser ${user.User} -gid ${user.Group}; sudo id ${user.User}`,
-								function (err,out) {
+								(err,out) => {
 									
 									sql.query(
 										"UPDATE openv.profiles SET ? WHERE ?",
@@ -3627,7 +3578,7 @@ To connect to ${site.Nick} from Windows:
 						});
 				});
 			})
-			.on("end", function() {
+			.on("end", () => {
 				res("Creating user");
 			});
 		
@@ -4603,9 +4554,17 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 			});
 		});
 		break;
-			
-
-			
+		
+	case "G1":
+		prime( () => {
+			TOTEM.config({name:""}, sql => {
+				Log("here!");
+				fetch("https://www.googleapis.com/customsearch/v1?key=AIzaSyBp56CJJA0FE5enebW5_4mTssTGaYzGqz8&cx=017944666033550212559:c1vclesecjc&q=walmart&gl=us", txt => {
+					Log(txt);
+				});
+			});
+		});
+		break;			
 }
 
 // UNCLASSIFIED
