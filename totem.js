@@ -446,7 +446,6 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 		sql: connector 		// sql database connector 
 
 		// phase2 admission
-		cert: {...} 	// pki cert
 		joined: date	// time admitted
 		client: "..."		// name of client from cert or "guest"
 
@@ -470,7 +469,7 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 	@param {Object} req http/https request
 	@param {Object} res http/https response
 	*/
-	router: (req,res) => {
+	routeSession: (req,res) => {
 		/**
 		Parse the node=/dataset.type on the current req thread, then route using byArea, byType, byTable,
 		byActionTable, or byAction routers.
@@ -1042,7 +1041,7 @@ Log("line ",idx,line.length);
 				*/
 				function startService() {
 					const 
-						{ crudIF, router, domain, sockets, name, server } = TOTEM,
+						{ crudIF, routeSession, domain, sockets, name, server } = TOTEM,
 						{ worker,master } = domain,
 						{ mysql } = paths;
 					
@@ -1081,12 +1080,8 @@ Log("line ",idx,line.length);
 								var post = ""; 
 
 								Req
-								.on("data", function (chunk) {
-									post += chunk.toString();
-								})
-								.on("end", function () {
-									cb( post );
-								});
+								.on("data", chunk => post += chunk.toString() )
+								.on("end", () => cb( post ) );
 							}
 
 							var
@@ -1354,7 +1349,7 @@ Log("line ",idx,line.length);
 
 							Req.req = req;
 							startResponse( res => {	// phase3 route 
-								router(req,res);
+								routeSession(req,res);
 							});
 						});
 					});
@@ -1632,7 +1627,7 @@ Log("line ",idx,line.length);
 				});  
 		});
 		
-		const {dbTrack,fetch,router,setContext,name} = TOTEM;
+		const {dbTrack,fetch,routeSession,setContext,name} = TOTEM;
 		
 		JSDB.config({   // establish the db agnosticator 
 			//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server starte
@@ -1649,7 +1644,7 @@ Log("line ",idx,line.length);
 
 					if (name)	// derive site context
 						setContext(sql, () => {
-							protectService(router);
+							protectService(routeSession);
 							cb(sql);
 						});
 					
