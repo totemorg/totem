@@ -1182,19 +1182,29 @@ yum install libpng-devel
 yum install zlib-devel
 
 2) Now download and install Leptonica:
-wget http://www.leptonica.com/source/leptonica-1.73.tar.gz
-tar xzvf leptonica-1.73.tar.gz
-cd leptonica-1.73
+# VER=1.73.0 => 1.79.0
+wget http://www.leptonica.com/source/leptonica-$VER.tar.gz
+tar xzvf leptonica-$VER.tar.gz
+cd leptonica-$VER
+./autogen.sh    # must run before configure
 ./configure
 make
 make install
 
 3) Download and install Tesseract:
-wget https://github.com/tesseract-ocr/tesseract/archive/3.04.01.tar.gz
-mv 3.04.01.tar.gz tesseract-3.04.01.tar.gz
-tar xzvf tesseract-3.04.01.tar.gz
-cd tesseract-3.04.01/
+# VER=3.04.01 => 3.05.02
+wget https://github.com/tesseract-ocr/tesseract/archive/$VER.tar.gz
+mv $VER.tar.gz tesseract-$VER.tar.gz
+tar xzvf tesseract-$VER.tar.gz
+cd tesseract-$VER/
 ./autogen.sh
+
+# https://stackoverflow.com/questions/49107733/error-when-installing-tesseract-3-05-in-centos7-error-leptonica-1-74-or-higher
+# The configure script uses pkg-config to see if the leptonica libs are installed (and have the required version).
+# After you have compiled and installed leptonica from source code you have to manually tell pkg-config where to find the lept.pc config file which is installed with leptonica. Set the PKG_CONFIG_PATH environment variable so it points to the location of lept.pc. If you installed leptonica to its default location you should do:
+# export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/
+# before running configure for tesseract.
+
 ./configure
 make
 make install
