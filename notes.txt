@@ -1172,7 +1172,7 @@ This requires development tools to be installed.
 yum groupinstall “Development tools”
 yum -y install automake autoconf libtool zlib-devel libjpeg-devel giflib libtiff-devel libwebp libwebp-devel libicu-devel openjpeg-devel cairo-devel
 
-1.1) make sue all image libs installbefore before installing leptaonica
+1.1) make sure all image libs installbefore before installing leptaonica
 # see https://stackoverflow.com/questions/41558176/how-to-install-libpng-using-yum
 
 #yum install libgif-devel
@@ -1199,6 +1199,7 @@ tar xzvf tesseract-$VER.tar.gz
 cd tesseract-$VER/
 ./autogen.sh
 
+# for 3.05.02
 # https://stackoverflow.com/questions/49107733/error-when-installing-tesseract-3-05-in-centos7-error-leptonica-1-74-or-higher
 # The configure script uses pkg-config to see if the leptonica libs are installed (and have the required version).
 # After you have compiled and installed leptonica from source code you have to manually tell pkg-config where to find the lept.pc config file which is installed with leptonica. Set the PKG_CONFIG_PATH environment variable so it points to the location of lept.pc. If you installed leptonica to its default location you should do:

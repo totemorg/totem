@@ -204,7 +204,7 @@ function neoThread(cb) {
 
 const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			 	sqlThread,filterRecords,isEncrypted,guestProfile,
-			 	streamFile, streamTable, dsroutes,
+			 	streamCsvTable, streamSqlTable, dsroutes,
 	   		startDogs,startJob,endJob } = TOTEM = module.exports = {
 	
 	dsroutes: {
@@ -264,7 +264,7 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 		return idx ? recs.get(idx) : recs;
 	},
 	*/
-	ingestFile: (sql, path, opts, filter) => {
+	ingestCsv: (sql, path, opts, filter) => {
 		
 		const 
 			{batch,limit,keys,target} = opts || {batch:1e3,limit:0,keys:"",target:""},
@@ -310,7 +310,7 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 				[target], err => {
 				Log(`CREATE ${target}`,err || "ok");
 				
-				streamFile(path, streamOpts, recs => {
+				streamCsvTable(path, streamOpts, recs => {
 					if ( recs )
 						recs.forEach( (rec,i) => {
 							var keep = {};
@@ -325,10 +325,10 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 		}
 		
 		else // debugging
-			streamFile(path, Copy({batch:1,limit:1},streamOpts), recs => Log(recs) );
+			streamCsvTable(path, Copy({batch:1,limit:1},streamOpts), recs => Log(recs) );
 	},
 
-	streamTable: (sql, table, {batch, filter, limit, skip}, cb) => {
+	streamSqlTable: (sql, table, {batch, filter, limit, skip}, cb) => {
 		
 		if ( batch ) 
 			sql.query( "SELECT count(id) AS recs FROM app.??", table, (err,info) => {
@@ -369,7 +369,7 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			});			
 	},
 									
-	streamFile: (path, {batch, filter, limit, skip, parse}, cb) => {
+	streamCsvTable: (path, {batch, filter, limit, skip, parse}, cb) => {
 		var keys = [];
 		FS.open( path, "r", (err, fd) => {
 			if (err) 
@@ -4505,7 +4505,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
 				Log("ready");
-				TOTEM.ingestFile(sql, "./stores/gtdaug/gtd.csv", {
+				TOTEM.ingestCsv(sql, "./stores/gtdaug/gtd.csv", {
 					target: "gtd",
 					keys: "gname varchar(32),iyear int(11),targtype1_txt varchar(32),weaptype1_txt varchar(16),eventid varchar(16)",
 					batch: 500,
@@ -4521,7 +4521,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
 				Log("ready");
-				TOTEM.ingestFile(sql, "./stores/nartocracy/centam.csv", {
+				TOTEM.ingestCsv(sql, "./stores/nartocracy/centam.csv", {
 					target: "centam",
 					keys: "Criminal_group varchar(32),_Year int(11),Outlet_name varchar(32),Event varchar(32),Rival_group varchar(32),_Eventid varchar(8)",
 					batch: 500,
@@ -4535,7 +4535,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		
 	case "T11":
 		TOTEM.config({name:""}, sql => {
-			streamTable(sql,"gtd", {batch:100}, recs => {
+			streamSqlTable(sql,"gtd", {batch:100}, recs => {
 				Log("streamed", recs.length);
 			});
 		});
@@ -4551,10 +4551,15 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		break;
 		
 	case "G1":
+		var 
+			apiKey = "AIzaSyBp56CJJA0FE5enebW5_4mTssTGaYzGqz8", // "nowhere stan" / nowhere1234 / mepila7915@lege4h.com
+			searchEngine = "017944666033550212559:c1vclesecjc", // full web engine
+			query = "walmart",
+			url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngine}&gl=us&q=${query}`;
+			
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
-				Log("here!");
-				fetch("https://www.googleapis.com/customsearch/v1?key=AIzaSyBp56CJJA0FE5enebW5_4mTssTGaYzGqz8&cx=017944666033550212559:c1vclesecjc&q=walmart&gl=us", txt => {
+				fetch( url , txt => {
 					Log(txt);
 				});
 			});
