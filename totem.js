@@ -203,8 +203,8 @@ function neoThread(cb) {
 ].Extend(NEOCONNECTOR);
 
 const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
-			 	sqlThread,filterRecords,isEncrypted,guestProfile,
-			 	streamCsvTable, streamSqlTable, dsroutes,
+			 	sqlThread,filterRecords,isEncrypted,guestProfile,dsroutes,
+			 	ingestFile, breakFile, splitFile, filterFile, filterSql, 
 	   		startDogs,startJob,endJob } = TOTEM = module.exports = {
 	
 	dsroutes: {
@@ -264,76 +264,59 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 		return idx ? recs.get(idx) : recs;
 	},
 	*/
-	ingestCsv: (sql, path, opts, filter) => {
+	ingestFile: (path, opts, filter) => {
 		
 		const 
-			{batch,limit,keys,target} = opts || {batch:1e3,limit:0,keys:"",target:""},
-			streamOpts = {
+			[ target ] = path.split("/").pop().split("."),
+			{ batch,comma,newline,keys } = opts,
+			{ as } = streamOpts = {
 				batch: batch, 
-				limit: limit, 
+				comma: comma,
+				newline: newline,
 				filter: filter,
-				skip: 1, // skip csv header
-				parse: (buf,idx,keys) => {
-					if ( idx ) {	/// at data row
-						var 
-							rec = {},
-							cols = buf.split(",");
-
-						if ( cols.length == keys.length ) {	// full row buffer
-							keys.forEach( (key,m) => rec[key] = cols[m] );
-							/*if ( idx==1)  { //Log(rec);
-								keys.forEach( (key,m) => Log(m,escape(key),cols[m],"=>",rec[key], key == "eventid", key.length) );
-								for (var n=0,x=keys[0]; n<x.length; n++) Log(n,x.charCodeAt(n));
-							} */
-							return rec;
-						}
-
-						else	// incomplete row buffer
-							return null;
-					}
-
-					else {	// at header row
-						buf.split(",").forEach( key => keys.push(key));
-						Log(">>>header keys", keys);
-						return keys;
-					}
-				}
+				as: {},
+				keys: []	// csv file with unkown header
 			};
 		
-		if ( target ) {
-			Trace( `INGESTING ${path} => ${target}` );
-			var keeps = keys.split(",");
-			keeps.forEach( (key,i) => [keeps[i]] = key.split(" ") );
-			//Log("keeps", keeps);
+		//Trace( `INGESTING ${path} => ${target}` );
+		var 
+			makes = keys.split(",");
 
-			sql.query( `CREATE TABLE IF NOT EXISTS app.?? (ID float unique auto_increment,${keys})`, 
+		makes.forEach( (key,i) => {
+			var 
+				[x,map,make] = key.match(/(.*):(.*)/) || ["", "", key],
+				[ id ] = make.split(" ");
+
+			makes[i] = make;
+			as[id] = map || id;
+		});
+
+		//Log(">>>ingest", makes, as);
+
+		sqlThread( sql => {
+			sql.query( `CREATE TABLE IF NOT EXISTS app.?? (ID float unique auto_increment,${makes.join(",")})`, 
 				[target], err => {
-				Log(`CREATE ${target}`,err || "ok");
-				
-				streamCsvTable(path, streamOpts, recs => {
+				//Trace( `CREATED ${target} ${err || "ok"}` );
+
+				filterFile(path, streamOpts, recs => {
 					if ( recs )
 						recs.forEach( (rec,i) => {
-							var keep = {};
-							keeps.forEach( key => keep[key] = rec[key] );
-							sql.query("INSERT INTO app.?? SET ?", [target,keep] );
+							sql.query("INSERT INTO app.?? SET ?", [target,rec] );
 						});
 
 					else 
 						Trace( `INGESTED ${path}` );
 				});
 			});
-		}
-		
-		else // debugging
-			streamCsvTable(path, Copy({batch:1,limit:1},streamOpts), recs => Log(recs) );
+		});
 	},
 
-	streamSqlTable: (sql, table, {batch, filter, limit, skip}, cb) => {
+	filterSql: (sql, table, {batch, filter}, cb) => {
 		
 		if ( batch ) 
 			sql.query( "SELECT count(id) AS recs FROM app.??", table, (err,info) => {
 				if ( recs=info[0].recs ) 
-					for (	var offset=skip||0,total=0,reads=0; offset<recs; offset+=batch ) {
+					for (	var offset=0,reads=0; offset<recs; offset+=batch ) {
 						sql.query( filter
 							? "SELECT * FROM app.?? WHERE least(?,1) LIMIT ? OFFSET ?"
 							: "SELECT * FROM app.?? LIMIT ? OFFSET ?", 
@@ -342,16 +325,10 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 							? [table,filter,batch,offset]
 							: [table,batch,offset], (err,data) => {
 
-								//Log(total,limit,reads,recs);
-
-								if ( !limit || (total < limit) )
-									cb(data);
-
-								reads += batch;
+								cb(data, reads += batch);
+							
 								if ( reads >= recs )  // signal end
 									cb(null);
-
-								total += data.length;
 							});
 					}
 				
@@ -364,13 +341,149 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 				? "SELECT * FROM app.?? WHERE least(?,1)"
 				: "SELECT * FROM app.??", [table,filter], (err,recs) => {
 				
-				cb( limit ? recs.slice(0,limit) : recs );
+				cb( recs );
 				cb( null ); // signal end
 			});			
 	},
-									
-	streamCsvTable: (path, {batch, filter, limit, skip, parse}, cb) => {
-		var keys = [];
+	
+	breakFile: (path,newline,cb) => {
+		FS.open( path, "r", (err, fd) => {
+			if (err) 
+				cb(null);	// signal pipe end
+
+			else {	// start pipe stream
+				var 
+					recs = 0,
+					rem = "",
+					src = FS.createReadStream( "", { fd:fd, encoding: "utf8" }),
+					sink = new STREAM.Writable({
+						objectMode: true,
+						write: (bufs,en,sinkcb) => {
+							bufs.split(newline).forEach( rec => {
+								if ( rec ) cb(rec,recs);
+								recs++;
+							});
+							sinkcb(null);  // signal no errors
+						}
+					});
+
+				sink
+					.on("finish", () => cb( null ) )
+					.on("error", err => cb(null) );
+
+				src.pipe(sink);  // start the pipe
+			}
+		});
+	},
+
+	splitFile: (path, {keys, comma, newline}, cb) => {
+		
+		function parse(buf,keys) {
+			if ( keys.length ) {	/// at data row
+				var 
+					rec = {},
+					cols = buf.split(comma);
+
+				if ( cols.length == keys.length ) {	// full row buffer
+					keys.forEach( (key,m) => rec[key] = cols[m] );
+					return rec;
+				}
+
+				else	// incomplete row buffer
+					return null;
+			}
+
+			else {	// at header row so define keys
+				if ( buf.charCodeAt(0) > 255 ) buf=buf.substr(1);
+				buf.split(",").forEach( key => keys.push(key) );
+				//Log(">>>header keys", keys);
+				//Log(keys[0], keys[0].length, "["+keys[0].charCodeAt(0)+"]");
+				return {};
+			}
+		}
+		
+		var 
+			pos = 0,
+			rem = "";
+		
+		breakFile( path, newline || "\n", buf => {
+			if ( buf ) 
+				if ( rec = parse(	rem+buf, keys) ) { // valid record so pass it on
+					if (pos) cb(rec,pos);
+					pos++;
+					rem = "";
+				}
+			
+				else
+					rem += buf;
+			
+			else	// forward end signal 
+				cb(null);
+		});
+	
+	},
+
+	filterFile: (path, {batch, keys, comma, newline, filter, as}, cb) => {
+		var 
+			pos = 0,
+			recs = [];
+					
+		splitFile( path, {keys:keys||[], comma:comma||",", newline:newline}, rec => {
+			if ( rec ) 
+				if ( !batch || recs.length<batch ) 	
+					if ( !filter || filter(rec) ) 	// append to batch
+						if ( as ) {
+							var remap = {};
+							for (var rekey in as) remap[rekey] = rec[ as[rekey] ];
+							recs.push( remap );
+						}
+			
+						else
+							recs.push( rec );
+			
+					else {	// drop
+					}
+
+				else {	// flush batch
+					cb( recs, pos+=recs.length );
+					recs.length = 0;
+				}
+					
+			else { // forward end signal
+				cb(recs,pos+=recs.length); // flush batch
+				cb(null);	// signal end
+			}
+		});
+	},
+
+	/*
+	_streamCsvTable: (path, {batch, filter, limit, skip}, cb) => {
+		
+		function parse(buf,idx,keys) {
+			if ( idx ) {	/// at data row
+				var 
+					rec = {},
+					cols = buf.split(",");
+
+				if ( cols.length == keys.length ) {	// full row buffer
+					keys.forEach( (key,m) => rec[key] = cols[m] );
+					return rec;
+				}
+
+				else	// incomplete row buffer
+					return null;
+			}
+
+			else {	// at header row
+				buf.split(",").forEach( key => keys.push(key));
+				Log(">>>header keys", keys);
+				return keys;
+			}
+		}
+		
+		var 
+			keys = [];
+		
 		FS.open( path, "r", (err, fd) => {
 			if (err) 
 				cb(null);	// signal pipe end
@@ -426,6 +539,7 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			}
 		});			
 	},
+	*/
 	
 	/**
 	Route node/nodes (byTable, byArea, byAction or byType) on 
@@ -4535,7 +4649,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		
 	case "T11":
 		TOTEM.config({name:""}, sql => {
-			streamSqlTable(sql,"gtd", {batch:100}, recs => {
+			filterSql(sql,"gtd", {batch:100}, recs => {
 				Log("streamed", recs.length);
 			});
 		});
