@@ -353,22 +353,32 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 
 			else {	// start pipe stream
 				var 
-					recs = 0,
+					pos = 0,
 					rem = "",
 					src = FS.createReadStream( "", { fd:fd, encoding: "utf8" }),
 					sink = new STREAM.Writable({
 						objectMode: true,
 						write: (bufs,en,sinkcb) => {
-							bufs.split(newline).forEach( rec => {
-								if ( rec ) cb(rec,recs);
-								recs++;
+							var 
+								recs = (rem+bufs).split(newline);
+							
+							rem = recs.pop();
+							
+							recs.forEach( (rec,n) => {
+								if ( rec ) 
+									cb(rec,pos++);
+								else
+									pos++;
 							});
 							sinkcb(null);  // signal no errors
 						}
 					});
 
 				sink
-					.on("finish", () => cb( null ) )
+					.on("finish", () => {
+						if ( rem ) cb(rem,pos);
+						cb(null);
+					})
 					.on("error", err => cb(null) );
 
 				src.pipe(sink);  // start the pipe
@@ -384,43 +394,31 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 					rec = {},
 					cols = buf.split(comma);
 
-				if ( cols.length == keys.length ) {	// full row buffer
-					keys.forEach( (key,m) => rec[key] = cols[m] );
-					return rec;
-				}
-
-				else	// incomplete row buffer
-					return null;
+				keys.forEach( (key,m) => rec[key] = cols[m] );
+				return rec;
 			}
 
 			else {	// at header row so define keys
-				if ( buf.charCodeAt(0) > 255 ) buf=buf.substr(1);
+				if ( buf.charCodeAt(0) > 255 ) buf=buf.substr(1);	// weird
 				buf.split(",").forEach( key => keys.push(key) );
-				//Log(">>>header keys", keys);
-				//Log(keys[0], keys[0].length, "["+keys[0].charCodeAt(0)+"]");
-				return {};
+				Log(">>>header keys", keys);
+				return null;
 			}
 		}
 		
 		var 
-			pos = 0,
-			rem = "";
+			pos = 0;
 		
 		breakFile( path, newline || "\n", buf => {
 			if ( buf ) 
-				if ( rec = parse(	rem+buf, keys) ) { // valid record so pass it on
-					if (pos) cb(rec,pos);
-					pos++;
-					rem = "";
-				}
-			
+				if (rec = parse(buf,keys)) 
+					cb(rec,pos++);
 				else
-					rem += buf;
+					pos++;
 			
 			else	// forward end signal 
 				cb(null);
 		});
-	
 	},
 
 	filterFile: (path, {batch, keys, comma, newline, filter, as}, cb) => {
