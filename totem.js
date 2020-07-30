@@ -4619,11 +4619,10 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
 				Log("ready");
-				TOTEM.ingestCsv(sql, "./stores/gtdaug/gtd.csv", {
+				TOTEM.ingestFile(sql, "./stores/gtdaug/gtd.csv", {
 					target: "gtd",
 					keys: "gname varchar(32),iyear int(11),targtype1_txt varchar(32),weaptype1_txt varchar(16),eventid varchar(16)",
-					batch: 500,
-					limit: 0
+					batch: 500
 				},
 					// rec => rec.iyear != 1970,
 				);
@@ -4635,11 +4634,10 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
 				Log("ready");
-				TOTEM.ingestCsv(sql, "./stores/nartocracy/centam.csv", {
+				TOTEM.ingestFile(sql, "./stores/nartocracy/centam.csv", {
 					target: "centam",
 					keys: "Criminal_group varchar(32),_Year int(11),Outlet_name varchar(32),Event varchar(32),Rival_group varchar(32),_Eventid varchar(8)",
-					batch: 500,
-					limit: 0
+					batch: 500
 				},
 					rec => rec.Country == "Mexico"
 				);
