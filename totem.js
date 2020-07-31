@@ -204,7 +204,7 @@ function neoThread(cb) {
 
 const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			 	sqlThread,filterRecords,isEncrypted,guestProfile,dsroutes,
-			 	ingestFile, breakFile, splitFile, filterFile, filterSql, 
+			 	ingestFile, chunkFile, splitFile, filterFile, filterSql, 
 	   		startDogs,startJob,endJob } = TOTEM = module.exports = {
 	
 	dsroutes: {
@@ -271,7 +271,7 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			{ batch,comma,newline,keys } = opts,
 			{ as } = streamOpts = {
 				batch: batch, 
-				comma: comma,
+				comma: comma || ",",
 				newline: newline,
 				filter: filter,
 				as: {},
@@ -346,7 +346,7 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			});			
 	},
 	
-	breakFile: (path,newline,cb) => {
+	chunkFile: (path,newline,cb) => {
 		FS.open( path, "r", (err, fd) => {
 			if (err) 
 				cb(null);	// signal pipe end
@@ -387,38 +387,47 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 	},
 
 	splitFile: (path, {keys, comma, newline}, cb) => {
-		
-		function parse(buf,keys) {
-			if ( keys.length ) {	/// at data row
-				var 
-					rec = {},
-					cols = buf.split(comma);
-
-				keys.forEach( (key,m) => rec[key] = cols[m] );
-				return rec;
-			}
-
-			else {	// at header row so define keys
-				if ( buf.charCodeAt(0) > 255 ) buf=buf.substr(1);	// weird
-				buf.split(",").forEach( key => keys.push(key) );
-				Log(">>>header keys", keys);
-				return null;
-			}
-		}
-		
 		var 
 			pos = 0;
 		
-		breakFile( path, newline || "\n", buf => {
-			if ( buf ) 
-				if (rec = parse(buf,keys)) 
-					cb(rec,pos++);
-				else
-					pos++;
-			
-			else	// forward end signal 
-				cb(null);
-		});
+		if ( comma )
+			chunkFile( path, newline || "\n", buf => {
+				function parse(buf,keys) {
+					if ( keys.length ) {	/// at data row
+						var 
+							rec = {},
+							cols = buf.split(comma);
+
+						keys.forEach( (key,m) => rec[key] = cols[m] );
+						return rec;
+					}
+
+					else {	// at header row so define keys
+						if ( buf.charCodeAt(0) > 255 ) buf=buf.substr(1);	// weird
+						buf.split(",").forEach( key => keys.push(key) );
+						Log(">>>header keys", keys);
+						return null;
+					}
+				}
+		
+				if ( buf ) 
+					if (rec = parse(buf,keys)) 
+						cb(rec,pos++);
+					else
+						pos++;
+
+				else	// forward end signal 
+					cb(null);
+			});
+		
+		else
+			chunkFile( path, newline || "\n", buf => {
+				if ( buf ) 
+					cb(buf,pos++);
+
+				else	// forward end signal 
+					cb(null);
+			});			
 	},
 
 	filterFile: (path, {batch, keys, comma, newline, filter, as}, cb) => {
@@ -426,7 +435,7 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			pos = 0,
 			recs = [];
 					
-		splitFile( path, {keys:keys||[], comma:comma||",", newline:newline}, rec => {
+		splitFile( path, {keys:keys||[], comma:comma, newline:newline}, rec => {
 			if ( rec ) 
 				if ( !batch || recs.length<batch ) 	
 					if ( !filter || filter(rec) ) 	// append to batch
