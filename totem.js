@@ -346,7 +346,7 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			});			
 	},
 	
-	chunkFile: (path,newline,cb) => {
+	chunkFile: (path,{newline,limit},cb) => {
 		FS.open( path, "r", (err, fd) => {
 			if (err) 
 				cb(null);	// signal pipe end
@@ -355,28 +355,40 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 				var 
 					pos = 0,
 					rem = "",
+					run = true,
 					src = FS.createReadStream( "", { fd:fd, encoding: "utf8" }),
 					sink = new STREAM.Writable({
 						objectMode: true,
 						write: (bufs,en,sinkcb) => {
-							var 
-								recs = (rem+bufs).split(newline);
-							
-							rem = recs.pop();
-							
-							recs.forEach( (rec,n) => {
-								if ( rec ) 
-									cb(rec,pos++);
-								else
-									pos++;
-							});
+							//Log(limit,pos,!limit || pos<limit);
+							if ( run ) {
+								var 
+									recs = (rem+bufs).split(newline);
+
+								rem = recs.pop();
+
+								recs.forEach( (rec,n) => {
+									if ( rec ) 
+										if (limit)
+											if ( pos<limit ) 
+												cb(rec,pos++);
+											else 
+												run = false;
+										else
+											cb(rec,pos++);
+									else
+										pos++;
+								});
+							}
 							sinkcb(null);  // signal no errors
 						}
 					});
 
 				sink
 					.on("finish", () => {
-						if ( rem ) cb(rem,pos);
+						if (!limit || pos<limit)
+							if ( rem ) cb(rem,pos);
+					
 						cb(null);
 					})
 					.on("error", err => cb(null) );
@@ -386,12 +398,13 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 		});
 	},
 
-	splitFile: (path, {keys, comma, newline}, cb) => {
+	splitFile: (path, {keys, comma, newline, limit}, cb) => {
 		var 
-			pos = 0;
+			pos = 0,
+			opts = {newline:newline,limit:limit};
 		
-		if ( comma )
-			chunkFile( path, newline || "\n", buf => {
+		if ( keys )
+			chunkFile( path, opts, buf => {
 				function parse(buf,keys) {
 					if ( keys.length ) {	/// at data row
 						var 
@@ -421,7 +434,7 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			});
 		
 		else
-			chunkFile( path, newline || "\n", buf => {
+			chunkFile( path, opts, buf => {
 				if ( buf ) 
 					cb(buf,pos++);
 
@@ -430,15 +443,16 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			});			
 	},
 
-	filterFile: (path, {batch, keys, comma, newline, filter, as}, cb) => {
+	filterFile: (path, {batch, keys, comma, newline, limit, filter, as}, cb) => {
 		var 
 			pos = 0,
-			recs = [];
+			recs = [],
+			opts = {keys:keys, limit:limit, comma:comma||",", newline:newline||"\n"};
 					
-		splitFile( path, {keys:keys||[], comma:comma, newline:newline}, rec => {
+		splitFile( path, opts, rec => {
 			if ( rec ) 
-				if ( !batch || recs.length<batch ) 	
-					if ( !filter || filter(rec) ) 	// append to batch
+				if ( !batch || recs.length<batch ) {	
+					if ( !filter || filter(rec) ) {	
 						if ( as ) {
 							var remap = {};
 							for (var rekey in as) remap[rekey] = rec[ as[rekey] ];
@@ -447,9 +461,8 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			
 						else
 							recs.push( rec );
-			
-					else {	// drop
 					}
+				}
 
 				else {	// flush batch
 					cb( recs, pos+=recs.length );
@@ -3415,7 +3428,7 @@ function insertDS(req, res) {
 
 	//Log(">>>>>>>>>>>>>>post", req.query);
 	sql.Query(
-		"INSERT INTO ?? ${set}", [ds], {
+		"INSERT INTO ?? ${set}", [ds,body], {
 			trace: trace,
 			set: body,
 			client: client,
@@ -3466,6 +3479,8 @@ function updateDS(req, res) {
 		{ trace } = flags,
 		ds = (dsroutes[table] || dsroutes.default)(req);
 	
+	Log(where,body);
+	
 	if ( isEmpty(body) )
 		res( errors.noBody );
 	
@@ -3475,7 +3490,7 @@ function updateDS(req, res) {
 	
 	else
 		sql.Query(
-			"UPDATE ?? ${set} ${where}", [ds], {
+			"UPDATE ?? ${set} ${where}", [ds,body], {
 				trace: trace,
 				from: table,
 				where: where,
