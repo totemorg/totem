@@ -703,6 +703,9 @@ sudo rpm -i pdftk*.rpm
 sudo yum install libgcj
 sudo rpm -i pdftk-2.02-1.*.rpm
 
+# install python connector
+conda install -c anaconda mysql-connector-python
+
 ####### end mysql
 
 ####### LEGACY atlas install
