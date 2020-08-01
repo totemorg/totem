@@ -226,53 +226,26 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 		});
 	}),
 					
-	/*
-	loadFile: (path,idx,samples) => {
-		var
-			abs = path.startsWith("/") || path.startsWith("."),
-			path = abs ? path : "./data/"+path,
-			isJson = path.endsWith(".json"),
-			isCsv = path.endsWith(".csv");
-
-		if ( isJson ) {
-			var recs = JSON.parse( FS.readFileSync(path, "utf8") );
-			var head = Object.keys(recs[0]);
-		}
-
-		if ( isCsv ) {
-			var 
-				data = FS.readFileSync(path,"utf8").split("\n"),
-				head = data[0].split(","),
-				recs = [];
-
-			data.forEach( (line,n) => {
-				if (n) {
-					var 
-						rec = {},
-						d = line.split(",");
-
-					head.forEach( (key,m) => rec[key] = parseFloat(d[m]) );
-					recs.push( rec );
-				}
-
-			});			
-		}
-
-		Log("keys =>", head);
-		if ( samples ) recs=recs.get({draw:samples});
-
-		return idx ? recs.get(idx) : recs;
-	},
+	/**
+		Ingest a comma-delimited, header-provided file at path using the 
+		filterFile (batch,as,filter) and chunkFile (newline,limit) parameters.
+		Ingested records are inserted into the sql target table defined by the 
+		path = /.../target.type.  The keys="recKey:asKey sqlType,..." defines
+		how record values are stored.
+		@param {String} path source file
+		@param {Object} opts {keys,comma,newline,limit,as,batch} options
+		@param {Function} cb Callback([record,...])
 	*/
 	ingestFile: (path, opts, filter) => {
 		
 		const 
 			[ target ] = path.split("/").pop().split("."),
-			{ batch,comma,newline,keys } = opts,
+			{ batch,comma,newline,keys,limit } = opts,
 			{ as } = streamOpts = {
 				batch: batch, 
 				comma: comma || ",",
 				newline: newline,
+				limit: limit,
 				filter: filter,
 				as: {},
 				keys: []	// csv file with unkown header
@@ -346,6 +319,14 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			});			
 	},
 	
+	/**
+		Chunk file at path by splitting into newline-terminated records.
+		Callback cb(record) until the limit is reached (or until eof
+		when limit=0).
+		@param {String} path source file
+		@param {Object} opts {newline,limit} options
+		@param {Function) cb Callback(record)
+	*/
 	chunkFile: (path,{newline,limit},cb) => {
 		FS.open( path, "r", (err, fd) => {
 			if (err) 
@@ -398,6 +379,16 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 		});
 	},
 
+	/**
+		Split file path containing comma delimited values: when keys=[]
+		record keys are determined by the first header record; when keys=[
+		'key','key', ...] defined the header keys; when keys=null the raw
+		records are returned.  The file is chunked using the (newline,
+		limit) chinkFile parameters.  Callsback cb(record) for each record.
+		@param {String} path source file
+		@param {Object} opts {keys,comma,newline,limit} options
+		@param {Function} cb Callback(record)
+	*/
 	splitFile: (path, {keys, comma, newline, limit}, cb) => {
 		var 
 			pos = 0,
@@ -443,6 +434,18 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			});			
 	},
 
+	/**
+		Filter at batch file at path containing comma delimited values.  The
+		file is split using the (keys,comma) splitFile parameters, and chunked 
+		using the (newline,comma) chunkFile parameters. Callsback cb([record,...]) 
+		with each record batch (all records when batch=0).  If a filter(record)
+		method is provided, it returns true to add the record to the batch.
+		Use the optional as = {"toKey":"fromKey", ... } map to remap record 
+		keys.
+		@param {String} path source file
+		@param {Object} opts {keys,comma,newline,limit,filter,as,batch} options
+		@param {Function} cb Callback([record,...])
+	*/
 	filterFile: (path, {batch, keys, comma, newline, limit, filter, as}, cb) => {
 		var 
 			pos = 0,
@@ -562,46 +565,46 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 	*/
 	
 	/**
-	Route node/nodes (byTable, byArea, byAction or byType) on 
-	the provided request-response thread:
+		Route node/nodes (byTable, byArea, byAction or byType) on 
+		the provided request-response thread:
 
-		// phase1 connect
-		host: "..."	// domain name being accessed by client
-		agent: "..."	// client browser info
-		method: "GET|PUT|..." 		// http request method
-		action: "select|update| ..."		// corresponding crude name
-		started: date	// date stamp when requested started
-		encrypted: bool	// true if request on encrypted server
-		socketio: "path"  // filepath to client's socketio.js
-		post: "..."			// raw body text
-		url	: "..."				// complete url requested
-		reqSocket: socket		// socket to retrieve client cert 
-		resSocket: socket	// socket to accept response
-		sql: connector 		// sql database connector 
+			// phase1 connect
+			host: "..."	// domain name being accessed by client
+			agent: "..."	// client browser info
+			method: "GET|PUT|..." 		// http request method
+			action: "select|update| ..."		// corresponding crude name
+			started: date	// date stamp when requested started
+			encrypted: bool	// true if request on encrypted server
+			socketio: "path"  // filepath to client's socketio.js
+			post: "..."			// raw body text
+			url	: "..."				// complete url requested
+			reqSocket: socket		// socket to retrieve client cert 
+			resSocket: socket	// socket to accept response
+			sql: connector 		// sql database connector 
 
-		// phase2 admission
-		joined: date	// time admitted
-		client: "..."		// name of client from cert or "guest"
+			// phase2 admission
+			joined: date	// time admitted
+			client: "..."		// name of client from cert or "guest"
 
-		// phase3 route
-		query: {...} 		// raw keys from url
-		where: {...} 		// sql-ized query keys from url
-		body: {...}		// body keys from request 
-		flags: {...} 		// flag keys from url
-		index: {...}		// sql-ized index keys from url
-		files: [...] 		// files uploaded
-		site: {...}			// skinning context
-		path: "/[area/...]name.type"			// requested resource
-		area: "name"		// file area being requested
-		body: {...}			// json parsed post
-		type: "type" 			// type part 
+			// phase3 route
+			query: {...} 		// raw keys from url
+			where: {...} 		// sql-ized query keys from url
+			body: {...}		// body keys from request 
+			flags: {...} 		// flag keys from url
+			index: {...}		// sql-ized index keys from url
+			files: [...] 		// files uploaded
+			site: {...}			// skinning context
+			path: "/[area/...]name.type"			// requested resource
+			area: "name"		// file area being requested
+			body: {...}			// json parsed post
+			type: "type" 			// type part 
 
-	The newly formed response res method accepts a string, an objects, an array, an error, or 
-	a file-cache function to appropriately respond and close this thread and its sql connection.  
-	The session is validated and logged, and the client is challenged as necessary.
+		The newly formed response res method accepts a string, an objects, an array, an error, or 
+		a file-cache function to appropriately respond and close this thread and its sql connection.  
+		The session is validated and logged, and the client is challenged as necessary.
 
-	@param {Object} req http/https request
-	@param {Object} res http/https response
+		@param {Object} req http/https request
+		@param {Object} res http/https response
 	*/
 	routeSession: (req,res) => {
 		/**
@@ -1111,11 +1114,14 @@ Log("line ",idx,line.length);
 		}
 	},
 	
+	/**
+		Defines url query parameter operators.
+	*/
 	operators: ["=", "<", "<=", ">", ">=", "!=", "!bin=", "!exp=", "!nlp="],
 
 	/**
-		Error messages
-		@cfg {Object} 
+	Error messages
+	@cfg {Object} 
 	*/		
 	errors: {
 		pretty: err => { 
