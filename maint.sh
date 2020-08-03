@@ -512,6 +512,10 @@ help.)	# some help
 	echo "	restyle css styles using css compass complier"
 	;;
 	
+uptest.)
+	sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o up.log start debe.js D1
+	;;
+
 up.) 		# bring up production service 
 
 	export SERVICE_NAME=Totem1

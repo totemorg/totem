@@ -409,7 +409,7 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 					else {	// at header row so define keys
 						if ( buf.charCodeAt(0) > 255 ) buf=buf.substr(1);	// weird
 						buf.split(",").forEach( key => keys.push(key) );
-						Log(">>>header keys", keys);
+						//Log(">>>header keys", keys);
 						return null;
 					}
 				}
@@ -2567,7 +2567,8 @@ Log("line ",idx,line.length);
 		LikeUs: 0,	// number of user likeus
 		Challenge: 1,		// enable to challenge user at session join
 		Client: "guest@guest.org",		// default client id
-		User: "guest",		// default user ID (reserved for login)
+		User: "",		// default user ID (reserved for login)
+		Login: "",	// existing login ID
 		Group: "app",		// default group name (db to access)
 		IDs: "{}",		// challenge key:value pairs
 		Repoll: true,	// challenge repoll during active sessions
@@ -2912,8 +2913,8 @@ function validateClient(req,res) {
 			var
 				guest = Copy({
 					Client: client,
-					User: client.replace(/(.*)\@(.*)/g,(x,L,R) => L ).replace(/\./g,"").substr(0,6),
-					Login: client,
+					//User: client.replace(/(.*)\@(.*)/g,(x,L,R) => L ).replace(/\./g,"").substr(0,12),
+					//Login: "",
 					Requested: new Date()
 				}, Copy(guestProfile,{}) );
 
@@ -3855,7 +3856,7 @@ function sysFile(req, res) {
 		area = table,
 		now = new Date();
 	
-	Log(">>>>sysFile", path,file);
+	//Log(">>>>sysFile", path,file);
 	switch (action) {
 		case "select":
 			
