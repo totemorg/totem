@@ -264,12 +264,12 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			as[id] = map || id;
 		});
 
-		//Log(">>>ingest", makes, as);
+		Log(">>>ingest", makes, as, target);
 
 		sqlThread( sql => {
 			sql.query( `CREATE TABLE IF NOT EXISTS app.?? (ID float unique auto_increment,${makes.join(",")})`, 
 				[target], err => {
-				//Trace( `CREATED ${target} ${err || "ok"}` );
+				Trace( `CREATED ${target} ${err || "ok"}` );
 
 				filterFile(path, streamOpts, recs => {
 					if ( recs )
@@ -4644,13 +4644,27 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		});
 		break;
 		
-	case "T9":
+	case "IGTD":
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
 				Log("ready");
-				TOTEM.ingestFile(sql, "./stores/gtdaug/gtd.csv", {
+				TOTEM.ingestFile("./stores/_noarch/gtd.csv", {
 					target: "gtd",
-					keys: "gname varchar(32),iyear int(11),targtype1_txt varchar(32),weaptype1_txt varchar(16),eventid varchar(16)",
+					//limit: 1000,
+					keys: [
+						"perp varchar(64)",
+						"year int(11)",
+						"weapon varchar(16)",
+						"attack varchar(64)",
+						"count varchar(16)",
+						"region varchar(32)",
+						"location varchar(16)",
+						"source mediumtext",
+						"target varchar(32)",
+						"subtarget varchar(64)",
+						"subweapon varchar(32)",
+						"evid varchar(16)"
+						].join(","),
 					batch: 500
 				},
 					// rec => rec.iyear != 1970,
@@ -4659,14 +4673,14 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		});
 		break;
 		
-	case "T10":
+	case "IMEX":
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
 				Log("ready");
-				TOTEM.ingestFile(sql, "./stores/nartocracy/centam.csv", {
-					target: "centam",
+				TOTEM.ingestFile("./stores/_noarch/centam.csv", {
 					keys: "Criminal_group varchar(32),_Year int(11),Outlet_name varchar(32),Event varchar(32),Rival_group varchar(32),_Eventid varchar(8)",
-					batch: 500
+					batch: 500,
+					//limit: 1000
 				},
 					rec => rec.Country == "Mexico"
 				);
