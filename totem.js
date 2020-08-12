@@ -1638,11 +1638,11 @@ Log("line ",idx,line.length);
 				}
 
 				const 
-					{host,name,cache,trustStore,certs} = TOTEM,
+					{domain,name,cache,trustStore,certs} = TOTEM,
 					totem = certs.totem = {  // totem service certs
 						pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
-						key: FS.readFileSync(`${paths.certs}${name}.key`),
-						crt: FS.readFileSync(`${paths.certs}${name}.crt`)
+						//key: FS.readFileSync(`${paths.certs}${name}.key`),
+						//crt: FS.readFileSync(`${paths.certs}${name}.crt`)
 					},
 					fetch = certs.fetch = { 		// data fetching certs
 						pfx: FS.readFileSync(`${paths.certs}fetch.pfx`),
@@ -1672,7 +1672,7 @@ Log("line ",idx,line.length);
 					}
 
 					TOTEM.server = HTTPS.createServer({
-						passphrase: host.encrypt,		// passphrase for pfx
+						passphrase: domain.encrypt,		// passphrase for pfx
 						pfx: totem.pfx,			// pfx/p12 encoded crt and key 
 						ca: trustStore,				// list of pki authorities (trusted serrver.trust)
 						crl: [],						// pki revocation list
@@ -1691,33 +1691,33 @@ Log("line ",idx,line.length);
 			}
 
 			const
-				{host,name,cores} = TOTEM,
+				{domain,name,cores} = TOTEM,
 			
 				urls = site.urls = cores 
 					? {  
 						//socketio: TOTEM.sockets ? paths.socketio : "",
-						worker:  host.worker, 
-						master:  host.master
+						worker:  domain.worker, 
+						master:  domain.master
 					}
 					: {
 						//socketio: TOTEM.sockets ? paths.socketio : "",
-						worker:  host.worker,
-						master:  host.master
+						worker:  domain.worker,
+						master:  domain.master
 					},
 
 				pfx = `${paths.certs}${name}.pfx` ;
 
 			Trace( `PROTECTING ${name} USING ${pfx}` );
 
-			TOTEM.domain = {
-				master: URL.parse(urls.master),
-				worker: URL.parse(urls.worker)
-			};
+			domain.master = URL.parse(urls.master);
+			domain.worker = URL.parse(urls.worker);
+			
+			Log(">>>>>>>>dom", TOTEM.domain);
 			
 			if ( isEncrypted() )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
 					if (err) // create the pfx cert then connect
-						createCert(name, host.encrypt, () => {
+						createCert(name, domain.encrypt, () => {
 							connectService();
 						});	
 
@@ -2159,10 +2159,10 @@ Log("line ",idx,line.length);
 		@cfg {String} [name="Totem"]
 	*/	
 
-	host: { 
+	domain: { 
 		encrypt: ENV.SERVICE_PASS || "",
-		worker:  ENV.SERVICE_WORKER || "https://localhost:8443", 
-		master:  ENV.SERVICE_MASTER || "http://localhost:8080"
+		worker:  ENV.SERVICE_WORKER_URL || "https://localhost:8443", 
+		master:  ENV.SERVICE_MASTER_URL || "http://localhost:8080"
 	},
 		
 	/**
@@ -2312,7 +2312,7 @@ Log("line ",idx,line.length);
 		}
 
 		const
-			url = path.startsWith("/") ? TOTEM.host.master + path : path,
+			url = path.startsWith("/") ? TOTEM.domain.master + path : path,
 			opts = URL.parse(url),
 			crud = {
 				"Function": "GET",
