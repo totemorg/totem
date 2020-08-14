@@ -153,9 +153,76 @@ expand.)
 #
 
 certs.) 	# decompose a base.p12 pki cert into ca, public and private pem certs
-	openssl pkcs12 -in $2.p12 -out ca.pem -cacerts -nokeys
-	openssl pkcs12 -in $2.p12 -out public.pem -clcerts -nokeys
-	openssl pkcs12 -in $2.p12 -out private.pem -nocerts
+
+# cert and file types
+#
+# fmt			content				typical file types
+# =========================================
+# der			binary				.der .crt .cer 
+# pem			ascii/base64	.pem .crt .cer 
+# pkcs12 	binary				.pfx .p12
+# pkcs7		ascii/base64	.p7b
+
+# openssl usecases
+#
+# view cert:
+# 	view pem	openssl x509 -in CERT.X-text -noout	
+# 	view der	openssl x509 -in CERT.X-text -inform der -noout	
+#
+# translate cert:
+# 	pem->der	openssl x509 -in cert.crt -outform der -out cert.der	
+# 	der->pem	openssl x509 -in cert.crt -inform der -outform pem -out cert.pem	
+#
+# combine	certs:
+#		In some cases it is advantageous to combine multiple pieces of the 
+# 	X.509 infrastructure into a single file.  One common example would be 
+# 	to combine both the private key and public key into the same certificate.
+# 	The easiest way to combine certs keys and chains is to convert each to
+# 	a PEM encoded certificate then simple copy the contents of each file into 
+# 	a new file.   This is suitable for combining files to use in applications 
+# 	like Apache.
+#
+# extract cert:
+# 	Some certs will come in a combined form (eg p7b, p12).  Where one file 
+# 	can contain any one of: Certificate, Private Key, Public Key, Signed 
+# 	Certificate, Certificate Authority (CA), and/or Authority Chain.
+#  	Examples: 
+#			openssl pkcs12 -in $2.p12 -out ca.pem -cacerts -nokeys
+#			openssl pkcs12 -in $2.p12 -out public.pem -clcerts -nokeys
+#			openssl pkcs12 -in $2.p12 -out private.pem -nocerts
+
+# NGA cert creation process:
+# 1. On the machine that will run the service, create a private key:
+#		openssl req-new -newkey rsa:2048 -nodes -keyout totem.nga.mil.key totem.-out totem.nga.mil.csr
+# 
+# Retainn passphrase for step4.
+#
+# 2. Submit the csr to the disa pki team at https://npe-portal.csd.disa.mil
+# They say that their site is cac accessibile with your email cert, but it often
+# fails for me.  Suspect it fails more often for us gov personal as ctrs are able
+# to access it better.  DISA wil respond with 3 certs at this site:
+#
+#			public cert:	totem.nga.mil.cer
+#			min ca chain (aka trust store):		ca_certificate_chain.p7b
+#			private key:	totem.nga.mil.key
+#
+# You will need to specify the "type of cert" needed.  Not sure
+# what we used.
+#
+# 3. prep ca chain cert for service by converting/extracting all
+# certs within the supplied ca chain to a standalone pem:
+#
+#		openssl pkcs7 -print_certs -in ca_Certificate_Chain.p7b -out ca_Certificate_Chain.crt
+#
+#		The output file will contain several certs and should be used as-is
+#		in the totem truststore.
+#
+# 4. combine public and private key into a standalone pfx file for the service:
+#
+#		openssl pkcs12 -export -out totem.nga.mil.pfx -inkey totem.nga.mil.key -in totem.nga.mil.crt
+#
+#		use same csr passphrase at both password prompts.  Can also use the
+#		-password pass:PSWD option to supply the password.
 	;;
 	
 edit.) 		# startup edits
