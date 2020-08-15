@@ -3486,7 +3486,7 @@ function updateDS(req, res) {
 		{ trace } = flags,
 		ds = (dsroutes[table] || dsroutes.default)(req);
 	
-	Log(where,body);
+	//Log(where,body);
 	
 	if ( isEmpty(body) )
 		res( errors.noBody );
