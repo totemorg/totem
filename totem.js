@@ -202,10 +202,11 @@ function neoThread(cb) {
 
 ].Extend(NEOCONNECTOR);
 
-const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
-			 	sqlThread,filterRecords,isEncrypted,guestProfile,dsroutes,
-			 	ingestFile, chunkFile, splitFile, filterFile, filterSql, 
-	   		startDogs,startJob,endJob } = TOTEM = module.exports = {
+const { operators, reqFlags,paths,errors,site,fetch, 
+			maxFiles, isEncrypted, domain,
+			sqlThread,filterRecords,guestProfile,dsroutes,
+			ingestFile, chunkFile, splitFile, filterFile, filterSql, 
+	   	startDogs,startJob,endJob } = TOTEM = module.exports = {
 	
 	dsroutes: {
 		default: ctx => "app."+ctx.table
@@ -593,7 +594,7 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 			flags: {...} 		// flag keys from url
 			index: {...}		// sql-ized index keys from url
 			files: [...] 		// files uploaded
-			site: {...}			// skinning context
+			//site: {...}			// skinning context
 			path: "/[area/...]name.type"			// requested resource
 			area: "name"		// file area being requested
 			body: {...}			// json parsed post
@@ -698,7 +699,7 @@ const { operators, reqFlags,paths,errors,site,fetch, maxFiles,
 
 			//Log([action,path,area,table,type]);
 
-			req.site = site;
+			//req.site = site;
 
 			const { strips, prefix, traps, id } = reqFlags;
 
@@ -1181,7 +1182,7 @@ Log("line ",idx,line.length);
 				*/
 				function startService() {
 					const 
-						{ crudIF, routeSession, domain, sockets, name, server } = TOTEM,
+						{ crudIF, routeSession, sockets, name, server } = TOTEM,
 						{ worker,master } = domain,
 						{ mysql } = paths;
 					
@@ -1248,7 +1249,7 @@ Log("line ",idx,line.length);
 													action: crudIF[Req.method],	// crud action being requested
 													reqSocket: Req.socket,   // use supplied request socket 
 													resSocket: getSocket,		// use this method to return a response socket
-													encrypted: isEncrypted(),	// on encrypted worker
+													//encrypted: isEncrypted[CLUSTER.isMaster],	// on encrypted worker
 													socketio: sockets ? paths.socketio : "",		// path to socket.io
 													url: unescape( Req.url || "/" )	// unescaped url
 													/*
@@ -1594,14 +1595,14 @@ Log("line ",idx,line.length);
 						sqlThread( sql => {	// get a sql connection
 							Trace( [ // splash
 								"HOSTING " + site.nick,
-								"AT "+`(${site.urls.master}, ${site.urls.worker})`,
+								"AT "+`(${site.master}, ${site.worker})`,
 								"DATABASE " + site.db ,
 								"FROM " + process.cwd(),
 								"WITH " + (sockets||"NO")+" SOCKETS",
 								"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
 								"WITH "+ (riddles?"ANTIBOT":"NO ANTIBOT") + " PROTECTION",
 								"WITH " + (site.sessions||"UNLIMITED")+" CONNECTIONS",
-								"WITH " + (cores ? cores + " WORKERS AT "+site.urls.worker : "NO WORKERS"),
+								"WITH " + (cores ? cores + " WORKERS AT "+site.worker : "NO WORKERS"),
 								"POCS " + JSON.stringify(site.pocs)
 							].join("\n- ") );
 
@@ -1638,7 +1639,7 @@ Log("line ",idx,line.length);
 				}
 
 				const 
-					{domain,name,cache,trustStore,certs} = TOTEM,
+					{name,cache,trustStore,certs} = TOTEM,
 					totem = certs.totem = {  // totem service certs
 						pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
 						//key: FS.readFileSync(`${paths.certs}${name}.key`),
@@ -1658,7 +1659,7 @@ Log("line ",idx,line.length);
 
 				//Log( TOTEM.isEncrypted, CLUSTER.isMaster, CLUSTER.isWorker );
 
-				if ( isEncrypted() ) {  // have encrypted services so start https service
+				if ( isEncrypted[CLUSTER.isMaster] ) {  // have encrypted services so start https service
 					try {  // build the trust strore
 						Each( FS.readdirSync(paths.certs+"/truststore"), (n,file) => {
 							if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
@@ -1672,7 +1673,7 @@ Log("line ",idx,line.length);
 					}
 
 					TOTEM.server = HTTPS.createServer({
-						passphrase: domain.encrypt,		// passphrase for pfx
+						passphrase: isEncrypted.pass,		// passphrase for pfx
 						pfx: totem.pfx,			// pfx/p12 encoded crt and key 
 						ca: trustStore,				// list of pki authorities (trusted serrver.trust)
 						crl: [],						// pki revocation list
@@ -1691,33 +1692,21 @@ Log("line ",idx,line.length);
 			}
 
 			const
-				{domain,name,cores} = TOTEM,
-			
-				urls = site.urls = cores 
-					? {  
-						//socketio: TOTEM.sockets ? paths.socketio : "",
-						worker:  domain.worker, 
-						master:  domain.master
-					}
-					: {
-						//socketio: TOTEM.sockets ? paths.socketio : "",
-						worker:  domain.worker,
-						master:  domain.master
-					},
-
+				{name,cores} = TOTEM,
 				pfx = `${paths.certs}${name}.pfx` ;
 
 			Trace( `PROTECTING ${name} USING ${pfx}` );
 
-			domain.master = URL.parse(urls.master);
-			domain.worker = URL.parse(urls.worker);
+			domain.master = URL.parse(site.master);
+			domain.worker = URL.parse(site.worker);
 			
-			Log(">>>>>>>>dom", TOTEM.domain);
+			isEncrypted.true = domain.master.protocol == "https";
+			isEncrypted.false = domain.worker.protocol == "https";
 			
-			if ( isEncrypted() )   // get a pfx cert if protecting an encrypted service
+			if ( isEncrypted[CLUSTER.isMaster] )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
 					if (err) // create the pfx cert then connect
-						createCert(name, domain.encrypt, () => {
+						createCert(name, isEncrypted.pass, () => {
 							connectService();
 						});	
 
@@ -1834,12 +1823,6 @@ Log("line ",idx,line.length);
 		log: console.log
 	},
 	
-	/**
-		Enabled when master/workers on encrypted service
-		@cfg {Boolean}
-	*/
-	isEncrypted: () => TOTEM.domain[ CLUSTER.isMaster ? "master" : "worker" ].protocol == "https:",
-
 	onUpdate: null,
 		
 	/**
@@ -2152,17 +2135,26 @@ Log("line ",idx,line.length);
 		are not overridden.
 	*/
 	name: ENV.SERVICE_NAME || "Totem1",
-		
+
+	/**
+		Enabled when master/workers on encrypted service
+		@cfg {Boolean}
+	*/
+	isEncrypted: {
+		pass: ENV.SERVICE_PASS || "",
+		true: false,	// derived
+		false: false	// derived
+	}, //() => TOTEM.domain[ CLUSTER.isMaster ? "master" : "worker" ].protocol == "https:",
+
 	/**
 		Host information: https encryption passphrase,
 		domain name of workers, domain name of master.
 		@cfg {String} [name="Totem"]
 	*/	
 
-	domain: { 
-		encrypt: ENV.SERVICE_PASS || "",
-		worker:  ENV.SERVICE_WORKER_URL || "https://localhost:8443", 
-		master:  ENV.SERVICE_MASTER_URL || "http://localhost:8080"
+	domain: { // derived
+		master: null, 
+		worker: null
 	},
 		
 	/**
@@ -2171,6 +2163,8 @@ Log("line ",idx,line.length);
 	*/
 	site: {  	//< reserved for derived context vars		
 		started: new Date(),
+		worker:  ENV.SERVICE_WORKER_URL || "https://localhost:8443", 
+		master:  ENV.SERVICE_MASTER_URL || "http://localhost:8080",
 		pocs: {
 			admin: ENV.ADMIN || "tbd@org.com",
 			overlord: ENV.OVERLORD || "tbd@org.com",
@@ -2312,7 +2306,8 @@ Log("line ",idx,line.length);
 		}
 
 		const
-			url = path.startsWith("/") ? TOTEM.domain.master + path : path,
+			{ fetchRetries,certs } = TOTEM,
+			url = path.startsWith("/") ? site.master + path : path,
 			opts = URL.parse(url),
 			crud = {
 				"Function": "GET",
@@ -2322,7 +2317,6 @@ Log("line ",idx,line.length);
 			},
 
 			// for wget-curl
-			{ fetchRetries,certs } = TOTEM,
 			cert = certs.fetch,
 			wget = url.split("////"),
 			wurl = wget[0],
@@ -2344,7 +2338,8 @@ Log("line ",idx,line.length);
 		}*/
 
 		Trace("FETCH "+url);
-
+		//Log(opts);
+		
 		switch ( opts.protocol || "" ) {
 			case "curl:": 
 				CP.exec( `curl --retry ${fetchRetries} ` + url.replace(protocol, "http:"), (err,out) => {
@@ -3108,8 +3103,8 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 	
 	var 
 		pathto = 
-			site.urls.master + req.path,  
-			 //site.urls.master + "/news",  
+			site.master + req.path,  
+			 //site.master + "/news",  
 			//"http://localhost:8081" + req.path,
 		
 		proxy = URL.parse( pathto );
@@ -3657,7 +3652,7 @@ function insertUser (req,res) {
 
 					Message:
 
-`Greetings from ${site.Nick.tag(site.urls.master)}-
+`Greetings from ${site.Nick.tag(site.master)}-
 
 Admin:
 	Please create an AWS EC2 account for ${owner} using attached cert.
@@ -3670,10 +3665,10 @@ To connect to ${site.Nick} from Windows:
 		
 	with the following LocalPort, RemotePort map:
 	
-		5001, ${site.urls.master}:22
-		5100, ${site.urls.master}:3389
-		5200, ${site.urls.master}:8080
-		5910, ${site.urls.master}:5910
+		5001, ${site.master}:22
+		5100, ${site.master}:3389
+		5200, ${site.master}:8080
+		5910, ${site.master}:5910
 		5555, Dynamic
 	
 	and, for convienience:
