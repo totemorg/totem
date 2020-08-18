@@ -1700,8 +1700,8 @@ Log("line ",idx,line.length);
 			domain.master = URL.parse(site.master);
 			domain.worker = URL.parse(site.worker);
 			
-			isEncrypted.true = domain.master.protocol == "https";
-			isEncrypted.false = domain.worker.protocol == "https";
+			isEncrypted.true = domain.master.protocol == "https:";
+			isEncrypted.false = domain.worker.protocol == "https:";
 			
 			if ( isEncrypted[CLUSTER.isMaster] )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
