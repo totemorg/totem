@@ -1239,6 +1239,7 @@ Log("line ",idx,line.length);
 									case "DELETE":
 										getPost( post => {
 											sqlThread( sql => {
+												//Log(Req.headers);
 												cb({			// prime session request
 													host: Req.headers.host,	// domain being requested
 													agent: Req.headers["user-agent"],	// requester info
