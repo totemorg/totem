@@ -13,6 +13,8 @@
   "author": "ACME SDS",
   "license": "ISC",
   "dependencies": {
+    "cheerio": "^1.0.0-rc.3",
+    "http-proxy-agent": "^4.0.1",
     "js2xmlparser": "^3.0.0",
     "json2csv": "^3.11.5",
     "mime": "^1.0.0",
