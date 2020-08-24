@@ -1,4 +1,50 @@
 ############################
+# Static IP for no-ip.com port forwarding
+############################
+# see https://www.unixmen.com/configure-static-ip-centos-7/
+# https://www.itzgeek.com/how-tos/linux/centos-how-tos/how-to-configure-static-ip-address-in-centos-7-rhel-7-fedora-26.html
+
+# make backups
+cp /etc/resolv.conf /etc/_backup_resolv.conf
+cp /etc/sysconfig/network-scripts/ifcfg-enp0s3 /etc/sysconfig/network-scripts/_backup_ifcfg-enp0s3
+
+# gather net info.  ether->hwaddr inet->ipaddr netmask->netmask broadcast.255->gateway.1, DNS1
+ifconfig -a
+
+# update ifcfg-enp0s3 ...
+
+# Static ip spec
+HWADDR=08:00:27:79:83:6c
+IPADDR=172.16.0.7
+NETMASK=255.255.255.0
+GATEWAY=172.16.0.1
+DNS1=172.16.0.1
+DNS2=8.8.8.8
+# general
+TYPE=Ethernet
+PROXY_METHOD=none
+BROWSER_ONLY=no
+DEFROUTE=yes
+# IPV4 enabled
+IPV4_FAILURE_FATAL=no
+# IPV6 disabled
+IPV6INIT=no
+IPV6_AUTOCONF=yes
+IPV6_DEFROUTE=yes
+IPV6_FAILURE_FATAL=no
+IPV6_ADDR_GEN_MODE=stable-privacy
+NAME=enp0s3
+# optional
+UUID=d0c22600-eebd-4900-bae6-252e29f734ce
+# general
+DEVICE=enp0s3
+ONBOOT=yes
+
+
+# restart net
+systemctl restart network
+
+############################
 # Google CSE API key
 ############################
 

@@ -1334,36 +1334,56 @@ Log("line ",idx,line.length);
 								startDogs( sql, dogs );
 							
 							// setup proxies
-							if ( proxies )
-								fetch( proxies, html => {
-									//Log(">>>prox", html.length);
-									var 
-										$ = SCRAPE.load(html),
-										cols = {
-											ip: 1,
-											port: 2,
-											org: 3,
-											type: 5,
-											proto: 6
-										},
-										recs = [];
-									
-									$("table").each( (idx,tab) => {
-										//Log("table",idx); 
-										if ( idx==0 )
-											for ( var key in cols ) {
-												if ( col = cols[key] )
-													$( `td:nth-child(${col})`, tab).each( (i,v) => {
-														if ( col == 1 ) recs.push( Copy(cols,{}) );
-														var rec = recs[i];
-														rec[ key ] = $(v).text();
-													}); 
-											}
-									}); 
-									
-									Log("PROXIES", recs);
-									recs.forEach( rec => {
-										sql.query("INSERT INTO openv.proxies SET ?", rec);
+							sql.query(	// out with the old
+								"DELETE FROM openv.proxies WHERE hour(timediff(now(),created)) >= 2");
+							
+							if ( proxies ) 	// in with the new
+								proxies.forEach( (proxy,src) => {
+									fetch( proxy, html => {
+										//Log(">>>proxy", proxy, html.length);
+										var 
+											$ = SCRAPE.load(html),
+											now = new Date(),
+											recs = [];
+
+										switch (proxy) {
+											case "https://free-proxy-list.net":
+											case "https://sslproxies.org":
+												var cols = {
+													ip: 1,
+													port: 2,
+													org: 3,
+													type: 5,
+													proto: 6
+												};
+												
+												$("table").each( (idx,tab) => {
+													//Log("table",idx); 
+													if ( idx==0 )
+														for ( var key in cols ) {
+															if ( col = cols[key] )
+																$( `td:nth-child(${col})`, tab).each( (i,v) => {
+																	if ( col == 1 ) recs.push( Copy(cols, {
+																		source: src,
+																		created: now
+																	}) );
+																	var rec = recs[i];
+																	rec[ key ] = $(v).text();
+																}); 
+														}
+												}); 
+												break;
+
+											default:
+												Log("ignoring proxy", proxy);
+										}
+
+										Log("PROXIES", recs);
+										recs.forEach( rec => {
+											sql.query(
+												"INSERT INTO openv.proxies SET ? ON DUPLICATE KEY UPDATE ?", 
+												[rec, {created: now, source:src}]);
+										});
 									});
 								});
 						});
@@ -2370,28 +2390,52 @@ Log("line ",idx,line.length);
 			Req.end();
 		}
 		
-		function get(proto, opts, cb) {
-			var body = "";
-			proto.get( opts, res => {
-				var sink = new STREAM.Writable({
-					objectMode: true,
-					write: (buf,en,sinkcb) => {
-						body += buf;
-						sinkcb(null);  // signal no errors
-					}
-				});
+		function get(proto, opts, sql, id, cb) {
+			var 
+				body = "",
+				req = proto.get( opts, res => {
+					var sink = new STREAM.Writable({
+						objectMode: true,
+						write: (buf,en,sinkcb) => {
+							body += buf;
+							sinkcb(null);  // signal no errors
+						}
+					});
 
-				sink
-				.on("finish", () => {
-					Log(">>>>body", body, ">>stat",res.statusCode);
-					cb( (res.statusCode == 200) ? body : "" );
-				})
-				.on("error", err => {
-					Log(">>>get error", err);
-					cb("");
-				});
+					sink
+					.on("finish", () => {
+						var stat = "s"+Math.trunc(res.statusCode/100)+"xx";
+						Log(">>>>body", body.length, ">>stat",res.statusCode,">>>",stat);
 
-				res.pipe(sink);
+						sql.query("UPDATE openv.proxies SET ?? = ?? + 1 WHERE ?", [stat,stat,id] );
+
+						cb( (stat = "s2xx") ? body : "" );
+					})
+					.on("error", err => {
+						Log(">>>get error", err);
+						cb("");
+					});
+
+					res.pipe(sink);
+				});
+			
+			req.on("socket", sock => {
+				sock.setTimeout(2e3, () => {
+					req.abort();
+					Log(">>>timeout");
+					sql.query("UPDATE openv.proxies SET sTimeout = sTimeout+1 WHERE ?", id);
+				});
+				
+				sock.on("error", err => {
+					req.abort();
+					Log(">>>refused");
+					sql.query("UPDATE openv.proxies SET sRefused = sRefused+1 WHERE ?", id);
+				});
+			});
+			
+			req.on("error", err => {
+				Log(">>>abort",err);
+				sql.query("UPDATE openv.proxies SET sAbort = sAbort+1 WHERE ?", id);
 			});
 		}
 		
@@ -2519,16 +2563,17 @@ Log("line ",idx,line.length);
 				break;
 				
 			case "mask:":
+			case "mttp:":
 				opts.protocol = "http:";
 				sqlThread( sql => {
 					sql.query(
-						"SELECT ip,port FROM openv.proxies WHERE ? ORDER BY rand() LIMIT 1",
+						"SELECT ID,ip,port FROM openv.proxies WHERE ? ORDER BY rand() LIMIT 1",
 						[{proto: "no"}], (err,recs) => {
 							
 						if ( rec = recs[0] ) {
 							opts.agent = new AGENT( `http://${rec.ip}:${rec.port}` );
-							Log("mask",rec);
-							get(HTTP, opts, data);
+							Log(">>>agent",rec);
+							get(HTTP, opts, sql, {ID:rec.ID}, data || (res => {}) );
 						}
 					});
 				});
@@ -2693,7 +2738,10 @@ Log("line ",idx,line.length);
 		//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 		//default: "/gohome",
 		//resetpass: "/resetpass",
-		proxies: "https://sslproxies.org",
+		proxies: [
+			//"https://free-proxy-list.net",
+			"https://sslproxies.org"
+		],
 		//wget: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 		//curl: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 		//http: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
