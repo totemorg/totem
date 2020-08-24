@@ -1368,7 +1368,6 @@ Log("line ",idx,line.length);
 								});
 						});
 					}
-
 				}
 
 				const 
@@ -1719,7 +1718,6 @@ Log("line ",idx,line.length);
 						});
 					});
 				});
-				
 			}
 
 			const
@@ -1805,12 +1803,11 @@ Log("line ",idx,line.length);
 					if (name)	// derive site context
 						setContext(sql, () => {
 							protectService(routeSession);
-							cb(sql);
+							if (cb) cb(sql);
 						});
 					
 					else
-						cb( sql );
-					
+					if (cb) cb( sql );
 				});
 		});	
 	},
@@ -2327,15 +2324,77 @@ Log("line ",idx,line.length);
 		or fetches data from service path using GET method with callsback to params.
 		
 		@cfg {Function} 
-		@param {String} path prefixed by http || https || curl || curls || wget || wgets || /path protocol
+		@param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
 		@param {Object, Array, Function, null} method induces probe method
 	*/
-	fetch: (path, data) => {	//< data fetching
+	fetch: (path, data, cb) => {	//< data fetching
 	
 		function sha256(s) { // reserved for other functionality
 			return CRYPTO.createHash('sha256').update(s).digest('base64');
 		}
 
+		function request(proto, opts, data, cb) {
+			var Req = proto.request(opts, Res => { // get reponse body text
+				var body = "";
+				Res.on("data", chunk => body += chunk.toString() );
+
+				Res.on("end", () => {
+					//Log('fetch statusCode:', Res.statusCode);
+					//Log('fetch headers:', Res.headers['public-key-pins']);	// Print the HPKP values
+
+					if ( opts.method == "GET" ) 
+						data( body );
+					
+					else
+					if ( cb ) 
+						cb( body );
+				});
+			});
+
+			Req.on('error', err => {
+				Log(err);
+				(cb||data)("");
+			});
+
+			switch (opts.method) {
+				case "DELETE":
+				case "GET": 
+					break;
+
+				case "POST":
+				case "PUT":
+					Req.write( JSON.stringify(data) );  // post parms
+					break;
+			}					
+
+			Req.end();
+		}
+		
+		function get(proto, opts, cb) {
+			var body = "";
+			proto.get( opts, res => {
+				var sink = new STREAM.Writable({
+					objectMode: true,
+					write: (buf,en,sinkcb) => {
+						body += buf;
+						sinkcb(null);  // signal no errors
+					}
+				});
+
+				sink
+				.on("finish", () => {
+					Log(">>>>body", body, ">>stat",res.statusCode);
+					cb( (res.statusCode == 200) ? body : "" );
+				})
+				.on("error", err => {
+					Log(">>>get error", err);
+					cb("");
+				});
+
+				res.pipe(sink);
+			});
+		}
+		
 		const
 			{ fetchRetries,certs } = TOTEM,
 			url = path.startsWith("/") ? site.master + path : path,
@@ -2374,25 +2433,25 @@ Log("line ",idx,line.length);
 		switch ( opts.protocol || "" ) {
 			case "curl:": 
 				CP.exec( `curl --retry ${fetchRetries} ` + url.replace(protocol, "http:"), (err,out) => {
-					cb( err ? "" : out );
+					data( err ? "" : out );
 				});
 				break;
 
 			case "curls:":
 				CP.exec( `curl --retry ${fetchRetries} -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"), (err,out) => {
-					cb( err ? "" : out );
+					data( err ? "" : out );
 				});	
 				break;
 
 			case "wget:":
 				CP.exec( `wget --tries=${fetchRetries} -O ${wout} ` + wurl.replace(protocol, "http:"), err => {
-					cb( err ? "" : "ok" );
+					data( err ? "" : "ok" );
 				});
 				break;
 
 			case "wgets:":
 				CP.exec( `wget --tries=${fetchRetries} -O ${wout} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + wurl.replace(protocol, "https:"), err => {
-					cb( err ? "" : "ok" );
+					data( err ? "" : "ok" );
 				});
 				break;
 
@@ -2452,65 +2511,27 @@ Log("line ",idx,line.length);
 					: {
 						} );
 					*/
-				var Req = HTTPS.request(opts, Res => { // get reponse body text
-					var body = "";
-					Res.on("data", chunk => body += chunk.toString() );
-
-					Res.on("end", () => {
-						//Log('fetch statusCode:', Res.statusCode);
-						//Log('fetch headers:', Res.headers['public-key-pins']);	// Print the HPKP values
-
-						if ( opts.method == "GET" ) data( body );
-					});
-				});
-
-				Req.on('error', err => {
-					Trace(err+"");
-				});
-
-				switch (opts.method) {
-					case "DELETE":
-					case "GET": 
-						break;
-
-					case "POST":
-					case "PUT":
-						Req.write( JSON.stringify(data) );  // post parms
-						break;
-				}					
-
-				Req.end();
+				request(HTTPS, opts, data, cb);
 				break;
 				
 			case "http:":
-				var Req = HTTP.request(opts, Res => { // get reponse body text
-					var body = "";
-					Res.on("data", chunk => body += chunk.toString() );
-
-					Res.on("end", () => {
-						//Log('fetch statusCode:', Res.statusCode);
-						//Log('fetch headers:', Res.headers['public-key-pins']);	// Print the HPKP values
-
-						if ( opts.method == "GET" ) data( body );
+				request(HTTP, opts, data, cb);
+				break;
+				
+			case "mask:":
+				opts.protocol = "http:";
+				sqlThread( sql => {
+					sql.query(
+						"SELECT ip,port FROM openv.proxies WHERE ? ORDER BY rand() LIMIT 1",
+						[{proto: "no"}], (err,recs) => {
+							
+						if ( rec = recs[0] ) {
+							opts.agent = new AGENT( `http://${rec.ip}:${rec.port}` );
+							Log("mask",rec);
+							get(HTTP, opts, data);
+						}
 					});
 				});
-
-				Req.on('error', err => {
-					Trace(err+"");
-				});
-
-				switch (opts.method) {
-					case "DELETE":
-					case "GET": 
-						break;
-
-					case "POST":
-					case "PUT":
-						Req.write( JSON.stringify(data) );  // post parms
-						break;
-				}					
-
-				Req.end();
 				break;
 		}
 
