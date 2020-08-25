@@ -206,12 +206,12 @@ function neoThread(cb) {
 
 const { operators, reqFlags,paths,errors,site,fetch, 
 			maxFiles, isEncrypted, domain,
-			sqlThread,filterRecords,guestProfile,dsroutes,
+			sqlThread,filterRecords,guestProfile,routeDS,
 			ingestFile, chunkFile, splitFile, filterFile, filterSql, 
 	   	startDogs,startJob,endJob } = TOTEM = module.exports = {
 	
-	dsroutes: {
-		default: ctx => "app."+ctx.table
+	routeDS: {	// setup default DataSet routes
+		default: req => "app."+req.table
 	},
 
 	mysql: { 		// database connection or null to disable
@@ -576,7 +576,7 @@ const { operators, reqFlags,paths,errors,site,fetch,
 			method: "GET|PUT|..." 		// http request method
 			action: "select|update| ..."		// corresponding crude name
 			started: date	// date stamp when requested started
-			encrypted: bool	// true if request on encrypted server
+			//encrypted: bool	// true if request on encrypted server
 			socketio: "path"  // filepath to client's socketio.js
 			post: "..."			// raw body text
 			url	: "..."				// complete url requested
@@ -598,6 +598,8 @@ const { operators, reqFlags,paths,errors,site,fetch,
 			//site: {...}			// skinning context
 			path: "/[area/...]name.type"			// requested resource
 			area: "name"		// file area being requested
+			table: "name"		// name of sql table being requested
+			ds:	"db.name"		// fully qualified sql table
 			body: {...}			// json parsed post
 			type: "type" 			// type part 
 
@@ -696,9 +698,10 @@ const { operators, reqFlags,paths,errors,site,fetch,
 				file = req.file = areas.pop() || "",		// table.type
 				[x,table,type] = [x,req.table,req.type] = file.match( /(.*)\.(.*)/ ) || ["", file, ""],
 				area = req.area = areas[1] || "",
-				body = req.body;
-
-			//Log([action,path,area,table,type]);
+				body = req.body,
+				ds = req.ds = (routeDS[table] || routeDS.default)(req);
+			
+			//Log([ds,action,path,area,table,type]);
 
 			//req.site = site;
 
@@ -1334,58 +1337,60 @@ Log("line ",idx,line.length);
 								startDogs( sql, dogs );
 							
 							// setup proxies
-							sql.query(	// out with the old
-								"DELETE FROM openv.proxies WHERE hour(timediff(now(),created)) >= 2");
-							
-							if ( proxies ) 	// in with the new
-								proxies.forEach( (proxy,src) => {
-									fetch( proxy, html => {
-										//Log(">>>proxy", proxy, html.length);
-										var 
-											$ = SCRAPE.load(html),
-											now = new Date(),
-											recs = [];
+							if ( false ) {
+								sql.query(	// out with the old
+									"DELETE FROM openv.proxies WHERE hour(timediff(now(),created)) >= 2");
 
-										switch (proxy) {
-											case "https://free-proxy-list.net":
-											case "https://sslproxies.org":
-												var cols = {
-													ip: 1,
-													port: 2,
-													org: 3,
-													type: 5,
-													proto: 6
-												};
-												
-												$("table").each( (idx,tab) => {
-													//Log("table",idx); 
-													if ( idx==0 )
-														for ( var key in cols ) {
-															if ( col = cols[key] )
-																$( `td:nth-child(${col})`, tab).each( (i,v) => {
-																	if ( col == 1 ) recs.push( Copy(cols, {
-																		source: src,
-																		created: now
-																	}) );
-																	var rec = recs[i];
-																	rec[ key ] = $(v).text();
-																}); 
-														}
-												}); 
-												break;
+								if ( proxies ) 	// in with the new
+									proxies.forEach( (proxy,src) => {
+										fetch( proxy, html => {
+											//Log(">>>proxy", proxy, html.length);
+											var 
+												$ = SCRAPE.load(html),
+												now = new Date(),
+												recs = [];
 
-											default:
-												Log("ignoring proxy", proxy);
-										}
+											switch (proxy) {
+												case "https://free-proxy-list.net":
+												case "https://sslproxies.org":
+													var cols = {
+														ip: 1,
+														port: 2,
+														org: 3,
+														type: 5,
+														proto: 6
+													};
 
-										Log("PROXIES", recs);
-										recs.forEach( rec => {
-											sql.query(
-												"INSERT INTO openv.proxies SET ? ON DUPLICATE KEY UPDATE ?", 
-												[rec, {created: now, source:src}]);
+													$("table").each( (idx,tab) => {
+														//Log("table",idx); 
+														if ( idx==0 )
+															for ( var key in cols ) {
+																if ( col = cols[key] )
+																	$( `td:nth-child(${col})`, tab).each( (i,v) => {
+																		if ( col == 1 ) recs.push( Copy(cols, {
+																			source: src,
+																			created: now
+																		}) );
+																		var rec = recs[i];
+																		rec[ key ] = $(v).text();
+																	}); 
+															}
+													}); 
+													break;
+
+												default:
+													Log("ignoring proxy", proxy);
+											}
+
+											Log("PROXIES", recs);
+											recs.forEach( rec => {
+												sql.query(
+													"INSERT INTO openv.proxies SET ? ON DUPLICATE KEY UPDATE ?", 
+													[rec, {created: now, source:src}]);
+											});
 										});
 									});
-								});
+							}
 						});
 					}
 				}
@@ -2454,10 +2459,11 @@ Log("line ",idx,line.length);
 			cert = certs.fetch,
 			wget = url.split("////"),
 			wurl = wget[0],
-			wout = wget[1] || "./temps/wget.jpg";
+			wout = wget[1] || "./temps/wget.jpg",
+					
+			{ protocol } = opts,
+			method = crud[ data ? typeOf(data) : "Null" ] ;
 		
-		opts.rejectUnauthorized = false;
-		opts.method = crud[ data ? typeOf(data) : "Null" ] ;
 		// opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
 		// opts.cipher = " ... "
 		// opts.headers = { ... }
@@ -2474,7 +2480,9 @@ Log("line ",idx,line.length);
 		Trace("FETCH "+url);
 		//Log(opts);
 		
-		switch ( opts.protocol || "" ) {
+		opts.method = method;
+		
+		switch ( protocol ) {
 			case "curl:": 
 				CP.exec( `curl --retry ${fetchRetries} ` + url.replace(protocol, "http:"), (err,out) => {
 					data( err ? "" : out );
@@ -2555,6 +2563,7 @@ Log("line ",idx,line.length);
 					: {
 						} );
 					*/
+				opts.rejectUnauthorized = false;
 				request(HTTPS, opts, data, cb);
 				break;
 				
@@ -2578,6 +2587,15 @@ Log("line ",idx,line.length);
 					});
 				});
 				break;
+				
+			default:
+				var 
+					Opts = URL.parse("http://"+url);
+				
+				Opts.method = method;
+				//Log(Opts);
+				request(HTTP, Opts, data, cb);
+				
 		}
 
 	},
@@ -3520,9 +3538,8 @@ function challengeClient (sql, client, profile) {
 */
 function selectDS(req, res) {
 	const 
-		{ sql, flags, client, where, index, action, table } = req,
-		{ trace, pivot, browse, sort, limit, offset } = flags,
-		ds = (dsroutes[table] || dsroutes.default)(req);
+		{ sql, flags, client, where, index, action, ds } = req,
+		{ trace, pivot, browse, sort, limit, offset } = flags;
 	
 	sql.Index( ds, index, [], (index,jsons) => {
 		sql.Query(
@@ -3554,9 +3571,8 @@ function selectDS(req, res) {
 */
 function insertDS(req, res) {
 	const 
-		{ sql, flags, body, client, action, table } = req,
-		{ trace } = flags,
-		ds = (dsroutes[table] || dsroutes.default)(req);
+		{ sql, flags, body, client, action, ds } = req,
+		{ trace } = flags;
 
 	sql.Query(
 		"INSERT INTO ?? ${set}", [ds,body], {
@@ -3578,9 +3594,8 @@ function insertDS(req, res) {
 */	
 function deleteDS(req, res) {
 	const 
-		{ sql, flags, where, query, client, action, table } = req,
-		{ trace } = flags,
-		ds = (dsroutes[table] || dsroutes.default)(req);
+		{ sql, flags, where, query, client, action, ds } = req,
+		{ trace } = flags;
 
 	if ( isEmpty(where) )
 		res( errors.noID );
@@ -3606,9 +3621,8 @@ function deleteDS(req, res) {
 */	
 function updateDS(req, res) {
 	const 
-		{ sql, flags, body, where, client, action, table } = req,
-		{ trace } = flags,
-		ds = (dsroutes[table] || dsroutes.default)(req);
+		{ sql, flags, body, where, client, action, ds } = req,
+		{ trace } = flags;
 	
 	//Log(where,body);
 	
