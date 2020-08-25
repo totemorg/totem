@@ -3621,7 +3621,7 @@ function deleteDS(req, res) {
 */	
 function updateDS(req, res) {
 	const 
-		{ sql, flags, body, where, client, action, ds } = req,
+		{ sql, flags, body, where, client, action, ds,table } = req,
 		{ trace } = flags;
 	
 	//Log(where,body);
@@ -3637,7 +3637,7 @@ function updateDS(req, res) {
 		sql.Query(
 			"UPDATE ?? ${set} ${where}", [ds,body], {
 				trace: trace,
-				from: table,
+				from: ds,
 				where: where,
 				set: body,
 				client: client,
