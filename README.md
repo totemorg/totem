@@ -26,6 +26,7 @@ web service having the following configurable features:
 	+ task sharding
 	+ job queues
 	+ file stream and ingest
+	+ data fetch w and w/o rotating proxies
   
 TOTEM defines the following CRUD endpoints:
 
@@ -60,22 +61,34 @@ Clone [TOTEM base web service](http://sc.appdev.proj.coe/acmesds/totem) into you
 Clone [ENUM basic enumerators](http://sc.appdev.proj.coe/acmesds/enum) into your PROJECT/enum folder.   
 Clone [JSDB database agnosticator](http://sc.appdev.proj.coe/acmesds/jsdb) into your PROJECT/jsdb folder.
 
+Revise config.sh, _pass.sh and maint.sh as needed.
+
 ### Start 
 
 	npm test [ ? || T1 || T2 || ...]			# Unit test
 	npm run [ prmprep || prmload ]		# Revise PRM
 	npm run [ edit || start ]			# Configure environment
 
-### Required MySQL databases
+### MySQL databases
 
-* openv.profiles Updates when a client arrives  
-* openv.sessions Updates when a client session is established   
+* openv.profiles Updated when a client arrives (reqd)
+* openv.sessions Updated when a client session is established (reqd) 
+* openv.apps Read on startup to define site context keys (reqd)
+* openv.proxies Read and updated to maintain rotating fetch proxies
 * openv.riddles Builds on config and updates when a client arrives  
-* openv.apps Read on config to override config options and to define site context keys  
 * openv.aspreqts Read on config to define asp requirements  
 * openv.ispreqts Read on config to define isp requirements  
 * openv.hwreqts Read on config to define hardware requirements  
-* app.files Updated/read during file download/upload
+* openv.dblogs Updated when tables are revised
+* openv.files Updated/read during file download/upload
+
+create table openv.profiles (ID float unique auto_increment,Banned mediumtext,QoS int(11),Credit float,Charge float,Challenge boolean,Client varchar(64),User varchar(16),Login varchar(16),`Group` varchar(16),IDs json,Repoll boolean,Retries int(11), Timeout float, Message mediumtext);
+create table openv.apps (ID float unique auto_increment,Nick varchar(16),Title varchar(64),byline varchar(16));
+create table openv.sessions (ID float unique auto_increment,Client varchar(64),Message mediumtext,Joined datetime);  
+create table openv.proxies (ID float unique auto_increment,ip varchar(16), port int(11), org varchar(16),type varchar(16),proto varchar(8),source varchar(8),created datetime);
+create table openv.roles (ID float unique auto_increment,Hawk varchar(8),Client varchar(64));
+create table openv.dblogs (ID float unique auto_increment,dataset varchar(16));
+create table app.queues (ID float unique auto_increment,Age float,Util float,State float,ECD datetime, Client varchar(64),`Class` varchar(32),Task varchar(32),QoS int(11),Priority int(11), Arrived datetime, Departed datetime,Name varchar(32),Classif varchar(32),Notes mediumtext,Billed boolean,Flagged boolean,Funded boolean,Work int(11),Done int(11));
 
 ## Usage
 
@@ -252,6 +265,7 @@ the [ENUM deep copy conventions](http://sc.appdev.proj.coe/acmesds/enum).
 	}, err => {
 		Trace( err || "Testing tasker with database and 3 cores at /test endpoint" );
 	});
+
 
 ## Contributing
 

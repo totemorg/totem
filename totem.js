@@ -1314,7 +1314,7 @@ Log("line ",idx,line.length);
 
 							// initialize file watcher
 
-							sql.query("UPDATE app.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
+							sql.query("UPDATE openv.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
 
 							var modTimes = TOTEM.modTimes;
 
@@ -1704,7 +1704,8 @@ Log("line ",idx,line.length);
 										const {sql,client,cert} = req;
 										sql.query(paths.mysql.newSession, {
 											Client: client,
-											Message: JSON.stringify(cert),
+											Client: client,
+											Message: "joined", //JSON.stringify(cert),
 											Joined: new Date()
 										});
 									}
@@ -2771,11 +2772,11 @@ Log("line ",idx,line.length);
 
 		mysql: {
 			//logThreads: "show session status like 'Thread%'",
-			users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM app.dblogs WHERE instr(dataset,'@')",
+			users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM openv.dblogs WHERE instr(dataset,'@')",
 			derive: "SELECT * FROM openv.apps WHERE ? LIMIT 1",
-			// logMetrics: "INSERT INTO app.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
-			search: "SELECT * FROM app.files HAVING Score > 0.1",
-			//credit: "SELECT * FROM app.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 1",
+			// logMetrics: "INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
+			search: "SELECT * FROM openv.files HAVING Score > 0.1",
+			//credit: "SELECT * FROM openv.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 1",
 			getProfile: "SELECT * FROM openv.profiles WHERE ? LIMIT 1",
 			newProfile: "INSERT INTO openv.profiles SET ?",
 			getSession: "SELECT * FROM openv.sessions WHERE ? LIMIT 1",
@@ -2832,20 +2833,20 @@ Log("line ",idx,line.length);
 	setContext: function (sql,cb) { 
 		Trace(`CONTEXTING ${TOTEM.name}`);
 	
-		var 
-			mysql = paths.mysql;
+		const 
+			{pocs,users,guest,derive} = paths.mysql;
 
-		if (pocs = mysql.pocs) 
+		if (pocs) 
 			sql.query(pocs)
 			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() );
 			//.on("end", () => Log("POCs", site.pocs) );
 
-		if (users = mysql.users) 
+		if (users) 
 			sql.query(users)
 			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() );
 			//.on("end", () => Log("POCs", site.pocs) );
 
-		if (guest = mysql.guest)
+		if (guest)
 			sql.query(guest)
 			.on("result", rec => {
 				if ( guestProfile ) {
@@ -2854,7 +2855,7 @@ Log("line ",idx,line.length);
 				}
 			});
 
-		if (derive = mysql.derive)  // derive site context vars
+		if (derive)  // derive site context vars
 			sql.query(derive, {Nick:TOTEM.name})
 			.on("result", opts => {
 				Each(opts, (key,val) => {
@@ -3168,7 +3169,7 @@ function getFile(client, name, cb) {
 	sqlThread( sql => {
 		sql.forFirst( 
 			"FILE", 
-			"SELECT ID FROM app.files WHERE least(?,1) LIMIT 1", {
+			"SELECT ID FROM openv.files WHERE least(?,1) LIMIT 1", {
 				Name: name
 				//Client: client,
 				//Area: area
@@ -3181,7 +3182,7 @@ function getFile(client, name, cb) {
 				else
 					sql.forAll( 
 						"FILE", 
-						"INSERT INTO app.files SET _State_Added=now(), ?", {
+						"INSERT INTO openv.files SET _State_Added=now(), ?", {
 							Name: name,
 							Client: client
 							// Path: filepath,
@@ -3230,7 +3231,7 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 				.on("error", err => {
 					Log("totem upload error", err);
 					sqlThread( sql => {
-						sql.query("UPDATE app.files SET ? WHERE ?", [ {
+						sql.query("UPDATE openv.files SET ? WHERE ?", [ {
 							_State_Notes: "Upload failed: " + err 
 						}, {ID: file.ID} ] );
 					});
@@ -4069,7 +4070,7 @@ function sysFile(req, res) {
 
 					if (false)
 					sql.query(	// this might be generating an extra geo=null record for some reason.  works thereafter.
-						   "INSERT INTO app.files SET ?,Location=GeomFromText(?) "
+						   "INSERT INTO openv.files SET ?,Location=GeomFromText(?) "
 						+ "ON DUPLICATE KEY UPDATE Client=?,Added=now(),Revs=Revs+1,Location=GeomFromText(?)", [ 
 							{
 									Client: req.client,

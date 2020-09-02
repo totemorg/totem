@@ -217,18 +217,18 @@ cp share/english/errmsg.sys share/
 cd mysql
 vi my.cnf  # add following
 [mysqld_safe]
-datadir=/local/service/sqldb
+datadir=/local/sqldb
 basedir=/local/mysql/bin
 socket=/tmp/mysql.sock
 symbolic-links=0
-log-error=/local/service/sqldb/mysqld.log
-pid-file=/local/service/sqldb/mysqld.pid
+log-error=/local/sqldb/mysqld.log
+pid-file=/local/sqldb/mysqld.pid
 sql-mode= 
 max_allowed_packet=64000000
 
 # create / initialize the sqldb 
 cd mysql
-./bin/mysqld --initialize-insecure --user=mysql  --basedir=/local/mysql --datadir=/local/service/sqldb
+./bin/mysqld --initialize-insecure --user=mysql  --basedir=/local/mysql --datadir=/local/sqldb
 ./bin/mysqld_safe --defaults-file=my.cnf &
 ./bin/mysql -u root --skip-password
 alter user "root"@"localhost" identified by "ROOTPASS"; # instead of using mysqladmin
