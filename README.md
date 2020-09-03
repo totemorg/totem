@@ -85,7 +85,7 @@ Revise config.sh, _pass.sh and maint.sh as needed.
 create table openv.profiles (ID float unique auto_increment,Banned mediumtext,QoS int(11),Credit float,Charge float,Challenge boolean,Client varchar(64),User varchar(16),Login varchar(16),`Group` varchar(16),IDs json,Repoll boolean,Retries int(11), Timeout float, Message mediumtext);
 create table openv.apps (ID float unique auto_increment,Nick varchar(16),Title varchar(64),byline varchar(16));
 create table openv.sessions (ID float unique auto_increment,Client varchar(64),Message mediumtext,Joined datetime);  
-create table openv.proxies (ID float unique auto_increment,ip varchar(16), port int(11), org varchar(16),type varchar(16),proto varchar(8),source varchar(8),created datetime);
+create table openv.proxies (ID float unique auto_increment,ip varchar(16), port int(11), hits int(11) default 0,org varchar(16),type varchar(16),proto varchar(8),source varchar(8),created datetime,s1xx int(11) default 0,s2xx int(11) default 0,s3xx int(11) default 0,s4xx int(11) default 0,s5xx int(11) default 0,sRefused int(11) default 0,sAbort int(11) default 0,sTimeout int(11) default 0 );
 create table openv.roles (ID float unique auto_increment,Hawk varchar(8),Client varchar(64));
 create table openv.dblogs (ID float unique auto_increment,dataset varchar(16));
 create table app.queues (ID float unique auto_increment,Age float,Util float,State float,ECD datetime, Client varchar(64),`Class` varchar(32),Task varchar(32),QoS int(11),Priority int(11), Arrived datetime, Departed datetime,Name varchar(32),Classif varchar(32),Notes mediumtext,Billed boolean,Flagged boolean,Funded boolean,Work int(11),Done int(11));

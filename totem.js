@@ -2413,7 +2413,7 @@ Log("line ",idx,line.length);
 						var stat = "s"+Math.trunc(res.statusCode/100)+"xx";
 						Log(">>>>body", body.length, ">>stat",res.statusCode,">>>",stat);
 
-						sql.query("UPDATE openv.proxies SET ?? = ?? + 1 WHERE ?", [stat,stat,id] );
+						sql.query("UPDATE openv.proxies SET hits=hits+1, ?? = ?? + 1 WHERE ?", [stat,stat,id] );
 
 						cb( (stat = "s2xx") ? body : "" );
 					})
@@ -2429,19 +2429,19 @@ Log("line ",idx,line.length);
 				sock.setTimeout(2e3, () => {
 					req.abort();
 					Log(">>>timeout");
-					sql.query("UPDATE openv.proxies SET sTimeout = sTimeout+1 WHERE ?", id);
+					sql.query("UPDATE openv.proxies SET hits=hits+1, sTimeout = sTimeout+1 WHERE ?", id);
 				});
 				
 				sock.on("error", err => {
 					req.abort();
 					Log(">>>refused");
-					sql.query("UPDATE openv.proxies SET sRefused = sRefused+1 WHERE ?", id);
+					sql.query("UPDATE openv.proxies SET hits=hits+1, sRefused = sRefused+1 WHERE ?", id);
 				});
 			});
 			
 			req.on("error", err => {
 				Log(">>>abort",err);
-				sql.query("UPDATE openv.proxies SET sAbort = sAbort+1 WHERE ?", id);
+				sql.query("UPDATE openv.proxies SET hits=hits+1, sAbort = sAbort+1 WHERE ?", id);
 			});
 		}
 		
@@ -4858,7 +4858,15 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 				});
 			});
 		});
-		break;			
+		break;
+			
+	case "G2":
+		TOTEM.config({name:""}, sql => {
+			for (var n=0,N=2000; n<N; n++)
+				TOTEM.fetch("mask://www.drudgereport.com", txt => Log(txt.length));
+		});
+		break;
+			
 }
 
 // UNCLASSIFIED
