@@ -106,8 +106,15 @@ https://customsearch.googleapis.com/customsearch/v1?key=AIzaSyBp56CJJA0FE5enebW5
 # NGA cert creation process:
 #
 # 1. On the machine that will run the service, create a private key:
-#		openssl req-new -newkey rsa:2048 -nodes -keyout totem.nga.mil.key totem.-out totem.nga.mil.csr
+#		openssl req -new -newkey rsa:2048 -nodes -keyout totem.nga.mil.key -out totem.nga.mil.csr
 # 
+# Instead of generating a private key and then creating a CSR in two separate steps, you can actually perform both tasks at once.
+# This command generates a new private key (-newkey) using the RSA algorithm with a 2048-bit key length (rsa:2048) without using a passphrase (-nodes) and then creates the key file with a name of yourdomain.key (-keyout yourdomain.key).
+#
+# The command then generates the CSR with a filename of yourdomain.csr (-out yourdomain.csr) and the information for the CSR is supplied (-subj).
+#
+#    Note: While it is possible to add a subject alternative name (SAN) to a CSR using OpenSSL, the process is a bit complicated and involved. If you do need to add a SAN to your certificate, this can easily be done by adding them to the order form when purchasing your DigiCert certificate.
+#
 # Retain passphrase for step4.
 #
 # 2. Submit the csr to the disa pki team at https://npe-portal.csd.disa.mil
@@ -130,6 +137,9 @@ https://customsearch.googleapis.com/customsearch/v1?key=AIzaSyBp56CJJA0FE5enebW5
 # 4. combine public and private key into a standalone pfx file for the service:
 #
 #		openssl pkcs12 -export -out totem.nga.mil.pfx -inkey totem.nga.mil.key -in totem.nga.mil.crt
+#
+# 		openssl pkcs12 -export -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -out totem.nga.mil.pfx -inkey totem.nga.mil.key -in totem.nga.mil.crt
+#		-name "<Display Name>"
 #
 #		use same csr passphrase at both password prompts.  Can also use the
 #		-password pass:PSWD option to supply the password.

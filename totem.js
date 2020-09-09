@@ -205,7 +205,7 @@ function neoThread(cb) {
 ].Extend(NEOCONNECTOR);
 
 const { operators, reqFlags,paths,errors,site,fetch, 
-			maxFiles, isEncrypted, domain,
+			maxFiles, isEncrypted, domain, behindProxy, admitClient,
 			sqlThread,filterRecords,guestProfile,routeDS,
 			ingestFile, chunkFile, splitFile, filterFile, filterSql, 
 	   	startDogs,startJob,endJob } = TOTEM = module.exports = {
@@ -570,38 +570,39 @@ const { operators, reqFlags,paths,errors,site,fetch,
 		Route node/nodes (byTable, byArea, byAction or byType) on 
 		the provided request-response thread:
 
-			// phase1 connect
-			host: "..."	// domain name being accessed by client
-			agent: "..."	// client browser info
-			method: "GET|PUT|..." 		// http request method
-			action: "select|update| ..."		// corresponding crude name
-			started: date	// date stamp when requested started
-			//encrypted: bool	// true if request on encrypted server
-			socketio: "path"  // filepath to client's socketio.js
+			// connectSession phase
+			host: "..."			// domain name being accessed by client
+			agent: "..."		// client browser info
+			method: "GET|PUT|..." 			// http request method
+			action: "select|update| ..."	// corresponding crude name
+			started: date		// date stamp when requested started
+			encrypted: bool		// true if request on encrypted server
+			socketio: "path"  	// filepath to client's socketio.js
 			post: "..."			// raw body text
-			url	: "..."				// complete url requested
-			reqSocket: socket		// socket to retrieve client cert 
+			url	: "..."			// complete url requested
+			reqSocket: socket	// socket to retrieve client cert 
 			resSocket: socket	// socket to accept response
 			sql: connector 		// sql database connector 
 
-			// phase2 admission
-			joined: date	// time admitted
+			// validateClient phase
+			joined: date		// time admitted
 			client: "..."		// name of client from cert or "guest"
-
-			// phase3 route
+			cert: {...} 		// fill client cert
+			
+			// routeRequest phase
 			query: {...} 		// raw keys from url
 			where: {...} 		// sql-ized query keys from url
-			body: {...}		// body keys from request 
+			body: {...}			// body keys from request 
 			flags: {...} 		// flag keys from url
 			index: {...}		// sql-ized index keys from url
 			files: [...] 		// files uploaded
-			//site: {...}			// skinning context
+			//site: {...}		// skinning context
 			path: "/[area/...]name.type"			// requested resource
 			area: "name"		// file area being requested
 			table: "name"		// name of sql table being requested
 			ds:	"db.name"		// fully qualified sql table
 			body: {...}			// json parsed post
-			type: "type" 			// type part 
+			type: "type" 		// type part 
 
 		The newly formed response res method accepts a string, an objects, an array, an error, or 
 		a file-cache function to appropriately respond and close this thread and its sql connection.  
@@ -610,7 +611,7 @@ const { operators, reqFlags,paths,errors,site,fetch,
 		@param {Object} req http/https request
 		@param {Object} res http/https response
 	*/
-	routeSession: (req,res) => {
+	routeRequest: (req,res) => {
 		/**
 		Parse the node=/dataset.type on the current req thread, then route using byArea, byType, byTable,
 		byActionTable, or byAction routers.
@@ -1175,7 +1176,7 @@ Log("line ",idx,line.length);
 
 			/*
 			If the TOTEM server already connected, inherit the server; otherwise define a suitable 
-			http/https interface ( if service encrypted/unencrypted), then start and initialize the service.
+			http/https interface, then start and initialize the service.
 			*/
 			function connectService() {
 				
@@ -1184,7 +1185,7 @@ Log("line ",idx,line.length);
 				*/
 				function startService(port, cb) {
 					const 
-						{ routeSession, sockets, name, server } = TOTEM,
+						{ routeRequest, sockets, name, server } = TOTEM,
 						{ mysql, proxies } = paths;
 					
 					Trace(`STARTING ${name}`);
@@ -1400,7 +1401,7 @@ Log("line ",idx,line.length);
 					{ master, worker } = domain,
 					port = parseInt( CLUSTER.isMaster ? master.port : worker.port );
 
-				//Log( TOTEM.isEncrypted, CLUSTER.isMaster, CLUSTER.isWorker );
+				Log( "start>>>", isEncrypted, CLUSTER.isMaster, CLUSTER.isWorker );
 
 				certs.totem = {  // totem service certs
 					pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
@@ -1419,14 +1420,16 @@ Log("line ",idx,line.length);
 					_pass: ENV.FETCH_PASS
 				};
 
+				Log("enc>>>", isEncrypted[CLUSTER.isMaster], paths.certs+"truststore" );
+				
 				if ( isEncrypted[CLUSTER.isMaster] ) {  // have encrypted services so start https service
-					try {  // build the trust strore
-						Each( FS.readdirSync(paths.certs+"/truststore"), (n,file) => {
+						Each( FS.readdirSync(paths.certs+"truststore"), (n,file) => {
 							if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
 								Trace("TRUSTING "+file);
 								trustStore.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf-8") );
 							}
 						});
+					try {  // build the trust strore
 					}
 
 					catch (err) {
@@ -1438,8 +1441,9 @@ Log("line ",idx,line.length);
 						ca: trustStore,				// list of pki authorities (trusted serrver.trust)
 						crl: [],						// pki revocation list
 						requestCert: true,
-						rejectUnauthorized: true
-						//secureProtocol: CONS.SSL_OP_NO_TLSv1_2
+						rejectUnauthorized: true,
+						secureProtocol: 'TLSv1_2_method',
+						//secureOptions: CONS.SSL_OP_NO_TLSv1_0
 					});					
 				}
 
@@ -1449,7 +1453,7 @@ Log("line ",idx,line.length);
 				startService( port, (Req,Res) => {		// start session
 					/**
 					Start session and protect from denial of service attacks and, if unsuccessful then 
-					terminaate request, otherise callback with phase1 request keys.
+					terminaate request, otherise callback with request keys.
 					@private
 					*/
 					function startRequest( cb ) { //< callback cb() if not combating denial of service attacks
@@ -1479,7 +1483,7 @@ Log("line ",idx,line.length);
 						if ( isBusy )
 							return Res.end( errors.pretty( errors.toobusy ) );
 
-						else 	// phase1 connect
+						else 	// connectSession
 							switch ( Req.method ) {
 								case "PUT":
 								case "GET":
@@ -1498,7 +1502,7 @@ Log("line ",idx,line.length);
 												action: crudIF[Req.method],	// crud action being requested
 												reqSocket: Req.socket,   // use supplied request socket 
 												resSocket: getSocket,		// use this method to return a response socket
-												//encrypted: isEncrypted[CLUSTER.isMaster],	// on encrypted worker
+												encrypted: isEncrypted[CLUSTER.isMaster],	// on encrypted worker
 												socketio: sockets ? paths.socketio : "",		// path to socket.io
 												url: unescape( Req.url || "/" )	// unescaped url
 												/*
@@ -1695,7 +1699,9 @@ Log("line ",idx,line.length);
 							}
 
 							if (sock = req.reqSocket )	// have a valid request socket so ....
-								validateClient(req, err => {	// phase2 admission
+								validateClient(req, err => {	// admit good client
+									//Log("prof>>>", req.profile);
+									
 									if (err)
 										res(err);
 
@@ -1739,8 +1745,8 @@ Log("line ",idx,line.length);
 						}
 
 						Req.req = req;
-						startResponse( res => {	// phase3 route 
-							routeSession(req,res);
+						startResponse( res => {	// route the request
+							routeRequest(req,res);
 						});
 					});
 				});
@@ -1757,6 +1763,8 @@ Log("line ",idx,line.length);
 			
 			isEncrypted.true = domain.master.protocol == "https:";
 			isEncrypted.false = domain.worker.protocol == "https:";
+			
+			Log(domain,isEncrypted, isEncrypted[CLUSTER.isMaster]);
 			
 			if ( isEncrypted[CLUSTER.isMaster] )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
@@ -1811,7 +1819,7 @@ Log("line ",idx,line.length);
 				});  
 		});
 		
-		const {dbTrack,routeSession,setContext,name} = TOTEM;
+		const {dbTrack,routeRequest,setContext,name} = TOTEM;
 		
 		JSDB.config({   // establish the db agnosticator 
 			//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server starte
@@ -1828,7 +1836,7 @@ Log("line ",idx,line.length);
 
 					if (name)	// derive site context
 						setContext(sql, () => {
-							protectService(routeSession);
+							protectService(routeRequest);
 							if (cb) cb(sql);
 						});
 					
@@ -3014,11 +3022,12 @@ function validateClient(req,res) {
 	
 	function getCert(sock) {  //< Return cert presented on this socket (w or w/o proxy).
 		var 
-			cert =  sock ? sock.getPeerCertificate ? sock.getPeerCertificate() : null : null;		
+			cert =  sock.getPeerCertificate ? sock.getPeerCertificate() : null;		
 		
-		if (TOTEM.behindProxy) {  // update cert with originating cert info that was placed in header
+		//Log("getcert>>>", cert);
+		if (behindProxy && cert) {  // update cert with originating cert info that was placed in header
 			var 
-				cert = new Object(cert),  // clone so we can modify
+				//cert = new Object(cert),  // clone so we can modify
 				NA = Req.headers.ssl_client_notafter,
 				NB = Req.headers.sll_client_notbefore,
 				DN = Req.headers.ssl_client_s_dn;
@@ -3070,17 +3079,24 @@ function validateClient(req,res) {
 	}
 	
 	const 
-		{ sql,encrypted,reqSocket,client } = req,
-		{ admitClient } = TOTEM,
+		{ sql,encrypted,reqSocket } = req,
 		{ mysql } = paths,
-		cert = encrypted ? getCert( reqSocket ) : null,
-		guest = "guest@guest.org" ;
-	
+		guest = "email:guest@guest.org",
+		cert = encrypted ? getCert( reqSocket ) : {
+			subject: {
+				C: "",
+				O: "",
+				OU: "",
+				CN: ""
+			},
+			subjectaltname: ""
+		},
+		joined = req.joined = new Date(),
+		client = req.client = (cert.subjectaltname||guest).toLowerCase().split(",")[0].replace("email:","");
+		
 	//req.cert = certs[client] = cert ? new Object(cert) : null;
-	req.joined = new Date();
-	req.client = ( cert 
-		? (cert.subject.emailAddress || cert.subjectaltname || cert.subject.CN || guest).split(",")[0].replace("email:","")
-		: guest ).toLowerCase();
+	req.cert = new Object(cert);
+	//Log("client>>>",client);
 	
 	sql.query(mysql.getProfile, {client: client}, (err,profs) => {
 
