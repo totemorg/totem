@@ -149,14 +149,6 @@ expand.)
 	;;
 
 #
-# other
-#
-
-edit.) 		# startup edits
-	notepadqq debe/debe.js totem/totem.js jsdb/jsdb.js flex/flex.js &
-	;;
-	
-#
 # DB maint
 #
 
@@ -235,6 +227,12 @@ mysql.)
 # Maintenance and startups
 #
 
+snapdb.)
+	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >/mnt/transfer/openv.sql
+	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app >/mnt/transfer/app.sql
+	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -ndtR app >/mnt/transfer/funcs.sql
+	;;
+	
 snap.)
 	#rm $MAP/snapshots/totem.zip
 	for mod in "${MODULES[@]}"; do
@@ -274,15 +272,17 @@ start_docker.)
 	;;
 
 startup.)		# status and start dependent services
-	source ./maint.sh mysql start
-	source ./maint.sh start_cesium
-	source ./maint.sh start_nodered
-	source ./maint.sh start_docker
-	source ./maint.sh neo4j start
-	# office products
+	source ./maint.sh all config	# setup external vars
+	source ./maint.sh mysql start	# start mysql service
+	source ./maint.sh neo4j start	# start neo4j service
+	source ./maint.sh D1	# start totem service
+	sudo systemctl stop firewalld	# if running in host os
+	#notepadqq & # debe/debe.js totem/totem.js jsdb/jsdb.js flex/flex.js &
+	#source ./maint.sh start_cesium
+	#source ./maint.sh start_nodered
+	#source ./maint.sh start_docker
 	#acroread 										# starts adobe reader for indexing pdfs.  
 	#openoffice4 									# starts openoffice server for indexing docs.  
-
 	;;
 
 restyle.)
@@ -521,6 +521,7 @@ up.) 		# bring up production service
 
 *)  	# start specified totem config
 
+	cd /local/service/debe
 	node debe.js $1 $2 $3 $4 $5 
 	;;
 
