@@ -567,64 +567,18 @@ const { operators, reqFlags,paths,errors,site,fetch,
 	*/
 	
 	/**
-		Route node/nodes (byTable, byArea, byAction or byType) on 
-		the provided request-response thread:
+	Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, byActionTable, 
+	and byAction routers.	
 
-			// connectSession phase
-			host: "..."			// domain name being accessed by client
-			agent: "..."		// client browser info
-			method: "GET|PUT|..." 			// http request method
-			action: "select|update| ..."	// corresponding crude name
-			started: date		// date stamp when requested started
-			encrypted: bool		// true if request on encrypted server
-			socketio: "path"  	// filepath to client's socketio.js
-			post: "..."			// raw body text
-			url	: "..."			// complete url requested
-			reqSocket: socket	// socket to retrieve client cert 
-			resSocket: socket	// socket to accept response
-			sql: connector 		// sql database connector 
+	The provided response method accepts a string, an objects, an array, an error, or 
+	a file-cache function and terminates the session's sql connection.  The client is 
+	validated and their session logged.
 
-			// validateClient phase
-			joined: date		// time admitted
-			client: "..."		// name of client from cert or "guest"
-			cert: {...} 		// fill client cert
-			
-			// routeRequest phase
-			query: {...} 		// raw keys from url
-			where: {...} 		// sql-ized query keys from url
-			body: {...}			// body keys from request 
-			flags: {...} 		// flag keys from url
-			index: {...}		// sql-ized index keys from url
-			files: [...] 		// files uploaded
-			//site: {...}		// skinning context
-			path: "/[area/...]name.type"			// requested resource
-			area: "name"		// file area being requested
-			table: "name"		// name of sql table being requested
-			ds:	"db.name"		// fully qualified sql table
-			body: {...}			// json parsed post
-			type: "type" 		// type part 
-
-		The newly formed response res method accepts a string, an objects, an array, an error, or 
-		a file-cache function to appropriately respond and close this thread and its sql connection.  
-		The session is validated and logged, and the client is challenged as necessary.
-
-		@param {Object} req http/https request
-		@param {Object} res http/https response
+	@param {Object} req session request
+	@param {Object} res session response
 	*/
 	routeRequest: (req,res) => {
-		/**
-		Parse the node=/dataset.type on the current req thread, then route using byArea, byType, byTable,
-		byActionTable, or byAction routers.
-
-		@private
-		@param {OFbject} req Totem session request
-		@param {Function} res Totem response callback
-		*/
-		function routeNode(node, req, cb) {
-			function sendFile(req,res) {
-				res( function () {return req.path; } );
-			}
-
+		function routeNode(node, req, cb) {	//< Parse and route the NODE = /DATASET.TYPE request
 			function followRoute(route) {
 
 				/**
@@ -739,7 +693,9 @@ const { operators, reqFlags,paths,errors,site,fetch,
 					followRoute( route );
 
 				else	// send cashed file
-					followRoute( sendFile );
+					followRoute( (req,res) => {	// provide a route to send a file
+						res( () => req.path );
+					});
 			}
 
 			else
@@ -782,7 +738,7 @@ const { operators, reqFlags,paths,errors,site,fetch,
 			var files = [], parms = {}, file = "", rem,filename,name,type;
 
 			if (post)
-				post.split("\r\n").forEach( (line,idx) => {
+				post.split("\r\n").forEach( (line,idx) => {	// parse file posting parms
 					if ( idx % 2 )
 						files.push({
 							filename: filename.replace(/'/g,""),
@@ -1170,18 +1126,57 @@ Log("line ",idx,line.length);
 	*/
 	config: (opts,cb) => {
 		/**
-		Connect and start service using the provided request-response agent.
+		Setup (connect, start then initialize) a service that will handle its request-response sessions
+		with the provided agent(req,res).
+		
+		The session request is constructed in the following phases:
+		
+			// connectSession phase
+			host: "..."			// domain name being accessed by client
+			agent: "..."		// client browser info
+			method: "GET|PUT|..." 			// http request method
+			action: "select|update| ..."	// corresponding crude name
+			started: date		// date stamp when requested started
+			encrypted: bool		// true if request on encrypted server
+			socketio: "path"  	// filepath to client's socketio.js
+			post: "..."			// raw body text
+			url	: "..."			// complete url requested
+			reqSocket: socket	// socket to retrieve client cert 
+			resSocket: socket	// socket to accept response
+			sql: connector 		// sql database connector 
+
+			// validateClient phase
+			joined: date		// time admitted
+			client: "..."		// name of client from cert or "guest"
+			cert: {...} 		// fill client cert
+			
+			// routeRequest phase
+			query: {...} 		// raw keys from url
+			where: {...} 		// sql-ized query keys from url
+			body: {...}			// body keys from request 
+			flags: {...} 		// flag keys from url
+			index: {...}		// sql-ized index keys from url
+			files: [...] 		// files uploaded
+			//site: {...}		// skinning context
+			path: "/[area/...]name.type"			// requested resource
+			area: "name"		// file area being requested
+			table: "name"		// name of sql table being requested
+			ds:	"db.name"		// fully qualified sql table
+			body: {...}			// json parsed post
+			type: "type" 		// type part 
+
+		@param {Function} agent callback(req,res) to handle session request-response 
 		*/
-		function protectService(agent) {  
+		function setupService(agent) {  
 
 			/*
-			If the TOTEM server already connected, inherit the server; otherwise define a suitable 
+			If the service is already connected, inherit the server; otherwise define a suitable 
 			http/https interface, then start and initialize the service.
 			*/
 			function connectService() {
 				
 				/*
-				Attach port listener to server then start it.
+				Attach a port listener to service then start it.
 				*/
 				function startService(port, cb) {
 					const 
@@ -1201,7 +1196,7 @@ Log("line ",idx,line.length);
 					}; */
 
 					if ( sockets ) {   // attach socket.io and setup connection listeners
-						var 
+						const 
 							IO = TOTEM.IO = new SIO(server, { // use defaults but can override ...
 								//serveClient: true, // default true to prevent server from intercepting path
 								//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
@@ -1332,13 +1327,10 @@ Log("line ",idx,line.length);
 								});	
 							});
 
-							// start watch dogs
-
-							if ( dogs = TOTEM.dogs )
+							if ( dogs = TOTEM.dogs )		// start watch dogs
 								startDogs( sql, dogs );
 							
-							// setup proxies
-							if ( false ) {
+							if ( false ) {	// setup proxies
 								sql.query(	// out with the old
 									"DELETE FROM openv.proxies WHERE hour(timediff(now(),created)) >= 2");
 
@@ -1383,7 +1375,7 @@ Log("line ",idx,line.length);
 													Log("ignoring proxy", proxy);
 											}
 
-											Log("PROXIES", recs);
+											Log("SET PROXIES", recs);
 											recs.forEach( rec => {
 												sql.query(
 													"INSERT INTO openv.proxies SET ? ON DUPLICATE KEY UPDATE ?", 
@@ -1401,7 +1393,7 @@ Log("line ",idx,line.length);
 					{ master, worker } = domain,
 					port = parseInt( CLUSTER.isMaster ? master.port : worker.port );
 
-				Log( "start>>>", isEncrypted, CLUSTER.isMaster, CLUSTER.isWorker );
+				// Log( "start>>>", isEncrypted, CLUSTER.isMaster );
 
 				certs.totem = {  // totem service certs
 					pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
@@ -1420,20 +1412,15 @@ Log("line ",idx,line.length);
 					_pass: ENV.FETCH_PASS
 				};
 
-				Log("enc>>>", isEncrypted[CLUSTER.isMaster], paths.certs+"truststore" );
+				//Log("enc>>>", isEncrypted[CLUSTER.isMaster], paths.certs+"truststore" );
 				
 				if ( isEncrypted[CLUSTER.isMaster] ) {  // have encrypted services so start https service
-						Each( FS.readdirSync(paths.certs+"truststore"), (n,file) => {
-							if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
-								Trace("TRUSTING "+file);
-								trustStore.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf-8") );
-							}
-						});
-					try {  // build the trust strore
-					}
-
-					catch (err) {
-					}
+					Each( FS.readdirSync(paths.certs+"truststore"), (n,file) => {
+						if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
+							Trace("TRUSTING " + file);
+							trustStore.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf-8") );
+						}
+					});
 
 					TOTEM.server = HTTPS.createServer({
 						passphrase: isEncrypted.pass,		// passphrase for pfx
@@ -1452,12 +1439,13 @@ Log("line ",idx,line.length);
 				
 				startService( port, (Req,Res) => {		// start session
 					/**
-					Start session and protect from denial of service attacks and, if unsuccessful then 
-					terminaate request, otherise callback with request keys.
-					@private
+					Provide a request to the supplied session, or terminate the session if the service
+					is too busy.
+					
+					@param {Function} ses session accepting the provided request
 					*/
-					function startRequest( cb ) { //< callback cb() if not combating denial of service attacks
-						function getSocket() {  // returns suitable response socket depending on cross/same domain session
+					function startRequest( ses ) { 
+						function getSocket() {  //< returns suitable response socket depending on cross/same domain session
 							if ( Req.headers.origin ) {  // cross domain session is in progress from master (on http) to its workers (on https)
 								Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
 								Res.socket.write(Res._header);
@@ -1477,14 +1465,8 @@ Log("line ",idx,line.length);
 							.on("end", () => cb( post ) );
 						}
 
-						var
-							isBusy = BUSY ? BUSY() : false;
-
-						if ( isBusy )
-							return Res.end( errors.pretty( errors.toobusy ) );
-
-						else 	// connectSession
-							switch ( Req.method ) {
+						function connectSession() {
+							switch ( Req.method ) {	// get post parms depending on request type being made
 								case "PUT":
 								case "GET":
 								case "POST":
@@ -1492,7 +1474,7 @@ Log("line ",idx,line.length);
 									getPost( post => {
 										sqlThread( sql => {
 											//Log(Req.headers);
-											cb({			// prime session request
+											ses({			// prime session request
 												host: Req.headers.host,	// domain being requested
 												agent: Req.headers["user-agent"],	// requester info
 												sql: sql,	// sql connector
@@ -1533,17 +1515,23 @@ Log("line ",idx,line.length);
 								default:
 									Res.end( errors.pretty(errors.badMethod) );
 							}
+						}
+						
+						if ( isBusy = BUSY ? BUSY() : false )	// trap DNS attacks
+							return Res.end( errors.pretty( errors.toobusy ) );
+
+						else
+							connectSession();
 					}
 
-					startRequest( req => {  // start request if not busy.
+					startRequest( req => {  // start request if service not busy.
 						/**
-						Start a session by attaching sql, cert, client, profile and session info to this request req with callback res(error).  
+						Provide a response to a session after attaching sql, cert, client, profile 
+						and session info to this request.  
 
-						@private
-						@param {Object} req request
-						@param {Function} res response
+						@param {Function} ses session accepting the provided response callback
 						*/
-						function startResponse( cb ) {  
+						function startResponse( ses ) {  
 							function res(data) {  // Session response callback
 
 								// Session terminators respond with a string, file, db structure, or error message.
@@ -1706,10 +1694,9 @@ Log("line ",idx,line.length);
 										res(err);
 
 									else  {
-										cb(res);
-										const {sql,client,cert} = req;
+										ses(res);
+										const {sql,client} = req;
 										sql.query(paths.mysql.newSession, {
-											Client: client,
 											Client: client,
 											Message: "joined", //JSON.stringify(cert),
 											Joined: new Date()
@@ -1745,7 +1732,7 @@ Log("line ",idx,line.length);
 						}
 
 						Req.req = req;
-						startResponse( res => {	// route the request
+						startResponse( res => {	// route the request on the provided response callback
 							routeRequest(req,res);
 						});
 					});
@@ -1764,11 +1751,11 @@ Log("line ",idx,line.length);
 			isEncrypted.true = domain.master.protocol == "https:";
 			isEncrypted.false = domain.worker.protocol == "https:";
 			
-			Log(domain,isEncrypted, isEncrypted[CLUSTER.isMaster]);
+			Log(domain);
 			
 			if ( isEncrypted[CLUSTER.isMaster] )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
-					if (err) // create the pfx cert then connect
+					if (err) // create self-signed cert then connect
 						createCert(name, isEncrypted.pass, () => {
 							connectService();
 						});	
@@ -1836,7 +1823,7 @@ Log("line ",idx,line.length);
 
 					if (name)	// derive site context
 						setContext(sql, () => {
-							protectService(routeRequest);
+							setupService(routeRequest);
 							if (cb) cb(sql);
 						});
 					
@@ -3101,11 +3088,11 @@ function validateClient(req,res) {
 	sql.query(mysql.getProfile, {client: client}, (err,profs) => {
 
 		if ( err ) 
-			if ( encrypted )  // db required on https service
+			if ( encrypted )  // profile required on https service so return error
 				res( errors.noDB );
 
 			else
-			if ( profile = makeProfile(sql, req.client) )  { // admit guest on http service
+			if ( profile = makeProfile(sql, req.client) )  { // admit guest client on http service
 				//req.socket = null;
 				req.reqSocket = null;   // disable guest session metrics
 				req.profile = profile;
@@ -3957,7 +3944,7 @@ function sysTask(req,res) {  //< task sharding
 	
 	var 
 		$ = JSON.stringify({
-			worker: CLUSTER.isWorker ? CLUSTER.worker.id : 0,
+			worker: CLUSTER.isMaster ? 0 : CLUSTER.worker.id,
 			node: process.env.HOSTNAME
 		}),
 		engine = `(${cb})( (${task})(${$}) )`;
