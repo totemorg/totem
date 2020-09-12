@@ -65,7 +65,7 @@ function Trace(msg,req,res) {
 	"totem".trace(msg,req,res);
 }
 	
-const { Copy,Each,Log,Stream,
+const { Copy,Each,Log,Stream,chunkFile, splitFile, filterFile,
 			 	isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM;
 const { escape, escapeId } = SQLDB;
 
@@ -135,7 +135,7 @@ function neoThread(cb) {
 		var 
 			neo = this;
 
-		Stream( nodes, (props, node, cb) => {
+		Stream( nodes, {}, (props, node, cb) => {
 			//Log(">>neosave", node,props);
 
 			if (cb) { // add node
@@ -156,6 +156,7 @@ function neoThread(cb) {
 			else	// all nodes added so move forward
 				res( null );
 		});
+		
 	},
 
 	function makeEdge( net, name, created, pair ) { // link existing typed-nodes by topic
@@ -207,7 +208,7 @@ function neoThread(cb) {
 const { operators, reqFlags,paths,errors,site,fetch, 
 			maxFiles, isEncrypted, domain, behindProxy, admitClient,
 			sqlThread,filterRecords,guestProfile,routeDS,
-			ingestFile, chunkFile, splitFile, filterFile, filterSql, 
+			ingestFile, filterSql, 
 	   	startDogs,startJob,endJob } = TOTEM = module.exports = {
 	
 	routeDS: {	// setup default DataSet routes
@@ -322,166 +323,6 @@ const { operators, reqFlags,paths,errors,site,fetch,
 			});			
 	},
 	
-	/**
-		Chunk file at path by splitting into newline-terminated records.
-		Callback cb(record) until the limit is reached (or until eof
-		when limit=0).
-		@param {String} path source file
-		@param {Object} opts {newline,limit} options
-		@param {Function) cb Callback(record)
-	*/
-	chunkFile: (path,{newline,limit},cb) => {
-		FS.open( path, "r", (err, fd) => {
-			if (err) 
-				cb(null);	// signal pipe end
-
-			else {	// start pipe stream
-				var 
-					pos = 0,
-					rem = "",
-					run = true,
-					src = FS.createReadStream( "", { fd:fd, encoding: "utf8" }),
-					sink = new STREAM.Writable({
-						objectMode: true,
-						write: (bufs,en,sinkcb) => {
-							//Log(limit,pos,!limit || pos<limit);
-							if ( run ) {
-								var 
-									recs = (rem+bufs).split(newline);
-
-								rem = recs.pop();
-
-								recs.forEach( (rec,n) => {
-									if ( rec ) 
-										if (limit)
-											if ( pos<limit ) 
-												cb(rec,pos++);
-											else 
-												run = false;
-										else
-											cb(rec,pos++);
-									else
-										pos++;
-								});
-							}
-							sinkcb(null);  // signal no errors
-						}
-					});
-
-				sink
-					.on("finish", () => {
-						if (!limit || pos<limit)
-							if ( rem ) cb(rem,pos);
-					
-						cb(null);
-					})
-					.on("error", err => cb(null) );
-
-				src.pipe(sink);  // start the pipe
-			}
-		});
-	},
-
-	/**
-		Split file path containing comma delimited values: when keys=[]
-		record keys are determined by the first header record; when keys=[
-		'key','key', ...] defined the header keys; when keys=null the raw
-		records are returned.  The file is chunked using the (newline,
-		limit) chinkFile parameters.  Callsback cb(record) for each record.
-		@param {String} path source file
-		@param {Object} opts {keys,comma,newline,limit} options
-		@param {Function} cb Callback(record)
-	*/
-	splitFile: (path, {keys, comma, newline, limit}, cb) => {
-		var 
-			pos = 0,
-			opts = {newline:newline,limit:limit};
-		
-		if ( keys )
-			chunkFile( path, opts, buf => {
-				function parse(buf,keys) {
-					if ( keys.length ) {	/// at data row
-						var 
-							rec = {},
-							cols = buf.split(comma);
-
-						keys.forEach( (key,m) => rec[key] = cols[m] );
-						return rec;
-					}
-
-					else {	// at header row so define keys
-						if ( buf.charCodeAt(0) > 255 ) buf=buf.substr(1);	// weird
-						buf.split(",").forEach( key => keys.push(key) );
-						//Log(">>>header keys", keys);
-						return null;
-					}
-				}
-		
-				if ( buf ) 
-					if (rec = parse(buf,keys)) 
-						cb(rec,pos++);
-					else
-						pos++;
-
-				else	// forward end signal 
-					cb(null);
-			});
-		
-		else
-			chunkFile( path, opts, buf => {
-				if ( buf ) 
-					cb(buf,pos++);
-
-				else	// forward end signal 
-					cb(null);
-			});			
-	},
-
-	/**
-		Filter at batch file at path containing comma delimited values.  The
-		file is split using the (keys,comma) splitFile parameters, and chunked 
-		using the (newline,comma) chunkFile parameters. Callsback cb([record,...]) 
-		with each record batch (all records when batch=0).  If a filter(record)
-		method is provided, it returns true to add the record to the batch.
-		Use the optional as = {"toKey":"fromKey", ... } map to remap record 
-		keys.
-		@param {String} path source file
-		@param {Object} opts {keys,comma,newline,limit,filter,as,batch} options
-		@param {Function} cb Callback([record,...])
-	*/
-	filterFile: (path, {batch, keys, comma, newline, limit, filter, as}, cb) => {
-		var 
-			pos = 0,
-			recs = [],
-			opts = {keys:keys, limit:limit, comma:comma||",", newline:newline||"\n"};
-					
-		splitFile( path, opts, rec => {
-			if ( rec ) 
-				if ( !batch || recs.length<batch ) {	
-					if ( !filter || filter(rec) ) {	
-						if ( as ) {
-							var remap = {};
-							for (var rekey in as) remap[rekey] = rec[ as[rekey] ];
-							recs.push( remap );
-						}
-			
-						else
-							recs.push( rec );
-					}
-				}
-
-				else {	// flush batch
-					cb( recs, pos+=recs.length );
-					recs.length = 0;
-				}
-					
-			else { // forward end signal
-				cb(recs,pos+=recs.length); // flush batch
-				cb(null);	// signal end
-			}
-		});
-	},
-
 	/*
 	_streamCsvTable: (path, {batch, filter, limit, skip}, cb) => {
 		
