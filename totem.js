@@ -205,11 +205,11 @@ function neoThread(cb) {
 
 ].Extend(NEOCONNECTOR);
 
-const { operators, reqFlags,paths,errors,site,fetch, 
+const 
+	TOTEM = { operators, reqFlags,paths,errors,site,fetch, 
 			maxFiles, isEncrypted, domain, behindProxy, admitClient,
 			sqlThread,filterRecords,guestProfile,routeDS,
-			ingestFile, filterSql, 
-	   	startDogs,startJob,endJob } = TOTEM = module.exports = {
+	   	startDogs,startJob,endJob } = module.exports = {
 	
 	routeDS: {	// setup default DataSet routes
 		default: req => "app."+req.table
@@ -230,99 +230,6 @@ const { operators, reqFlags,paths,errors,site,fetch,
 		});
 	}),
 					
-	/**
-		Ingest a comma-delimited, header-provided file at path using the 
-		filterFile (batch,as,filter) and chunkFile (newline,limit) parameters.
-		Ingested records are inserted into the sql target table defined by the 
-		path = /.../target.type.  The keys="recKey:asKey sqlType,..." defines
-		how record values are stored.
-		@param {String} path source file
-		@param {Object} opts {keys,comma,newline,limit,as,batch} options
-		@param {Function} cb Callback([record,...])
-	*/
-	ingestFile: (path, opts, filter) => {
-		
-		const 
-			[ target ] = path.split("/").pop().split("."),
-			{ batch,comma,newline,keys,limit } = opts,
-			{ as } = streamOpts = {
-				batch: batch, 
-				comma: comma || ",",
-				newline: newline,
-				limit: limit,
-				filter: filter,
-				as: {},
-				keys: []	// csv file with unkown header
-			};
-		
-		//Trace( `INGESTING ${path} => ${target}` );
-		var 
-			makes = keys.split(",");
-
-		makes.forEach( (key,i) => {
-			var 
-				[x,map,make] = key.match(/(.*):(.*)/) || ["", "", key],
-				[ id ] = make.split(" ");
-
-			makes[i] = make;
-			as[id] = map || id;
-		});
-
-		Log(">>>ingest", makes, as, target);
-
-		sqlThread( sql => {
-			sql.query( `CREATE TABLE IF NOT EXISTS app.?? (ID float unique auto_increment,${makes.join(",")})`, 
-				[target], err => {
-				Trace( `CREATED ${target} ${err || "ok"}` );
-
-				filterFile(path, streamOpts, recs => {
-					if ( recs )
-						recs.forEach( (rec,i) => {
-							sql.query("INSERT INTO app.?? SET ?", [target,rec] );
-						});
-
-					else 
-						Trace( `INGESTED ${path}` );
-				});
-			});
-		});
-	},
-
-	filterSql: (sql, table, {batch, filter}, cb) => {
-		
-		if ( batch ) 
-			sql.query( "SELECT count(id) AS recs FROM app.??", table, (err,info) => {
-				if ( recs=info[0].recs ) 
-					for (	var offset=0,reads=0; offset<recs; offset+=batch ) {
-						sql.query( filter
-							? "SELECT * FROM app.?? WHERE least(?,1) LIMIT ? OFFSET ?"
-							: "SELECT * FROM app.?? LIMIT ? OFFSET ?", 
-							
-							filter
-							? [table,filter,batch,offset]
-							: [table,batch,offset], (err,data) => {
-
-								cb(data, reads += batch);
-							
-								if ( reads >= recs )  // signal end
-									cb(null);
-							});
-					}
-				
-				else	// signal end
-					cb(null);
-			});
-				
-		else
-			sql.query( filter
-				? "SELECT * FROM app.?? WHERE least(?,1)"
-				: "SELECT * FROM app.??", [table,filter], (err,recs) => {
-				
-				cb( recs );
-				cb( null ); // signal end
-			});			
-	},
-	
 	/*
 	_streamCsvTable: (path, {batch, filter, limit, skip}, cb) => {
 		
@@ -4630,8 +4537,8 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 	case "IGTD":
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
-				Log("ready");
-				TOTEM.ingestFile("./stores/_noarch/gtd.csv", {
+				Log("ingest starting");
+				sql.ingestFile("./stores/_noarch/gtd.csv", {
 					target: "gtd",
 					//limit: 1000,
 					keys: [
@@ -4662,8 +4569,8 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 	case "IMEX":
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
-				Log("ready");
-				TOTEM.ingestFile("./stores/_noarch/centam.csv", {
+				Log("ingest starting");
+				sql.ingestFile("./stores/_noarch/centam.csv", {
 					keys: "Criminal_group varchar(32),_Year int(11),Outlet_name varchar(32),Event varchar(32),Rival_group varchar(32),_Eventid varchar(8)",
 					batch: 500,
 					//limit: 1000
@@ -4676,7 +4583,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		
 	case "T11":
 		TOTEM.config({name:""}, sql => {
-			filterSql(sql,"gtd", {batch:100}, recs => {
+			sql.batch( "gtd", {batch:100}, recs => {
 				Log("streamed", recs.length);
 			});
 		});
@@ -4710,7 +4617,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 	case "G2":
 		TOTEM.config({name:""}, sql => {
 			for (var n=0,N=2000; n<N; n++)
-				TOTEM.fetch("mask://www.drudgereport.com", txt => Log(txt.length));
+				fetch("mask://www.drudgereport.com", txt => Log(txt.length));
 		});
 		break;
 			
