@@ -65,8 +65,9 @@ function Trace(msg,req,res) {
 	"totem".trace(msg,req,res);
 }
 	
-const { Copy,Each,Log,Stream,chunkFile, splitFile, filterFile,
-			 	isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM;
+const { 
+	Copy,Each,Log,Stream,
+	isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM;
 const { escape, escapeId } = SQLDB;
 
 var
@@ -2121,7 +2122,7 @@ Log("line ",idx,line.length);
 			});
 
 			Req.on('error', err => {
-				Log(err);
+				Log(">>>fetch req", err);
 				(cb||data)("");
 			});
 
@@ -2161,7 +2162,7 @@ Log("line ",idx,line.length);
 						cb( (stat = "s2xx") ? body : "" );
 					})
 					.on("error", err => {
-						Log(">>>get error", err);
+						Log(">>>fetch get", err);
 						cb("");
 					});
 
@@ -2171,13 +2172,13 @@ Log("line ",idx,line.length);
 			req.on("socket", sock => {
 				sock.setTimeout(2e3, () => {
 					req.abort();
-					Log(">>>timeout");
+					Log(">>>fetch timeout");
 					sql.query("UPDATE openv.proxies SET hits=hits+1, sTimeout = sTimeout+1 WHERE ?", id);
 				});
 				
 				sock.on("error", err => {
 					req.abort();
-					Log(">>>refused");
+					Log(">>>fetch refused");
 					sql.query("UPDATE openv.proxies SET hits=hits+1, sRefused = sRefused+1 WHERE ?", id);
 				});
 			});
