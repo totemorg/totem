@@ -1,38 +1,42 @@
 // UNCLASSIFIED   
 
 /**
-@module totem
-@requires http
-@requires https
-@requires fs
-@requires constants
-@requires cluster
-@requires child-process
-@requires os
-@requires stream
-@requires str
+	@module totem
+	Basic web service.  See https://github.com/totemstan/totem.git.
 
-@requires enum
-@requires jsdb
+	@requires http
+	@requires https
+	@requires fs
+	@requires constants
+	@requires cluster
+	@requires child-process
+	@requires os
+	@requires stream
+	@requires str
 
-@requires mime
-@requires socket.io
-@requires socket.io-clusterhub
-@requires mysql
-@requires xml2js
-@requires toobusy
-@requires json2csv
-@requires js2xmlparser
-@requires toobusy-js
+	@requires enum
+	@requires jsdb
+
+	@requires mime
+	@requires socket.io
+	@requires socket.io-clusterhub
+	@requires mysql
+	@requires xml2js
+	@requires toobusy
+	@requires json2csv
+	@requires js2xmlparser
+	@requires toobusy-js
 */
 
-var	
-	// globals
-	ENV = process.env,
+function Trace(msg,req,res) {
+	"totem".trace(msg,req,res);
+}
 	
+const	
 	// NodeJS modules
 				  
-	STREAM = require("stream"), 	// pipe-able streams
+	ENV = process.env,
+	STREAM = require("stream"), 				// pipe-able streams
 	HTTP = require("http"),						//< http interface
 	HTTPS = require("https"),					//< https interface
 	CP = require("child_process"),				//< spawn OS shell commands
@@ -40,38 +44,31 @@ var
 	CONS = require("constants"),				//< constants for setting tcp sessions
 	CLUSTER = require("cluster"),				//< multicore  processing
 	URL = require("url"),						//< url parsing
-	NET = require("net"), 				// network interface
-	VM = require("vm"), 					// virtual machines for tasking
-	OS = require('os'),				// OS utilitites
+	NET = require("net"), 						// network interface
+	VM = require("vm"), 						// virtual machines for tasking
+	OS = require('os'),							// OS utilitites
 
 	// 3rd party modules
-	AGENT = require("http-proxy-agent"),	// agent to access proxies
+	  
+	AGENT = require("http-proxy-agent"),		// agent to access proxies
 	SCRAPE = require("cheerio"), 				// web scraper to load proxies
-	NEO4J = require("neo4j-driver"),			// light-weight graph database	
-	MIME = require("mime"), 			//< file mime types
-	SIO = require('socket.io'), 			//< Socket.io client mesh
+	MIME = require("mime"), 					//< file mime types
+	SIO = require('socket.io'), 				//< Socket.io client mesh
 	SIOHUB = require('socket.io-clusterhub'),	//< Socket.io client mesh for multicore app
-	SQLDB = require("mysql"),					//< mysql conector
+	{ escape, escapeId } = SQLDB = require("mysql"),	//< mysql conector
 	XML2JS = require("xml2js"),					//< xml to json parser (*)
-	BUSY = require('toobusy-js'),  		//< denial-of-service protector (cant install on NodeJS 5.x+)
+	BUSY = require('toobusy-js'),  				//< denial-of-service protector (cant install on NodeJS 5.x+)
 	JS2XML = require('js2xmlparser'), 			//< JSON to XML parser
 	JS2CSV = require('json2csv'),				//< JSON to CSV parser	
-	
+	NEO4J = require("neo4j-driver"),			// light-weight graph database	
+	NEODRIVER = NEO4J.driver( ENV.NEO4J, NEO4J.auth.basic('neo4j', 'NGA'), { disableLosslessIntegers: true } ),
+
 	// Totem modules
-	ENUM = require("enum"),
-	JSDB = require("jsdb");				//< database agnosticator
-
-function Trace(msg,req,res) {
-	"totem".trace(msg,req,res);
-}
-	
-const { 
-	Copy,Each,Log,Stream,
-	isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM;
-const { escape, escapeId } = SQLDB;
-
-var
-	NEODRIVER = NEO4J.driver( ENV.NEO4J, NEO4J.auth.basic('neo4j', 'NGA'), { disableLosslessIntegers: true } );
+	JSDB = require("jsdb"),						//< database agnosticator
+	{ Copy,Each,Log,Stream,
+		isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("enum");
+	  
+// neo4j i/f
 
 function NEOCONNECTOR() {
 	this.trace = 
@@ -206,11 +203,11 @@ function neoThread(cb) {
 
 ].Extend(NEOCONNECTOR);
 
+// totem i/f
+
 const 
-	TOTEM = { operators, reqFlags,paths,errors,site,fetch, 
-			maxFiles, isEncrypted, domain, behindProxy, admitClient,
-			sqlThread,filterRecords,guestProfile,routeDS,
-	   	startDogs,startJob,endJob } = module.exports = {
+	{ operators, reqFlags,paths,errors,site, maxFiles, isEncrypted, domain, behindProxy, admitClient,
+	 sqlThread,filterRecords,guestProfile,routeDS, startDogs,startJob,endJob } = TOTEM = module.exports = {
 	
 	routeDS: {	// setup default DataSet routes
 		default: req => "app."+req.table
@@ -316,15 +313,15 @@ const
 	*/
 	
 	/**
-	Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, byActionTable, 
-	and byAction routers.	
+		Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, byActionTable, 
+		and byAction routers.	
 
-	The provided response method accepts a string, an objects, an array, an error, or 
-	a file-cache function and terminates the session's sql connection.  The client is 
-	validated and their session logged.
+		The provided response method accepts a string, an objects, an array, an error, or 
+		a file-cache function and terminates the session's sql connection.  The client is 
+		validated and their session logged.
 
-	@param {Object} req session request
-	@param {Object} res session response
+		@param {Object} req session request
+		@param {Object} res session response
 	*/
 	routeRequest: (req,res) => {
 		function routeNode(node, req, cb) {	//< Parse and route the NODE = /DATASET.TYPE request
@@ -573,7 +570,7 @@ Log("line ",idx,line.length);
 		.on("result", task => {
 			var dog = TOTEM.dogs[task.Name.toLowerCase()];
 			if ( dog )
-				startJob(sql, Copy(task, {
+				sql.startJob( Copy(task, {
 					every: task.Every,
 					ends: task.Ends,
 					name: task.Name
@@ -584,253 +581,14 @@ Log("line ",idx,line.length);
 		});
 	},
 
-	endJob: (sql,job) => {
-		if (ID = job.ID) {
-			Trace(`DEQUEUE ${job.name} id=${ID}`);
-			sql.query(
-				"UPDATE app.queues SET Util=Util/Done, "+
-				"Age=datediff(now(),Arrived)*24, " + 
-				"Finished=1, " +
-				"State=Age/Done, " +
-				"Departed=now(), " +
-				"ECD=date_add(Arrived, interval State*Work hour) " +
-				"WHERE ?", {ID:ID} );
-		}
-	},
-
-	startJob: (sql,job,cb) => {	// callsback cb(sql, job||null) on departure
-		
-		/*
-		function regulate(job,cb) {		// callsback cb(job) on departure
-
-			const {qos,priority} = job;
-			
-			var queue = DB.queues[qos];	// get job's qos queue
-
-			if ( !queue )  // prime the queue if it does not yet exist
-				queue = DB.queues[qos] = new Object({	// reserve queue for requested qos polling level
-					timer: 0,	// reserved for setInterval
-					batch: {},	// each batch reserved for different priorities
-					rate: qos  // in seconds or interval name
-				});
-
-			// access priority batch for this job 
-
-			var batch = queue.batch[priority || 0]; 		// get job's priority batch (default priority = 0)
-
-			if ( !batch ) 
-				batch = queue.batch[priority || 0] = new Array();
-
-			batch.push( Copy(job, {cb:cb}) );  // add job to queue
-
-			if ( !queue.timer ) 		// restart idle queue
-				queue.timer = setInterval( queue => {  // setup periodic poll for this job queue
-
-					var job = null;	// default job to empty queue
-					for (var priority in queue.batch) {  // index thru all priority batches
-						var batch = queue.batch[priority];
-
-						if ( job = batch.pop() ) {  // remove job from the queue (last-in first-out )
-	//Log("job depth="+batch.length+" job="+[job.name,job.qos]);
-
-							if ( jobcb = job.cb )	// has a callback so run it
-								if ( isString(jobcb) )  // this is a child job so spawn it and hold its pid
-									job.pid = CP.exec( jobcb, {cwd: "./public", env:process.env}, (err,stdout,stderr) => {
-										jobcb( err ? null : job );
-									});
-
-								else // execute job's callback
-									jobcb(job);
-						}
-					}
-
-					if ( !job ) { // queue empty so it goes idle
-						clearInterval(queue.timer);
-						queue.timer = null;
-					}
-
-				}, queue.rate*1e3, queue);
-		}
-		*/
-		function regulate(rate,job,cb) {
-			setTimeout( () => {
-				sqlThread( sql => cb(sql,job) );
-			}, rate);
-		}
-		
-		function insert(cb) {	// insert job into queue or update job already in queue
-			function cpuUtil() {				// compute average cpu utilization
-				var avgUtil = 0;
-				var cpus = OS.cpus();
-
-				cpus.forEach( cpu => {
-					idle = cpu.times.idle;
-					busy = cpu.times.nice + cpu.times.sys + cpu.times.irq + cpu.times.user;
-					avgUtil += busy / (busy + idle);
-				});
-				return avgUtil / cpus.length;
-			}
-
-			var util = cpuUtil();
-			
-			sql.query(  // increment work backlog for this job
-				"INSERT INTO app.queues SET ? ON DUPLICATE KEY UPDATE " +
-				"Util=Util+?, Departed=null, Work=Work+1, Done=Done+1, " + 
-				"Age=datediff(now(),Arrived)*24, " + 
-				"State=Age/Done, " +
-				"ECD=date_add(Arrived, interval State*Work hour), ?", [{
-					// mysql unique keys should not be null
-					Client: client || "guest",
-					Class: job.class || "",
-					Task: task || "",
-					QoS: 0,
-					Priority: 0,
-					// others 
-					Arrived	: new Date(),
-					Departed: null,
-					Name: name,
-					Classif : "",
-					Notes: notes || "none",
-					Billed: 0,
-					Flagged: 0,
-					Finished: 0,
-					Funded: credit ? 1 : 0,
-					// Completion estimates
-					Age: 0,
-					State: 0,
-					ECD: null,
-					Util: util,
-					Work: 1,
-					Done: 1
-				}, util, {
-					Notes: notes,
-					Task: task || ""
-				}
-			], (err,info) => {  // increment work backlog for this job
-				cb( err ? null : info );
-			});	
-		}
-		
-		function retask(cb) {
-			var
-				[atInt,atHour,atMins] = (every||"day:01:00").split(":");
-
-			switch ( atInt ) {
-				case "year": year += 1; break;
-				case "week": date += 7; break;
-				case "day": date += 1; break;
-				case "hour": hour += 1; break;
-
-				case "monday": 
-				case "tuesday":
-				case "wednesday":
-				case "thursday":
-				case "friday":
-				case "saturday":
-				case "sunday":
-				case "mon":
-				case "tue":
-				case "wed":
-				case "thr":
-				case "fri":
-				case "sat":
-				case "sun":
-					date += 7-day+1; 
-					hour = parseInt(atHour);
-					mins = parseInt(atMins);
-					break;
-			}
-
-			var 
-				now = new Date(),					
-				year = now.getFullYear(),
-				month = now.getMonth(),
-				date = now.getDate(),
-				day = now.getDay(),
-				hour = now.getHours(),
-				mins = now.getMinutes(),
-				secs = now.getSeconds(),
-				next = new Date(year,month,date,hour,mins),
-				wait = next.getTime() - now.getTime();
-
-			//wait = 5e3;
-			Log("tasking", {
-				task: name, 
-				next: next, 
-				wait: wait,
-				xMth: next.getMonth(),
-				xHr: next.getHours(),
-				xDay: next.getDay()
-			});
-
-			if ( wait > 0 )
-				if (now < ends || !ends)	// ok to retask job
-					setTimeout( job => {
-						sqlThread( sql => {
-							cb(sql,job);
-						});
-						retask(cb);
-					}, wait, job );
-		}
-			
-		const {client,task,name,notes,credit,every,ends} = job;
-					 
-		if ( qos = parseInt(every||"0") )  // regulated job
-			insert( info => {
-				job.ID = info.insertId || 0;
-
-				if ( job.credit )				// client still has credit so place it in the regulator
-					regulate( qos*1e3, Copy(job,{}) , (sql,job) => { // clone job and provide a callback when job departs
-						cb( sql, job, () => endJob(sql,job) );
-
-						sql.query( // charge client
-							"UPDATE openv.profiles SET Charge=Charge+1,Credit=Credit-1 WHERE ?", 
-							{Client: client} 
-						);
-					});
-
-				else
-					cb(null); 	// signal error -- no credit
-			});
-
-		/*
-		else
-		if ( cycle = parseInt(every||"0") )		// tasking by mins
-			job.tasker = setInterval( job => {
-				var now = new Date();
-
-				if (now < job.ends || !job.ends)	// requeue job
-					sqlThread( sql => {
-						cb(sql, job);
-					});
-
-				else	// stop job
-					clearInterval(job.tasker);
-
-			}, cycle*60e3, job );
-		*/
-		
-		else
-		if ( every )   // absolute task time
-			retask( (sql,job) => {
-				Trace( `RESTART ${name}` );
-				cb(sql, job);
-			});
-		
-		else { // unregulated so callback on existing sql thread
-			job.ID = 0;
-			cb(sql, job);
-		}
-	},
-	
 	/**
 		Defines url query parameter operators.
 	*/
 	operators: ["=", "<", "<=", ">", ">=", "!=", "!bin=", "!exp=", "!nlp="],
 
 	/**
-	Error messages
-	@cfg {Object} 
+		Error messages
+		@cfg {Object} 
 	*/		
 	errors: {
 		pretty: err => { 
@@ -870,7 +628,7 @@ Log("line ",idx,line.length);
 		Configure and start the service with options and optional callback when started.
 		Configure JSDB, define site context, then protect, connect, start and initialize this server.
 		@cfg {Function}
-		@param {Object} opts configuration options following the ENUM.Copy() conventions.
+		@param {Object} opts configuration options following the Copy() conventions.
 		@param {Function} cb callback(err) after service configured
 	*/
 	config: (opts,cb) => {
@@ -1085,7 +843,7 @@ Log("line ",idx,line.length);
 
 								if ( proxies ) 	// in with the new
 									proxies.forEach( (proxy,src) => {
-										fetch( proxy, html => {
+										Fetch( proxy, html => {
 											//Log(">>>proxy", proxy, html.length);
 											var 
 												$ = SCRAPE.load(html),
@@ -1148,17 +906,6 @@ Log("line ",idx,line.length);
 					pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
 					//key: FS.readFileSync(`${paths.certs}${name}.key`),
 					//crt: FS.readFileSync(`${paths.certs}${name}.crt`)
-				};
-				certs.fetch = { 		// data fetching certs
-					pfx: FS.readFileSync(`${paths.certs}fetch.pfx`),
-					key: FS.readFileSync(`${paths.certs}fetch.key`),
-					crt: FS.readFileSync(`${paths.certs}fetch.crt`),
-					ca: "", //FS.readFileSync(`${paths.certs}fetch.ca`),			
-					_pfx: `${paths.certs}fetch.pfx`,
-					_crt: `${paths.certs}fetch.crt`,
-					_key: `${paths.certs}fetch.key`,
-					_ca: `${paths.certs}fetch.ca`,
-					_pass: ENV.FETCH_PASS
 				};
 
 				//Log("enc>>>", isEncrypted[CLUSTER.isMaster], paths.certs+"truststore" );
@@ -1559,8 +1306,8 @@ Log("line ",idx,line.length);
 		
 		JSDB.config({   // establish the db agnosticator 
 			//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server starte
-			track: dbTrack,
-			fetch: fetch			
+			track: dbTrack
+			//fetch: fetch			
 		}, err => {  // derive server vars and site context vars
 			if (err)
 				Trace(err);
@@ -1710,12 +1457,12 @@ Log("line ",idx,line.length);
 						if ( isArray(task) )
 							task.forEach( task => {		// multiple tasks supplied
 								nodeReq.task = task+"";
-								fetch( nodeURL, nodeReq );
+								Fetch( nodeURL, nodeReq );
 							});
 
 						else {	// post the task request to the node
 							nodeReq.task = task+"";
-							fetch( nodeURL, nodeReq );
+							Fetch( nodeURL, nodeReq );
 						}
 
 					else
@@ -2087,264 +1834,6 @@ Log("line ",idx,line.length);
 
 	//====================================== MISC
 		
-	fetchRetries: 5,		// fetch wget/curl retries
-		
-	/**
-		Probes service path using PUT || POST || DELETE method given Array || Object || null params,
-		or fetches data from service path using GET method with callsback to params.
-		
-		@cfg {Function} 
-		@param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
-		@param {Object, Array, Function, null} method induces probe method
-	*/
-	fetch: (path, data, cb) => {	//< data fetching
-	
-		function sha256(s) { // reserved for other functionality
-			return CRYPTO.createHash('sha256').update(s).digest('base64');
-		}
-
-		function request(proto, opts, data, cb) {
-			var Req = proto.request(opts, Res => { // get reponse body text
-				var body = "";
-				Res.on("data", chunk => body += chunk.toString() );
-
-				Res.on("end", () => {
-					//Log('fetch statusCode:', Res.statusCode);
-					//Log('fetch headers:', Res.headers['public-key-pins']);	// Print the HPKP values
-
-					if ( opts.method == "GET" ) 
-						data( body );
-					
-					else
-					if ( cb ) 
-						cb( body );
-				});
-			});
-
-			Req.on('error', err => {
-				Log(">>>fetch req", err);
-				(cb||data)("");
-			});
-
-			switch (opts.method) {
-				case "DELETE":
-				case "GET": 
-					break;
-
-				case "POST":
-				case "PUT":
-					Req.write( JSON.stringify(data) );  // post parms
-					break;
-			}					
-
-			Req.end();
-		}
-		
-		function get(proto, opts, sql, id, cb) {
-			var 
-				body = "",
-				req = proto.get( opts, res => {
-					var sink = new STREAM.Writable({
-						objectMode: true,
-						write: (buf,en,sinkcb) => {
-							body += buf;
-							sinkcb(null);  // signal no errors
-						}
-					});
-
-					sink
-					.on("finish", () => {
-						var stat = "s"+Math.trunc(res.statusCode/100)+"xx";
-						Log(">>>>body", body.length, ">>stat",res.statusCode,">>>",stat);
-
-						sql.query("UPDATE openv.proxies SET hits=hits+1, ?? = ?? + 1 WHERE ?", [stat,stat,id] );
-
-						cb( (stat = "s2xx") ? body : "" );
-					})
-					.on("error", err => {
-						Log(">>>fetch get", err);
-						cb("");
-					});
-
-					res.pipe(sink);
-				});
-			
-			req.on("socket", sock => {
-				sock.setTimeout(2e3, () => {
-					req.abort();
-					Log(">>>fetch timeout");
-					sql.query("UPDATE openv.proxies SET hits=hits+1, sTimeout = sTimeout+1 WHERE ?", id);
-				});
-				
-				sock.on("error", err => {
-					req.abort();
-					Log(">>>fetch refused");
-					sql.query("UPDATE openv.proxies SET hits=hits+1, sRefused = sRefused+1 WHERE ?", id);
-				});
-			});
-			
-			req.on("error", err => {
-				Log(">>>abort",err);
-				sql.query("UPDATE openv.proxies SET hits=hits+1, sAbort = sAbort+1 WHERE ?", id);
-			});
-		}
-		
-		const
-			{ fetchRetries,certs } = TOTEM,
-			url = path.startsWith("/") ? site.master + path : path,
-			opts = URL.parse(url),
-			crud = {
-				"Function": "GET",
-				"Array": "PUT",
-				"Object": "POST",
-				"Null": "DELETE"
-			},
-
-			// for wget-curl
-			cert = certs.fetch,
-			wget = url.split("////"),
-			wurl = wget[0],
-			wout = wget[1] || "./temps/wget.jpg",
-					
-			{ protocol } = opts,
-			method = crud[ data ? typeOf(data) : "Null" ] ;
-		
-		// opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
-		// opts.cipher = " ... "
-		// opts.headers = { ... }
-		// opts.Cookie = ["x=y", ...]
-		/*
-		if (opts.soap) {
-			opts.headers = {
-				"Content-Type": "application/soap+xml; charset=utf-8",
-				"Content-Length": opts.soap.length
-			};
-			opts.method = "POST";
-		}*/
-
-		Trace("FETCH "+url);
-		//Log(opts);
-		
-		opts.method = method;
-		
-		switch ( protocol ) {
-			case "curl:": 
-				CP.exec( `curl --retry ${fetchRetries} ` + url.replace(protocol, "http:"), (err,out) => {
-					data( err ? "" : out );
-				});
-				break;
-
-			case "curls:":
-				CP.exec( `curl --retry ${fetchRetries} -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"), (err,out) => {
-					data( err ? "" : out );
-				});	
-				break;
-
-			case "wget:":
-				CP.exec( `wget --tries=${fetchRetries} -O ${wout} ` + wurl.replace(protocol, "http:"), err => {
-					data( err ? "" : "ok" );
-				});
-				break;
-
-			case "wgets:":
-				CP.exec( `wget --tries=${fetchRetries} -O ${wout} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + wurl.replace(protocol, "https:"), err => {
-					data( err ? "" : "ok" );
-				});
-				break;
-
-			case "https:":
-				/*
-				// experiment pinning tests
-				opts.checkServerIdentity = function(host, cert) {
-					// Make sure the certificate is issued to the host we are connected to
-					const err = TLS.checkServerIdentity(host, cert);
-					if (err) {
-						Log("tls error", err);
-						return err;
-					}
-
-					// Pin the public key, similar to HPKP pin-sha25 pinning
-					const pubkey256 = 'pL1+qb9HTMRZJmuC/bB/ZI9d302BYrrqiVuRyW+DGrU=';
-					if (sha256(cert.pubkey) !== pubkey256) {
-						const msg = 'Certificate verification error: ' + `The public key of '${cert.subject.CN}' ` + 'does not match our pinned fingerprint';
-						return new Error(msg);
-					}
-
-					// Pin the exact certificate, rather then the pub key
-					const cert256 = '25:FE:39:32:D9:63:8C:8A:FC:A1:9A:29:87:' + 'D8:3E:4C:1D:98:JSDB:71:E4:1A:48:03:98:EA:22:6A:BD:8B:93:16';
-					if (cert.fingerprint256 !== cert256) {
-						const msg = 'Certificate verification error: ' +
-						`The certificate of '${cert.subject.CN}' ` +
-						'does not match our pinned fingerprint';
-						return new Error(msg);
-					}
-
-					// This loop is informational only.
-					// Print the certificate and public key fingerprints of all certs in the
-					// chain. Its common to pin the public key of the issuer on the public
-					// internet, while pinning the public key of the service in sensitive
-					// environments.
-					do {
-						console.log('Subject Common Name:', cert.subject.CN);
-						console.log('  Certificate SHA256 fingerprint:', cert.fingerprint256);
-
-						hash = crypto.createHash('sha256');
-						console.log('  Public key ping-sha256:', sha256(cert.pubkey));
-
-						lastprint256 = cert.fingerprint256;
-						cert = cert.issuerCertificate;
-					} while (cert.fingerprint256 !== lastprint256);
-
-					};
-				*/
-				/*
-				opts.agent = new HTTPS.Agent( false 
-					? {
-							//pfx: cert.pfx,	// pfx or use cert-and-key
-							cert: cert.crt,
-							key: cert.key,
-							passphrase: cert._pass
-						} 
-					: {
-						} );
-					*/
-				opts.rejectUnauthorized = false;
-				request(HTTPS, opts, data, cb);
-				break;
-				
-			case "http:":
-				request(HTTP, opts, data, cb);
-				break;
-				
-			case "mask:":
-			case "mttp:":
-				opts.protocol = "http:";
-				sqlThread( sql => {
-					sql.query(
-						"SELECT ID,ip,port FROM openv.proxies WHERE ? ORDER BY rand() LIMIT 1",
-						[{proto: "no"}], (err,recs) => {
-							
-						if ( rec = recs[0] ) {
-							opts.agent = new AGENT( `http://${rec.ip}:${rec.port}` );
-							Log(">>>agent",rec);
-							get(HTTP, opts, sql, {ID:rec.ID}, data || (res => {}) );
-						}
-					});
-				});
-				break;
-				
-			default:
-				var 
-					Opts = URL.parse("http://"+url);
-				
-				Opts.method = method;
-				//Log(Opts);
-				request(HTTP, Opts, data, cb);
-				
-		}
-
-	},
-
 	/**
 		Enable/disable service fault protection guards
 		@cfg {Boolean} 
@@ -3709,7 +3198,7 @@ function sysTask(req,res) {  //< task sharding
 			}
 
 			if (body.qos) 
-				startJob(sql, { // job descriptor 
+				sql.startJob({ // job descriptor 
 					index: Copy(index,{}),
 					//priority: 0,
 					every: "1", 
@@ -4536,11 +4025,11 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		});
 		break;
 		
-	case "IGTD":
+	case "INGTD":
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
 				Log("ingest starting");
-				sql.ingestFile("./stores/_noarch/gtd.csv", {
+				sql.Ingest("./stores/_noarch/gtd.csv", {
 					target: "gtd",
 					//limit: 1000,
 					keys: [
@@ -4568,11 +4057,11 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		});
 		break;
 		
-	case "IMEX":
+	case "INMEX":
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
 				Log("ingest starting");
-				sql.ingestFile("./stores/_noarch/centam.csv", {
+				sql.Ingest("./stores/_noarch/centam.csv", {
 					keys: "Criminal_group varchar(32),_Year int(11),Outlet_name varchar(32),Event varchar(32),Rival_group varchar(32),_Eventid varchar(8)",
 					batch: 500,
 					//limit: 1000
@@ -4609,7 +4098,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 			
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
-				fetch( url , txt => {
+				Fetch( url , txt => {
 					Log(txt);
 				});
 			});
@@ -4619,7 +4108,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 	case "G2":
 		TOTEM.config({name:""}, sql => {
 			for (var n=0,N=2000; n<N; n++)
-				fetch("mask://www.drudgereport.com", txt => Log(txt.length));
+				Fetch("mask://www.drudgereport.com", txt => Log(txt.length));
 		});
 		break;
 			
