@@ -34,9 +34,9 @@ to access dataset, file or command NODEs:
 	AREA/PATH/FILE.TYPE ? QUERY
 	COMMAND.TYPE ? QUERY
 
-By default, TOTEM provides `db | xml | csv | json` TYPEs (for converting DATASETs), 
-`riddle | task | ping` COMMANDs (for validating a session, sharding tasks),
-and the `stores | shares` file AREAs (for sharing static files).
+By default, TOTEM provides `db | xml | csv | json` TYPEs for converting DATASETs, 
+`riddle | task | ping` COMMANDs for validating a session, sharding tasks,
+and the `stores | shares` file AREAs for sharing static files.
 
 ## Installation
 
