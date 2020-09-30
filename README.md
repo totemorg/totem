@@ -1,13 +1,6 @@
-[SourceForge](https://sourceforge.net/acmesds/totem) 
-[github](http://sc.appdev.proj.coe/acmesds/totem) 
-[geointapps](https://git.geointapps.org/acmesds/totem) 
-[gitlab](https://gitlab.west.nga.ic.gov/acmesds/totem)
-[nsa](https://sc.appdev.proj.coe/acmesds/totem)
-
 # TOTEM
 
-[TOTEM](https://totem.west.ile.nga.ic.gov/api.view) provides a basic http/https 
-web service having the following configurable features:
+TOTEM provides a basic http/https web service with the following customizable features:
 
 	+ endpoint routing
 	+ denial-of-service protection
@@ -28,7 +21,7 @@ web service having the following configurable features:
 	+ file stream and ingest
 	+ data fetch w and w/o rotating proxies
   
-TOTEM defines the following CRUD endpoints:
+TOTEM defines endpoints:
 
 	POST / NODE ?? NODE ...
 	GET / NODE ?? NODE ...
@@ -41,58 +34,30 @@ to access dataset, file or command NODEs:
 	AREA/PATH/FILE.TYPE ? QUERY
 	COMMAND.TYPE ? QUERY
 
-By default, TOTEM provides the TYPEs:
-
-	db | xml | csv | json
-	
-for converting DATASETs; the COMMANDs:
-
-	riddle | task | ping
-	
-for validating a session, sharding tasks, and testing a connection; and the file AREAs:
-
-	stores | uploads | shares
-
-for supervised/unsupervised FILE sharing.
+By default, TOTEM provides `db | xml | csv | json` TYPEs (for converting DATASETs), 
+`riddle | task | ping` COMMANDs (for validating a session, sharding tasks),
+and the `stores | shares` file AREAs (for sharing static files).
 
 ## Installation
 
-Clone [TOTEM base web service](http://sc.appdev.proj.coe/acmesds/totem) into your PROJECT/totem folder.   
-Clone [ENUM basic enumerators](http://sc.appdev.proj.coe/acmesds/enum) into your PROJECT/enum folder.   
-Clone [JSDB database agnosticator](http://sc.appdev.proj.coe/acmesds/jsdb) into your PROJECT/jsdb folder.
+Clone [TOTEM base web service](https://github.com/totemstan/totem)/[COE](https://sc.appdev.proj.coe/acmesds/totem)/[SBU](https://gitlab.west.nga.ic.gov/acmesds/totem) into your PROJECT/totem folder.   
 
-Revise config.sh, _pass.sh and maint.sh as needed.
+TOTEM passwords to sql databases etc are held in _pass.sh; revise as needed.
+TOTEM sql tables can be primed/reset using `maint mysql prime`.
+
+## Dependencies
+
+[ENUM standard enumerators](https://github.com/totemstan/enum)/[COE](https://sc.appdev.proj.coe/acmesds/enum)/[SBU](https://gitlab.west.nga.ic.gov/acmesds/enum), [JSDB database agnosticator](https://github.com/totemstan/jsdb)/[COE](https://sc.appdev.proj.coe/acmesds/jsdb)/[SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb).
 
 ### Start 
 
-	npm test [ ? || T1 || T2 || ...]			# Unit test
-	npm run [ prmprep || prmload ]		# Revise PRM
+	npm test [ ? || T1 || T2 || ...]	# Start or unit test
+	npm run [ prmprep || prmload ]		# Update Program Ref Manual
 	npm run [ edit || start ]			# Configure environment
-
-### MySQL databases
-
-* openv.profiles Updated when a client arrives (reqd)
-* openv.sessions Updated when a client session is established (reqd) 
-* openv.apps Read on startup to define site context keys (reqd)
-* openv.proxies Read and updated to maintain rotating fetch proxies
-* openv.riddles Builds on config and updates when a client arrives  
-* openv.aspreqts Read on config to define asp requirements  
-* openv.ispreqts Read on config to define isp requirements  
-* openv.hwreqts Read on config to define hardware requirements  
-* openv.dblogs Updated when tables are revised
-* openv.files Updated/read during file download/upload
-
-create table openv.profiles (ID float unique auto_increment,Banned mediumtext,QoS int(11),Credit float,Charge float,Challenge boolean,Client varchar(64),User varchar(16),Login varchar(16),`Group` varchar(16),IDs json,Repoll boolean,Retries int(11), Timeout float, Message mediumtext);
-create table openv.apps (ID float unique auto_increment,Nick varchar(16),Title varchar(64),byline varchar(16));
-create table openv.sessions (ID float unique auto_increment,Client varchar(64),Message mediumtext,Joined datetime);  
-create table openv.proxies (ID float unique auto_increment,ip varchar(16), port int(11), hits int(11) default 0,org varchar(16),type varchar(16),proto varchar(8),source varchar(8),created datetime,s1xx int(11) default 0,s2xx int(11) default 0,s3xx int(11) default 0,s4xx int(11) default 0,s5xx int(11) default 0,sRefused int(11) default 0,sAbort int(11) default 0,sTimeout int(11) default 0 );
-create table openv.roles (ID float unique auto_increment,Hawk varchar(8),Client varchar(64));
-create table openv.dblogs (ID float unique auto_increment,dataset varchar(16));
-create table app.queues (ID float unique auto_increment,Age float,Util float,State float,ECD datetime, Client varchar(64),`Class` varchar(32),Task varchar(32),QoS int(11),Priority int(11), Arrived datetime, Departed datetime,Name varchar(32),Classif varchar(32),Notes mediumtext,Billed boolean,Flagged boolean,Funded boolean,Work int(11),Done int(11));
 
 ## Usage
 
-Simply require, configure and start TOTEM:
+Require, configure and start TOTEM:
 	
 	var TOTEM = require("totem")({
 		key: value, 						// set key
@@ -102,10 +67,10 @@ Simply require, configure and start TOTEM:
 		console.log( err ? "something evil is lurking" : "look mom - Im running!");
 	});
 
-where [its configuration keys](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) follow 
-the [ENUM deep copy conventions](http://sc.appdev.proj.coe/acmesds/enum).
+where [its configuration keys](http://totem.hopto.org/shares/prm/totem/index.html)/[COE](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html)/[SBU](https://totem.nga.mil/shares/prm/totem/index.html)
+follow the [ENUM deep copy conventions](https://github.com/totemstan/enum)/[COE](https://sc.appdev.proj.coe/acmesds/enum)/[SBU](https://gitlab.west.nga.ic.gov/acmesds/enum).
 
-### T1 - Just an interface
+### T1 - A do-nothing service
 		
 	var TOTEM = require("totem");
 
@@ -130,7 +95,7 @@ the [ENUM deep copy conventions](http://sc.appdev.proj.coe/acmesds/enum).
 
 	});
 
-### T3 - A service with a database
+### T3 - Add a database
 
 	TOTEM.config({
 		name: "Totem",
@@ -149,7 +114,7 @@ the [ENUM deep copy conventions](http://sc.appdev.proj.coe/acmesds/enum).
 		);
 	});
 		
-### T4 - A service with custom endpoints
+### T4 - Add custom endpoints
 	
 	TOTEM.config({
 		mysql: {
@@ -192,7 +157,7 @@ the [ENUM deep copy conventions](http://sc.appdev.proj.coe/acmesds/enum).
 		});
 	});
 		
-### T5 - A service with antibot protection
+### T5 - Add antibot protection
 	
 	TOTEM.config({
 		mysql: {
@@ -207,13 +172,12 @@ the [ENUM deep copy conventions](http://sc.appdev.proj.coe/acmesds/enum).
 	}, err => {
 		Trace( err || {
 			msg:
-				`I am Totem client, with no cores but I do have mysql database and I have an anti-bot shieldhttps://totem.west.ile.nga.ic.gov  Anti-bot
-				shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.`, 
+				`I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield.  
+				Anti-bot shields require an Encrypted service, and a user interface (eg DEBE) to be of use.`, 
 			mysql_derived_parms: TOTEM.site
 		});
 	});
-
-### T6 - A service with tasking endpoints
+### T6 - Add tasking endpoints
 
 	TOTEM.config({  // configure the service for tasking
 		name: "Totem1",  // default parms from openv.apps nick=Totem1
@@ -266,11 +230,11 @@ the [ENUM deep copy conventions](http://sc.appdev.proj.coe/acmesds/enum).
 		Trace( err || "Testing tasker with database and 3 cores at /test endpoint" );
 	});
 
+## Contacting, Contributing, Following
 
-## Contributing
-
-To contribute to this module, see our [issues](https://totem.west.ile.nga.ic.gov/issues.view)
-and [milestones](https://totem.west.ile.nga.ic.gov/milestones.view).
+Feel free to [submit and status TOTEM issues](http://totem.hopto.org/issues.view)/[COE](https://totem.west.ile.nga.ic.gov/issues.view)/[SBU](https://totem.nga.mil/issues.view), [contribute TOTEM notebooks](http://totem.hopto.org/shares/notebooks/)/[COE](https://totem.west.ile.nga.ic.gov/shares/notebooks/)/[SBU](https://totem.nga.mil/shares/notebooks/),
+[inspect TOTEM requirements](http://totem.hopto.org/reqts.view)/[COE](https://totem.west.ile.nga.ic.gov/reqts.view)/[SBU](https://totem.nga.mil/reqts.view), [browse TOTEM holdings](http://totem.hopto.org/)/[COE](https://totem.west.ile.nga.ic.gov/)/[SBU](https://totem.nga.mil/), 
+or [follow TOTEM milestones](http://totem.hopto.org/milestones.view)/[COE](https://totem.west.ile.nga.ic.gov/milestones.view)/[SBU](https://totem.nga.mil/milestones.view).
 
 ## License
 

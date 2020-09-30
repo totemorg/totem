@@ -1772,9 +1772,9 @@ Log("line ",idx,line.length);
 	*/		
 	byArea: {	//< by-area routers
 		"": sysFile,
-		stores: sysFile
+		stores: sysFile,
 		//uploads: sysFile,
-		//shares: sysFile,
+		shares: sysFile,
 		//stash: sysFile
 	},
 
@@ -2111,6 +2111,8 @@ Log("line ",idx,line.length);
 			});
 
 		site.warning = "";
+		
+		/* legacy
 		sql.query("SELECT count(ID) AS Fails FROM openv.aspreqts WHERE Status LIKE '%fail%'").on("result", asp => {
 		sql.query("SELECT count(ID) AS Fails FROM openv.ispreqts WHERE Status LIKE '%fail%'").on("result", isp => {
 		sql.query("SELECT count(ID) AS Fails FROM openv.swreqts WHERE Status LIKE '%fail%'").on("result", sw => {
@@ -2128,6 +2130,7 @@ Log("line ",idx,line.length);
 		});
 		});
 		});
+		*/
 
 	},
 

@@ -168,45 +168,43 @@ jnb.)
 	cd /anaconda/bin
 	jupyter-notebook --ip 0.0.0.0 --port 8081
 	;;
+
+readme.)
+	repo1="https:\/\/github.com\/totemstan\/"
+	repo2="https:\/\/gitlab.west.nga.ic.gov\/acmesds\/"
+	repo3="https:\/\/sc.appdev.proj.coe\/acmesds\/"
+	site1="http:\/\/totem.hopto.org\/"
+	site2="https:\/\/totem.nga.mil\/"
+	site3="https:\/\/totem.west.ile.nga.ic.gov\/"
+	
+	pass1="s/REPO{\([^}]*\)}/("$repo1"\1)\/[COE]("$repo3"\1)\/[SBU]("$repo2"\1)/g"
+	pass2="s/SITE{\([^}]*\)}/("$site1"\1)\/[COE]("$site3"\1)\/[SBU]("$site2"\1)/g"
+	
+	#echo $pass1
+	#echo $pass2
+	
+	sed "$pass1" readme.md | sed "$pass2" > README.md
+	;;
 	
 mysql.)
 
 	case "$2." in
 	
-	config.)	# configure apps
-		echo -e "update openv.apps as needed"
+	config.)	# tune dbs
+		echo -e "update dbs as needed"
 		mysql -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST
 		;;
 
-	snapf.)   # snapshot functions only
-		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST ndtR app >admins/db/funcs.sql
+	snap.)		# snapshot all dbs
+		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >admins/openv.sql
+		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app >admins/app.sql
+		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -ndtR app >admins/funcs.sql
 		;;
 
-	archive.)  # snapshot and archive db
-
-		echo "Exporting sqldb to admins/db"
-
-		cd $ADMIN/db
-			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >openv.sql
-			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app >app.sql
-			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST ndtR app >funcs.sql
-			#mysqldump -u$MYSQL_USER -p$MYSQL_PASS --events mysql >admins/db/mysql.sql
-			#mysqldump -u$MYSQL_USER -p$MYSQL_PASS jou >admins/db/jou.sql
-
-			#sudo zip -ry /media/sf_archives/sqldb.zip $ADMINS/db
-			#git commit -am $2
-			#git push origin master
-		cd $HERE
-		;;
-
-	save.)		# snapshot all dbs
-		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >admins/db/openv.sql
-		mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app >admins/db/app.sql
-		;;
-
-	load.)
-		mysql -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv <admins/db/openv.sql	
-		mysql -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST app <admins/db/app.sql	
+	prime.)		# prime totem
+		mysql -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv <admins/openv.sql	
+		mysql -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST app <admins/app.sql	
+		mysql -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST app <admins/funcs.sql	
 		;;
 		
 	start.)
