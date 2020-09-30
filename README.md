@@ -40,14 +40,14 @@ and the `stores | shares` file AREAs (for sharing static files).
 
 ## Installation
 
-Clone [TOTEM base web service](https://github.com/totemstan/totem)/[COE](https://sc.appdev.proj.coe/acmesds/totem)/[SBU](https://gitlab.west.nga.ic.gov/acmesds/totem) into your PROJECT/totem folder.   
+Clone [TOTEM base web service](https://github.com/totemstan/totem) || [COE](https://sc.appdev.proj.coe/acmesds/totem) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/totem) into your PROJECT/totem folder.   
 
 TOTEM passwords to sql databases etc are held in _pass.sh; revise as needed.
 TOTEM sql tables can be primed/reset using `maint mysql prime`.
 
 ## Dependencies
 
-[ENUM standard enumerators](https://github.com/totemstan/enum)/[COE](https://sc.appdev.proj.coe/acmesds/enum)/[SBU](https://gitlab.west.nga.ic.gov/acmesds/enum), [JSDB database agnosticator](https://github.com/totemstan/jsdb)/[COE](https://sc.appdev.proj.coe/acmesds/jsdb)/[SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb).
+[ENUM standard enumerators](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum), [JSDB database agnosticator](https://github.com/totemstan/jsdb) || [COE](https://sc.appdev.proj.coe/acmesds/jsdb) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb).
 
 ### Start 
 
@@ -67,8 +67,8 @@ Require, configure and start TOTEM:
 		console.log( err ? "something evil is lurking" : "look mom - Im running!");
 	});
 
-where [its configuration keys](http://totem.hopto.org/shares/prm/totem/index.html)/[COE](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html)/[SBU](https://totem.nga.mil/shares/prm/totem/index.html)
-follow the [ENUM deep copy conventions](https://github.com/totemstan/enum)/[COE](https://sc.appdev.proj.coe/acmesds/enum)/[SBU](https://gitlab.west.nga.ic.gov/acmesds/enum).
+where [its configuration keys](http://totem.hopto.org/shares/prm/totem/index.html) || [COE](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) || [SBU](https://totem.nga.mil/shares/prm/totem/index.html)
+follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum).
 
 ### T1 - A do-nothing service
 		
@@ -232,9 +232,9 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum)/[COE]
 
 ## Contacting, Contributing, Following
 
-Feel free to [submit and status TOTEM issues](http://totem.hopto.org/issues.view)/[COE](https://totem.west.ile.nga.ic.gov/issues.view)/[SBU](https://totem.nga.mil/issues.view), [contribute TOTEM notebooks](http://totem.hopto.org/shares/notebooks/)/[COE](https://totem.west.ile.nga.ic.gov/shares/notebooks/)/[SBU](https://totem.nga.mil/shares/notebooks/),
-[inspect TOTEM requirements](http://totem.hopto.org/reqts.view)/[COE](https://totem.west.ile.nga.ic.gov/reqts.view)/[SBU](https://totem.nga.mil/reqts.view), [browse TOTEM holdings](http://totem.hopto.org/)/[COE](https://totem.west.ile.nga.ic.gov/)/[SBU](https://totem.nga.mil/), 
-or [follow TOTEM milestones](http://totem.hopto.org/milestones.view)/[COE](https://totem.west.ile.nga.ic.gov/milestones.view)/[SBU](https://totem.nga.mil/milestones.view).
+Feel free to [submit and status TOTEM issues](http://totem.hopto.org/issues.view) || [COE](https://totem.west.ile.nga.ic.gov/issues.view) || [SBU](https://totem.nga.mil/issues.view), [contribute TOTEM notebooks](http://totem.hopto.org/shares/notebooks/) || [COE](https://totem.west.ile.nga.ic.gov/shares/notebooks/) || [SBU](https://totem.nga.mil/shares/notebooks/),
+[inspect TOTEM requirements](http://totem.hopto.org/reqts.view) || [COE](https://totem.west.ile.nga.ic.gov/reqts.view) || [SBU](https://totem.nga.mil/reqts.view), [browse TOTEM holdings](http://totem.hopto.org/) || [COE](https://totem.west.ile.nga.ic.gov/) || [SBU](https://totem.nga.mil/), 
+or [follow TOTEM milestones](http://totem.hopto.org/milestones.view) || [COE](https://totem.west.ile.nga.ic.gov/milestones.view) || [SBU](https://totem.nga.mil/milestones.view).
 
 ## License
 

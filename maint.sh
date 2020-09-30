@@ -177,8 +177,8 @@ readme.)
 	site2="https:\/\/totem.nga.mil\/"
 	site3="https:\/\/totem.west.ile.nga.ic.gov\/"
 	
-	pass1="s/REPO{\([^}]*\)}/("$repo1"\1)\/[COE]("$repo3"\1)\/[SBU]("$repo2"\1)/g"
-	pass2="s/SITE{\([^}]*\)}/("$site1"\1)\/[COE]("$site3"\1)\/[SBU]("$site2"\1)/g"
+	pass1="s/REPO{\([^}]*\)}/("$repo1"\1) || [COE]("$repo3"\1) || [SBU]("$repo2"\1)/g"
+	pass2="s/SITE{\([^}]*\)}/("$site1"\1) || [COE]("$site3"\1) || [SBU]("$site2"\1)/g"
 	
 	#echo $pass1
 	#echo $pass2
