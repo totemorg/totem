@@ -45,7 +45,7 @@ Clone [TOTEM base web service](https://github.com/totemstan/totem) || [COE](http
 TOTEM passwords to sql databases etc are held in _pass.sh; revise as needed.
 TOTEM sql tables can be primed/reset using `maint mysql prime`.
 
-## Dependencies
+## Requires
 
 [ENUM standard enumerators](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum), [JSDB database agnosticator](https://github.com/totemstan/jsdb) || [COE](https://sc.appdev.proj.coe/acmesds/jsdb) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb).
 
