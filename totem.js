@@ -206,7 +206,7 @@ function neoThread(cb) {
 // totem i/f
 
 const 
-	{ operators, reqFlags,paths,errors,site, maxFiles, isEncrypted, domain, behindProxy, admitClient,
+	{ operators, reqFlags,paths,sqls,errors,site, maxFiles, isEncrypted, domain, behindProxy, admitClient,
 	 sqlThread,filterRecords,guestProfile,routeDS, startDogs,startJob,endJob } = TOTEM = module.exports = {
 	
 	routeDS: {	// setup default DataSet routes
@@ -325,18 +325,18 @@ const
 	*/
 	routeRequest: (req,res) => {
 		function routeNode(node, req, cb) {	//< Parse and route the NODE = /DATASET.TYPE request
-			function followRoute(route) {
-
-				/**
+			/*
 				Log session metrics, trace the current route, then callback route on the supplied 
-				request-response thread
+				request-response thread.
+			*/
+			function followRoute(route) {	//< route the request
 
-				@private
-				@param {Function} route method endpoint to process session 
-				@param {Object} req Totem session request
-				@param {Function} res Totem response callback
-				*/
-				function logMetrics( logAccess, log, sock) { //< log session metrics 
+				function logSession( log, sock) { //< log session metrics 
+					
+					const { logMetrics } = sqls;
+
+					if ( !logMetrics ) return;
+					
 					sock._started = new Date();
 
 					/*
@@ -345,13 +345,14 @@ const
 					*/
 
 					sock.setMaxListeners(0);
-					sock.on('close', function () { 		// cb when connection closed
+					
+					sock.on('close', () => { 		// cb when connection closed
 						var 
 							secs = sock._started ? ((new Date()).getTime() - sock._started.getTime()) / 1000 : 0,
 							bytes = sock.bytesWritten;
 
 						sqlThread( sql => {
-							sql.query(logAccess, [ Copy(log, {
+							sql.query(logMetrics, [ Copy(log, {
 								Delay: secs,
 								Transfer: bytes,
 								Event: sock._started,
@@ -365,10 +366,9 @@ const
 
 				//Log("log check", req.area, req.reqSocket?true:false, req.log );
 				if ( !req.area )   // log if file not being specified
-					if ( sock = req.reqSocket )  // log if http has a request socket
-						if ( log = req.log )  // log if session logged
-							if ( logAccess = paths.mysql.logMetrics )	// log if logging enabled
-								logMetrics( logAccess, log, sock );  
+					if ( sock = req.reqSocket )  	// log if http has a request socket
+						if ( log = req.log )  		// log if session log-able
+							logSession( log, sock );  
 
 				Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.file}` );
 
@@ -633,62 +633,64 @@ Log("line ",idx,line.length);
 	*/
 	config: (opts,cb) => {
 		/**
-		Setup (connect, start then initialize) a service that will handle its request-response sessions
-		with the provided agent(req,res).
-		
-		The session request is constructed in the following phases:
-		
-			// connectSession phase
-			host: "..."			// domain name being accessed by client
-			agent: "..."		// client browser info
-			method: "GET|PUT|..." 			// http request method
-			action: "select|update| ..."	// corresponding crude name
-			started: date		// date stamp when requested started
-			encrypted: bool		// true if request on encrypted server
-			socketio: "path"  	// filepath to client's socketio.js
-			post: "..."			// raw body text
-			url	: "..."			// complete url requested
-			reqSocket: socket	// socket to retrieve client cert 
-			resSocket: socket	// socket to accept response
-			sql: connector 		// sql database connector 
+			Setup (connect, start then initialize) a service that will handle its request-response sessions
+			with the provided agent(req,res).
 
-			// validateClient phase
-			joined: date		// time admitted
-			client: "..."		// name of client from cert or "guest"
-			cert: {...} 		// fill client cert
-			
-			// routeRequest phase
-			query: {...} 		// raw keys from url
-			where: {...} 		// sql-ized query keys from url
-			body: {...}			// body keys from request 
-			flags: {...} 		// flag keys from url
-			index: {...}		// sql-ized index keys from url
-			files: [...] 		// files uploaded
-			//site: {...}		// skinning context
-			path: "/[area/...]name.type"			// requested resource
-			area: "name"		// file area being requested
-			table: "name"		// name of sql table being requested
-			ds:	"db.name"		// fully qualified sql table
-			body: {...}			// json parsed post
-			type: "type" 		// type part 
+			The session request is constructed in the following phases:
 
-		@param {Function} agent callback(req,res) to handle session request-response 
+				// connectSession phase
+				host: "..."			// domain name being accessed by client
+				agent: "..."		// client browser info
+				method: "GET|PUT|..." 			// http request method
+				action: "select|update| ..."	// corresponding crude name
+				started: date		// date stamp when requested started
+				encrypted: bool		// true if request on encrypted server
+				socketio: "path"  	// filepath to client's socketio.js
+				post: "..."			// raw body text
+				url	: "..."			// complete url requested
+				reqSocket: socket	// socket to retrieve client cert 
+				resSocket: socket	// socket to accept response
+				sql: connector 		// sql database connector 
+
+				// validateClient phase
+				joined: date		// time admitted
+				client: "..."		// name of client from cert or "guest"
+				cert: {...} 		// fill client cert
+
+				// routeRequest phase
+				query: {...} 		// raw keys from url
+				where: {...} 		// sql-ized query keys from url
+				body: {...}			// body keys from request 
+				flags: {...} 		// flag keys from url
+				index: {...}		// sql-ized index keys from url
+				files: [...] 		// files uploaded
+				//site: {...}		// skinning context
+				path: "/[area/...]name.type"			// requested resource
+				area: "name"		// file area being requested
+				table: "name"		// name of sql table being requested
+				ds:	"db.name"		// fully qualified sql table
+				body: {...}			// json parsed post
+				type: "type" 		// type part 
+
+			@param {Function} agent callback(req,res) to handle session request-response 
 		*/
 		function setupService(agent) {  
 
 			/*
-			If the service is already connected, inherit the server; otherwise define a suitable 
-			http/https interface, then start and initialize the service.
+				If the service is already connected, inherit the server; otherwise define a suitable 
+				http/https interface, then start and initialize the service.
 			*/
 			function connectService() {
 				
 				/*
-				Attach a port listener to service then start it.
+					Attach a port listener to service then start it.
+					@param {Number} port port to listen on
+					@param {Function} cb callback(Req,Res) to handle session request
 				*/
 				function startService(port, cb) {
 					const 
-						{ routeRequest, sockets, name, server } = TOTEM,
-						{ mysql, proxies } = paths;
+						{ routeRequest, sockets, name, server, dogs, guard, guards, proxy, proxies, riddles, cores } = TOTEM,
+						{ challenge } = sqls;
 					
 					Trace(`STARTING ${name}`);
 
@@ -731,11 +733,11 @@ Log("line ",idx,line.length);
 											});
 										*/
 										
-										if (challenge = mysql.challenge)
+										if ( challenge )
 											sql.query(challenge, {Client:req.client}).on("results", profile => {
-											if ( profile.Challenge)
-												challengeClient(sql, req.client, profile);	
-										});
+												if ( profile.Challenge)
+													challengeClient(sql, req.client, profile);	
+											});
 									});
 								});
 							});	
@@ -762,7 +764,7 @@ Log("line ",idx,line.length);
 					if (BUSY && TOTEM.busyTime) 
 						BUSY.maxLag(TOTEM.busyTime);
 
-					if (TOTEM.guard)  { // catch core faults
+					if (guard)  { // catch core faults
 						process.on("uncaughtException", err => {
 							Trace(`FAULTED ${err}`);
 						});
@@ -771,13 +773,13 @@ Log("line ",idx,line.length);
 							Trace(`HALTED ${code}`);
 						});
 
-						for (var signal in TOTEM.guards)
+						for (var signal in guards)
 							process.on(signal, function () {
 								Trace(`SIGNALED ${signal}`);
 							});
 					}
 
-					if (TOTEM.riddles) initChallenger();
+					if (riddles) initChallenger();
 
 					TOTEM.initialize(null);	
 					
@@ -798,8 +800,6 @@ Log("line ",idx,line.length);
 
 						for (var core = 0; core < TOTEM.cores; core++) // create workers
 							worker = CLUSTER.fork();
-						
-						const { guard, riddles, cores } = TOTEM;
 						
 						sqlThread( sql => {	// get a sql connection
 							Trace( [ // splash
@@ -834,62 +834,61 @@ Log("line ",idx,line.length);
 								});	
 							});
 
-							if ( dogs = TOTEM.dogs )		// start watch dogs
+							if ( dogs )		// start watch dogs
 								startDogs( sql, dogs );
 							
-							if ( false ) {	// setup proxies
+							if ( proxy ) 	{ 	// setup rotating proxies
 								sql.query(	// out with the old
 									"DELETE FROM openv.proxies WHERE hour(timediff(now(),created)) >= 2");
 
-								if ( proxies ) 	// in with the new
-									proxies.forEach( (proxy,src) => {
-										Fetch( proxy, html => {
-											//Log(">>>proxy", proxy, html.length);
-											var 
-												$ = SCRAPE.load(html),
-												now = new Date(),
-												recs = [];
+								proxies.forEach( (proxy,src) => {	// in with the new
+									Fetch( proxy, html => {
+										//Log(">>>proxy", proxy, html.length);
+										var 
+											$ = SCRAPE.load(html),
+											now = new Date(),
+											recs = [];
 
-											switch (proxy) {
-												case "https://free-proxy-list.net":
-												case "https://sslproxies.org":
-													var cols = {
-														ip: 1,
-														port: 2,
-														org: 3,
-														type: 5,
-														proto: 6
-													};
+										switch (proxy) {
+											case "https://free-proxy-list.net":
+											case "https://sslproxies.org":
+												var cols = {
+													ip: 1,
+													port: 2,
+													org: 3,
+													type: 5,
+													proto: 6
+												};
 
-													$("table").each( (idx,tab) => {
-														//Log("table",idx); 
-														if ( idx==0 )
-															for ( var key in cols ) {
-																if ( col = cols[key] )
-																	$( `td:nth-child(${col})`, tab).each( (i,v) => {
-																		if ( col == 1 ) recs.push( Copy(cols, {
-																			source: src,
-																			created: now
-																		}) );
-																		var rec = recs[i];
-																		rec[ key ] = $(v).text();
-																	}); 
-															}
-													}); 
-													break;
+												$("table").each( (idx,tab) => {
+													//Log("table",idx); 
+													if ( idx==0 )
+														for ( var key in cols ) {
+															if ( col = cols[key] )
+																$( `td:nth-child(${col})`, tab).each( (i,v) => {
+																	if ( col == 1 ) recs.push( Copy(cols, {
+																		source: src,
+																		created: now
+																	}) );
+																	var rec = recs[i];
+																	rec[ key ] = $(v).text();
+																}); 
+														}
+												}); 
+												break;
 
-												default:
-													Log("ignoring proxy", proxy);
-											}
+											default:
+												Log("ignoring proxy", proxy);
+										}
 
-											Log("SET PROXIES", recs);
-											recs.forEach( rec => {
-												sql.query(
-													"INSERT INTO openv.proxies SET ? ON DUPLICATE KEY UPDATE ?", 
-													[rec, {created: now, source:src}]);
-											});
+										Log("SET PROXIES", recs);
+										recs.forEach( rec => {
+											sql.query(
+												"INSERT INTO openv.proxies SET ? ON DUPLICATE KEY UPDATE ?", 
+												[rec, {created: now, source:src}]);
 										});
 									});
+								});
 							}
 						});
 					}
@@ -935,10 +934,10 @@ Log("line ",idx,line.length);
 				
 				startService( port, (Req,Res) => {		// start session
 					/**
-					Provide a request to the supplied session, or terminate the session if the service
-					is too busy.
-					
-					@param {Function} ses session accepting the provided request
+						Provide a request to the supplied session, or terminate the session if the service
+						is too busy.
+
+						@param {Function} ses callback(req) session accepting the provided request
 					*/
 					function startRequest( ses ) { 
 						function getSocket() {  //< returns suitable response socket depending on cross/same domain session
@@ -1022,10 +1021,10 @@ Log("line ",idx,line.length);
 
 					startRequest( req => {  // start request if service not busy.
 						/**
-						Provide a response to a session after attaching sql, cert, client, profile 
-						and session info to this request.  
+							Provide a response to a session after attaching sql, cert, client, profile 
+							and session info to this request.  
 
-						@param {Function} ses session accepting the provided response callback
+							@param {Function} ses session accepting the provided response callback
 						*/
 						function startResponse( ses ) {  
 							function res(data) {  // Session response callback
@@ -1139,8 +1138,8 @@ Log("line ",idx,line.length);
 										case "Function": 			// send file (search or direct)
 											sendFile( data(), req.file, req.type, req.area );
 											/*
-											if ( (search = req.query.search) && paths.mysql.search) 		// search for file via (e.g. nlp) score
-												sql.query(paths.mysql.search, {FullSearch:search}, (err, files) => {
+											if ( (search = req.query.search) && sqls.search) 		// search for file via (e.g. nlp) score
+												sql.query(sqls.search, {FullSearch:search}, (err, files) => {
 
 													if (err) 
 														sendError( errors.noFile );
@@ -1151,7 +1150,7 @@ Log("line ",idx,line.length);
 												});
 
 											else {			
-												if ( credit = paths.mysql.credit)  // credit/charge client when file pulled from file system
+												if ( credit = sqls.credit)  // credit/charge client when file pulled from file system
 													sql.query( credit, {Name:req.node,Area:req.area} )
 													.on("result", file => {
 														if (file.Client != req.client)
@@ -1192,14 +1191,14 @@ Log("line ",idx,line.length);
 									else  {
 										ses(res);
 										const {sql,client} = req;
-										sql.query(paths.mysql.newSession, {
+										sql.query(sqls.newSession, {
 											Client: client,
 											Message: "joined", //JSON.stringify(cert),
 											Joined: new Date()
 										});
 									}
 									/*
-									if ( getSession = paths.mysql.getSession )
+									if ( getSession = sqls.getSession )
 										req.sql.query(getSession, {Client: req.client}, (err,ses) => {
 											if ( err )
 												res(err);
@@ -1236,7 +1235,7 @@ Log("line ",idx,line.length);
 			}
 
 			const
-				{name,cores} = TOTEM,
+				{ name, cores } = TOTEM,
 				pfx = `${paths.certs}${name}.pfx` ;
 
 			Trace( `PROTECTING ${name} USING ${pfx}` );
@@ -1314,9 +1313,6 @@ Log("line ",idx,line.length);
 
 			else
 				sqlThread( sql => {
-					//for (var key in mysql)   // derive server paths
-					//	if (key in paths) paths[key] = mysql[key];
-
 					if (name)	// derive site context
 						setContext(sql, () => {
 							setupService(routeRequest);
@@ -1844,7 +1840,7 @@ Log("line ",idx,line.length);
 		Service guard modes
 		@cfg {Object} 
 	*/
-	guards:  {	// faults to trap 
+	guards: {	// faults to trap 
 		SIGUSR1:1,
 		SIGTERM:1,
 		SIGINT:1,
@@ -1868,9 +1864,9 @@ Log("line ",idx,line.length);
 	},
 
 	/**
-	Attaches the profile, group and a session metric log to this req request (cert,sql) with 
-	callback cb(error) where error reflects testing of client cert and profile credentials.
-	@cfg {Object} 
+		Attaches the profile, group and a session metric log to this req request (cert,sql) with 
+		callback cb(error) where error reflects testing of client cert and profile credentials.
+		@cfg {Object} 
 	*/		
 	admitClient: function (req, cb) { 
 		function admit(cb) {  // callback cb(log || null) with session log 
@@ -1982,6 +1978,12 @@ Log("line ",idx,line.length);
 		9: ["40","190"]
 	},
 
+	proxy: false,
+	proxies: [
+		//"https://free-proxy-list.net",
+		"https://sslproxies.org"
+	],
+
 	/**
 		Default paths to service files
 		@cfg {Object} 
@@ -1990,10 +1992,7 @@ Log("line ",idx,line.length);
 		//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 		//default: "/gohome",
 		//resetpass: "/resetpass",
-		proxies: [
-			//"https://free-proxy-list.net",
-			"https://sslproxies.org"
-		],
+		
 		//wget: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 		//curl: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 		//http: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
@@ -2002,22 +2001,6 @@ Log("line ",idx,line.length);
 		certs: "./certs/", 
 		sockets: ".", // path to socket.io
 		socketio: "/socket.io/socket.io.js",
-
-		mysql: {
-			//logThreads: "show session status like 'Thread%'",
-			users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM openv.dblogs WHERE instr(dataset,'@')",
-			derive: "SELECT * FROM openv.apps WHERE ? LIMIT 1",
-			// logMetrics: "INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
-			search: "SELECT * FROM openv.files HAVING Score > 0.1",
-			//credit: "SELECT * FROM openv.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 1",
-			getProfile: "SELECT * FROM openv.profiles WHERE ? LIMIT 1",
-			newProfile: "INSERT INTO openv.profiles SET ?",
-			getSession: "SELECT * FROM openv.sessions WHERE ? LIMIT 1",
-			newSession: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1",
-			challenge: "SELECT * FROM openv.profiles WHERE least(?,1) LIMIT 1",
-			guest: "SELECT * FROM openv.profiles WHERE Client='guest@guest.org' LIMIT 1",
-			pocs: "SELECT lower(Hawk) AS Role, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Clients FROM openv.roles GROUP BY hawk"
-		},
 
 		nodes: {  // available nodes for task sharding
 			0: ENV.SHARD0 || "http://localhost:8080/task",
@@ -2030,6 +2013,22 @@ Log("line ",idx,line.length);
 			
 		mimes: {  // Extend and remove mime types as needed
 		}
+	},
+
+	sqls: {	// sql queries
+		//logThreads: "show session status like 'Thread%'",
+		users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM openv.dblogs WHERE instr(dataset,'@')",
+		derive: "SELECT * FROM openv.apps WHERE ? LIMIT 1",
+		// logMetrics: "INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
+		search: "SELECT * FROM openv.files HAVING Score > 0.1",
+		//credit: "SELECT * FROM openv.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 1",
+		getProfile: "SELECT * FROM openv.profiles WHERE ? LIMIT 1",
+		newProfile: "INSERT INTO openv.profiles SET ?",
+		getSession: "SELECT * FROM openv.sessions WHERE ? LIMIT 1",
+		newSession: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1",
+		challenge: "SELECT * FROM openv.profiles WHERE least(?,1) LIMIT 1",
+		guest: "SELECT * FROM openv.profiles WHERE Client='guest@guest.org' LIMIT 1",
+		pocs: "SELECT lower(Hawk) AS Role, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Clients FROM openv.roles GROUP BY hawk"
 	},
 
 	/**
@@ -2067,7 +2066,7 @@ Log("line ",idx,line.length);
 		Trace(`CONTEXTING ${TOTEM.name}`);
 	
 		const 
-			{pocs,users,guest,derive} = paths.mysql;
+			{pocs,users,guest,derive} = sqls;
 
 		if (pocs) 
 			sql.query(pocs)
@@ -2299,7 +2298,7 @@ function validateClient(req,res) {
 					Requested: new Date()
 				}, Copy(guestProfile,{}) );
 
-			sql.query( paths.mysql.newProfile, guest );
+			sql.query( sqls.newProfile, guest );
 			return guest;
 		}
 
@@ -2309,7 +2308,6 @@ function validateClient(req,res) {
 	
 	const 
 		{ sql,encrypted,reqSocket } = req,
-		{ mysql } = paths,
 		guest = "email:guest@guest.org",
 		cert = encrypted ? getCert( reqSocket ) : {
 			subject: {
@@ -2327,7 +2325,7 @@ function validateClient(req,res) {
 	req.cert = new Object(cert);
 	//Log("client>>>",client);
 	
-	sql.query(mysql.getProfile, {client: client}, (err,profs) => {
+	sql.query(sqls.getProfile, {client: client}, (err,profs) => {
 
 		if ( err ) 
 			if ( encrypted )  // profile required on https service so return error
@@ -3119,7 +3117,7 @@ To connect to ${site.Nick} from Windows:
 }
 
 /**
-	Fetch user profile for processing
+	Return user profile for processing
 	@private
 	@deprecated
 	@method executeUser
