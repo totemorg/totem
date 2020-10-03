@@ -1552,13 +1552,6 @@ Log("line ",idx,line.length);
 	nodeDivider: "??", 				//< node divider
 	
 	/**
-		Max files to index by the getIndex() method (0 disables).
-		@cfg {Number}
-		@member TOTEM
-	*/
-	maxFiles: 1000,						//< max files to index
-
-	/**
 		Communicate with socket.io clients
 		@cfg {Function}
 		@method emitter
@@ -1772,10 +1765,11 @@ Log("line ",idx,line.length);
 		@cfg {Object} 
 	*/		
 	byArea: {	//< by-area routers
-		"": getFile,
+		//"": getFile,
 		stores: getFile,
 		//uploads: getFile,
 		shares: getFile,
+		home: getFile,
 		//stash: getFile
 	},
 
@@ -2035,13 +2029,6 @@ Log("line ",idx,line.length);
 		guest: "SELECT * FROM openv.profiles WHERE Client='guest@guest.org' LIMIT 1",
 		pocs: "SELECT lower(Hawk) AS Role, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Clients FROM openv.roles GROUP BY hawk"
 	},
-
-	/**
-		File indexer
-		@method 
-		@cfg {Function}
-	*/		
-	getIndex: getIndex,
 
 	/**
 		Get a file and make it if it does not exist
@@ -2361,46 +2348,6 @@ function validateClient(req,res) {
 			res( errors.rejectedClient );
 	});
 }
-
-/**
-	Callback cb(files) with files list under specified path.
-
-	@memberof File_Utilities
-	@param {String} path file path
-	@param {Function} cb totem response
-*/
-function getIndex(path,cb) {	
-	function sysNav(path,cb) {
-		
-		if ( path == "/" ) 
-			Object.keys(TOTEM.byArea).forEach( area => {
-				if (area) cb(area);
-			});
-		
-		else
-			try {
-				FS.readdirSync( "."+path).forEach( file => {
-					//Log(path,file);
-					var
-						ignore = file.endsWith("~") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
-
-					if ( !ignore ) cb(file);
-				});
-			}
-			catch (err) {
-			}	
-	}
-
-	var 
-		files = [];
-	
-	sysNav(path, file => {
-		if ( files.length < maxFiles )
-			files.push( (file.indexOf(".")>=0) ? file : file+"/" );
-	});
-	
-	cb( files );
-}	
 
 /**
 	Get (or create if needed) a file with callback cb(fileID, sql) if no errors
@@ -3243,22 +3190,16 @@ function getFile(req, res) {
 	
 	switch (action) {
 		case "select":
-			
-			if ( path.endsWith("/") )	// requesting static folder
-				getIndex( path, files => {  // Send list of files under specified folder
-					files.forEach( (file,n) => files[n] = file.tag( file ) );
+			if ( path.endsWith("/") )		// requesting folder
+				Fetch( path, files => {
 					req.type = "html"; // otherwise default type is json.
+					files.forEach( (file,n) => files[n] = file.tag( file ) );
 					res(`hello ${req.client}<br>Index of ${path}:<br>` + files.join("<br>") );
 				});
 			
-			else // requesting static file
-				try {		// these files are static so we never cache them
-					FS.readFile( "."+path,  (err,buf) => res( err || Buffer.from(buf) ) );
-				}
-				catch (err) {
-					res( errors.noFile );
-				}
-				
+			else	// requesting file
+				Fetch( path, res );
+			
 			break;
 					
 		case "delete":
