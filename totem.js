@@ -206,8 +206,11 @@ function neoThread(cb) {
 // totem i/f
 
 const 
-	{ operators, reqFlags,paths,sqls,errors,site, maxFiles, isEncrypted, domain, behindProxy, admitClient,
-	 sqlThread,filterRecords,guestProfile,routeDS, startDogs,startJob,endJob } = TOTEM = module.exports = {
+	{ 
+		byArea, byType, byAction, byTable,
+		nodeDivider,
+		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, domain, behindProxy, admitClient,
+		sqlThread,filterRecords,guestProfile,routeDS, startDogs,startJob,endJob, cache } = TOTEM = module.exports = {
 	
 	routeDS: {	// setup default DataSet routes
 		default: req => "app."+req.table
@@ -388,25 +391,33 @@ const
 				});
 			}
 
-			var
-				action = req.action,
+			const 
+				{ strips, prefix, traps, id } = reqFlags,
+				{ action, body } = req,
+
 				query = req.query = {},
 				index = req.index = {},	
 				where = req.where = {},
 				flags = req.flags = {},
-				path = req.path = "." + node.parseURL(query, index, flags, where),		//  .[/area1/area2/...]/table.type
-				areas = path.split("/"),						// [".", area1, area2, ...]
-				file = req.file = areas.pop() || "",		// table.type
-				[x,table,type] = [x,req.table,req.type] = file.match( /(.*)\.(.*)/ ) || ["", file, ""],
-				area = req.area = areas[1] || "",
-				body = req.body,
+				path = req.path = node.parseURL(query, index, flags, where),		//  /area/file.type || /table.type
+				
+				[x1, area, file] = path.match( /\/(.*?)\/(.*)/ ) || ["","",""],
+				[x2, table, type] = area ? [] : path.match( /\/(.*)\.(.*)/ ) || ["",path.substr(1),""];
+				
+				// areas = path.split("/"),						// [".", area1, area2, ...]
+				// file = req.file = areas.pop() || "",		// table.type
+				// [x,table,type] = [x,req.table,req.type] = file.match( /(.*)\.(.*)/ ) || ["", file, ""],
+				// area = req.area = areas[1] || "",
+				
+			req.area = area;
+			req.table = table;
+			req.type = type;
+			req.file = file;
+
+			const
 				ds = req.ds = (routeDS[table] || routeDS.default)(req);
 			
 			//Log([ds,action,path,area,table,type]);
-
-			//req.site = site;
-
-			const { strips, prefix, traps, id } = reqFlags;
 
 			for (var key in query) 		// strip or remap bogus keys
 				if ( key in strips )
@@ -427,8 +438,6 @@ const
 				delete body[id];
 			}
 
-			const { byArea,byType,byAction,byTable } = TOTEM;
-
 			if ( area ) {	// send file
 				//Log(">>>route area", area);
 				if ( area == "socket.io" && !table )	// ignore socket keep-alives
@@ -438,16 +447,18 @@ const
 				if ( route = byArea[area] )		// send uncached, static file
 					followRoute( route );
 
-				else	// send cashed file
+				else	// send file
 					followRoute( (req,res) => {	// provide a route to send a file
 						res( () => req.path );
 					});
 			}
 
+			/*
 			else
 			if ( !table && (route=byArea[""]) ) 
 				route(req,res); 
-
+			*/
+				
 			else
 			if ( route = byType[type] ) // route by type
 				followRoute( route );
@@ -470,16 +481,21 @@ const
 			}
 
 			else
-			if ( route = TOTEM[action] )	// route to database
-				followRoute( route );
+			if ( table )
+				if ( route = TOTEM[action] )	// route to database
+					followRoute( route );
 
-			else 
+				else 
+					cb( req, errors.noRoute );
+			
+			else
 				cb( req, errors.noRoute );
 		}
 					
-		const { post, url } = req;
-		const { nodeDivider } = TOTEM;
-		
+		const 
+			{ post, url } = req,
+			nodes = url.split(nodeDivider);
+
 		req.body = post.parseJSON( post => {  // get parameters or yank files from body 
 			var files = [], parms = {}, file = "", rem,filename,name,type;
 
@@ -532,9 +548,6 @@ Log("line ",idx,line.length);
 			return {files: files, parms: parms};
 		});		// get body parameters/files
 		
-		var
-			nodes = url.split(nodeDivider);
-
 		if ( !nodes.length )
 			res( null );
 
@@ -546,7 +559,7 @@ Log("line ",idx,line.length);
 			});
 
 		else {	// serialize nodes
-			var 
+			const 
 				routes = nodes.length,
 				routed = 0,
 				rtns = {};
@@ -1035,27 +1048,28 @@ Log("line ",idx,line.length);
 									Res.end( data );
 								}
 
-								function sendFile(path,file,type,area) { // Cache and send file to client - terminate sql connection
+								function sendFile( path ) { // Cache and send file to client - terminate sql connection
 
 									// Trace(`SENDING ${path}`);
 
-									var 
-										cache = TOTEM.cache,
-										never = cache.never,
-										cache = (never[file] || never[type]) ? {} : cache[area] || cache[type] || {};
+									const 
+										[x1, file] = path.match( /\/.*\/(.*)/ ) || [],
+										[x2, area] = path.match( /\/(.*?)\/.*/ ) || [],
+										{ never } = cache,
+										stash = (never[file] || never[area]) ? {} : cache;
 
-									//Log(path, cache[path] ? "cached" : "!cached");
+									//Log(path, stash[path] ? "cached" : "!cached");
 
-									if ( buf = cache[path] )
+									if ( buf = stash[path] )
 										sendString( buf );
 
 									else
-										FS.readFile( path, (err,buf) => {
+										FS.readFile( "."+path, (err,buf) => {
 											if (err)
 												sendError( errors.noFile );
 
 											else
-												sendString( cache[path] = Buffer.from(buf) ); //new Buffer(buf) );
+												sendString( stash[path] = Buffer.from(buf) );
 										});
 								}		
 
@@ -1136,7 +1150,8 @@ Log("line ",idx,line.length);
 											break;
 
 										case "Function": 			// send file (search or direct)
-											sendFile( data(), req.file, req.type, req.area );
+											
+											sendFile( data() );
 											/*
 											if ( (search = req.query.search) && sqls.search) 		// search for file via (e.g. nlp) score
 												sql.query(sqls.search, {FullSearch:search}, (err, files) => {
@@ -1351,7 +1366,7 @@ Log("line ",idx,line.length);
 		yr: 31449600
 	},  */
 
-	requestFile: sysFile,
+	getFile: getFile,
 	
 	queues: JSDB.queues, 	// pass along
 		
@@ -1767,11 +1782,11 @@ Log("line ",idx,line.length);
 		@cfg {Object} 
 	*/		
 	byArea: {	//< by-area routers
-		"": sysFile,
-		stores: sysFile,
-		//uploads: sysFile,
-		shares: sysFile,
-		//stash: sysFile
+		"": getFile,
+		stores: getFile,
+		//uploads: getFile,
+		shares: getFile,
+		//stash: getFile
 	},
 
 	/**
@@ -2043,7 +2058,7 @@ Log("line ",idx,line.length);
 		@method 
 		@cfg {Function}
 	*/
-	getFile: getFile,
+	getBrick: getBrick,
 
 	/**
 		File uploader 
@@ -2142,10 +2157,8 @@ Log("line ",idx,line.length);
 	cache: { 				//< file cacheing options
 
 		never: {	//< files to never cache - useful while debugging client side stuff
-			"base.js": 1,
-			"extjs.js": 1,
-			"jquery.js":1,
-			"jade": 1
+			uis: 1,
+			jades: 1
 		},
 
 		clients: {  // cache clients area
@@ -2369,14 +2382,14 @@ function validateClient(req,res) {
 function getIndex(path,cb) {	
 	function sysNav(path,cb) {
 		
-		if ( path == "./" ) 
+		if ( path == "/" ) 
 			Object.keys(TOTEM.byArea).forEach( area => {
 				if (area) cb(area);
 			});
 		
 		else
 			try {
-				FS.readdirSync(path).forEach( file => {
+				FS.readdirSync( "."+path).forEach( file => {
 					//Log(path,file);
 					var
 						ignore = file.endsWith("~") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
@@ -2407,7 +2420,7 @@ function getIndex(path,cb) {
 	@param {String} name of file to get/make
 	@param {Function} cb callback(file, sql) if no errors
 */
-function getFile(client, name, cb) {  
+function getBrick(client, name, cb) {  
 
 	sqlThread( sql => {
 		sql.forFirst( 
@@ -2458,7 +2471,7 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 		parts = sinkPath.split("/"),
 		name = parts.pop() || "";
 	
-	getFile(client, name, file => {
+	getBrick(client, name, file => {
 		var 
 			sinkStream = FS.createWriteStream( sinkPath, "utf-8")
 				.on("finish", function() {  // establish sink stream for export pipe
@@ -3231,20 +3244,20 @@ function sysTask(req,res) {  //< task sharding
 	@param {Object} req Totem request
 	@param {Function} res Totem response
 */
-function sysFile(req, res) {
+function getFile(req, res) {
 	const {sql, query, body, client, action, table, path, file} = req;
 		   
 	var 
 		area = table,
 		now = new Date();
 	
-	//Log(">>>>sysFile", path,file);
+	//Log(">>>>getFile", path,file);
 	switch (action) {
 		case "select":
 			
 			if ( file )	// requesting static file
 				try {		// these files are static so we never cache them
-					FS.readFile(path,  (err,buf) => res( err || Buffer.from(buf) ) );
+					FS.readFile( "."+path,  (err,buf) => res( err || Buffer.from(buf) ) );
 				}
 				catch (err) {
 					res( errors.noFile );
