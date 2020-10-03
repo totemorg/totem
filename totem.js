@@ -373,7 +373,7 @@ const
 						if ( log = req.log )  		// log if session log-able
 							logSession( log, sock );  
 
-				Trace( ( route.name || ("db"+req.action)).toUpperCase() + ` ${req.file}` );
+				Trace( route.name.toUpperCase() + " " + (req.table || req.path) );
 
 				route(req, recs => {	// route request and capture records
 					var call = null;
@@ -399,20 +399,16 @@ const
 				index = req.index = {},	
 				where = req.where = {},
 				flags = req.flags = {},
-				path = req.path = node.parseURL(query, index, flags, where),		//  /area/file.type || /table.type
+				path = node.parseURL(query, index, flags, where),		//  /area/file.type || /table.type
 				
 				[x1, area, file] = path.match( /\/(.*?)\/(.*)/ ) || ["","",""],
 				[x2, table, type] = area ? [] : path.match( /\/(.*)\.(.*)/ ) || ["",path.substr(1),""];
 				
-				// areas = path.split("/"),						// [".", area1, area2, ...]
-				// file = req.file = areas.pop() || "",		// table.type
-				// [x,table,type] = [x,req.table,req.type] = file.match( /(.*)\.(.*)/ ) || ["", file, ""],
-				// area = req.area = areas[1] || "",
 				
+			req.path = path;
 			req.area = area;
 			req.table = table;
 			req.type = type;
-			req.file = file;
 
 			const
 				ds = req.ds = (routeDS[table] || routeDS.default)(req);
@@ -453,12 +449,6 @@ const
 					});
 			}
 
-			/*
-			else
-			if ( !table && (route=byArea[""]) ) 
-				route(req,res); 
-			*/
-				
 			else
 			if ( route = byType[type] ) // route by type
 				followRoute( route );
@@ -3245,17 +3235,23 @@ function sysTask(req,res) {  //< task sharding
 	@param {Function} res Totem response
 */
 function getFile(req, res) {
-	const {sql, query, body, client, action, table, path, file} = req;
+	const {sql, query, body, client, action, table, path} = req;
 		   
 	var 
 		area = table,
 		now = new Date();
 	
-	//Log(">>>>getFile", path,file);
 	switch (action) {
 		case "select":
 			
-			if ( file )	// requesting static file
+			if ( path.endsWith("/") )	// requesting static folder
+				getIndex( path, files => {  // Send list of files under specified folder
+					files.forEach( (file,n) => files[n] = file.tag( file ) );
+					req.type = "html"; // otherwise default type is json.
+					res(`hello ${req.client}<br>Index of ${path}:<br>` + files.join("<br>") );
+				});
+			
+			else // requesting static file
 				try {		// these files are static so we never cache them
 					FS.readFile( "."+path,  (err,buf) => res( err || Buffer.from(buf) ) );
 				}
@@ -3263,13 +3259,6 @@ function getFile(req, res) {
 					res( errors.noFile );
 				}
 				
-			else	// requesting static folder
-				getIndex( path, files => {  // Send list of files under specified folder
-					files.forEach( (file,n) => files[n] = file.tag( file ) );
-					req.type = "html"; // otherwise default type is json.
-					res(`hello ${req.client}<br>Index of ${path}:<br>` + files.join("<br>") );
-				});
-			
 			break;
 					
 		case "delete":
