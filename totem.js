@@ -448,7 +448,7 @@ const
 					followRoute( route );
 
 				else	// send file
-					followRoute( (req,res) => {	// provide a route to send a file
+					followRoute( function send(req,res) {	// provide a route to send a file
 						res( () => req.path );
 					});
 			}
