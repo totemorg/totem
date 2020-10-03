@@ -240,9 +240,15 @@ snapsrv.)
 	#zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* atomic/ifs/*.cpp atomic/ifs/*/*.cpp atomic/ifs/*/*.h
 	;;
 
+snapmap.) 
+	cd /local
+	zip /mnt/archive/local_map.zip include/* include/R/* lib64/* lib64/R/*
+	;;
+	
 snap.)
 	source maint.sh snapdb
 	source maint.sh snapsrv
+	source maint.sh snapmap
 	;;
 	
 start_cesium.)
