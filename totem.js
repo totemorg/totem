@@ -1773,7 +1773,7 @@ Log("line ",idx,line.length);
 		stores: getFile,
 		//uploads: getFile,
 		shares: getFile,
-		home: getFile,
+		public: getFile,
 		//stash: getFile
 	},
 
