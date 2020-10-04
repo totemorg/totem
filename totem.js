@@ -377,8 +377,8 @@ const
 
 				route(req, recs => {	// route request and capture records
 					var call = null;
-					if ( recs )
-						for ( var key in req.flags ) if ( !call ) {	// perform once-only data restructing conversion
+					if ( recs ) {
+						for ( var key in flags ) if ( !call ) {	// perform single data conversion
 							if ( key.startsWith("$") ) key = "$";
 							if ( call = reqFlags[key] ) {
 								call( recs, req, recs => cb(req, recs) );
@@ -386,8 +386,11 @@ const
 							}
 						}
 
-					if ( !call )
-						cb(req,recs);
+						if ( !call ) cb(req, recs);
+					}
+					
+					else
+						cb(req, null);
 				});
 			}
 
@@ -467,7 +470,7 @@ const
 					followRoute( route );				
 
 				else
-					cb( req, errors.noRoute);
+					cb( req, errors.noRoute );
 			}
 
 			else
