@@ -406,8 +406,8 @@ const
 				
 				[fx, area, file] = path.match( /\/(.*?)\/(.*)/ ) || ["","",""],
 				[dx, name, ftype] = file.match( /(.*)\.(.*)/ ) || ["","",""],
-				[tx, table, ttype] = area ? [] : path.match( /(.*)\.(.*)/ ) || ["",path.substr(1),""],
-				type = req.type = (ftype || ttype || "").toLowerCase();
+				[tx, table, ttype] = area ? ["","",""] : path.match( /\/(.*)\.(.*)/ ) || ["",path.substr(1),""],
+				type = req.type = (ftype || ttype).toLowerCase();
 				
 			req.area = area;
 			req.table = table;
