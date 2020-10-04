@@ -16,12 +16,6 @@ gnome.)
 	gsettings set org.gnome.desktop.lockdown disable-lock-screen 'true'
 	;;
 	
-agent.)
-	eval $(ssh-agent -s)
-	ssh-add ~/.ssh/git/git_rsa.pri
-	# set get origins to git@github.com:stansds/repo
-	;;
-
 win.)
 	net use T: \\localhost\c$\Users\X\Desktop\totem
 	;;
@@ -384,6 +378,17 @@ git.)
 	
 	case "$2." in
 	
+	newkey.) 		# make pub-pri key for git auto-password agent (place in .ssh/git_totemstan_rsa)
+		echo "store keys under .ssh/git_totemstan_rsa and upload git_totemstan_rsa.pub key to git account" 
+		ssh-keygen -t rsa -b 4096 -C "brian.d.james@comcast.com"
+		;;
+		
+	newagent.)		# start ssh agent
+		eval $(ssh-agent -s)
+		ssh-add ~/.ssh/git_totemstan_rsa
+		# set git origins to git@github.com:stansds/repo
+		;;
+	
 	nopass.)
 		cd ~/home
 		ssh-agent  # allow service to push git chnges w/o password prompts
@@ -514,7 +519,7 @@ help.)	# some help
 	echo "	redoc autodocument using babel/jsduck/doxygen compilers"
 	echo "	restyle css styles using css compass complier"
 	;;
-	
+
 uptest.)
 	sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o up.log start debe.js D1
 	;;
