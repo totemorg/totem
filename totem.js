@@ -402,16 +402,15 @@ const
 				index = req.index = {},	
 				where = req.where = {},
 				flags = req.flags = {},
-				path = node.parseURL(query, index, flags, where),		//  /area/file.type || /table.type
+				path = req.path = node.parseURL(query, index, flags, where),		//  /area/file.type || /table.type
 				
-				[x1, area, file] = path.match( /\/(.*?)\/(.*)/ ) || ["","",""],
-				[x2, table, type] = area ? [] : path.match( /\/(.*)\.(.*)/ ) || ["",path.substr(1),""];
+				[fx, area, file] = path.match( /\/(.*?)\/(.*)/ ) || ["","",""],
+				[dx, name, ftype] = file.match( /(.*)\.(.*)/ ) || ["","",""],
+				[tx, table, ttype] = area ? [] : path.match( /(.*)\.(.*)/ ) || ["",path.substr(1),""],
+				type = req.type = (ftype || ttype || "").toLowerCase();
 				
-				
-			req.path = path;
 			req.area = area;
 			req.table = table;
-			req.type = type;
 
 			const
 				ds = req.ds = (routeDS[table] || routeDS.default)(req);
@@ -1124,6 +1123,8 @@ Log("line ",idx,line.length);
 								if ( req.encrypted )
 									Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
 
+								//Log(">>mime", mime);
+								
 								Res.setHeader("Content-Type", mime);
 								/*
 								Res.setHeader("Access-Control-Allow-Origin", "*");
