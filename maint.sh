@@ -221,7 +221,7 @@ mysql.)
 
 snapdb.)
 	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >/mnt/archive/sqldbs/openv.sql
-	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app --ignore-table gtd >/mnt/archive/sqldbs/app.sql
+	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app --ignore-table=app.gtd >/mnt/archive/sqldbs/app.sql
 	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -ndtR app >/mnt/archive/sqldbs/funcs.sql
 	;;
 	
