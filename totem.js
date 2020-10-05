@@ -574,14 +574,16 @@ Log("line ",idx,line.length);
 		
 		.on("result", task => {
 
-			Log(">>>>dog", task, dogs[task.Name]);
+			//Log(">>>>dog", task, dogs[task.Name]);
 			if ( dog = dogs[task.Name.toLowerCase()] )
 				sql.startJob({
 					every: task.Every,
 					ends: task.Ends,
 					name: task.Name,
+					class: "system",
+					task: "watchdog",
 					notes: task.Description,
-					credit: 5
+					credit: 2
 				}, (sql,job) => dog(sql,job) );
 		});
 	},

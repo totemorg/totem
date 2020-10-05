@@ -390,7 +390,7 @@ git.)
 		;;
 	
 	config.)
-		git config –global http.sslVerify false
+		git config --global http.sslVerify false
 		;;
 
 	zip.)
