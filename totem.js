@@ -573,16 +573,16 @@ Log("line ",idx,line.length);
 			"SELECT * FROM app.dogs WHERE Enabled AND ifnull(Starts,now()) <= now()", [])
 		
 		.on("result", task => {
-			var dog = TOTEM.dogs[task.Name.toLowerCase()];
-			if ( dog )
-				sql.startJob( Copy(task, {
+
+			Log(">>>>dog", task, dogs[task.Name]);
+			if ( dog = dogs[task.Name.toLowerCase()] )
+				sql.startJob({
 					every: task.Every,
 					ends: task.Ends,
-					name: task.Name
-				}), (sql,job,end) => {
-					dog(sql,job);
-					end(sql,job);
-				});
+					name: task.Name,
+					notes: task.Description,
+					credit: 5
+				}, (sql,job) => dog(sql,job) );
 		});
 	},
 
@@ -1255,7 +1255,7 @@ Log("line ",idx,line.length);
 			isEncrypted.true = domain.master.protocol == "https:";
 			isEncrypted.false = domain.worker.protocol == "https:";
 			
-			Log(domain);
+			//Log(">>domain",domain);
 			
 			if ( isEncrypted[CLUSTER.isMaster] )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
@@ -1709,9 +1709,10 @@ Log("line ",idx,line.length);
 		worker:  ENV.SERVICE_WORKER_URL || "https://localhost:8443", 
 		master:  ENV.SERVICE_MASTER_URL || "http://localhost:8080",
 		pocs: {
-			admin: ENV.ADMIN || "tbd@org.com",
-			overlord: ENV.OVERLORD || "tbd@org.com",
-			super: ENV.SUPER || "tbd@org.com"
+			admin: "admin@tbd.org",
+			overlord: "overlord@tbd.org",
+			super: "super@tbd.org",
+			user: "user@tbd.org"
 		}		
 	},
 
@@ -2071,8 +2072,8 @@ Log("line ",idx,line.length);
 
 		if (users) 
 			sql.query(users)
-			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() );
-			//.on("end", () => Log("POCs", site.pocs) );
+			.on("result", user => site.pocs["user"] = (user.Clients || "").toLowerCase() )
+			.on("end", () => Log("POCs", site.pocs) );
 
 		if (guest)
 			sql.query(guest)

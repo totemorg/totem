@@ -378,23 +378,17 @@ git.)
 	
 	case "$2." in
 	
-	newkey.) 		# make pub-pri key for git auto-password agent (place in .ssh/git_totemstan_rsa)
-		echo "store keys under .ssh/git_totemstan_rsa and upload git_totemstan_rsa.pub key to git account" 
+	newkey.) 		# make pub-pri key for git auto-password agent 
+		echo "store keys under .ssh/git_totemstan_rsa and upload git_totemstan_rsa.pub key to git account." 
+		echo "git remote add agent git@github.com:totemstan/REPO"
 		ssh-keygen -t rsa -b 4096 -C "brian.d.james@comcast.com"
 		;;
 		
 	newagent.)		# start ssh agent
 		eval $(ssh-agent -s)
 		ssh-add ~/.ssh/git_totemstan_rsa
-		# set git origins to git@github.com:stansds/repo
 		;;
 	
-	nopass.)
-		cd ~/home
-		ssh-agent  # allow service to push git chnges w/o password prompts
-		ssh-add ~/.ssh/id_rsa 
-		;;
-
 	config.)
 		git config –global http.sslVerify false
 		;;
