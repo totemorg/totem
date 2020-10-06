@@ -556,7 +556,7 @@ up.) 		# bring up production service
 	
 	oper.|protected.|https.)	# single core
 		PROTO=https
-		PORT1=443
+		PORT1=8443
 		PORT2=8080
 		;;
 	

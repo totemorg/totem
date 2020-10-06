@@ -649,6 +649,7 @@ Log("line ",idx,line.length);
 				// phase1 connectSession
 				host: "..."			// domain name being accessed by client
 				agent: "..."		// client browser info
+				referer: "..."		// proto://domain client using
 				method: "GET|PUT|..." 			// http request method
 				action: "select|update| ..."	// corresponding crude name
 				started: date		// date stamp when requested started
@@ -977,6 +978,7 @@ Log("line ",idx,line.length);
 											//Log(Req.headers);
 											ses({			// prime session request
 												host: Req.headers.host,	// domain being requested
+												referer: Req.headers.referer, 	// proto://domain used
 												agent: Req.headers["user-agent"],	// requester info
 												sql: sql,	// sql connector
 												post: post, // raw post body
