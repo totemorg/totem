@@ -527,10 +527,59 @@ up.) 		# bring up production service
 	sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o up.log start debe.js D1
 	;;
 
-*)  	# start specified totem config
+*)  	# start totem
+
+	case "$(hostname)." in
+	acmesds.)
+		DOMAIN=totem.hopto.org
+		;;
+		
+	wsn3303.)
+		DOMAIN=totem.nga.mil
+		;;
+
+	awshigh.)
+		DOMAIN=totem.west.ile.nga.ic.gov
+		;;
+
+	ilehigh.)
+		DOMAIN=totem.west.ile.nga.ic.gov
+		;;
+	esac
+	
+	case "$1." in 
+	prod.)	# multi core production
+		PROTO=https
+		PORT1=8080
+		PORT2=443
+		;;
+	
+	oper.|protected.|https.)	# single core
+		PROTO=https
+		PORT1=443
+		PORT2=8080
+		;;
+	
+	
+	.|debug.|http.)
+		DOMAIN=localhost
+		PROTO=http
+		PORT1=8080
+		PORT2=8081
+	esac
+	
+	# define service url
+	export SERVICE_MASTER_URL=$PROTO://$DOMAIN:$PORT1
+	export SERVICE_WORKER_URL=$PROTO://$DOMAIN:$PORT2
+	
+	# define task sharding nodes
+	export SHARD0=$PROTO://$DOMAIN/task
+	export SHARD1=$PROTO://$DOMAIN/task
+	export SHARD2=$PROTO://$DOMAIN/task
+	export SHARD3=$PROTO://$DOMAIN/task
 
 	cd /local/service/debe
-	node debe.js $1 $2 $3 $4 $5 
+	node debe.js D1 $2 $3 $4 $5 
 	;;
 
 esac

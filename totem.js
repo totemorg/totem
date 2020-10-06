@@ -209,7 +209,8 @@ const
 	{ 
 		byArea, byType, byAction, byTable,
 		nodeDivider,
-		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, domain, behindProxy, admitClient,
+		$master, $worker,
+		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
 		sqlThread,filterRecords,guestProfile,routeDS, startDogs,startJob,endJob, cache } = TOTEM = module.exports = {
 	
 	routeDS: {	// setup default DataSet routes
@@ -645,7 +646,7 @@ Log("line ",idx,line.length);
 
 			The session request is constructed in the following phases:
 
-				// connectSession phase
+				// phase1 connectSession
 				host: "..."			// domain name being accessed by client
 				agent: "..."		// client browser info
 				method: "GET|PUT|..." 			// http request method
@@ -659,19 +660,18 @@ Log("line ",idx,line.length);
 				resSocket: socket	// socket to accept response
 				sql: connector 		// sql database connector 
 
-				// validateClient phase
+				// phase2 validateClient
 				joined: date		// time admitted
 				client: "..."		// name of client from cert or "guest"
 				cert: {...} 		// fill client cert
 
-				// routeRequest phase
+				// phase3 routeRequest 
 				query: {...} 		// raw keys from url
 				where: {...} 		// sql-ized query keys from url
 				body: {...}			// body keys from request 
 				flags: {...} 		// flag keys from url
 				index: {...}		// sql-ized index keys from url
 				files: [...] 		// files uploaded
-				//site: {...}		// skinning context
 				path: "/[area/...]name.type"			// requested resource
 				area: "name"		// file area being requested
 				table: "name"		// name of sql table being requested
@@ -903,10 +903,9 @@ Log("line ",idx,line.length);
 
 				const 
 					{ crudIF,sockets,name,cache,trustStore,certs } = TOTEM,
-					{ master, worker } = domain,
-					port = parseInt( CLUSTER.isMaster ? master.port : worker.port );
+					port = parseInt( CLUSTER.isMaster ? $master.port : $worker.port );
 
-				// Log( "start>>>", isEncrypted, CLUSTER.isMaster );
+				//Log( ">>start", isEncrypted(), $master, $worker );
 
 				certs.totem = {  // totem service certs
 					pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
@@ -914,9 +913,9 @@ Log("line ",idx,line.length);
 					//crt: FS.readFileSync(`${paths.certs}${name}.crt`)
 				};
 
-				//Log("enc>>>", isEncrypted[CLUSTER.isMaster], paths.certs+"truststore" );
+				//Log("enc>>>", isEncrypted(), paths.certs+"truststore" );
 				
-				if ( isEncrypted[CLUSTER.isMaster] ) {  // have encrypted services so start https service
+				if ( isEncrypted() ) {  // have encrypted services so start https service
 					Each( FS.readdirSync(paths.certs+"truststore"), (n,file) => {
 						if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
 							Trace("TRUSTING " + file);
@@ -925,7 +924,7 @@ Log("line ",idx,line.length);
 					});
 
 					TOTEM.server = HTTPS.createServer({
-						passphrase: isEncrypted.pass,		// passphrase for pfx
+						passphrase: TOTEM.passEncrypted,		// passphrase for pfx
 						pfx: certs.totem.pfx,			// pfx/p12 encoded crt and key 
 						ca: trustStore,				// list of pki authorities (trusted serrver.trust)
 						crl: [],						// pki revocation list
@@ -986,7 +985,7 @@ Log("line ",idx,line.length);
 												action: crudIF[Req.method],	// crud action being requested
 												reqSocket: Req.socket,   // use supplied request socket 
 												resSocket: getSocket,		// use this method to return a response socket
-												encrypted: isEncrypted[CLUSTER.isMaster],	// on encrypted worker
+												encrypted: isEncrypted(),	// on encrypted worker
 												socketio: sockets ? paths.socketio : "",		// path to socket.io
 												url: unescape( Req.url || "/" )	// unescaped url
 												/*
@@ -1251,18 +1250,16 @@ Log("line ",idx,line.length);
 
 			Trace( `PROTECTING ${name} USING ${pfx}` );
 
-			domain.master = URL.parse(site.master);
-			domain.worker = URL.parse(site.worker);
+			Copy( URL.parse(site.master), $master);
+			Copy( URL.parse(site.worker), $worker);
 			
-			isEncrypted.true = domain.master.protocol == "https:";
-			isEncrypted.false = domain.worker.protocol == "https:";
+			site.domain = $master.hostname;
+			Log(">>domain",site.master, $master, site.worker, $worker, site.domain);
 			
-			//Log(">>domain",domain);
-			
-			if ( isEncrypted[CLUSTER.isMaster] )   // get a pfx cert if protecting an encrypted service
+			if ( isEncrypted() )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
 					if (err) // create self-signed cert then connect
-						createCert(name, isEncrypted.pass, () => {
+						createCert(name, TOTEM.passEncrypted, () => {
 							connectService();
 						});	
 
@@ -1679,17 +1676,15 @@ Log("line ",idx,line.length);
 		If the Nick=name is not located in openv.apps, the supplied	config() options 
 		are not overridden.
 	*/
-	name: ENV.SERVICE_NAME || "Totem1",
+	name: "Totem",
 
 	/**
 		Enabled when master/workers on encrypted service
 		@cfg {Boolean}
 	*/
-	isEncrypted: {
-		pass: ENV.SERVICE_PASS || "",
-		true: false,	// derived
-		false: false	// derived
-	}, //() => TOTEM.domain[ CLUSTER.isMaster ? "master" : "worker" ].protocol == "https:",
+	passEncrypted: ENV.SERVICE_PASS || "",
+			
+	isEncrypted: () => ( CLUSTER.isMaster ? $master.protocol : $worker.protocol ) == "https:",
 
 	/**
 		Host information: https encryption passphrase,
@@ -1697,19 +1692,21 @@ Log("line ",idx,line.length);
 		@cfg {String} [name="Totem"]
 	*/	
 
-	domain: { // derived
-		master: null, 
-		worker: null
+	$master: { // derived
 	},
-		
+	
+	$worker: { // derived
+	},
+			
 	/**
 		Site context extended by the mysql derived query when service starts
 		@cfg {Object} 
 	*/
 	site: {  	//< reserved for derived context vars		
 		started: new Date(),
-		worker:  ENV.SERVICE_WORKER_URL || "https://localhost:8443", 
+		worker:  ENV.SERVICE_WORKER_URL || "http://localhost:8081", 
 		master:  ENV.SERVICE_MASTER_URL || "http://localhost:8080",
+		domain: "tbd.domain.org",
 		pocs: {
 			admin: "admin@tbd.org",
 			overlord: "overlord@tbd.org",
@@ -1772,11 +1769,11 @@ Log("line ",idx,line.length);
 		@cfg {Object} 
 	*/		
 	byArea: {	//< by-area routers
-		//"": getFile,
 		stores: getFile,
-		//uploads: getFile,
 		shares: getFile,
 		public: getFile,
+		//"": getFile,
+		//uploads: getFile,
 		//stash: getFile
 	},
 

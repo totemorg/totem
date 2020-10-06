@@ -1,5 +1,5 @@
 #!/bin/bash
-# UNCLASSIFIED when IP addresses and passwords are undefined
+# UNCLASSIFIED
 
 export BASE=/local
 export HERE=`pwd`
@@ -25,9 +25,9 @@ export ODBC_NAME=totem-app
 export ODBC_USER=ileuser
 
 # POCs
-export ADMIN="admin_tbd@nga.mil"
-export OVERLORD="overlord_tbd@nga.mil"
-export SUPER="supervisor_tbd@nga.mil"
+#export ADMIN="admin_tbd@nga.mil"
+#export OVERLORD="overlord_tbd@nga.mil"
+#export SUPER="supervisor_tbd@nga.mil"
 			
 # NEO4J
 export NEO4J="bolt://localhost" # "http://root:NGA@localhost:7474"
@@ -44,43 +44,44 @@ export NET="--net host"
 export RUN="run -it $GPU $VOL $NET"
 export RUND="$RUN -d"
 
-case "sbudev." in
-awsdev.)  # AWS
+# gpu support
+case "$(hostname)." in
+awshigh.)  # AWS
 	export USER=jamesdb
 	export GPUHOST=$USER@swag-gpu-01
 	export GUIHOST=$USER@swag-ws-02
 	;;
 	
-iledec.) 	# ILE
+ilehigh.) 	# ILE high
 	export USER=jamesbd
 	export GPUHOST=giatstlgui01.innovision.local
 	export GUIHOST=giatstlgui01.innovision.local
 	;;
-	
-sbudev.)  # SBU
+
+wsn3303.)  # ILE low
 	export USER=jamesbd
 	export GPUHOST=wsn3303
 	export GUIHOST=wsn3303
 
+acmesds.)  # dev
+	export USER=mystery
+	export GPUHOST=
+	export GUIHOST=
+
 esac
 
 # define server domains
-export SERVICE_NAME=Totem1
-export SERVICE_MASTER_URL=http://localhost:8080
-export SERVICE_WORKER_URL=https://localhost:8081
+#export SERVICE_NAME=Totem1
+#export SERVICE_MASTER_URL=http://localhost:8080
+#export SERVICE_WORKER_URL=https://localhost:8081
+
 #export SERVICE_WORKER_URL=https://localhost:8443
 #export SERVICE_WORKER_URL=http://localhost:8081  # in debug mode
 
 # PRM doc interface
 export DUCK=/media/sf_vmshare/ducksrc
 
-# define task sharding nodes
-export SHARD0=http://localhost:8080/task
-export SHARD1=http://localhost:8080/task
-export SHARD2=http://localhost:8080/task
-export SHARD3=http://localhost:8080/task
-
 # define passwords
 source _pass.sh
 
-# UNCLASSIFIED when IP addresses and passwords are undefined
+# UNCLASSIFIED
