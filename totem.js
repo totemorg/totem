@@ -583,7 +583,7 @@ Log("line ",idx,line.length);
 					class: "system",
 					task: "watchdog",
 					notes: task.Description,
-					credit: 2
+					credit: 1e6
 				}, (sql,job) => dog(sql,job) );
 		});
 	},
