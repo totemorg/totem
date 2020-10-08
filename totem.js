@@ -1002,6 +1002,7 @@ Log("line ",idx,line.length);
 
 								case "OPTIONS":  // client making cross-domain call - must respond with what are valid methods
 									//Req.method = Req.headers["access-control-request-method"];
+									Log(">>>>>>opts req", Req.headers);
 									Res.writeHead(200, {
 										"access-control-allow-origin": "*", 
 										"access-control-allow-methods": "POST, GET, DELETE, PUT, OPTIONS"
@@ -1129,12 +1130,13 @@ Log("line ",idx,line.length);
 								//Log(">>mime", mime);
 								
 								Res.setHeader("Content-Type", mime);
-								/*
+								// enable to support CORS
 								Res.setHeader("Access-Control-Allow-Origin", "*");
 								Res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 								Res.setHeader("Access-Control-Allow-Headers", '*');
 								Res.setHeader("Status", "200 OK");
 								Res.setHeader("Vary", "Accept");
+								/*
 								//self.send_header('Content-Type', 'application/octet-stream')
 								*/
 
