@@ -62,6 +62,7 @@ wsn3303.)  # ILE low
 	export USER=jamesbd
 	export GPUHOST=wsn3303
 	export GUIHOST=wsn3303
+	;;
 
 acmesds.)  # dev
 	export USER=mystery

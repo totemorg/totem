@@ -490,7 +490,7 @@ const
 			nodes = url.split(nodeDivider);
 
 		req.body = post.parseJSON( post => {  // get parameters or yank files from body 
-			var files = [], parms = {}, file = "", rem,filename,name,type;
+			var files = req.files = [], parms = {}, file = "", rem,filename,name,type;
 
 			if (post)
 				post.split("\r\n").forEach( (line,idx) => {	// parse file posting parms
@@ -538,7 +538,7 @@ Log("line ",idx,line.length);
 				});
 
 			//Log("body files=", files.length);
-			return {files: files, parms: parms};
+			return parms;
 		});		// get body parameters/files
 		
 		if ( !nodes.length )
@@ -667,6 +667,8 @@ Log("line ",idx,line.length);
 				cert: {...} 		// fill client cert
 
 				// phase3 routeRequest 
+				files: [...]		// list of files being uploaded
+				canvas: {...}		// canvas being uploaded
 				query: {...} 		// raw keys from url
 				where: {...} 		// sql-ized query keys from url
 				body: {...}			// body keys from request 
@@ -2779,7 +2781,7 @@ function insertDS(req, res) {
 	sql.Query(
 		"INSERT INTO ?? ${set}", [ds,body], {
 			trace: trace,
-			set: body,
+			set: parms,
 			client: client,
 			emitter: TOTEM.emitter
 		}, (err,info) => {
@@ -2823,10 +2825,10 @@ function deleteDS(req, res) {
 */	
 function updateDS(req, res) {
 	const 
-		{ sql, flags, body, where, client, action, ds,table } = req,
+		{ sql, flags, body, where, query, client, action, ds,table } = req,
 		{ trace } = flags;
 	
-	//Log(where,body);
+	Log({w:where, q:query, b:body});
 	
 	if ( isEmpty(body) )
 		res( errors.noBody );
@@ -3190,7 +3192,7 @@ function sysTask(req,res) {  //< task sharding
 	@param {Function} res Totem response
 */
 function getFile(req, res) {
-	const {sql, query, body, client, action, table, path} = req;
+	const {sql, query, body, client, action, table, path, files, canvas} = req;
 		   
 	var 
 		area = table,
@@ -3217,96 +3219,97 @@ function getFile(req, res) {
 		case "update":
 		case "insert":
 			var
-				canvas = body.canvas || {objects:[]},
 				attach = [],
-				files = body.files,
 				tags = Copy(query.tag || {}, {Location: query.location || "POINT(0 0)"});
 
 			res( "uploading" );
 
-			canvas.objects.forEach( obj => {	// upload provided canvas objects
-				switch (obj.type) {
-					case "image": // ignore blob
-						break;
+			if ( canvas )
+				canvas.objects.forEach( obj => {	// upload provided canvas objects
+					switch (obj.type) {
+						case "image": // ignore blob
+							break;
 
-					case "rect":
+						case "rect":
 
-						attach.push(obj);
+							attach.push(obj);
 
-						sql.query("REPLACE INTO proofs SET ?", {
-							top: obj.top,
-							left: obj.left,
-							width: obj.width,
-							height: obj.height,
-							label: tag,
-							made: now,
-							name: area+"."+name
-						});
-						break;			
-				}
-			});
-
-			files.forEach( file => {
-				var 
-					buf = Buffer.from(file,"base64"); //new Buffer(file.data,"base64"),
-					srcStream = new STREAM.Readable({  // source stream for event ingest
-						objectMode: true,
-						read: function () {  // return null if there are no more events
-							this.push( buf );
-							buf = null;
-						}
-					}),
-					path = area+"/"+client+"_"+file.filename;
-
-				Trace(`UPLOAD ${file.filename} INTO ${area} FOR ${client}`, req);
-
-				uploadFile( client, srcStream, "./"+path, tags, file => {
-
-					if (false)
-					sql.query(	// this might be generating an extra geo=null record for some reason.  works thereafter.
-						   "INSERT INTO openv.files SET ?,Location=GeomFromText(?) "
-						+ "ON DUPLICATE KEY UPDATE Client=?,Added=now(),Revs=Revs+1,Location=GeomFromText(?)", [ 
-							{
-									Client: req.client,
-									Name: file.filename,
-									Area: area,
-									Added: new Date(),
-									Classif: query.classif || "",
-									Revs: 1,
-									Ingest_Size: file.size,
-									Ingest_Tag: query.tag || ""
-								}, geoloc, req.client, geoloc
-							]);
-
-					if (false)
-					sql.query( // credit the client
-						"UPDATE openv.profiles SET Credit=Credit+?,useDisk=useDisk+? WHERE ?", [ 
-							1000, file.size, {Client: req.client} 
-						]);
-
-					switch (area) {
-						case "proofs": 
 							sql.query("REPLACE INTO proofs SET ?", {
-								top: 0,
-								left: 0,
-								width: file.Width,
-								height: file.Height,
+								top: obj.top,
+								left: obj.left,
+								width: obj.width,
+								height: obj.height,
 								label: tag,
 								made: now,
 								name: area+"."+name
 							});
-
-							sql.query(
-								"SELECT detectors.ID, count(ID) AS counts FROM app.detectors LEFT JOIN proofs ON proofs.label LIKE detectors.PosCases AND proofs.name=? HAVING counts",
-								[area+"."+name]
-							)
-							.on("result", function (det) {
-								sql.query("UPDATE detectors SET Dirty=Dirty+1");
-							});
-							break;
+							break;			
 					}
 				});
-			});
+
+			if ( files )
+				files.forEach( file => {
+					var 
+						buf = Buffer.from(file,"base64"); //new Buffer(file.data,"base64"),
+						srcStream = new STREAM.Readable({  // source stream for event ingest
+							objectMode: true,
+							read: function () {  // return null if there are no more events
+								this.push( buf );
+								buf = null;
+							}
+						}),
+						path = area+"/"+client+"_"+file.filename;
+
+					Trace(`UPLOAD ${file.filename} INTO ${area} FOR ${client}`, req);
+
+					uploadFile( client, srcStream, "./"+path, tags, file => {
+
+						if (false)
+						sql.query(	// this might be generating an extra geo=null record for some reason.  works thereafter.
+							   "INSERT INTO openv.files SET ?,Location=GeomFromText(?) "
+							+ "ON DUPLICATE KEY UPDATE Client=?,Added=now(),Revs=Revs+1,Location=GeomFromText(?)", [ 
+								{
+										Client: req.client,
+										Name: file.filename,
+										Area: area,
+										Added: new Date(),
+										Classif: query.classif || "",
+										Revs: 1,
+										Ingest_Size: file.size,
+										Ingest_Tag: query.tag || ""
+									}, geoloc, req.client, geoloc
+								]);
+
+						if (false)
+						sql.query( // credit the client
+							"UPDATE openv.profiles SET Credit=Credit+?,useDisk=useDisk+? WHERE ?", [ 
+								1000, file.size, {Client: req.client} 
+							]);
+
+						switch (area) {
+							case "proofs": 
+								sql.query("REPLACE INTO proofs SET ?", {
+									top: 0,
+									left: 0,
+									width: file.Width,
+									height: file.Height,
+									label: tag,
+									made: now,
+									name: area+"."+name
+								});
+
+								sql.query(
+									"SELECT detectors.ID, count(ID) AS counts FROM app.detectors LEFT JOIN proofs ON proofs.label LIKE detectors.PosCases AND proofs.name=? HAVING counts",
+									[area+"."+name]
+								)
+								.on("result", function (det) {
+									sql.query("UPDATE detectors SET Dirty=Dirty+1");
+								});
+								break;
+						}
+					});
+				});
+			
 			break;
 			
 	}
