@@ -2781,12 +2781,12 @@ function insertDS(req, res) {
 	sql.Query(
 		"INSERT INTO ?? ${set}", [ds,body], {
 			trace: trace,
-			set: parms,
+			set: body,
 			client: client,
 			emitter: TOTEM.emitter
 		}, (err,info) => {
 
-			res( err || info );
+			res( err || {ID: info.insertId} );
 
 		});
 }
@@ -2848,7 +2848,8 @@ function updateDS(req, res) {
 				emitter: TOTEM.emitter
 			}, (err,info) => {
 
-				res( err || info );
+				//res( err || info );
+				res(body);
 
 				if ( onUpdate = TOTEM.onUpdate )
 					onUpdate(sql, table, body);
