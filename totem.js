@@ -207,7 +207,7 @@ function neoThread(cb) {
 
 const 
 	{ 
-		byArea, byType, byAction, byTable,
+		byArea, byType, byAction, byTable, 
 		nodeDivider,
 		$master, $worker,
 		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
@@ -317,8 +317,8 @@ const
 	*/
 	
 	/**
-		Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, byActionTable, 
-		and byAction routers.	
+		Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
+		byActionTable then byAction routers.	
 
 		The provided response method accepts a string, an objects, an array, an error, or 
 		a file-cache function and terminates the session's sql connection.  The client is 
