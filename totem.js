@@ -395,6 +395,7 @@ const
 				});
 			}
 
+			//Log(">>>node", node);
 			const 
 				{ strips, prefix, traps, id } = reqFlags,
 				{ action, body } = req,
@@ -487,7 +488,7 @@ const
 					
 		const 
 			{ post, url } = req,
-			nodes = url.split(nodeDivider);
+			nodes = nodeDivider ? url.split(nodeDivider) : [url];
 
 		req.body = post.parseJSON( post => {  // get parameters or yank files from body 
 			var files = req.files = [], parms = {}, file = "", rem,filename,name,type;
@@ -552,9 +553,11 @@ Log("line ",idx,line.length);
 			});
 
 		else {	// serialize nodes
+			//Log(">>>>multi nodes", nodes);
+			var
+				routed = 0;
 			const 
 				routes = nodes.length,
-				routed = 0,
 				rtns = {};
 
 			nodes.forEach( node => {	// enumerate nodes
@@ -1260,7 +1263,7 @@ Log("line ",idx,line.length);
 			Copy( URL.parse(site.worker), $worker);
 			
 			site.domain = $master.hostname;
-			Log(">>domain",site.master, $master, site.worker, $worker, site.domain);
+			//Log(">>domain",site.master, $master, site.worker, $worker, site.domain);
 			
 			if ( isEncrypted() )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
@@ -1558,7 +1561,7 @@ Log("line ",idx,line.length);
 		@cfg {String}
 		@member TOTEM
 	*/
-	nodeDivider: "??", 				//< node divider
+	nodeDivider: "", 				//< node divider
 	
 	/**
 		Communicate with socket.io clients
@@ -2095,15 +2098,14 @@ Log("line ",idx,line.length);
 				Each(opts, (key,val) => {
 					key = key.toLowerCase();
 					site[key] = val;
-					Log(">>site",key,val);
 					
-					if ( isString(val||0) )
-						try {
-							site[key] = JSON.parse( val );
-						}
-						catch (err) {
-						}
+					try {
+						site[key] = JSON.parse( val );
+					}
+					catch (err) {
+					}
 
+					Log(">>site",key,val);
 					if (key in TOTEM) 
 						TOTEM[key] = site[key];
 				});
@@ -2828,7 +2830,7 @@ function updateDS(req, res) {
 		{ sql, flags, body, where, query, client, action, ds,table } = req,
 		{ trace } = flags;
 	
-	Log({w:where, q:query, b:body});
+	//Log({w:where, q:query, b:body});
 	
 	if ( isEmpty(body) )
 		res( errors.noBody );
@@ -3564,7 +3566,7 @@ function getFile(req, res) {
 				path = parm;
 		});
 		
-		// Log({q: query,w: where,i: index,f: flags,p: path});
+		//Log({q: query,w: where,i: index,f: flags,p: path});
 		
 		return path;
 
