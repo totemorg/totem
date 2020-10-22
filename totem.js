@@ -652,7 +652,7 @@ Log("line ",idx,line.length);
 				// phase1 connectSession
 				host: "..."			// domain name being accessed by client
 				agent: "..."		// client browser info
-				referer: "..."		// proto://domain client using
+				referer: "..."		// proto://domain/query 
 				method: "GET|PUT|..." 			// http request method
 				action: "select|update| ..."	// corresponding crude name
 				started: date		// date stamp when requested started
