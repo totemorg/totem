@@ -2027,6 +2027,8 @@ Log("line ",idx,line.length);
 		}
 	},
 
+	lookups: {},
+		
 	sqls: {	// sql queries
 		//logThreads: "show session status like 'Thread%'",
 		users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM openv.dblogs WHERE instr(dataset,'@')",
