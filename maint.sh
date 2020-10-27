@@ -278,7 +278,8 @@ startup.)		# status and start dependent services
 	source ./maint.sh all config	# setup external vars
 	source ./maint.sh mysql start	# start mysql service
 	source ./maint.sh neo4j start	# start neo4j service
-	source ./maint.sh D1	# start totem service
+        cd /local/service
+	source ./maint.sh debug	# start totem service
 	sudo systemctl stop firewalld	# if running in host os
 	#notepadqq & # debe/debe.js totem/totem.js jsdb/jsdb.js flex/flex.js &
 	#source ./maint.sh start_cesium
