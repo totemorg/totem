@@ -650,16 +650,16 @@ Log("line ",idx,line.length);
 			The session request is constructed in the following phases:
 
 				// phase1 connectSession
-				host: "..."			// domain name being accessed by client
+				host: "proto://domain:port"	// requested host 
 				agent: "..."		// client browser info
-				referer: "..."		// proto://domain/query 
+				referer: "proto://domain:port/query"	//  url during a cross-site request
 				method: "GET|PUT|..." 			// http request method
 				action: "select|update| ..."	// corresponding crude name
 				started: date		// date stamp when requested started
 				encrypted: bool		// true if request on encrypted server
 				socketio: "path"  	// filepath to client's socketio.js
 				post: "..."			// raw body text
-				url	: "..."			// complete url requested
+				url	: "/query"		// requested url path
 				reqSocket: socket	// socket to retrieve client cert 
 				resSocket: socket	// socket to accept response
 				sql: connector 		// sql database connector 
@@ -980,9 +980,9 @@ Log("line ",idx,line.length);
 								case "DELETE":
 									getPost( post => {
 										sqlThread( sql => {
-											//Log(Req.headers);
+											//Log(Req.headers, Req.url);
 											ses({			// prime session request
-												host: Req.headers.host,	// domain being requested
+												host: $master.protocol+"//"+Req.headers.host,	// domain being requested
 												referer: Req.headers.referer, 	// proto://domain used
 												agent: Req.headers["user-agent"],	// requester info
 												sql: sql,	// sql connector
@@ -1263,7 +1263,8 @@ Log("line ",idx,line.length);
 			Copy( URL.parse(site.worker), $worker);
 			
 			site.domain = $master.hostname;
-			//Log(">>domain",site.master, $master, site.worker, $worker, site.domain);
+			site.host = $master.protocol+"//"+$master.host;
+			//Log(">>domain",site.master, $master, site.worker, $worker, site.domain, site.host);
 			
 			if ( isEncrypted() )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
@@ -1755,7 +1756,7 @@ Log("line ",idx,line.length);
 		@cfg {Object} 
 	*/				
 	byTable: {			  //< by-table routers	
-		riddle: checkClient,
+		riddle: sysCheck,
 		task: sysTask
 	},
 		
@@ -2577,11 +2578,16 @@ Log("TCP server accepting connection on port: " + LOCAL_PORT);
 	@param {Object} req Totem session request
 	@param {Function} res Totem response callback
 */
-function checkClient (req,res) {
+function sysCheck (req,res) {
 	const 
-		{ query, sql } = req,
+		{ query, sql, type } = req,
 		{ id } = query;
 	
+	if ( type == "help" ) res(`
+Validate client session request.
+`);
+	
+	else
 	if (id)
 		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:id}, (err,rids) => {
 
@@ -3144,50 +3150,55 @@ function simThread(sock) {
 	@param {Function} res Totem response
 */
 function sysTask(req,res) {  //< task sharding
-	const {query,body,sql} = req;
-	const {task,domains,cb} = body;
+	const {query,body,sql,type,table,url} = req;
+	const {task,domains,cb,client,credit,name,qos} = body;
 	
-	var 
-		$ = JSON.stringify({
-			worker: CLUSTER.isMaster ? 0 : CLUSTER.worker.id,
-			node: process.env.HOSTNAME
-		}),
-		engine = `(${cb})( (${task})(${$}) )`;
+	if ( type == "help" ) res(`
+Shard specified task to the compute nodes given task post parameters.
+`);
+	
+	else {
+		var 
+			$ = JSON.stringify({
+				worker: CLUSTER.isMaster ? 0 : CLUSTER.worker.id,
+				node: process.env.HOSTNAME
+			}),
+			engine = `(${cb})( (${task})(${$}) )`;
 
-	res( "ok" );
+		res( "ok" );
 
-	if ( task && cb ) 
-		doms.forEach( function (index) {
+		if ( task && cb ) 
+			doms.forEach( index => {
 
-			function runEngine(idx) {
-				VM.runInContext( engine, VM.createContext( Copy( TOTEM.tasking || {}, idx) ));
-			}
+				function runTask(idx) {
+					VM.runInContext( engine, VM.createContext( Copy( TOTEM.tasking || {}, idx) ));
+				}
 
-			if (body.qos) 
-				sql.startJob({ // job descriptor 
-					index: Copy(index,{}),
-					//priority: 0,
-					every: "1", 
-					class: req.table,
-					client: body.client,
-					credit: body.credit,
-					name: body.name,
-					task: body.name,
-					notes: [
-							req.table.tag("?",req.query).tag( "/" + req.table + ".run" ), 
-							((body.credit>0) ? "funded" : "unfunded").tag( req.url ),
-							"RTP".tag( `/rtpsqd.view?task=${body.name}` ),
-							"PMR brief".tag( `/briefs.view?options=${body.name}` )
-					].join(" || ")
-				}, (sql,job,end) => {
-					//Log("reg job" , job);
-					end();
-					runEngine( job.index );
-				});
-		
-			else
-				runEngine( index );
-		});
+				if (qos) 
+					sql.startJob({ // job descriptor 
+						index: Copy(index,{}),
+						//priority: 0,
+						every: "1", 
+						class: table,
+						client: client,
+						credit: credit,
+						name: name,
+						task: name,
+						notes: [
+								table.tag("?",query).tag( "/" + table + ".run" ), 
+								((credit>0) ? "funded" : "unfunded").tag( url ),
+								"RTP".tag( `/rtpsqd.view?task=${name}` ),
+								"PMR brief".tag( `/briefs.view?options=${name}` )
+						].join(" || ")
+					}, (sql,job) => {
+						//Log("reg job" , job);
+						runTask( job.index );
+					});
+
+				else
+					runTask( index );
+			});
+	}
 }
 
 /**
