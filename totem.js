@@ -2122,6 +2122,9 @@ Log("line ",idx,line.length);
 		const 
 			{lookups,Lookups} = TOTEM;
 
+		site.lookups = lookups || {},
+		site.Lookups = Lookups || {};
+		
 		if ( lookups )
 			sql.query("SELECT Ref AS `Key`,group_concat(DISTINCT Path SEPARATOR '|') AS `Select` FROM app.lookups GROUP BY Ref", [], (err,recs) => {
 				recs.forEach( rec => {
