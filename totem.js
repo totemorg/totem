@@ -2029,6 +2029,7 @@ Log("line ",idx,line.length);
 	},
 
 	lookups: {},
+	Lookups: {},
 		
 	sqls: {	// sql queries
 		//logThreads: "show session status like 'Thread%'",
@@ -2108,7 +2109,7 @@ Log("line ",idx,line.length);
 					catch (err) {
 					}
 
-					Log(">>site",key,val);
+					//Log(">>>site",key,val);
 					if (key in TOTEM) 
 						TOTEM[key] = site[key];
 				});
@@ -2117,6 +2118,29 @@ Log("line ",idx,line.length);
 			});
 
 		site.warning = "";
+
+		const 
+			{lookups,Lookups} = TOTEM;
+
+		if ( lookups )
+			sql.query("SELECT Ref AS `Key`,group_concat(DISTINCT Path SEPARATOR '|') AS `Select` FROM app.lookups GROUP BY Ref", [], (err,recs) => {
+				recs.forEach( rec => {
+					lookups[rec.Key] = rec.Select;
+				});
+				Log(">>>lookups", lookups);
+			});
+		
+		if ( Lookups )
+			sql.query("SELECT Ref,Path,Name FROM app.lookups", [], (err,recs) => {
+				recs.forEach( rec => {
+					const 
+						{Ref,Path,Name} = rec,
+						Lookup = Lookups[Ref] || (Lookups[Ref] = {});
+
+					Lookup[Name] = Path;
+				});
+				Log(">>>Lookups", Lookups);
+			});
 		
 		/* legacy
 		sql.query("SELECT count(ID) AS Fails FROM openv.aspreqts WHERE Status LIKE '%fail%'").on("result", asp => {
@@ -2137,7 +2161,6 @@ Log("line ",idx,line.length);
 		});
 		});
 		*/
-
 	},
 
 	certs: {}, 		// server and client cert cache (pfx, crt, and key)
