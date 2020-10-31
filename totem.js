@@ -73,7 +73,7 @@ const
 function NEOCONNECTOR() {
 	this.trace = 
 			args => {};
-			//args => console.log(args); 
+			//args => console.log(">>>neo4j", args); 
 }
 	
 function neoThread(cb) {
@@ -134,7 +134,7 @@ function neoThread(cb) {
 			neo = this;
 
 		Stream( nodes, {}, (props, node, cb) => {
-			//Log(">>neosave", node,props);
+			//Log(">>neo4j save", node,props);
 
 			if (cb) { // add node
 				props.created = now;
@@ -162,6 +162,7 @@ function neoThread(cb) {
 			[src,tar,props] = pair,
 			neo = this;
 		
+		//Log("edge", src.name, tar.name, props);
 		neo.cypher(
 			`MATCH (a:${net} {name:$srcName}), (b:${net} {name:$tarName}) `
 			+ "MERGE "
@@ -173,7 +174,7 @@ function neoThread(cb) {
 						created: created
 					})
 		}, err => {
-			neo.trace( err );
+			if (err) Log(">>>create edge failed", [src.name, tar.name, name] );
 		});
 	},
 	
@@ -184,7 +185,7 @@ function neoThread(cb) {
 		
 		//neo.cypher( `CREATE CONSTRAINT ON (n:${net}) ASSERT n.name IS UNIQUE` );
 
-		Log("save net", net);
+		//Log("neo4j save net", net);
 		
 		neo.makeNodes( net, now, nodes, () => {
 			//Log(">> edges", edges, "db=", db);
@@ -196,6 +197,7 @@ function neoThread(cb) {
 		var 
 			neo = this;
 		
+		//Log("save pairs topic", name);
 		pairs.forEach( pair => {
 			neo.makeEdge( net, name, now, pair );
 		});
