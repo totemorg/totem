@@ -274,11 +274,40 @@ start_docker.)
 	docker ps -a
 	;;
 
+pubmake.)
+	export BOOKS=(regress demo cints)
+	for book in "${BOOKS[@]}"; do
+		echo "publish $book"
+		curl http://localhost:8080/$book.pub -o /dev/null
+	done
+	for book in "${BOOKS[@]}"; do
+		echo "readme $book"
+		curl http://localhost:8080/$book.tou -o .pubgit/$book/README.md
+		cd ./pubgit/$book
+		git push agent master
+		cd ../..
+	done
+	;;
+
+pubprime.)
+	export BOOKS=(regress demo cints)
+	for book in "${BOOKS[@]}"; do
+		echo "prime $book"
+		mkdir ./pubgit/$book
+		cd ./pubgit/$book
+		git init
+		touch README.md
+		git add README.md
+		git remote add origin https://github.com/totemstan/book_$book
+		cd ../..
+	done
+	;;
+	
 startup.)		# status and start dependent services
 	source ./maint.sh all config	# setup external vars
 	source ./maint.sh mysql start	# start mysql service
 	source ./maint.sh neo4j start	# start neo4j service
-        cd /local/service
+    cd /local/service
 	source ./maint.sh debug	# start totem service
 	sudo systemctl stop firewalld	# if running in host os
 	#notepadqq & # debe/debe.js totem/totem.js jsdb/jsdb.js flex/flex.js &

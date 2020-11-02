@@ -23,10 +23,10 @@ TOTEM provides a basic http/https web service with the following customizable fe
   
 TOTEM defines endpoints:
 
-	POST / NODE ?? NODE ...
-	GET / NODE ?? NODE ...
-	PUT / NODE ?? NODE ...
-	DELETE / NODE ?? NODE ...
+	POST / NODE 
+	GET / NODE 
+	PUT / NODE 
+	DELETE / NODE 
 
 to access dataset, file or command NODEs:
 

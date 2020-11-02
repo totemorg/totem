@@ -210,7 +210,7 @@ function neoThread(cb) {
 const 
 	{ 
 		byArea, byType, byAction, byTable, 
-		nodeDivider,
+		//nodeDivider,
 		$master, $worker,
 		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
 		sqlThread,filterRecords,guestProfile,routeDS, startDogs,startJob,endJob, cache } = TOTEM = module.exports = {
@@ -490,7 +490,8 @@ const
 					
 		const 
 			{ post, url } = req,
-			nodes = nodeDivider ? url.split(nodeDivider) : [url];
+			node = url;
+			//nodes = nodeDivider ? url.split(nodeDivider) : [url];
 
 		req.body = post.parseJSON( post => {  // get parameters or yank files from body 
 			var files = req.files = [], parms = {}, file = "", rem,filename,name,type;
@@ -543,7 +544,13 @@ Log("line ",idx,line.length);
 			//Log("body files=", files.length);
 			return parms;
 		});		// get body parameters/files
+
+		routeNode( node, req, (req,recs) => {
+			//Log("exit route node", typeOf(recs), typeOf(recs[0]) );
+			res(recs);
+		});
 		
+		/*
 		if ( !nodes.length )
 			res( null );
 
@@ -572,6 +579,7 @@ Log("line ",idx,line.length);
 					});
 			});
 		}
+		*/
 	},
 
 	startDogs: (sql,dogs) => {
@@ -1564,7 +1572,7 @@ Log("line ",idx,line.length);
 		@cfg {String}
 		@member TOTEM
 	*/
-	nodeDivider: "", 				//< node divider
+	//nodeDivider: "", 				//< node divider
 	
 	/**
 		Communicate with socket.io clients
