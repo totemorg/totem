@@ -2836,7 +2836,7 @@ function insertDS(req, res) {
 */	
 function deleteDS(req, res) {
 	const 
-		{ sql, flags, where, query, client, action, ds } = req,
+		{ sql, flags, where, query, body, client, action, ds } = req,
 		{ trace } = flags;
 
 	if ( isEmpty(where) )
@@ -2851,7 +2851,8 @@ function deleteDS(req, res) {
 				emitter: TOTEM.emitter
 			}, (err,info) => {
 
-				res( err || info );
+				body.ID = query.ID;
+				res( err || body );
 
 			});
 }
@@ -2887,7 +2888,9 @@ function updateDS(req, res) {
 			}, (err,info) => {
 
 				//res( err || info );
-				res(body);
+				body.ID = query.ID;
+				//Log(">>>>rtn", query, body);
+				res( err || body );
 
 				if ( onUpdate = TOTEM.onUpdate )
 					onUpdate(sql, table, body);
