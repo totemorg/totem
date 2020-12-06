@@ -46,7 +46,7 @@ const
 	FS = require("fs"),							// access file system
 	CONS = require("constants"),				// constants for setting tcp sessions
 	CLUSTER = require("cluster"),				// multicore  processing
-	URL = require("url"),						// url parsing
+	//URL = require("url"),						// url parsing
 	//NET = require("net"), 						// network interface
 	VM = require("vm"), 						// virtual machines for tasking
 	OS = require('os'),							// OS utilitites
@@ -68,8 +68,7 @@ const
 
 	// Totem modules
 	{ sqlThread } = JSDB = require("jsdb"),						// database agnosticator
-	{ Copy,Each,Log,Stream,Fetch,
-		isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM = require("enum");
+	{ Copy,Each,Log,Stream,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM = require("enum");
 	  
 // neo4j i/f
 
@@ -214,10 +213,355 @@ const
 	{ 
 		byArea, byType, byAction, byTable, 
 		//nodeDivider,
-		$master, $worker,
+		$master, $worker, Fetch, fetchOptions,
 		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
 		filterRecords,guestProfile,routeDS, startDogs,startJob,endJob, cache } = TOTEM = module.exports = {
 	
+	fetchOptions: {	// Fetch parms
+		defHost: ENV.SERVICE_MASTER_URL,
+		maxFiles: 1000,						//< max files to index
+		maxRetry: 5,		// fetch wget/curl maxRetry	
+		certs: { 		// data fetching certs
+			pfx: FS.readFileSync(`./certs/fetch.pfx`),
+			key: FS.readFileSync(`./certs/fetch.key`),
+			crt: FS.readFileSync(`./certs/fetch.crt`),
+			ca: "", //FS.readFileSync(`./certs/fetch.ca`),			
+			_pfx: `./certs/fetch.pfx`,
+			_crt: `./certs/fetch.crt`,
+			_key: `./certs/fetch.key`,
+			_ca: `./certs/fetch.ca`,
+			_pass: ENV.FETCH_PASS
+		}
+	},
+
+	/**
+		Probes HTTP(S) url path using PUT || POST || DELETE method given Array || Object || null params,
+		or fetches data from service path using GET method with callsback to params.  Or fetch data
+		using CURL(S) || WGET(S) || MASK(S) channels: (S) specifies a secure fetch using the 
+		certs/fetch.pdf cert on CURL || WGET.  The MASK protocol issues request via a set of 
+		rotating proxies.   If no protocol specified, fetch file at ./path.  If path prefixed by 
+		"//" then prefix path with the SERVICE_MASTER_URL href.  Fetch callsback( "info" ) or 
+		callsback( [ "filename", ...]) with a folder index when the path ends with "/".
+		
+		@cfg {Function} 
+		@param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
+		@param {Object, Array, Function, null} method induces probe method
+	*/
+	Fetch: (path, data, cb) => {	//< data fetching
+	
+		function sha256(s) { // reserved for other functionality
+			return CRYPTO.createHash('sha256').update(s).digest('base64');
+		}
+
+		function request(proto, opts, data, cb) {
+			//Log(">>>req opts", opts);
+			
+			const Req = proto.request(opts, Res => { // get reponse body text
+				var body = "";
+				Res.on("data", chunk => body += chunk.toString() );
+
+				Res.on("end", () => {
+					//Log('fetch statusCode:', Res.statusCode);
+					//Log('fetch headers:', Res.headers['public-key-pins']);	// Print the HPKP values
+
+					if ( cb ) 
+						cb( body );
+					
+					else
+						data( body );
+				});
+			});
+
+			Req.on('error', err => {
+				Log(">>>fetch req", err);
+				(cb||data)("");
+			});
+
+			switch (opts.method) {
+				case "DELETE":
+				case "GET": 
+					break;
+
+				case "POST":
+				case "PUT":
+					//Log(">>>post", data);
+					Req.write( data ); //JSON.stringify(data) );  // post parms
+					break;
+			}					
+
+			Req.end();
+		}
+		
+		function agentRequest(proto, opts, sql, id, cb) {
+			var 
+				body = "",
+				req = proto.get( opts, res => {
+					var sink = new STREAM.Writable({
+						objectMode: true,
+						write: (buf,en,sinkcb) => {
+							body += buf;
+							sinkcb(null);  // signal no errors
+						}
+					});
+
+					sink
+					.on("finish", () => {
+						var stat = "s"+Math.trunc(res.statusCode/100)+"xx";
+						Log(">>>>fetch body", body.length, ">>stat",res.statusCode,">>>",stat);
+
+						sql.query("UPDATE openv.proxies SET hits=hits+1, ?? = ?? + 1 WHERE ?", [stat,stat,id] );
+
+						cb( (stat = "s2xx") ? body : "" );
+					})
+					.on("error", err => {
+						Log(">>>fetch get", err);
+						cb("");
+					});
+
+					res.pipe(sink);
+				});
+			
+			req.on("socket", sock => {
+				sock.setTimeout(2e3, () => {
+					req.abort();
+					Log(">>>fetch timeout");
+					sql.query("UPDATE openv.proxies SET hits=hits+1, sTimeout = sTimeout+1 WHERE ?", id);
+				});
+				
+				sock.on("error", err => {
+					req.abort();
+					Log(">>>fetch refused");
+					sql.query("UPDATE openv.proxies SET hits=hits+1, sRefused = sRefused+1 WHERE ?", id);
+				});
+			});
+			
+			req.on("error", err => {
+				Log(">>>abort",err);
+				sql.query("UPDATE openv.proxies SET hits=hits+1, sAbort = sAbort+1 WHERE ?", id);
+			});
+		}
+		
+		function fetchFile(path, cb) {
+			if ( path.endsWith("/") ) // index requested folder
+				try {
+					const 
+						{maxFiles} = fetchOptions,
+						files = [];
+
+					//Log(">>index", "."+path);
+					FS.readdirSync( "."+path ).forEach( file => {
+						//Log(path,file);
+						var
+							ignore = file.endsWith("~") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
+
+						if ( !ignore && files.length < maxFiles ) 
+							files.push( (file.indexOf(".")>=0) ? file : file+"/" );
+					});
+					cb( files );
+				}
+
+				catch (err) {
+					//Log(">index error", err);
+					cb( null );
+				}	
+
+			else 	// requesting static file
+				try {		// these files are static so we never cache them
+					FS.readFile( "."+path, (err,buf) => res( err ? "" : Buffer.from(buf) ) );
+				}
+
+				catch (err) {
+					res( null );
+				}
+		}	
+		
+		const
+			{defHost,certs,maxRetry,oauthHosts} = fetchOptions,
+			opts = urlParse(path, {}, defHost), 
+			crud = {
+				"Function": "GET",
+				"Array": "PUT",
+				"Object": "POST",
+				"Null": "DELETE"
+			},
+
+			// for wget-curl
+			cert = certs.fetch,
+			wget = path.split("////"),
+			wurl = wget[0],
+			wout = wget[1] || "./temps/wget.jpg",
+					
+			res = cb || data || (res => {}),
+			method = crud[ data ? typeOf(data) : "Null" ] ;
+		
+		// opts.cipher = " ... "
+		// opts.headers = { ... }
+		// opts.Cookie = ["x=y", ...]
+		// opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
+		/*
+		if (opts.soap) {
+			opts.headers = {
+				"Content-Type": "application/soap+xml; charset=utf-8",
+				"Content-Length": opts.soap.length
+			};
+			opts.method = "POST";
+		}*/
+
+		//Trace("FETCH "+path);
+		
+		opts.method = method;
+		
+		switch ( opts.protocol ) {
+			case "curl:": 
+				CP.exec( `curl --retry ${maxRetry} ` + path.replace(opts.protocol, "http:"), (err,out) => {
+					res( err ? "" : out );
+				});
+				break;
+
+			case "curls:":
+				CP.exec( `curl --retry ${maxRetry} -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"), (err,out) => {
+					res( err ? "" : out );
+				});	
+				break;
+
+			case "wget:":
+				CP.exec( `wget --tries=${maxRetry} -O ${wout} ` + path.replace(opts.protocol, "http:"), err => {
+					res( err ? "" : "ok" );
+				});
+				break;
+
+			case "wgets:":
+				CP.exec( `wget --tries=${maxRetry} -O ${wout} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + wurl.replace(protocol, "https:"), err => {
+					res( err ? "" : "ok" );
+				});
+				break;
+
+			case "https:":
+				/*
+				// experiment pinning tests
+				opts.checkServerIdentity = function(host, cert) {
+					// Make sure the certificate is issued to the host we are connected to
+					const err = TLS.checkServerIdentity(host, cert);
+					if (err) {
+						Log("tls error", err);
+						return err;
+					}
+
+					// Pin the public key, similar to HPKP pin-sha25 pinning
+					const pubkey256 = 'pL1+qb9HTMRZJmuC/bB/ZI9d302BYrrqiVuRyW+DGrU=';
+					if (sha256(cert.pubkey) !== pubkey256) {
+						const msg = 'Certificate verification error: ' + `The public key of '${cert.subject.CN}' ` + 'does not match our pinned fingerprint';
+						return new Error(msg);
+					}
+
+					// Pin the exact certificate, rather then the pub key
+					const cert256 = '25:FE:39:32:D9:63:8C:8A:FC:A1:9A:29:87:' + 'D8:3E:4C:1D:98:JSDB:71:E4:1A:48:03:98:EA:22:6A:BD:8B:93:16';
+					if (cert.fingerprint256 !== cert256) {
+						const msg = 'Certificate verification error: ' +
+						`The certificate of '${cert.subject.CN}' ` +
+						'does not match our pinned fingerprint';
+						return new Error(msg);
+					}
+
+					// This loop is informational only.
+					// Print the certificate and public key fingerprints of all certs in the
+					// chain. Its common to pin the public key of the issuer on the public
+					// internet, while pinning the public key of the service in sensitive
+					// environments.
+					do {
+						console.log('Subject Common Name:', cert.subject.CN);
+						console.log('  Certificate SHA256 fingerprint:', cert.fingerprint256);
+
+						hash = crypto.createHash('sha256');
+						console.log('  Public key ping-sha256:', sha256(cert.pubkey));
+
+						lastprint256 = cert.fingerprint256;
+						cert = cert.issuerCertificate;
+					} while (cert.fingerprint256 !== lastprint256);
+
+					};
+				*/
+				/*
+				opts.agent = new HTTPS.Agent( false 
+					? {
+							//pfx: cert.pfx,	// pfx or use cert-and-key
+							cert: cert.crt,
+							key: cert.key,
+							passphrase: cert._pass
+						} 
+					: {
+						} );
+					*/
+				opts.rejectUnauthorized = false;
+				request(HTTPS, opts, data, cb);
+				break;
+				
+			case "http:":
+				//Log(opts);
+
+				request(HTTP, opts, data, cb);
+				break;
+				
+			case "mask:":
+			case "mttp:":	// request via rotating proxies
+				opts.protocol = "http:";
+				sqlThread( sql => {
+					sql.query(
+						"SELECT ID,ip,port FROM openv.proxies WHERE ? ORDER BY rand() LIMIT 1",
+						[{proto: "no"}], (err,recs) => {
+
+						if ( rec = recs[0] ) {
+							opts.agent = new AGENT( `http://${rec.ip}:${rec.port}` );
+							Log(">>>agent",rec);
+							agentRequest(HTTP, opts, sql, {ID:rec.ID}, res );
+						}
+					});
+				});
+				break;
+				
+			case "file:":	// requesting file or folder index
+				//Log("index file", [path], opts);
+				
+				fetchFile( opts.path.substr(1) ? opts.path : "/home/" , res );  
+				break;
+				
+			default:	// check if using a secure protocol
+				if ( oauth = oauthHosts[opts.protocol] ) {	// using oauth 
+					request(HTTPS, oauth, 
+						"grant_type=client_credentials"  // &scope=http://auth.lexisnexis.com/all
+					, token => {
+						//Log("token", token);
+						try {
+							const 
+								tok = JSON.parse(token);
+							
+							opts.protocol = "https:";
+							opts.headers = {
+								Authorization: tok.token_type + " " + tok.access_token,
+								Accept: "application/json;odata.metadata=minimal",
+								Host: "services-api.lexisnexis.com",
+								Connection: "Keep-Alive",
+								"Content-Type": "application/json"
+							};
+							//opts.path = escape(opts.path);
+							delete opts.auth;
+							
+							//Log("token", tok, opts );
+							request(HTTPS, opts, res);
+						}
+						
+						catch (err) {
+							Log("bad token", token);
+							res(null);
+						}
+					});
+				}
+				
+				else
+					res(null);
+		}
+	},
+
 	routeDS: {	// setup default DataSet routes
 		default: req => "app."+req.table
 	},
@@ -1272,8 +1616,8 @@ Log("line ",idx,line.length);
 
 			Trace( `PROTECTING ${name} USING ${pfx}` );
 
-			Copy( URL.parse(site.master), $master);
-			Copy( URL.parse(site.worker), $worker);
+			Copy( new URL(site.master), $master);
+			Copy( new URL(site.worker), $worker);
 			
 			site.domain = $master.hostname;
 			site.host = $master.protocol+"//"+$master.host;
@@ -3635,8 +3979,56 @@ function getFile(req, res) {
 /**
 @class TOTEM.Unit_Tests_Use_Cases
 */
+
+TOTEM.fetchOptions.oauthHosts = {	// auth 2.0 hosts
+	"lexis:": urlParse("https://auth-api.lexisnexis.com/oauth/v2/token", {
+		//rejectUnauthorized: false,
+		method: "POST",
+		auth: "VQNMQCR3CWMKKXMNPDTGMHWDNSPWKD:1CJKRZCVTRMXRFRHPHWXQGNXCQQJGWXBFMVFTNDP",
+		headers: {
+			//"Authorization": "Basic " + "VQNMQCR3CWMKKXMNPDTGMHWDNSPWKD:1CJKRZCVTRMXRFRHPHWXQGNXCQQJGWXBFMVFTNDP".toBase64(),
+			"Content-Type": "application/x-www-form-urlencoded"
+		}		
+	})
+};
+
+//Log(">>>>fetch oauth", Config.oauthHosts);
+
+function urlParse(url,opts,base) {
+	const {username,password,hostname,protocol,pathname,search,port} = new URL(url,base);
+	
+	//Log(">>>>url", [url, base], new URL(url,base) );
+	
+	return Copy( opts || {}, {
+		auth: username + ":" + password,
+		path: pathname + search,
+		protocol: protocol,
+		host: hostname,
+		port: port
+	});
+}
+
 async function prime(cb) {
 	cb();
+}
+
+async function LexisNexisTest(N,endpt) {
+	const start = new Date(), {Fetch} = ENUM, {random,trunc} = Math;
+	var done = 0;
+	Log(start);
+	for ( var n=0; n<N; n++) 
+		Fetch(endpt+trunc(random()*1000), res => {
+			//Log(n,done,N);
+			if ( ++done == N ) {
+				var 
+					stop = new Date(),
+					mins = (stop-start)/1e3/60,
+					rate = N/mins;
+				
+				Log(stop, mins, "mins", rate, "searches/min");
+			}
+		});
+					
 }
 
 switch (process.argv[2]) { //< unit tests
@@ -4043,14 +4435,25 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		break;
 			
 	case "G2":
-		ENUM.config({
-			sqlThread: sqlThread
-		});
-			
 		TOTEM.config({name:""}, sql => {
 			for (var n=0,N=2000; n<N; n++)
 				Fetch("mask://www.drudgereport.com", txt => Log(txt.length));
 		});
+		break;
+			
+	case "LN1":
+		LexisNexisTest(1e3, 'lexis://services-api.lexisnexis.com/v1/News?$search=rudolph');
+		//( async () => { await LexisNexisTest(1000); } )();
+		break;
+		
+	case "LN2":
+		LexisNexisTest(1e3, 'lexis://services-api.lexisnexis.com/v1/News?$search=rudolph&$expand=Document');
+		//( async () => { await LexisNexisTest(1000); } )();
+		break;
+
+	case "LN3":
+		LexisNexisTest(1e3, 'lexis://services-api.lexisnexis.com/v1/News?$search=rudolph');
+		//( async () => { await LexisNexisTest(1000); } )();
 		break;
 			
 }
