@@ -9,10 +9,11 @@
 	@requires fs
 	@requires constants
 	@requires cluster
-	@requires child-process
+	@requires child_process
 	@requires os
 	@requires stream
-	@requires str
+	@requires vm
+	@reqquire url
 
 	@requires enum
 	@requires jsdb
@@ -26,6 +27,8 @@
 	@requires json2csv
 	@requires js2xmlparser
 	@requires toobusy-js
+	@requires cheerio
+	@requires neo4j-driver	
 */
 
 function Trace(msg,req,res) {
@@ -37,36 +40,36 @@ const
 				  
 	ENV = process.env,
 	STREAM = require("stream"), 				// pipe-able streams
-	HTTP = require("http"),						//< http interface
-	HTTPS = require("https"),					//< https interface
-	CP = require("child_process"),				//< spawn OS shell commands
-	FS = require("fs"),							//< access file system
-	CONS = require("constants"),				//< constants for setting tcp sessions
-	CLUSTER = require("cluster"),				//< multicore  processing
-	URL = require("url"),						//< url parsing
-	NET = require("net"), 						// network interface
+	HTTP = require("http"),						// http interface
+	HTTPS = require("https"),					// https interface
+	CP = require("child_process"),				// spawn OS shell commands
+	FS = require("fs"),							// access file system
+	CONS = require("constants"),				// constants for setting tcp sessions
+	CLUSTER = require("cluster"),				// multicore  processing
+	URL = require("url"),						// url parsing
+	//NET = require("net"), 						// network interface
 	VM = require("vm"), 						// virtual machines for tasking
 	OS = require('os'),							// OS utilitites
 
 	// 3rd party modules
 	  
-	AGENT = require("http-proxy-agent"),		// agent to access proxies
-	SCRAPE = require("cheerio"), 				// web scraper to load proxies
-	MIME = require("mime"), 					//< file mime types
-	SIO = require('socket.io'), 				//< Socket.io client mesh
-	SIOHUB = require('socket.io-clusterhub'),	//< Socket.io client mesh for multicore app
+	//AGENT = require("http-proxy-agent"),		// agent to access proxies
+	SCRAPE = require("cheerio"), 				// scraper to load proxies
+	MIME = require("mime"), 					// file mime types
+	SIO = require('socket.io'), 				// Socket.io client mesh
+	SIOHUB = require('socket.io-clusterhub'),	// Socket.io client mesh for multicore app
 	{ escape, escapeId } = SQLDB = require("mysql"),	//< mysql conector
-	XML2JS = require("xml2js"),					//< xml to json parser (*)
-	BUSY = require('toobusy-js'),  				//< denial-of-service protector (cant install on NodeJS 5.x+)
-	JS2XML = require('js2xmlparser'), 			//< JSON to XML parser
-	JS2CSV = require('json2csv'),				//< JSON to CSV parser	
+	XML2JS = require("xml2js"),					// xml to json parser (*)
+	BUSY = require('toobusy-js'),  				// denial-of-service protector (cant install on NodeJS 5.x+)
+	JS2XML = require('js2xmlparser'), 			// JSON to XML parser
+	JS2CSV = require('json2csv'),				// JSON to CSV parser	
 	NEO4J = require("neo4j-driver"),			// light-weight graph database	
 	NEODRIVER = NEO4J.driver( ENV.NEO4J, NEO4J.auth.basic('neo4j', 'NGA'), { disableLosslessIntegers: true } ),
 
 	// Totem modules
-	JSDB = require("jsdb"),						//< database agnosticator
-	{ Copy,Each,Log,Stream,
-		isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("enum");
+	{ sqlThread } = JSDB = require("jsdb"),						// database agnosticator
+	{ Copy,Each,Log,Stream,Fetch,
+		isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM = require("enum");
 	  
 // neo4j i/f
 
@@ -213,7 +216,7 @@ const
 		//nodeDivider,
 		$master, $worker,
 		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
-		sqlThread,filterRecords,guestProfile,routeDS, startDogs,startJob,endJob, cache } = TOTEM = module.exports = {
+		filterRecords,guestProfile,routeDS, startDogs,startJob,endJob, cache } = TOTEM = module.exports = {
 	
 	routeDS: {	// setup default DataSet routes
 		default: req => "app."+req.table
@@ -647,7 +650,7 @@ Log("line ",idx,line.length);
 
 	/**
 		Configure and start the service with options and optional callback when started.
-		Configure JSDB, define site context, then protect, connect, start and initialize this server.
+		Configure database, define site context, then protect, connect, start and initialize this server.
 		@cfg {Function}
 		@param {Object} opts configuration options following the Copy() conventions.
 		@param {Function} cb callback(err) after service configured
@@ -860,7 +863,7 @@ Log("line ",idx,line.length);
 							if ( dogs )		// start watch dogs
 								startDogs( sql, dogs );
 							
-							if ( proxy ) 	{ 	// setup rotating proxies
+							if ( proxies ) 	{ 	// setup rotating proxies
 								sql.query(	// out with the old
 									"DELETE FROM openv.proxies WHERE hour(timediff(now(),created)) >= 2");
 
@@ -1609,7 +1612,7 @@ Log("line ",idx,line.length);
 		@cfg {Function}
 		@param {Function} cb callback(sql connector)
 	*/
-	sqlThread: JSDB.thread,
+	//sqlThread: JSDB.thread,
 		
 	neoThread: neoThread,
 		
@@ -2001,11 +2004,10 @@ Log("line ",idx,line.length);
 		9: ["40","190"]
 	},
 
-	proxy: false,
-	proxies: [
+	proxies: null, /* [	// rotating proxy services
 		//"https://free-proxy-list.net",
 		"https://sslproxies.org"
-	],
+	], */
 
 	/**
 		Default paths to service files
@@ -2491,6 +2493,7 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 
 }
 
+/*
 function proxyThread(req, res) {  // not presently used but might want to support later
 	
 	var 
@@ -2505,14 +2508,14 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 	
 	Log(proxy, pathto);
 	
-	/*
+	/ *
 	var sock = NET.connect( proxy.port );
 	sock.setEncoding("utf-8");
 	sock.write("here is some data for u");
 	sock.on("data", function (d) {
 		Log("sock rx", d);
 		res(d);
-	}); */
+	}); * /
 	
 	var Req = HTTP.request( pathto, function(Res) {
 		Log("==========SETUP", Res.statusCode, Res.headers);
@@ -2548,60 +2551,61 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 	Req.end( );
 
 	
-/*  
-generic
-		var http = require('http');
+	/ *  
+	generic
+			var http = require('http');
 
-http.createServer(function(request, response) {
-  var proxy = http.createClient(80, request.headers['host'])
-  var proxy_request = proxy.request(request.method, request.url, request.headers);
-  proxy_request.addListener('response', function (proxy_response) {
-    proxy_response.addListener('data', function(chunk) {
-      response.write(chunk, 'binary');
-    });
-    proxy_response.addListener('end', function() {
-      response.end();
-    });
-    response.writeHead(proxy_response.statusCode, proxy_response.headers);
-  });
-  request.addListener('data', function(chunk) {
-    proxy_request.write(chunk, 'binary');
-  });
-  request.addListener('end', function() {
-    proxy_request.end();
-  });
-}).listen(8080);
-*/
-	
-/*
-var net = require('net');
+	http.createServer(function(request, response) {
+	  var proxy = http.createClient(80, request.headers['host'])
+	  var proxy_request = proxy.request(request.method, request.url, request.headers);
+	  proxy_request.addListener('response', function (proxy_response) {
+		proxy_response.addListener('data', function(chunk) {
+		  response.write(chunk, 'binary');
+		});
+		proxy_response.addListener('end', function() {
+		  response.end();
+		});
+		response.writeHead(proxy_response.statusCode, proxy_response.headers);
+	  });
+	  request.addListener('data', function(chunk) {
+		proxy_request.write(chunk, 'binary');
+	  });
+	  request.addListener('end', function() {
+		proxy_request.end();
+	  });
+	}).listen(8080);
+	* /
 
-var LOCAL_PORT  = 6512;
-var REMOTE_PORT = 6512;
-var REMOTE_ADDR = "192.168.1.25";
+	/ *
+	var net = require('net');
 
-var server = net.createServer(socket => {
-    socket.on('data', function (msg) {
-        Log('  ** START **');
-        Log('<< From client to proxy ', msg.toString());
-        var serviceSocket = new net.Socket();
-        serviceSocket.connect(parseInt(REMOTE_PORT), REMOTE_ADDR, function () {
-            Log('>> From proxy to remote', msg.toString());
-            serviceSocket.write(msg);
-        });
-        serviceSocket.on("data", function (data) {
-            Log('<< From remote to proxy', data.toString());
-            socket.write(data);
-            Log('>> From proxy to client', data.toString());
-        });
-    });
-});
+	var LOCAL_PORT  = 6512;
+	var REMOTE_PORT = 6512;
+	var REMOTE_ADDR = "192.168.1.25";
 
-server.listen(LOCAL_PORT);
-Log("TCP server accepting connection on port: " + LOCAL_PORT);
-*/
+	var server = net.createServer(socket => {
+		socket.on('data', function (msg) {
+			Log('  ** START **');
+			Log('<< From client to proxy ', msg.toString());
+			var serviceSocket = new net.Socket();
+			serviceSocket.connect(parseInt(REMOTE_PORT), REMOTE_ADDR, function () {
+				Log('>> From proxy to remote', msg.toString());
+				serviceSocket.write(msg);
+			});
+			serviceSocket.on("data", function (data) {
+				Log('<< From remote to proxy', data.toString());
+				socket.write(data);
+				Log('>> From proxy to client', data.toString());
+			});
+		});
+	});
+
+	server.listen(LOCAL_PORT);
+	Log("TCP server accepting connection on port: " + LOCAL_PORT);
+	* /
 	
 }
+*/
 
 /**
 	@class TOTEM.Utilities.Antibot_Protection
