@@ -351,7 +351,7 @@ const
 					//Log(">>index", "."+path);
 					FS.readdirSync( "."+path ).forEach( file => {
 						var
-							ignore = file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
+							ignore = file.startsWith(".") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
 
 						if ( !ignore && files.length < maxFiles ) 
 							files.push( (file.indexOf(".")>=0) ? file : file+"/" );
