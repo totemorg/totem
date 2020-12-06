@@ -206,6 +206,7 @@ mysql.)
 			echo -e "mysql service running: \n$P"
 		else
 			#rm /var/lib/mysql/mysql.sock      # in case its hanging around
+			rm /tmp/mysql.sock.lock
 			cd /local/mysql
 			bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" --max_allowed_packet=64000000 &
 			cd /local/service

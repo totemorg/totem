@@ -342,7 +342,7 @@ const
 		}
 		
 		function fetchFile(path, cb) {
-			if ( path.endsWith("/") ) // index requested folder
+			if ( path.endsWith("/") )  // index requested folder
 				try {
 					const 
 						{maxFiles} = fetchOptions,
@@ -350,9 +350,8 @@ const
 
 					//Log(">>index", "."+path);
 					FS.readdirSync( "."+path ).forEach( file => {
-						//Log(path,file);
 						var
-							ignore = file.endsWith("~") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
+							ignore = file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
 
 						if ( !ignore && files.length < maxFiles ) 
 							files.push( (file.indexOf(".")>=0) ? file : file+"/" );
@@ -361,17 +360,17 @@ const
 				}
 
 				catch (err) {
-					//Log(">index error", err);
+					//Log(">>index error", err);
 					cb( null );
-				}	
+				}
 
 			else 	// requesting static file
 				try {		// these files are static so we never cache them
-					FS.readFile( "."+path, (err,buf) => res( err ? "" : Buffer.from(buf) ) );
+					FS.readFile( "."+path, (err,buf) => cb( err ? "" : Buffer.from(buf) ) );
 				}
 
 				catch (err) {
-					res( null );
+					cb( null );
 				}
 		}	
 		
@@ -4012,12 +4011,12 @@ async function prime(cb) {
 	cb();
 }
 
-async function LexisNexisTest(N,endpt) {
-	const start = new Date(), {Fetch} = ENUM, {random,trunc} = Math;
+async function LexisNexisTest(N,endpt,R) {
+	const start = new Date(), {random,trunc} = Math;
 	var done = 0;
 	Log(start);
 	for ( var n=0; n<N; n++) 
-		Fetch(endpt+trunc(random()*1000), res => {
+		Fetch(endpt + (R?trunc(random()*R):""), res => {
 			//Log(n,done,N);
 			if ( ++done == N ) {
 				var 
@@ -4028,7 +4027,6 @@ async function LexisNexisTest(N,endpt) {
 				Log(stop, mins, "mins", rate, "searches/min");
 			}
 		});
-					
 }
 
 switch (process.argv[2]) { //< unit tests

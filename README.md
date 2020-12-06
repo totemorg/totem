@@ -38,10 +38,9 @@ By default, TOTEM provides `db | xml | csv | json` TYPEs for converting DATASETs
 `riddle | task | ping` COMMANDs for validating a session, sharding tasks,
 and the `stores | shares` file AREAs for sharing static files.
 
-TOTEM also provides a method to Fetch data from a service or filesystem:
+TOTEM also provides a method to fetch data from a service or filesystem:
 
-	Fetch( path, data => {			// get-select request made
-		// data as text
+	Fetch( path, text => {			// get-select request made
 	})
 	
 	Fetch( path, [ ... ], stat => { 	// post-insert request made
@@ -57,7 +56,6 @@ The path = PROTOCOL:FILE specifies a protocol (http || https, curl || curls, wge
 lexis || etc, file) where curls/wgets presents the certs/fetch.pfx certificate the the endpoint, 
 mask/masks routes the fetch request to a rotated proxy, lexis uses the oauth authorization-authentication 
 protocol, and file fetches from the file system.
-
 
 
 ## Installation
