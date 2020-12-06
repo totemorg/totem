@@ -4043,6 +4043,10 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		break;
 			
 	case "G2":
+		ENUM.config({
+			sqlThread: sqlThread
+		});
+			
 		TOTEM.config({name:""}, sql => {
 			for (var n=0,N=2000; n<N; n++)
 				Fetch("mask://www.drudgereport.com", txt => Log(txt.length));
