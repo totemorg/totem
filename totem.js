@@ -70,6 +70,21 @@ const
 	{ sqlThread } = JSDB = require("jsdb"),						// database agnosticator
 	{ Copy,Each,Log,Stream,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM = require("enum");
 	  
+function urlParse(url,opts,base) {
+	const {username,password,hostname,protocol,pathname,search,port,href} = new URL(url,base);
+	
+	//Log(">>>>url", new URL(url,base) );
+	
+	return Copy( opts || {}, {
+		auth: username + ":" + password,
+		path: pathname + search,
+		protocol: protocol,
+		host: hostname,
+		port: port,
+		href: href
+	});
+}
+
 // neo4j i/f
 
 function NEOCONNECTOR() {
@@ -231,6 +246,31 @@ const
 			_key: `./certs/fetch.key`,
 			_ca: `./certs/fetch.ca`,
 			_pass: ENV.FETCH_PASS
+		},
+		oauthHosts: {	// auth 2.0 hosts
+			"lex:": {		// lexis-nexis search
+				grant: "grant_type=client_credentials",  // &scope=http://auth.lexisnexis.com/all
+				token: urlParse("https://auth-api.lexisnexis.com/oauth/v2/token", {
+					//rejectUnauthorized: false,
+					method: "POST",
+					auth: ENV.LEXISNEXIS,
+					headers: {
+						"Content-Type": "application/x-www-form-urlencoded"
+					}
+				})
+			},
+			"lexis:": {		// lexis-nexis search and get doc
+				grant: "grant_type=client_credentials",  // &scope=http://auth.lexisnexis.com/all
+				token: urlParse("https://auth-api.lexisnexis.com/oauth/v2/token", {
+					//rejectUnauthorized: false,
+					method: "POST",
+					auth: ENV.LEXISNEXIS,
+					headers: {
+						"Content-Type": "application/x-www-form-urlencoded"
+					}
+				}),
+				doc: "lex://services-api.lexisnexis.com/v1/"
+			}
 		}
 	},
 
@@ -336,7 +376,7 @@ const
 			});
 			
 			req.on("error", err => {
-				Log(">>>abort",err);
+				Log(">>>fetch abort",err);
 				sql.query("UPDATE openv.proxies SET hits=hits+1, sAbort = sAbort+1 WHERE ?", id);
 			});
 		}
@@ -360,7 +400,7 @@ const
 				}
 
 				catch (err) {
-					//Log(">>index error", err);
+					Log(">>>fetch index error", err);
 					cb( null );
 				}
 
@@ -389,7 +429,11 @@ const
 			wget = path.split("////"),
 			wurl = wget[0],
 			wout = wget[1] || "./temps/wget.jpg",
-					
+			
+			// OAuth 2.0 host
+			oauth = oauthHosts[opts.protocol],
+			  
+			// response callback
 			res = cb || data || (res => {}),
 			method = crud[ data ? typeOf(data) : "Null" ] ;
 		
@@ -525,32 +569,60 @@ const
 				break;
 				
 			default:	// check if using a secure protocol
-				if ( oauth = oauthHosts[opts.protocol] ) {	// using oauth 
-					request(HTTPS, oauth, 
-						"grant_type=client_credentials"  // &scope=http://auth.lexisnexis.com/all
-					, token => {
+				if ( oauth ) {	// using oauth 
+					request(HTTPS, oauth.token, oauth.grant, token => {		// request access token
 						//Log("token", token);
 						try {
 							const 
-								tok = JSON.parse(token);
+								Token = JSON.parse(token);
 							
 							opts.protocol = "https:";
 							opts.headers = {
-								Authorization: tok.token_type + " " + tok.access_token,
+								Authorization: Token.token_type + " " + Token.access_token,
 								Accept: "application/json;odata.metadata=minimal",
 								Host: "services-api.lexisnexis.com",
 								Connection: "Keep-Alive",
 								"Content-Type": "application/json"
 							};
-							//opts.path = escape(opts.path);
 							delete opts.auth;
 							
-							//Log("token", tok, opts );
-							request(HTTPS, opts, res);
+							//Log("token", Token, opts );
+							request(HTTPS, opts, search => {	// request a document search
+								if ( oauth.doc ) 
+									try {	// get associated document
+										const
+											Search = JSON.parse(search),
+											rec = Search.value[0] || {},
+											doclink = rec['DocumentContent@odata.mediaReadLink'];
+
+										//Log( Object.keys(Search) );
+										if ( doclink ) {
+											if (0)
+												Log({
+													doclink: doclink , 
+													href: oauth.doc.href, 
+													reckeys: Object.keys(rec), 
+													ov: rec.Overview, 
+													d: rec.Date
+												});
+
+											Fetch( oauth.doc + doclink, doc => {
+												res(doc);
+											});
+										}
+									}
+								
+									catch (err) {
+										Log(">>>fetch lexis bad search",err);
+									}
+								
+								else
+									res( search );
+							});
 						}
 						
 						catch (err) {
-							Log("bad token", token);
+							Log(">>>fetch lexis bad token", token);
 							res(null);
 						}
 					});
@@ -3979,39 +4051,13 @@ function getFile(req, res) {
 @class TOTEM.Unit_Tests_Use_Cases
 */
 
-TOTEM.fetchOptions.oauthHosts = {	// auth 2.0 hosts
-	"lexis:": urlParse("https://auth-api.lexisnexis.com/oauth/v2/token", {
-		//rejectUnauthorized: false,
-		method: "POST",
-		auth: "VQNMQCR3CWMKKXMNPDTGMHWDNSPWKD:1CJKRZCVTRMXRFRHPHWXQGNXCQQJGWXBFMVFTNDP",
-		headers: {
-			//"Authorization": "Basic " + "VQNMQCR3CWMKKXMNPDTGMHWDNSPWKD:1CJKRZCVTRMXRFRHPHWXQGNXCQQJGWXBFMVFTNDP".toBase64(),
-			"Content-Type": "application/x-www-form-urlencoded"
-		}		
-	})
-};
-
 //Log(">>>>fetch oauth", Config.oauthHosts);
-
-function urlParse(url,opts,base) {
-	const {username,password,hostname,protocol,pathname,search,port} = new URL(url,base);
-	
-	//Log(">>>>url", [url, base], new URL(url,base) );
-	
-	return Copy( opts || {}, {
-		auth: username + ":" + password,
-		path: pathname + search,
-		protocol: protocol,
-		host: hostname,
-		port: port
-	});
-}
 
 async function prime(cb) {
 	cb();
 }
 
-async function LexisNexisTest(N,endpt,R) {
+async function LexisNexisTest(N,endpt,R,cb) {
 	const start = new Date(), {random,trunc} = Math;
 	var done = 0;
 	Log(start);
@@ -4025,6 +4071,8 @@ async function LexisNexisTest(N,endpt,R) {
 					rate = N/mins;
 				
 				Log(stop, mins, "mins", rate, "searches/min");
+				
+				if (cb) cb(res);
 			}
 		});
 }
@@ -4440,20 +4488,38 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		break;
 			
 	case "LN1":
-		LexisNexisTest(1e3, 'lexis://services-api.lexisnexis.com/v1/News?$search=rudolph');
-		//( async () => { await LexisNexisTest(1000); } )();
+		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph');
 		break;
 		
 	case "LN2":
-		LexisNexisTest(1e3, 'lexis://services-api.lexisnexis.com/v1/News?$search=rudolph&$expand=Document');
-		//( async () => { await LexisNexisTest(1000); } )();
+		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph&$expand=Document');
 		break;
 
 	case "LN3":
-		LexisNexisTest(1e3, 'lexis://services-api.lexisnexis.com/v1/News?$search=rudolph');
-		//( async () => { await LexisNexisTest(1000); } )();
+		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph');
 		break;
 			
+	case "LN4":
+		LexisNexisTest(1, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph', 0, res => {
+			//Log("res=>", res);
+			var r = JSON.parse(res);
+			//Log( Object.keys(r) );
+			if ( rec = r.value[0] ) 
+				Log( "fetch docendpt >>>>", rec['DocumentContent@odata.mediaReadLink'] , Object.keys(rec), rec.Overview, rec.Date );
+			
+			Fetch( 'lex://services-api.lexisnexis.com/v1/' + rec['DocumentContent@odata.mediaReadLink'] , doc => {
+				//    'lexis://services-api.lexisnexis.com/v1/MEDIALINK
+				Log( "doc=>", doc );
+			});
+			
+		});
+		break;
+
+	case "LN5":
+		Fetch( 'lexis://services-api.lexisnexis.com/v1/News?$search=rudolph', doc => {
+			Log( "doc=>", doc );
+		});
+		break;
 }
 
 // UNCLASSIFIED
