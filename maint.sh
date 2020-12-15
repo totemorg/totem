@@ -206,6 +206,7 @@ mysql.)
 			echo -e "mysql service running: \n$P"
 		else
 			#rm /var/lib/mysql/mysql.sock      # in case its hanging around
+			rm /tmp/mysql.sock.lock
 			cd /local/mysql
 			bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" --max_allowed_packet=64000000 &
 			cd /local/service
@@ -274,11 +275,41 @@ start_docker.)
 	docker ps -a
 	;;
 
+pubmake.)
+	export BOOKS=(regress demo cints)
+	for book in "${BOOKS[@]}"; do
+		echo "publish $book"
+		curl http://localhost:8080/$book.pub -o /dev/null
+	done
+	for book in "${BOOKS[@]}"; do
+		echo "readme $book"
+		curl http://localhost:8080/$book.tou -o .pubgit/$book/README.md
+		cd ./pubgit/$book
+		git push agent master
+		cd ../..
+	done
+	;;
+
+pubprime.)
+	export BOOKS=(regress demo cints)
+	for book in "${BOOKS[@]}"; do
+		echo "prime $book"
+		mkdir ./pubgit/$book
+		cd ./pubgit/$book
+		git init
+		touch README.md
+		git add README.md
+		git remote add origin https://github.com/totemstan/book_$book
+		cd ../..
+	done
+	;;
+	
 startup.)		# status and start dependent services
 	source ./maint.sh all config	# setup external vars
 	source ./maint.sh mysql start	# start mysql service
 	source ./maint.sh neo4j start	# start neo4j service
-	source ./maint.sh D1	# start totem service
+    cd /local/service
+	source ./maint.sh debug	# start totem service
 	sudo systemctl stop firewalld	# if running in host os
 	#notepadqq & # debe/debe.js totem/totem.js jsdb/jsdb.js flex/flex.js &
 	#source ./maint.sh start_cesium
@@ -512,6 +543,10 @@ help.)	# some help
 	echo "	bind known c-modules to geonode"
 	echo "	redoc autodocument using babel/jsduck/doxygen compilers"
 	echo "	restyle css styles using css compass complier"
+	;;
+
+upnet.)
+	sudo /etc/init.d/network restart
 	;;
 
 uptest.)

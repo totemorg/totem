@@ -9,10 +9,11 @@
 	@requires fs
 	@requires constants
 	@requires cluster
-	@requires child-process
+	@requires child_process
 	@requires os
 	@requires stream
-	@requires str
+	@requires vm
+	@reqquire url
 
 	@requires enum
 	@requires jsdb
@@ -26,6 +27,8 @@
 	@requires json2csv
 	@requires js2xmlparser
 	@requires toobusy-js
+	@requires cheerio
+	@requires neo4j-driver	
 */
 
 function Trace(msg,req,res) {
@@ -37,43 +40,57 @@ const
 				  
 	ENV = process.env,
 	STREAM = require("stream"), 				// pipe-able streams
-	HTTP = require("http"),						//< http interface
-	HTTPS = require("https"),					//< https interface
-	CP = require("child_process"),				//< spawn OS shell commands
-	FS = require("fs"),							//< access file system
-	CONS = require("constants"),				//< constants for setting tcp sessions
-	CLUSTER = require("cluster"),				//< multicore  processing
-	URL = require("url"),						//< url parsing
-	NET = require("net"), 						// network interface
+	HTTP = require("http"),						// http interface
+	HTTPS = require("https"),					// https interface
+	CP = require("child_process"),				// spawn OS shell commands
+	FS = require("fs"),							// access file system
+	CONS = require("constants"),				// constants for setting tcp sessions
+	CLUSTER = require("cluster"),				// multicore  processing
+	//URL = require("url"),						// url parsing
+	//NET = require("net"), 						// network interface
 	VM = require("vm"), 						// virtual machines for tasking
 	OS = require('os'),							// OS utilitites
 
 	// 3rd party modules
 	  
-	AGENT = require("http-proxy-agent"),		// agent to access proxies
-	SCRAPE = require("cheerio"), 				// web scraper to load proxies
-	MIME = require("mime"), 					//< file mime types
-	SIO = require('socket.io'), 				//< Socket.io client mesh
-	SIOHUB = require('socket.io-clusterhub'),	//< Socket.io client mesh for multicore app
+	//AGENT = require("http-proxy-agent"),		// agent to access proxies
+	SCRAPE = require("cheerio"), 				// scraper to load proxies
+	MIME = require("mime"), 					// file mime types
+	SIO = require('socket.io'), 				// Socket.io client mesh
+	SIOHUB = require('socket.io-clusterhub'),	// Socket.io client mesh for multicore app
 	{ escape, escapeId } = SQLDB = require("mysql"),	//< mysql conector
-	XML2JS = require("xml2js"),					//< xml to json parser (*)
-	BUSY = require('toobusy-js'),  				//< denial-of-service protector (cant install on NodeJS 5.x+)
-	JS2XML = require('js2xmlparser'), 			//< JSON to XML parser
-	JS2CSV = require('json2csv'),				//< JSON to CSV parser	
+	XML2JS = require("xml2js"),					// xml to json parser (*)
+	BUSY = require('toobusy-js'),  				// denial-of-service protector (cant install on NodeJS 5.x+)
+	JS2XML = require('js2xmlparser'), 			// JSON to XML parser
+	JS2CSV = require('json2csv'),				// JSON to CSV parser	
 	NEO4J = require("neo4j-driver"),			// light-weight graph database	
 	NEODRIVER = NEO4J.driver( ENV.NEO4J, NEO4J.auth.basic('neo4j', 'NGA'), { disableLosslessIntegers: true } ),
 
 	// Totem modules
-	JSDB = require("jsdb"),						//< database agnosticator
-	{ Copy,Each,Log,Stream,
-		isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("enum");
+	{ sqlThread } = JSDB = require("jsdb"),						// database agnosticator
+	{ Copy,Each,Log,Stream,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM = require("enum");
 	  
+function urlParse(url,opts,base) {
+	const {username,password,hostname,protocol,pathname,search,port,href} = new URL(url,base);
+	
+	//Log(">>>>url", new URL(url,base) );
+	
+	return Copy( opts || {}, {
+		auth: username + ":" + password,
+		path: pathname + search,
+		protocol: protocol,
+		host: hostname,
+		port: port,
+		href: href
+	});
+}
+
 // neo4j i/f
 
 function NEOCONNECTOR() {
 	this.trace = 
 			args => {};
-			//args => console.log(args); 
+			//args => console.log(">>>neo4j", args); 
 }
 	
 function neoThread(cb) {
@@ -134,7 +151,7 @@ function neoThread(cb) {
 			neo = this;
 
 		Stream( nodes, {}, (props, node, cb) => {
-			//Log(">>neosave", node,props);
+			//Log(">>neo4j save", node,props);
 
 			if (cb) { // add node
 				props.created = now;
@@ -162,6 +179,7 @@ function neoThread(cb) {
 			[src,tar,props] = pair,
 			neo = this;
 		
+		//Log("edge", src.name, tar.name, props);
 		neo.cypher(
 			`MATCH (a:${net} {name:$srcName}), (b:${net} {name:$tarName}) `
 			+ "MERGE "
@@ -173,7 +191,7 @@ function neoThread(cb) {
 						created: created
 					})
 		}, err => {
-			neo.trace( err );
+			if (err) Log(">>>create edge failed", [src.name, tar.name, name] );
 		});
 	},
 	
@@ -184,7 +202,7 @@ function neoThread(cb) {
 		
 		//neo.cypher( `CREATE CONSTRAINT ON (n:${net}) ASSERT n.name IS UNIQUE` );
 
-		Log("save net", net);
+		//Log("neo4j save net", net);
 		
 		neo.makeNodes( net, now, nodes, () => {
 			//Log(">> edges", edges, "db=", db);
@@ -196,6 +214,7 @@ function neoThread(cb) {
 		var 
 			neo = this;
 		
+		//Log("save pairs topic", name);
 		pairs.forEach( pair => {
 			neo.makeEdge( net, name, now, pair );
 		});
@@ -207,12 +226,413 @@ function neoThread(cb) {
 
 const 
 	{ 
-		byArea, byType, byAction, byTable,
-		nodeDivider,
-		$master, $worker,
+		byArea, byType, byAction, byTable, 
+		//nodeDivider,
+		$master, $worker, Fetch, fetchOptions,
 		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
-		sqlThread,filterRecords,guestProfile,routeDS, startDogs,startJob,endJob, cache } = TOTEM = module.exports = {
+		filterRecords,guestProfile,routeDS, startDogs,startJob,endJob, cache } = TOTEM = module.exports = {
 	
+	fetchOptions: {	// Fetch parms
+		defHost: ENV.SERVICE_MASTER_URL,
+		maxFiles: 1000,						//< max files to index
+		maxRetry: 5,		// fetch wget/curl maxRetry	
+		certs: { 		// data fetching certs
+			pfx: FS.readFileSync(`./certs/fetch.pfx`),
+			key: FS.readFileSync(`./certs/fetch.key`),
+			crt: FS.readFileSync(`./certs/fetch.crt`),
+			ca: "", //FS.readFileSync(`./certs/fetch.ca`),			
+			_pfx: `./certs/fetch.pfx`,
+			_crt: `./certs/fetch.crt`,
+			_key: `./certs/fetch.key`,
+			_ca: `./certs/fetch.ca`,
+			_pass: ENV.FETCH_PASS
+		},
+		oauthHosts: {	// auth 2.0 hosts
+			"lex:": {		// lexis-nexis search
+				grant: "grant_type=client_credentials",  // &scope=http://auth.lexisnexis.com/all
+				token: urlParse("https://auth-api.lexisnexis.com/oauth/v2/token", {
+					//rejectUnauthorized: false,
+					method: "POST",
+					auth: ENV.LEXISNEXIS,
+					headers: {
+						"Content-Type": "application/x-www-form-urlencoded"
+					}
+				})
+			},
+			"lexis:": {		// lexis-nexis search and get doc
+				grant: "grant_type=client_credentials",  // &scope=http://auth.lexisnexis.com/all
+				token: urlParse("https://auth-api.lexisnexis.com/oauth/v2/token", {
+					//rejectUnauthorized: false,
+					method: "POST",
+					auth: ENV.LEXISNEXIS,
+					headers: {
+						"Content-Type": "application/x-www-form-urlencoded"
+					}
+				}),
+				doc: "lex://services-api.lexisnexis.com/v1/"
+			}
+		}
+	},
+
+	/**
+		Probes HTTP(S) url path using PUT || POST || DELETE method given Array || Object || null params,
+		or fetches data from service path using GET method with callsback to params.  Or fetch data
+		using CURL(S) || WGET(S) || MASK(S) channels: (S) specifies a secure fetch using the 
+		certs/fetch.pdf cert on CURL || WGET.  The MASK protocol issues request via a set of 
+		rotating proxies.   If no protocol specified, fetch file at ./path.  If path prefixed by 
+		"//" then prefix path with the SERVICE_MASTER_URL href.  Fetch callsback( "info" ) or 
+		callsback( [ "filename", ...]) with a folder index when the path ends with "/".
+		
+		@cfg {Function} 
+		@param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
+		@param {Object, Array, Function, null} method induces probe method
+	*/
+	Fetch: (path, data, cb) => {	//< data fetching
+	
+		function sha256(s) { // reserved for other functionality
+			return CRYPTO.createHash('sha256').update(s).digest('base64');
+		}
+
+		function request(proto, opts, data, cb) {
+			//Log(">>>req opts", opts);
+			
+			const Req = proto.request(opts, Res => { // get reponse body text
+				var body = "";
+				Res.on("data", chunk => body += chunk.toString() );
+
+				Res.on("end", () => {
+					//Log('fetch statusCode:', Res.statusCode);
+					//Log('fetch headers:', Res.headers['public-key-pins']);	// Print the HPKP values
+
+					if ( cb ) 
+						cb( body );
+					
+					else
+						data( body );
+				});
+			});
+
+			Req.on('error', err => {
+				Log(">>>fetch req", err);
+				(cb||data)("");
+			});
+
+			switch (opts.method) {
+				case "DELETE":
+				case "GET": 
+					break;
+
+				case "POST":
+				case "PUT":
+					//Log(">>>post", data);
+					Req.write( data ); //JSON.stringify(data) );  // post parms
+					break;
+			}					
+
+			Req.end();
+		}
+		
+		function agentRequest(proto, opts, sql, id, cb) {
+			var 
+				body = "",
+				req = proto.get( opts, res => {
+					var sink = new STREAM.Writable({
+						objectMode: true,
+						write: (buf,en,sinkcb) => {
+							body += buf;
+							sinkcb(null);  // signal no errors
+						}
+					});
+
+					sink
+					.on("finish", () => {
+						var stat = "s"+Math.trunc(res.statusCode/100)+"xx";
+						Log(">>>>fetch body", body.length, ">>stat",res.statusCode,">>>",stat);
+
+						sql.query("UPDATE openv.proxies SET hits=hits+1, ?? = ?? + 1 WHERE ?", [stat,stat,id] );
+
+						cb( (stat = "s2xx") ? body : "" );
+					})
+					.on("error", err => {
+						Log(">>>fetch get", err);
+						cb("");
+					});
+
+					res.pipe(sink);
+				});
+			
+			req.on("socket", sock => {
+				sock.setTimeout(2e3, () => {
+					req.abort();
+					Log(">>>fetch timeout");
+					sql.query("UPDATE openv.proxies SET hits=hits+1, sTimeout = sTimeout+1 WHERE ?", id);
+				});
+				
+				sock.on("error", err => {
+					req.abort();
+					Log(">>>fetch refused");
+					sql.query("UPDATE openv.proxies SET hits=hits+1, sRefused = sRefused+1 WHERE ?", id);
+				});
+			});
+			
+			req.on("error", err => {
+				Log(">>>fetch abort",err);
+				sql.query("UPDATE openv.proxies SET hits=hits+1, sAbort = sAbort+1 WHERE ?", id);
+			});
+		}
+		
+		function fetchFile(path, cb) {
+			if ( path.endsWith("/") )  // index requested folder
+				try {
+					const 
+						{maxFiles} = fetchOptions,
+						files = [];
+
+					//Log(">>index", "."+path);
+					FS.readdirSync( "."+path ).forEach( file => {
+						var
+							ignore = file.startsWith(".") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
+
+						if ( !ignore && files.length < maxFiles ) 
+							files.push( (file.indexOf(".")>=0) ? file : file+"/" );
+					});
+					cb( files );
+				}
+
+				catch (err) {
+					Log(">>>fetch index error", err);
+					cb( null );
+				}
+
+			else 	// requesting static file
+				try {		// these files are static so we never cache them
+					FS.readFile( "."+path, (err,buf) => cb( err ? "" : Buffer.from(buf) ) );
+				}
+
+				catch (err) {
+					cb( null );
+				}
+		}	
+		
+		const
+			{defHost,certs,maxRetry,oauthHosts} = fetchOptions,
+			opts = urlParse(path, {}, defHost), 
+			crud = {
+				"Function": "GET",
+				"Array": "PUT",
+				"Object": "POST",
+				"Null": "DELETE"
+			},
+
+			// for wget-curl
+			cert = certs.fetch,
+			wget = path.split("////"),
+			wurl = wget[0],
+			wout = wget[1] || "./temps/wget.jpg",
+			
+			// OAuth 2.0 host
+			oauth = oauthHosts[opts.protocol],
+			  
+			// response callback
+			res = cb || data || (res => {}),
+			method = crud[ data ? typeOf(data) : "Null" ] ;
+		
+		// opts.cipher = " ... "
+		// opts.headers = { ... }
+		// opts.Cookie = ["x=y", ...]
+		// opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
+		/*
+		if (opts.soap) {
+			opts.headers = {
+				"Content-Type": "application/soap+xml; charset=utf-8",
+				"Content-Length": opts.soap.length
+			};
+			opts.method = "POST";
+		}*/
+
+		//Trace("FETCH "+path);
+		
+		opts.method = method;
+		
+		switch ( opts.protocol ) {
+			case "curl:": 
+				CP.exec( `curl --retry ${maxRetry} ` + path.replace(opts.protocol, "http:"), (err,out) => {
+					res( err ? "" : out );
+				});
+				break;
+
+			case "curls:":
+				CP.exec( `curl --retry ${maxRetry} -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"), (err,out) => {
+					res( err ? "" : out );
+				});	
+				break;
+
+			case "wget:":
+				CP.exec( `wget --tries=${maxRetry} -O ${wout} ` + path.replace(opts.protocol, "http:"), err => {
+					res( err ? "" : "ok" );
+				});
+				break;
+
+			case "wgets:":
+				CP.exec( `wget --tries=${maxRetry} -O ${wout} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + wurl.replace(protocol, "https:"), err => {
+					res( err ? "" : "ok" );
+				});
+				break;
+
+			case "https:":
+				/*
+				// experiment pinning tests
+				opts.checkServerIdentity = function(host, cert) {
+					// Make sure the certificate is issued to the host we are connected to
+					const err = TLS.checkServerIdentity(host, cert);
+					if (err) {
+						Log("tls error", err);
+						return err;
+					}
+
+					// Pin the public key, similar to HPKP pin-sha25 pinning
+					const pubkey256 = 'pL1+qb9HTMRZJmuC/bB/ZI9d302BYrrqiVuRyW+DGrU=';
+					if (sha256(cert.pubkey) !== pubkey256) {
+						const msg = 'Certificate verification error: ' + `The public key of '${cert.subject.CN}' ` + 'does not match our pinned fingerprint';
+						return new Error(msg);
+					}
+
+					// Pin the exact certificate, rather then the pub key
+					const cert256 = '25:FE:39:32:D9:63:8C:8A:FC:A1:9A:29:87:' + 'D8:3E:4C:1D:98:JSDB:71:E4:1A:48:03:98:EA:22:6A:BD:8B:93:16';
+					if (cert.fingerprint256 !== cert256) {
+						const msg = 'Certificate verification error: ' +
+						`The certificate of '${cert.subject.CN}' ` +
+						'does not match our pinned fingerprint';
+						return new Error(msg);
+					}
+
+					// This loop is informational only.
+					// Print the certificate and public key fingerprints of all certs in the
+					// chain. Its common to pin the public key of the issuer on the public
+					// internet, while pinning the public key of the service in sensitive
+					// environments.
+					do {
+						console.log('Subject Common Name:', cert.subject.CN);
+						console.log('  Certificate SHA256 fingerprint:', cert.fingerprint256);
+
+						hash = crypto.createHash('sha256');
+						console.log('  Public key ping-sha256:', sha256(cert.pubkey));
+
+						lastprint256 = cert.fingerprint256;
+						cert = cert.issuerCertificate;
+					} while (cert.fingerprint256 !== lastprint256);
+
+					};
+				*/
+				/*
+				opts.agent = new HTTPS.Agent( false 
+					? {
+							//pfx: cert.pfx,	// pfx or use cert-and-key
+							cert: cert.crt,
+							key: cert.key,
+							passphrase: cert._pass
+						} 
+					: {
+						} );
+					*/
+				opts.rejectUnauthorized = false;
+				request(HTTPS, opts, data, cb);
+				break;
+				
+			case "http:":
+				//Log(opts);
+
+				request(HTTP, opts, data, cb);
+				break;
+				
+			case "mask:":
+			case "mttp:":	// request via rotating proxies
+				opts.protocol = "http:";
+				sqlThread( sql => {
+					sql.query(
+						"SELECT ID,ip,port FROM openv.proxies WHERE ? ORDER BY rand() LIMIT 1",
+						[{proto: "no"}], (err,recs) => {
+
+						if ( rec = recs[0] ) {
+							opts.agent = new AGENT( `http://${rec.ip}:${rec.port}` );
+							Log(">>>agent",rec);
+							agentRequest(HTTP, opts, sql, {ID:rec.ID}, res );
+						}
+					});
+				});
+				break;
+				
+			case "file:":	// requesting file or folder index
+				//Log("index file", [path], opts);
+				
+				fetchFile( opts.path.substr(1) ? opts.path : "/home/" , res );  
+				break;
+				
+			default:	// check if using a secure protocol
+				if ( oauth ) {	// using oauth 
+					request(HTTPS, oauth.token, oauth.grant, token => {		// request access token
+						//Log("token", token);
+						try {
+							const 
+								Token = JSON.parse(token);
+							
+							opts.protocol = "https:";
+							opts.headers = {
+								Authorization: Token.token_type + " " + Token.access_token,
+								Accept: "application/json;odata.metadata=minimal",
+								Host: "services-api.lexisnexis.com",
+								Connection: "Keep-Alive",
+								"Content-Type": "application/json"
+							};
+							delete opts.auth;
+							
+							//Log("token", Token, opts );
+							request(HTTPS, opts, search => {	// request a document search
+								if ( oauth.doc ) 
+									try {	// get associated document
+										const
+											Search = JSON.parse(search),
+											rec = Search.value[0] || {},
+											doclink = rec['DocumentContent@odata.mediaReadLink'];
+
+										//Log( Object.keys(Search) );
+										if ( doclink ) {
+											if (0)
+												Log({
+													doclink: doclink , 
+													href: oauth.doc.href, 
+													reckeys: Object.keys(rec), 
+													ov: rec.Overview, 
+													d: rec.Date
+												});
+
+											Fetch( oauth.doc + doclink, doc => {
+												res(doc);
+											});
+										}
+									}
+								
+									catch (err) {
+										Log(">>>fetch lexis bad search",err);
+									}
+								
+								else
+									res( search );
+							});
+						}
+						
+						catch (err) {
+							Log(">>>fetch lexis bad token", token);
+							res(null);
+						}
+					});
+				}
+				
+				else
+					res(null);
+		}
+	},
+
 	routeDS: {	// setup default DataSet routes
 		default: req => "app."+req.table
 	},
@@ -317,8 +737,8 @@ const
 	*/
 	
 	/**
-		Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, byActionTable, 
-		and byAction routers.	
+		Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
+		byActionTable then byAction routers.	
 
 		The provided response method accepts a string, an objects, an array, an error, or 
 		a file-cache function and terminates the session's sql connection.  The client is 
@@ -395,6 +815,7 @@ const
 				});
 			}
 
+			//Log(">>>node", node);
 			const 
 				{ strips, prefix, traps, id } = reqFlags,
 				{ action, body } = req,
@@ -487,7 +908,8 @@ const
 					
 		const 
 			{ post, url } = req,
-			nodes = url.split(nodeDivider);
+			node = url;
+			//nodes = nodeDivider ? url.split(nodeDivider) : [url];
 
 		req.body = post.parseJSON( post => {  // get parameters or yank files from body 
 			var files = req.files = [], parms = {}, file = "", rem,filename,name,type;
@@ -540,7 +962,13 @@ Log("line ",idx,line.length);
 			//Log("body files=", files.length);
 			return parms;
 		});		// get body parameters/files
+
+		routeNode( node, req, (req,recs) => {
+			//Log("exit route node", typeOf(recs), typeOf(recs[0]) );
+			res(recs);
+		});
 		
+		/*
 		if ( !nodes.length )
 			res( null );
 
@@ -552,9 +980,11 @@ Log("line ",idx,line.length);
 			});
 
 		else {	// serialize nodes
+			//Log(">>>>multi nodes", nodes);
+			var
+				routed = 0;
 			const 
 				routes = nodes.length,
-				routed = 0,
 				rtns = {};
 
 			nodes.forEach( node => {	// enumerate nodes
@@ -567,6 +997,7 @@ Log("line ",idx,line.length);
 					});
 			});
 		}
+		*/
 	},
 
 	startDogs: (sql,dogs) => {
@@ -634,7 +1065,7 @@ Log("line ",idx,line.length);
 
 	/**
 		Configure and start the service with options and optional callback when started.
-		Configure JSDB, define site context, then protect, connect, start and initialize this server.
+		Configure database, define site context, then protect, connect, start and initialize this server.
 		@cfg {Function}
 		@param {Object} opts configuration options following the Copy() conventions.
 		@param {Function} cb callback(err) after service configured
@@ -647,16 +1078,16 @@ Log("line ",idx,line.length);
 			The session request is constructed in the following phases:
 
 				// phase1 connectSession
-				host: "..."			// domain name being accessed by client
+				host: "proto://domain:port"	// requested host 
 				agent: "..."		// client browser info
-				referer: "..."		// proto://domain client using
+				referer: "proto://domain:port/query"	//  url during a cross-site request
 				method: "GET|PUT|..." 			// http request method
 				action: "select|update| ..."	// corresponding crude name
 				started: date		// date stamp when requested started
 				encrypted: bool		// true if request on encrypted server
 				socketio: "path"  	// filepath to client's socketio.js
 				post: "..."			// raw body text
-				url	: "..."			// complete url requested
+				url	: "/query"		// requested url path
 				reqSocket: socket	// socket to retrieve client cert 
 				resSocket: socket	// socket to accept response
 				sql: connector 		// sql database connector 
@@ -847,7 +1278,7 @@ Log("line ",idx,line.length);
 							if ( dogs )		// start watch dogs
 								startDogs( sql, dogs );
 							
-							if ( proxy ) 	{ 	// setup rotating proxies
+							if ( proxies ) 	{ 	// setup rotating proxies
 								sql.query(	// out with the old
 									"DELETE FROM openv.proxies WHERE hour(timediff(now(),created)) >= 2");
 
@@ -977,9 +1408,9 @@ Log("line ",idx,line.length);
 								case "DELETE":
 									getPost( post => {
 										sqlThread( sql => {
-											//Log(Req.headers);
+											//Log(Req.headers, Req.url);
 											ses({			// prime session request
-												host: Req.headers.host,	// domain being requested
+												host: $master.protocol+"//"+Req.headers.host,	// domain being requested
 												referer: Req.headers.referer, 	// proto://domain used
 												agent: Req.headers["user-agent"],	// requester info
 												sql: sql,	// sql connector
@@ -1256,11 +1687,12 @@ Log("line ",idx,line.length);
 
 			Trace( `PROTECTING ${name} USING ${pfx}` );
 
-			Copy( URL.parse(site.master), $master);
-			Copy( URL.parse(site.worker), $worker);
+			Copy( new URL(site.master), $master);
+			Copy( new URL(site.worker), $worker);
 			
 			site.domain = $master.hostname;
-			Log(">>domain",site.master, $master, site.worker, $worker, site.domain);
+			site.host = $master.protocol+"//"+$master.host;
+			//Log(">>domain",site.master, $master, site.worker, $worker, site.domain, site.host);
 			
 			if ( isEncrypted() )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
@@ -1558,7 +1990,7 @@ Log("line ",idx,line.length);
 		@cfg {String}
 		@member TOTEM
 	*/
-	nodeDivider: "??", 				//< node divider
+	//nodeDivider: "", 				//< node divider
 	
 	/**
 		Communicate with socket.io clients
@@ -1595,7 +2027,7 @@ Log("line ",idx,line.length);
 		@cfg {Function}
 		@param {Function} cb callback(sql connector)
 	*/
-	sqlThread: JSDB.thread,
+	//sqlThread: JSDB.thread,
 		
 	neoThread: neoThread,
 		
@@ -1752,7 +2184,7 @@ Log("line ",idx,line.length);
 		@cfg {Object} 
 	*/				
 	byTable: {			  //< by-table routers	
-		riddle: checkClient,
+		riddle: sysCheck,
 		task: sysTask
 	},
 		
@@ -1987,11 +2419,10 @@ Log("line ",idx,line.length);
 		9: ["40","190"]
 	},
 
-	proxy: false,
-	proxies: [
+	proxies: null, /* [	// rotating proxy services
 		//"https://free-proxy-list.net",
 		"https://sslproxies.org"
-	],
+	], */
 
 	/**
 		Default paths to service files
@@ -2024,6 +2455,9 @@ Log("line ",idx,line.length);
 		}
 	},
 
+	lookups: {},
+	Lookups: {},
+		
 	sqls: {	// sql queries
 		//logThreads: "show session status like 'Thread%'",
 		users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM openv.dblogs WHERE instr(dataset,'@')",
@@ -2095,15 +2529,14 @@ Log("line ",idx,line.length);
 				Each(opts, (key,val) => {
 					key = key.toLowerCase();
 					site[key] = val;
-					Log(">>site",key,val);
 					
-					if ( isString(val||0) )
-						try {
-							site[key] = JSON.parse( val );
-						}
-						catch (err) {
-						}
+					try {
+						site[key] = JSON.parse( val );
+					}
+					catch (err) {
+					}
 
+					//Log(">>>site",key,val);
 					if (key in TOTEM) 
 						TOTEM[key] = site[key];
 				});
@@ -2112,6 +2545,32 @@ Log("line ",idx,line.length);
 			});
 
 		site.warning = "";
+
+		const 
+			{lookups,Lookups} = TOTEM;
+
+		site.lookups = lookups || {},
+		site.Lookups = Lookups || {};
+		
+		if ( lookups )
+			sql.query("SELECT Ref AS `Key`,group_concat(DISTINCT Path SEPARATOR '|') AS `Select` FROM app.lookups GROUP BY Ref", [], (err,recs) => {
+				recs.forEach( rec => {
+					lookups[rec.Key] = rec.Select;
+				});
+				Log(">>>lookups", lookups);
+			});
+		
+		if ( Lookups )
+			sql.query("SELECT Ref,Path,Name FROM app.lookups", [], (err,recs) => {
+				recs.forEach( rec => {
+					const 
+						{Ref,Path,Name} = rec,
+						Lookup = Lookups[Ref] || (Lookups[Ref] = {});
+
+					Lookup[Name] = Path;
+				});
+				Log(">>>Lookups", Lookups);
+			});
 		
 		/* legacy
 		sql.query("SELECT count(ID) AS Fails FROM openv.aspreqts WHERE Status LIKE '%fail%'").on("result", asp => {
@@ -2132,7 +2591,6 @@ Log("line ",idx,line.length);
 		});
 		});
 		*/
-
 	},
 
 	certs: {}, 		// server and client cert cache (pfx, crt, and key)
@@ -2450,6 +2908,7 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 
 }
 
+/*
 function proxyThread(req, res) {  // not presently used but might want to support later
 	
 	var 
@@ -2464,14 +2923,14 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 	
 	Log(proxy, pathto);
 	
-	/*
+	/ *
 	var sock = NET.connect( proxy.port );
 	sock.setEncoding("utf-8");
 	sock.write("here is some data for u");
 	sock.on("data", function (d) {
 		Log("sock rx", d);
 		res(d);
-	}); */
+	}); * /
 	
 	var Req = HTTP.request( pathto, function(Res) {
 		Log("==========SETUP", Res.statusCode, Res.headers);
@@ -2507,60 +2966,61 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 	Req.end( );
 
 	
-/*  
-generic
-		var http = require('http');
+	/ *  
+	generic
+			var http = require('http');
 
-http.createServer(function(request, response) {
-  var proxy = http.createClient(80, request.headers['host'])
-  var proxy_request = proxy.request(request.method, request.url, request.headers);
-  proxy_request.addListener('response', function (proxy_response) {
-    proxy_response.addListener('data', function(chunk) {
-      response.write(chunk, 'binary');
-    });
-    proxy_response.addListener('end', function() {
-      response.end();
-    });
-    response.writeHead(proxy_response.statusCode, proxy_response.headers);
-  });
-  request.addListener('data', function(chunk) {
-    proxy_request.write(chunk, 'binary');
-  });
-  request.addListener('end', function() {
-    proxy_request.end();
-  });
-}).listen(8080);
-*/
-	
-/*
-var net = require('net');
+	http.createServer(function(request, response) {
+	  var proxy = http.createClient(80, request.headers['host'])
+	  var proxy_request = proxy.request(request.method, request.url, request.headers);
+	  proxy_request.addListener('response', function (proxy_response) {
+		proxy_response.addListener('data', function(chunk) {
+		  response.write(chunk, 'binary');
+		});
+		proxy_response.addListener('end', function() {
+		  response.end();
+		});
+		response.writeHead(proxy_response.statusCode, proxy_response.headers);
+	  });
+	  request.addListener('data', function(chunk) {
+		proxy_request.write(chunk, 'binary');
+	  });
+	  request.addListener('end', function() {
+		proxy_request.end();
+	  });
+	}).listen(8080);
+	* /
 
-var LOCAL_PORT  = 6512;
-var REMOTE_PORT = 6512;
-var REMOTE_ADDR = "192.168.1.25";
+	/ *
+	var net = require('net');
 
-var server = net.createServer(socket => {
-    socket.on('data', function (msg) {
-        Log('  ** START **');
-        Log('<< From client to proxy ', msg.toString());
-        var serviceSocket = new net.Socket();
-        serviceSocket.connect(parseInt(REMOTE_PORT), REMOTE_ADDR, function () {
-            Log('>> From proxy to remote', msg.toString());
-            serviceSocket.write(msg);
-        });
-        serviceSocket.on("data", function (data) {
-            Log('<< From remote to proxy', data.toString());
-            socket.write(data);
-            Log('>> From proxy to client', data.toString());
-        });
-    });
-});
+	var LOCAL_PORT  = 6512;
+	var REMOTE_PORT = 6512;
+	var REMOTE_ADDR = "192.168.1.25";
 
-server.listen(LOCAL_PORT);
-Log("TCP server accepting connection on port: " + LOCAL_PORT);
-*/
+	var server = net.createServer(socket => {
+		socket.on('data', function (msg) {
+			Log('  ** START **');
+			Log('<< From client to proxy ', msg.toString());
+			var serviceSocket = new net.Socket();
+			serviceSocket.connect(parseInt(REMOTE_PORT), REMOTE_ADDR, function () {
+				Log('>> From proxy to remote', msg.toString());
+				serviceSocket.write(msg);
+			});
+			serviceSocket.on("data", function (data) {
+				Log('<< From remote to proxy', data.toString());
+				socket.write(data);
+				Log('>> From proxy to client', data.toString());
+			});
+		});
+	});
+
+	server.listen(LOCAL_PORT);
+	Log("TCP server accepting connection on port: " + LOCAL_PORT);
+	* /
 	
 }
+*/
 
 /**
 	@class TOTEM.Utilities.Antibot_Protection
@@ -2573,11 +3033,16 @@ Log("TCP server accepting connection on port: " + LOCAL_PORT);
 	@param {Object} req Totem session request
 	@param {Function} res Totem response callback
 */
-function checkClient (req,res) {
+function sysCheck (req,res) {
 	const 
-		{ query, sql } = req,
+		{ query, sql, type } = req,
 		{ id } = query;
 	
+	if ( type == "help" ) res(`
+Validate client session request.
+`);
+	
+	else
 	if (id)
 		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:id}, (err,rids) => {
 
@@ -2744,8 +3209,8 @@ function selectDS(req, res) {
 	const 
 		{ sql, flags, client, where, index, action, ds } = req,
 		{ trace, pivot, browse, sort, limit, offset } = flags;
-	
-	sql.Index( ds, index, [], (index,jsons) => {
+		  
+	sql.Index( ds, index, [], (index,jsons) => { 
 		sql.Query(
 			"SELECT SQL_CALC_FOUND_ROWS ${index} FROM ?? ${where} ${having} ${limit} ${offset}", 
 			[ ds ], {
@@ -2761,9 +3226,8 @@ function selectDS(req, res) {
 				jsons: jsons,
 				client: client
 			}, (err,recs) => {
-			
-			res( err || recs );
 
+			res( err || recs );
 		});
 	});
 }
@@ -2798,7 +3262,7 @@ function insertDS(req, res) {
 */	
 function deleteDS(req, res) {
 	const 
-		{ sql, flags, where, query, client, action, ds } = req,
+		{ sql, flags, where, query, body, client, action, ds } = req,
 		{ trace } = flags;
 
 	if ( isEmpty(where) )
@@ -2813,7 +3277,8 @@ function deleteDS(req, res) {
 				emitter: TOTEM.emitter
 			}, (err,info) => {
 
-				res( err || info );
+				body.ID = query.ID;
+				res( err || body );
 
 			});
 }
@@ -2828,7 +3293,7 @@ function updateDS(req, res) {
 		{ sql, flags, body, where, query, client, action, ds,table } = req,
 		{ trace } = flags;
 	
-	Log({w:where, q:query, b:body});
+	//Log({w:where, q:query, b:body});
 	
 	if ( isEmpty(body) )
 		res( errors.noBody );
@@ -2849,7 +3314,9 @@ function updateDS(req, res) {
 			}, (err,info) => {
 
 				//res( err || info );
-				res(body);
+				body.ID = query.ID;
+				//Log(">>>>rtn", query, body);
+				res( err || body );
 
 				if ( onUpdate = TOTEM.onUpdate )
 					onUpdate(sql, table, body);
@@ -3140,50 +3607,55 @@ function simThread(sock) {
 	@param {Function} res Totem response
 */
 function sysTask(req,res) {  //< task sharding
-	const {query,body,sql} = req;
-	const {task,domains,cb} = body;
+	const {query,body,sql,type,table,url} = req;
+	const {task,domains,cb,client,credit,name,qos} = body;
 	
-	var 
-		$ = JSON.stringify({
-			worker: CLUSTER.isMaster ? 0 : CLUSTER.worker.id,
-			node: process.env.HOSTNAME
-		}),
-		engine = `(${cb})( (${task})(${$}) )`;
+	if ( type == "help" ) res(`
+Shard specified task to the compute nodes given task post parameters.
+`);
+	
+	else {
+		var 
+			$ = JSON.stringify({
+				worker: CLUSTER.isMaster ? 0 : CLUSTER.worker.id,
+				node: process.env.HOSTNAME
+			}),
+			engine = `(${cb})( (${task})(${$}) )`;
 
-	res( "ok" );
+		res( "ok" );
 
-	if ( task && cb ) 
-		doms.forEach( function (index) {
+		if ( task && cb ) 
+			doms.forEach( index => {
 
-			function runEngine(idx) {
-				VM.runInContext( engine, VM.createContext( Copy( TOTEM.tasking || {}, idx) ));
-			}
+				function runTask(idx) {
+					VM.runInContext( engine, VM.createContext( Copy( TOTEM.tasking || {}, idx) ));
+				}
 
-			if (body.qos) 
-				sql.startJob({ // job descriptor 
-					index: Copy(index,{}),
-					//priority: 0,
-					every: "1", 
-					class: req.table,
-					client: body.client,
-					credit: body.credit,
-					name: body.name,
-					task: body.name,
-					notes: [
-							req.table.tag("?",req.query).tag( "/" + req.table + ".run" ), 
-							((body.credit>0) ? "funded" : "unfunded").tag( req.url ),
-							"RTP".tag( `/rtpsqd.view?task=${body.name}` ),
-							"PMR brief".tag( `/briefs.view?options=${body.name}` )
-					].join(" || ")
-				}, (sql,job,end) => {
-					//Log("reg job" , job);
-					end();
-					runEngine( job.index );
-				});
-		
-			else
-				runEngine( index );
-		});
+				if (qos) 
+					sql.startJob({ // job descriptor 
+						index: Copy(index,{}),
+						//priority: 0,
+						every: "1", 
+						class: table,
+						client: client,
+						credit: credit,
+						name: name,
+						task: name,
+						notes: [
+								table.tag("?",query).tag( "/" + table + ".run" ), 
+								((credit>0) ? "funded" : "unfunded").tag( url ),
+								"RTP".tag( `/rtpsqd.view?task=${name}` ),
+								"PMR brief".tag( `/briefs.view?options=${name}` )
+						].join(" || ")
+					}, (sql,job) => {
+						//Log("reg job" , job);
+						runTask( job.index );
+					});
+
+				else
+					runTask( index );
+			});
+	}
 }
 
 /**
@@ -3366,82 +3838,6 @@ function getFile(req, res) {
 
 [ //< String prototypes
 	/**
-		Tag url (el = ? || &) or html (el = html tag) with specified attributes.
-
-		@memberof String
-		@param {String} el tag element = ? || & || html tag
-		@param {String} at tag attributes = {key: val, ...}
-		@return {String} tagged results
-	*/
-	function tag(el,at) {
-
-		if (!at) { at = {href: el}; el = "a"; }
-		
-		if ( isFunction(at) ) {
-			var args = [];
-			this.split(el).forEach( (arg,n) => args.push( at(arg,n) ) );
-			return args.join(el);
-		}
-		
-		else
-		if ( isArray(at) ) {
-			var args = [];
-			this.split(el).forEach( (arg,n) => args.push( arg.tag( at[n] || "" ) ) );
-			return args.join(el);
-		}
-		
-		else
-		if ( isString(at) ) {
-			var args = [], tags = at.split(el);
-			this.split(el).forEach( (arg,n) => args.push( arg.tag( tags[n] || "" ) ) );
-			return args.join(el);
-		}
-		
-		else
-			switch (el) {
-				case "?":
-				case "&":   // tag a url
-					var rtn = this;
-
-					Each(at, (key,val) => {
-						if ( val ) {
-							rtn += el + key + "=" + val;
-							el = "&";
-						}
-					});
-
-					return rtn;	
-
-				case ":":
-				case "=":
-					var rtn = this, sep="";
-					Each(at, (key,val) => {
-						rtn += sep + key + el + JSON.stringify(val);
-						sep = ",";
-					});
-					return rtn;
-
-				default: // tag html
-					var rtn = "<"+el+" ";
-
-					Each( at, (key,val) => {
-						if ( val )
-							rtn += key + "='" + val + "' ";
-					});
-
-					switch (el) {
-						case "embed":
-						case "img":
-						case "link":
-						case "input":
-							return rtn+">" + this;
-						default:
-							return rtn+">" + this + "</"+el+">";
-					}
-			}
-	},
-
-	/**
 		Parse "$.KEY" || "$[INDEX]" expressions given $ hash.
 
 		@param {Object} $ source hash
@@ -3564,7 +3960,7 @@ function getFile(req, res) {
 				path = parm;
 		});
 		
-		// Log({q: query,w: where,i: index,f: flags,p: path});
+		//Log({q: query,w: where,i: index,f: flags,p: path});
 		
 		return path;
 
@@ -3654,8 +4050,31 @@ function getFile(req, res) {
 /**
 @class TOTEM.Unit_Tests_Use_Cases
 */
+
+//Log(">>>>fetch oauth", Config.oauthHosts);
+
 async function prime(cb) {
 	cb();
+}
+
+async function LexisNexisTest(N,endpt,R,cb) {
+	const start = new Date(), {random,trunc} = Math;
+	var done = 0;
+	Log(start);
+	for ( var n=0; n<N; n++) 
+		Fetch(endpt + (R?trunc(random()*R):""), res => {
+			//Log(n,done,N);
+			if ( ++done == N ) {
+				var 
+					stop = new Date(),
+					mins = (stop-start)/1e3/60,
+					rate = N/mins;
+				
+				Log(stop, mins, "mins", rate, "searches/min");
+				
+				if (cb) cb(res);
+			}
+		});
 }
 
 switch (process.argv[2]) { //< unit tests
@@ -4139,6 +4558,39 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		break;
 			
 	
+	case "LN1":
+		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph');
+		break;
+		
+	case "LN2":
+		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph&$expand=Document');
+		break;
+
+	case "LN3":
+		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph');
+		break;
+			
+	case "LN4":
+		LexisNexisTest(1, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph', 0, res => {
+			//Log("res=>", res);
+			var r = JSON.parse(res);
+			//Log( Object.keys(r) );
+			if ( rec = r.value[0] ) 
+				Log( "fetch docendpt >>>>", rec['DocumentContent@odata.mediaReadLink'] , Object.keys(rec), rec.Overview, rec.Date );
+			
+			Fetch( 'lex://services-api.lexisnexis.com/v1/' + rec['DocumentContent@odata.mediaReadLink'] , doc => {
+				//    'lexis://services-api.lexisnexis.com/v1/MEDIALINK
+				Log( "doc=>", doc );
+			});
+			
+		});
+		break;
+
+	case "LN5":
+		Fetch( 'lexis://services-api.lexisnexis.com/v1/News?$search=rudolph', doc => {
+			Log( "doc=>", doc );
+		});
+		break;
 }
 
 // UNCLASSIFIED

@@ -24,10 +24,10 @@ TOTEM provides a basic http/https web service with the following customizable fe
   
 TOTEM defines endpoints:
 
-	POST / NODE ?? NODE ...
-	GET / NODE ?? NODE ...
-	PUT / NODE ?? NODE ...
-	DELETE / NODE ?? NODE ...
+	POST / NODE 
+	GET / NODE 
+	PUT / NODE 
+	DELETE / NODE 
 
 to access dataset, file or command NODEs:
 
@@ -38,6 +38,26 @@ to access dataset, file or command NODEs:
 By default, TOTEM provides `db | xml | csv | json` TYPEs for converting DATASETs, 
 `riddle | task | ping` COMMANDs for validating a session, sharding tasks,
 and the `stores | shares` file AREAs for sharing static files.
+
+TOTEM also provides a method to fetch data from a service or filesystem:
+
+	Fetch( path, text => {			// get-select request made
+	})
+	
+	Fetch( path, [ ... ], stat => { 	// post-insert request made
+	})
+	
+	Fetch( path, { ... }, stat => { 	// put-update request made
+	})
+	
+	Fetch( path, null, stat => {		// delete request made
+	})
+	
+The path = PROTOCOL:FILE specifies a protocol (http || https, curl || curls, wget || wgets, mask || masks, 
+lexis || etc, file) where curls/wgets presents the certs/fetch.pfx certificate the the endpoint, 
+mask/masks routes the fetch request to a rotated proxy, lexis uses the oauth authorization-authentication 
+protocol, and file fetches from the file system.
+
 
 ## Installation
 
