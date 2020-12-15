@@ -4068,6 +4068,77 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		});
 		break;
 			
+	case"SC":
+		const smartcard = require('smartcard');
+		const Devices = smartcard.Devices;
+		const Iso7816Application = smartcard.Iso7816Application;
+
+		const devices = new Devices();
+
+		devices.on('device-activated', event => {
+			const currentDevices = event.devices;
+			let device = event.device;
+			console.log(`Device '${device}' activated, devices: ${currentDevices}`);
+
+			 for (let prop in currentDevices) {
+				console.log("Devices: " + currentDevices[prop]);
+			}
+
+			console.log("dev", device);
+
+			device.on('card-inserted', event => {
+				let card = event.card;
+				console.log(`Card '${card.getAtr()}' inserted into '${event.device}'`);
+
+				card.on('command-issued', event => {
+					console.log(`Command '${event.command}' issued to '${event.card}' `);
+				});
+
+				card.on('response-received', event => {
+					console.log(`Response '${event.response}' received from '${event.card}' in response to '${event.command}'`);
+				});	
+
+				const application = new Iso7816Application(card);
+
+				console.log(">>>card", card);
+				switch (1) {
+					case 1:
+						 application.selectFile(
+							// [0x31, 0x50, 0x41, 0x59, 0x2E, 0x53, 0x59, 0x53, 0x2E, 0x44, 0x44, 0x46, 0x30, 0x31] 
+							// [0x3B ,0x6B ,0x00 ,0x00 ,0x80 ,0x65 ,0xB0 ,0x83 ,0x01 ,0x04 ,0x74 ,0x83 ,0x00 ,0x90 ,0x00], 0x10, 0x00 
+							 // G+D fips card
+							 // select EF using p1p2 = 0200, DF using 0100
+							[0x3B ,0xF9 ,0x18 ,0x00 ,0x00 ,0x00 ,0x53 ,0x43 ,0x45 ,0x37 ,0x20 ,0x03 ,0x00 ,0x20 ,0x46], 0x10, 0x00   
+						)
+						.then(response => {
+							console.info(`Select PSE Response: '${response}' '${response.meaning()}'`);
+						}).catch(error => {
+							console.error('Error:', error, error.stack);
+						});
+						break;
+
+					case 2:
+						application.issueCommand( new CommandApdu({
+							cla: 0x00,
+							ins: 0xA4,
+							p1: 0x10,
+							p2: 0x00
+						}) );
+
+						break;
+				}
+
+			});
+
+			device.on('card-removed', event => {
+				console.log(`Card removed from '${event.name}' `);
+			});	
+
+		});
+
+		break;
+			
+	
 }
 
 // UNCLASSIFIED

@@ -20,6 +20,7 @@ TOTEM provides a basic http/https web service with the following customizable fe
 	+ job queues
 	+ file stream and ingest
 	+ data fetch w and w/o rotating proxies
+	+ smartcard reader
   
 TOTEM defines endpoints:
 

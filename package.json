@@ -20,6 +20,8 @@
     "mime": "^1.0.0",
     "mysql": "^2.17.1",
     "neo4j-driver": "^4.0.2",
+    "pcsclite": "^1.0.0",
+    "smartcard": "^1.0.37",
     "socket.io": "^2.3.0",
     "socket.io-clusterhub": "^0.2.1",
     "toobusy-js": "^0.5.1",
