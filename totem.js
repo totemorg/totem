@@ -269,7 +269,16 @@ const
 						"Content-Type": "application/x-www-form-urlencoded"
 					}
 				}),
-				doc: "lex://services-api.lexisnexis.com/v1/"
+				doc: urlParse("https://services-api.lexisnexis.com/v1/")
+				/*, {
+					//rejectUnauthorized: false,
+					method: "GET",
+					auth: ENV.LEXISNEXIS,
+					headers: {
+						"Content-Type": "application/x-www-form-urlencoded"
+					}
+				}) */
+					// "lex://services-api.lexisnexis.com/v1/"
 			}
 		}
 	},
@@ -586,10 +595,10 @@ const
 							};
 							delete opts.auth;
 							
-							//Log("token", Token, opts );
+							Log("token request", opts );
 							request(HTTPS, opts, search => {	// request a document search
-								if ( oauth.doc ) 
-									try {	// get associated document
+								if ( docopts = oauth.doc ) 	// get associated document
+									try {	
 										const
 											Search = JSON.parse(search),
 											rec = Search.value[0] || {},
@@ -597,8 +606,8 @@ const
 
 										//Log( Object.keys(Search) );
 										if ( doclink ) {
-											if (0)
-												Log({
+											if (1)
+												Log("get doc", {
 													doclink: doclink , 
 													href: oauth.doc.href, 
 													reckeys: Object.keys(rec), 
@@ -606,9 +615,20 @@ const
 													d: rec.Date
 												});
 
-											Fetch( oauth.doc + doclink, doc => {
-												res(doc);
-											});
+											if ( docopts.length ) // string so do fetch
+												Fetch( docopts + doclink, doc => {
+													res(doc);
+												});
+											
+											else {
+												docopts.path += doclink;
+												docopts.headers = opts.headers;
+												docopts.method = "GET";
+												Log("doc request", docopts);
+												request( HTTPS, docopts, doc => {
+													res(doc);
+												});
+											}
 										}
 									}
 								
@@ -4499,7 +4519,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 			let device = event.device;
 			console.log(`Device '${device}' activated, devices: ${currentDevices}`);
 
-			 for (let prop in currentDevices) {
+			for (let prop in currentDevices) {
 				console.log("Devices: " + currentDevices[prop]);
 			}
 
