@@ -70,21 +70,6 @@ const
 	{ sqlThread } = JSDB = require("jsdb"),						// database agnosticator
 	{ Copy,Each,Log,Stream,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM = require("enum");
 	  
-function urlParse(url,opts,base) {
-	const {username,password,hostname,protocol,pathname,search,port,href} = new URL(url,base);
-	
-	//Log(">>>>url", new URL(url,base) );
-	
-	return Copy( opts || {}, {
-		auth: username + ":" + password,
-		path: pathname + search,
-		protocol: protocol,
-		host: hostname,
-		port: port,
-		href: href
-	});
-}
-
 // neo4j i/f
 
 function NEOCONNECTOR() {
@@ -222,81 +207,237 @@ function neoThread(cb) {
 
 ].Extend(NEOCONNECTOR);
 
-// totem i/f
+[ //< String prototypes
+	/**
+		Parse "$.KEY" || "$[INDEX]" expressions given $ hash.
 
-const 
-	{ 
-		byArea, byType, byAction, byTable, 
-		//nodeDivider,
-		$master, $worker, Fetch, fetchOptions,
-		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
-		filterRecords,guestProfile,routeDS, startDogs,startJob,endJob, cache } = TOTEM = module.exports = {
+		@param {Object} $ source hash
+	*/
+	function parseEval($) {
+		try {
+			return eval(this+"");
+		}
+		
+		catch (err) {
+			return err+"";
+		}
+	},
 	
-	fetchOptions: {	// Fetch parms
-		defHost: ENV.SERVICE_MASTER_URL,
-		maxFiles: 1000,						//< max files to index
-		maxRetry: 5,		// fetch wget/curl maxRetry	
-		certs: { 		// data fetching certs
-			pfx: FS.readFileSync(`./certs/fetch.pfx`),
-			key: FS.readFileSync(`./certs/fetch.key`),
-			crt: FS.readFileSync(`./certs/fetch.crt`),
-			ca: "", //FS.readFileSync(`./certs/fetch.ca`),			
-			_pfx: `./certs/fetch.pfx`,
-			_crt: `./certs/fetch.crt`,
-			_key: `./certs/fetch.key`,
-			_ca: `./certs/fetch.ca`,
-			_pass: ENV.FETCH_PASS
-		},
-		oauthHosts: {	// auth 2.0 hosts
-			"lex:": {		// lexis-nexis search
-				grant: "grant_type=client_credentials",  // &scope=http://auth.lexisnexis.com/all
-				token: urlParse("https://auth-api.lexisnexis.com/oauth/v2/token", {
-					//rejectUnauthorized: false,
-					method: "POST",
-					auth: ENV.LEXISNEXIS,
-					headers: {
-						"Content-Type": "application/x-www-form-urlencoded"
-					}
-				})
-			},
-			"lexis:": {		// lexis-nexis search and get doc
-				grant: "grant_type=client_credentials",  // &scope=http://auth.lexisnexis.com/all
-				token: urlParse("https://auth-api.lexisnexis.com/oauth/v2/token", {
-					//rejectUnauthorized: false,
-					method: "POST",
-					auth: ENV.LEXISNEXIS,
-					headers: {
-						"Content-Type": "application/x-www-form-urlencoded"
-					}
-				}),
-				doc: urlParse("https://services-api.lexisnexis.com/v1/")
-				/*, {
-					//rejectUnauthorized: false,
-					method: "GET",
-					auth: ENV.LEXISNEXIS,
-					headers: {
-						"Content-Type": "application/x-www-form-urlencoded"
-					}
-				}) */
-					// "lex://services-api.lexisnexis.com/v1/"
-			}
+	/**
+		Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
+
+		@param {Object} ctx context hash
+	*/
+	function parseJS(ctx, cb) {
+		try {
+			return VM.runInContext( this+"", VM.createContext(ctx || {}));
+		}
+		catch (err) {
+			//Log("parseJS", this+"", err, ctx);
+			if ( cb ) 
+				return cb(err);
+			
+			else
+				return null;
+		}
+	},
+	
+	/**
+		Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
+
+		@memberof String
+		@param {Object} query context hash
+	*/
+	function parse$(query) {
+		try {
+			return VM.runInContext( "`" + this + "`" , VM.createContext(query));
+		}
+		catch (err) {
+			return err+"";
+		}
+	},
+	
+	/**
+		Parse string into json.
+
+		@memberof String
+		@param {Function,Object} def default object or callback that returns default
+	*/
+	function parseJSON(def) {
+		try { 
+			return JSON.parse(this);
+		}
+		catch (err) {  
+			return def ? (isFunction(def) ? def(this+"") : def) || null : null;
 		}
 	},
 
 	/**
-		Probes HTTP(S) url path using PUT || POST || DELETE method given Array || Object || null params,
-		or fetches data from service path using GET method with callsback to params.  Or fetch data
-		using CURL(S) || WGET(S) || MASK(S) channels: (S) specifies a secure fetch using the 
-		certs/fetch.pdf cert on CURL || WGET.  The MASK protocol issues request via a set of 
-		rotating proxies.   If no protocol specified, fetch file at ./path.  If path prefixed by 
-		"//" then prefix path with the SERVICE_MASTER_URL href.  Fetch callsback( "info" ) or 
-		callsback( [ "filename", ...]) with a folder index when the path ends with "/".
-		
-		@cfg {Function} 
-		@param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
-		@param {Object, Array, Function, null} method induces probe method
+		Parse a "PATH?PARM&PARM&..." url into the specified query, index, flags, or keys hash
+		as directed by the PARM = ASKEY := REL || REL || _FLAG = VALUE where 
+		REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY and returns [path,file,type].
+
+		@memberof String
+		@param {Object} query hash of query keys
+		@param {Object} index hash of sql-ized indexing keys
+		@param {Object} flags hash of flag keys
+		@param {Object} where hash of sql-ized conditional keys
 	*/
-	Fetch: (path, data, cb) => {	//< data fetching
+	function parsePath(query,index,flags,where) { 
+		function doParm(parm) {
+			function doFlag(parm) {
+				function doIndex(parm) {
+					function doTest(parm) {
+						function doSimple(parm) {
+							function doTag(parm) {
+								parm.split(",").forEach( arg =>	query[arg] = 1);
+							}
+							
+							parm.parseOP( /(.*?)(=)(.*)/, null, (lhs,rhs,op) => query[lhs] = rhs.parseJSON( txt => txt ) );
+						
+							parm.parseOP( /(.*?)(<|>|=)(.*)/, doTag, (lhs,rhs,op) => where[op][lhs] = rhs );
+						}
+						
+						parm.parseOP( /(.*?)(<=|>=|\!=|\!bin=|\!exp=|\!nlp=)(.*)/, doSimple, (lhs,rhs,op) => where[op][lhs] = rhs );
+					}
+					
+					parm.parseOP( /(.*?)(:=)(.*)/, doTest, (lhs,rhs,op) => index[lhs] = rhs );
+				}
+				
+				parm.parseOP( /^_(.*?)(=)(.*)/, doIndex, (lhs,rhs,op) => flags[lhs] = rhs.parseJSON( txt => txt ) );
+			}
+
+			doFlag(parm);
+		}
+
+		var 
+			search = this+"",
+			[xp, path, parms] = search.match(/(.*?)\?(.*)/) || ["",search,""],
+			[xf, area, table, type] = path.match( /\/(.*?)\/(.*)\.(.*)/ ) || path.match( /\/(.*?)\/(.*)/ ) || path.match( /(.*)\/(.*)\.(.*)/ ) || path.match( /(.*)\/(.*)(.*)/ ) || ["","","",""];
+			//[xd, name, ftype] = file.match( /(.*)\.(.*)/ ) || ["","",""],
+			//[xt, table, ttype] = area ? ["","",""] : path.match( /\/(.*)\.(.*)/ ) || ["",path.substr(1),""];
+			
+		
+		operators.forEach( key => where[key] = {} );
+		
+		parms.split("&").forEach( parm => {
+			if (parm) 
+				doParm( parm );
+		});
+		
+		path.split("&").forEach( (parm,n) => {
+			if ( n )
+				parm.parseOP( /(.*?)(=)(.*)/, 
+					args => args.split(",").forEach( arg => index[arg] = ""), 
+					(lhs,rhs,op) => index[lhs] = rhs );
+				
+			else
+				path = parm;
+		});
+		
+		//Log({q: query, w: where, i: index, s: search, f: flags, p: path, a:area, t:type, T:table});
+		
+		return [path,table,type,area];
+
+		/*
+		function doLast( str ) {
+			var
+				[x,lhs,op,rhs] = str.match( /(.*?)(=)(.*)/ ) || [];
+
+			if ( op ) 
+				query[lhs] = rhs;
+
+			else
+				doParm( str );
+		}
+
+	
+		var 
+			url = this+"",
+			parts = url.split("?"),
+			path = parts[0],
+			parms = parts[1] || "",
+			rem = parts.slice(2).join("?"),
+			parms = parms.split("&"),
+			last = parms.pop();
+		
+		operators.forEach( key => where[key] = {} );
+		
+		parms.forEach( parm => {
+			if (parm) 
+				doParm( parm );
+		});
+		
+		if ( last )
+			if ( rem ) 
+				doLast( last + "?" + rem );
+		
+			else
+				doParm( last );
+
+		path.split("&").forEach( (parm,n) => {
+			if ( n )
+				parm.parseOP( /(.*?)(=)(.*)/, 
+					args => args.split(",").forEach( arg => index[arg] = ""), 
+					(lhs,rhs,op) => index[lhs] = rhs );
+				
+			else
+				path = parm;
+		});
+		
+		if (false) Log({
+			q: query,
+			w: where,
+			i: index,
+			f: flags
+		});
+		
+		return path;
+		*/
+	},
+
+	/**
+		Parse XML string into json and callback cb(json) 
+
+		@memberof String
+		@param {Function} cb callback( json || null if error )
+	*/
+	function parseXML(cb) {
+		XML2JS.parseString(this, function (err,json) {				
+			cb( err ? null : json );
+		});
+	},
+	
+	function parseURL(opts,base) {
+		const 
+			url = this+"",
+			{username,password,hostname,protocol,pathname,search,port,href} = new URL(url,base);
+
+		//Log(">>>>url", new URL(url,base) );
+
+		return Copy( opts || {}, {
+			auth: username + ":" + password,
+			path: pathname + search,
+			protocol: protocol,
+			host: hostname,
+			port: port,
+			href: href
+		});
+	},
+
+	function parseOP( reg, elsecb, ifcb ) {
+		var 
+			[x,lhs,op,rhs] = this.match(reg) || [];
+		
+		if ( op ) 
+			return ifcb( lhs, rhs, op );
+		
+		else
+		if ( elsecb )
+			return elsecb(this+"");
+	},
+	
+	function fetchFile(data, cb) {	//< data fetching
 	
 		function sha256(s) { // reserved for other functionality
 			return CRYPTO.createHash('sha256').update(s).digest('base64');
@@ -390,7 +531,7 @@ const
 			});
 		}
 		
-		function fetchFile(path, cb) {
+		function getFile(path, cb) {
 			if ( path.endsWith("/") )  // index requested folder
 				try {
 					const 
@@ -413,19 +554,41 @@ const
 					cb( null );
 				}
 
-			else 	// requesting static file
-				try {		// these files are static so we never cache them
-					FS.readFile( "."+path, (err,buf) => cb( err ? "" : Buffer.from(buf) ) );
-				}
+			else {	// requesting static file
+				
+				const
+					opts = {},
+					[file,name,type] = path.parsePath(opts,{},{},{}),
+					{ batch } = opts;
+				
+				Log(">>>getfile", opts,name,type,file);
+				
+				if ( batch ) 	// regulate the file
+					switch (type) {
+						case "csv":
+							opts.keys = [];
+							("."+file).filterFile( opts, recs => cb( recs ) );
+							break;
 
-				catch (err) {
-					cb( null );
-				}
+						case "txt":
+						default:
+					}
+				
+				else				// no regulation
+					try {		// these files are static so we never cache them
+						FS.readFile( "."+file, (err,buf) => cb( err ? "" : Buffer.from(buf) ) );
+					}
+
+					catch (err) {
+						cb( null );
+					}
+			}
 		}	
 		
 		const
+			url = this+"",
 			{defHost,certs,maxRetry,oauthHosts} = fetchOptions,
-			opts = urlParse(path, {}, defHost), 
+			opts = url.parseURL({}, defHost), 
 			crud = {
 				"Function": "GET",
 				"Array": "PUT",
@@ -435,7 +598,7 @@ const
 
 			// for wget-curl
 			cert = certs.fetch,
-			wget = path.split("////"),
+			wget = url.split("////"),
 			wurl = wget[0],
 			wout = wget[1] || "./temps/wget.jpg",
 			
@@ -571,14 +734,30 @@ const
 				});
 				break;
 				
+			case "nb:":
+			case "book:":
+				const
+					book = opts.host,
+					name = opts.path.substr(1);
+				
+				sqlThread( sql => {
+					sql.query( name
+						? "SELECT * FROM app.? WHERE Name=?"
+						: "SELECT * FROM app.?", 
+							  
+						[ book, name ], 
+							  
+						(err,recs) => cb( err ? "" : JSON.stringify(recs) ) );
+				});
+				break;
+				
 			case "file:":	// requesting file or folder index
 				//Log("index file", [path], opts);
-				
-				fetchFile( opts.path.substr(1) ? opts.path : "/home/" , res );  
+				getFile( opts.path.substr(1) ? opts.path : "/home/" , res );  
 				break;
 				
 			default:	// check if using a secure protocol
-				if ( oauth ) {	// using oauth 
+				if ( oauth ) 	// using oauth 
 					request(HTTPS, oauth.token, oauth.grant, token => {		// request access token
 						//Log("token", token);
 						try {
@@ -646,13 +825,102 @@ const
 							res(null);
 						}
 					});
-				}
 				
 				else
-					res(null);
+					res( "" );
+		}
+	}	
+	
+].Extend(String);
+
+
+// totem i/f
+
+const 
+	{ 
+		byArea, byType, byAction, byTable, 
+		//nodeDivider,
+		$master, $worker, Fetch, fetchOptions,
+		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
+		filterRecords,guestProfile,routeDS, startDogs,startJob,endJob, cache } = TOTEM = module.exports = {
+	
+	fetchOptions: {	// Fetch parms
+		defHost: ENV.SERVICE_MASTER_URL,
+		maxFiles: 1000,						//< max files to index
+		maxRetry: 5,		// fetch wget/curl maxRetry	
+		certs: { 		// data fetching certs
+			pfx: FS.readFileSync(`./certs/fetch.pfx`),
+			key: FS.readFileSync(`./certs/fetch.key`),
+			crt: FS.readFileSync(`./certs/fetch.crt`),
+			ca: "", //FS.readFileSync(`./certs/fetch.ca`),			
+			_pfx: `./certs/fetch.pfx`,
+			_crt: `./certs/fetch.crt`,
+			_key: `./certs/fetch.key`,
+			_ca: `./certs/fetch.ca`,
+			_pass: ENV.FETCH_PASS
+		},
+		oauthHosts: {	// auth 2.0 hosts
+			"lex:": {		// lexis-nexis search
+				grant: "grant_type=client_credentials",  // &scope=http://auth.lexisnexis.com/all
+				token: "https://auth-api.lexisnexis.com/oauth/v2/token".parseURL({
+					//rejectUnauthorized: false,
+					method: "POST",
+					auth: ENV.LEXISNEXIS,
+					headers: {
+						"Content-Type": "application/x-www-form-urlencoded"
+					}
+				})
+			},
+			"lexis:": {		// lexis-nexis search and get doc
+				grant: "grant_type=client_credentials",  // &scope=http://auth.lexisnexis.com/all
+				token: "https://auth-api.lexisnexis.com/oauth/v2/token".parseURL({
+					//rejectUnauthorized: false,
+					method: "POST",
+					auth: ENV.LEXISNEXIS,
+					headers: {
+						"Content-Type": "application/x-www-form-urlencoded"
+					}
+				}),
+				doc: "https://services-api.lexisnexis.com/v1/".parseURL()
+				/*, {
+					//rejectUnauthorized: false,
+					method: "GET",
+					auth: ENV.LEXISNEXIS,
+					headers: {
+						"Content-Type": "application/x-www-form-urlencoded"
+					}
+				}) */
+					// "lex://services-api.lexisnexis.com/v1/"
+			}
 		}
 	},
 
+	/**
+		Fetches data from a 
+		
+			path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
+			
+		using the PUT || POST || DELETE || GET method given a data = Array || Object || null || Function spec where:
+		
+			PROTOCOL = http || https, curl || curls, wget || wgets, mask || masks, lexis || etc, file, book
+	
+		and where 
+		
+			curls/wgets presents the certs/fetch.pfx certificate to the endpoint, 
+			mask/masks routes the fetch through rotated proxies, 
+			lexis/etc uses the oauth authorization-authentication protocol, 
+			file fetches from the file system,
+			book selects a notebook record. 
+			
+		If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
+		regulate the file stream.
+		
+		@cfg {Function} 
+		@param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
+		@param {Object, Array, Function, null} method induces probe method
+	*/
+	Fetch: (path, data, cb) => path.fetchFile(data,cb),
+	
 	routeDS: {	// setup default DataSet routes
 		default: req => "app."+req.table
 	},
@@ -814,7 +1082,7 @@ const
 						if ( log = req.log )  		// log if session log-able
 							logSession( log, sock );  
 
-				Trace( route.name.toUpperCase() + " " + (req.table || req.path) );
+				Trace( route.name.toUpperCase() + " " + req.path );
 
 				route(req, recs => {	// route request and capture records
 					var call = null;
@@ -844,15 +1112,12 @@ const
 				index = req.index = {},	
 				where = req.where = {},
 				flags = req.flags = {},
-				path = req.path = node.parseURL(query, index, flags, where),		//  /area/file.type || /table.type
+				[path,table,type,area] = node.parsePath(query, index, flags, where);
 				
-				[fx, area, file] = path.match( /\/(.*?)\/(.*)/ ) || ["","",""],
-				[dx, name, ftype] = file.match( /(.*)\.(.*)/ ) || ["","",""],
-				[tx, table, ttype] = area ? ["","",""] : path.match( /\/(.*)\.(.*)/ ) || ["",path.substr(1),""],
-				type = req.type = (ftype || ttype).toLowerCase();
-				
+			req.path = path;
 			req.area = area;
 			req.table = table;
+			req.type = type || "";
 
 			const
 				ds = req.ds = (routeDS[table] || routeDS.default)(req);
@@ -2047,7 +2312,7 @@ Log("line ",idx,line.length);
 		@cfg {Function}
 		@param {Function} cb callback(sql connector)
 	*/
-	//sqlThread: JSDB.thread,
+	sqlThread: sqlThread,
 		
 	neoThread: neoThread,
 		
@@ -3855,217 +4120,6 @@ function getFile(req, res) {
 		return rtn;
 	}
 ].Extend(Array);
-
-[ //< String prototypes
-	/**
-		Parse "$.KEY" || "$[INDEX]" expressions given $ hash.
-
-		@param {Object} $ source hash
-	*/
-	function parseEval($) {
-		try {
-			return eval(this+"");
-		}
-		
-		catch (err) {
-			return err+"";
-		}
-	},
-	
-	/**
-		Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
-
-		@param {Object} ctx context hash
-	*/
-	function parseJS(ctx, cb) {
-		try {
-			return VM.runInContext( this+"", VM.createContext(ctx || {}));
-		}
-		catch (err) {
-			//Log("parseJS", this+"", err, ctx);
-			if ( cb ) 
-				return cb(err);
-			
-			else
-				return null;
-		}
-	},
-	
-	/**
-		Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
-
-		@memberof String
-		@param {Object} query context hash
-	*/
-	function parse$(query) {
-		try {
-			return VM.runInContext( "`" + this + "`" , VM.createContext(query));
-		}
-		catch (err) {
-			return err+"";
-		}
-	},
-	
-	/**
-		Parse string into json.
-
-		@memberof String
-		@param {Function,Object} def default object or callback that returns default
-	*/
-	function parseJSON(def) {
-		try { 
-			return JSON.parse(this);
-		}
-		catch (err) {  
-			return def ? (isFunction(def) ? def(this+"") : def) || null : null;
-		}
-	},
-
-	/**
-		Parse a "PATH?PARM&PARM&..." url into the specified query, index, flags, or keys hash
-		as directed by the PARM = ASKEY := REL || REL || _FLAG = VALUE where 
-		REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY
-
-		@memberof String
-		@param {Object} query hash of query keys
-		@param {Object} index hash of sql-ized indexing keys
-		@param {Object} flags hash of flag keys
-		@param {Object} where hash of sql-ized conditional keys
-	*/
-	function parseURL(query,index,flags,where) { 
-		function doParm(parm) {
-			function doFlag(parm) {
-				function doIndex(parm) {
-					function doTest(parm) {
-						function doSimple(parm) {
-							function doTag(parm) {
-								parm.split(",").forEach( arg =>	query[arg] = 1);
-							}
-							
-							parm.parseOP( /(.*?)(=)(.*)/, null, (lhs,rhs,op) => query[lhs] = rhs.parseJSON( txt => txt ) );
-						
-							parm.parseOP( /(.*?)(<|>|=)(.*)/, doTag, (lhs,rhs,op) => where[op][lhs] = rhs );
-						}
-						
-						parm.parseOP( /(.*?)(<=|>=|\!=|\!bin=|\!exp=|\!nlp=)(.*)/, doSimple, (lhs,rhs,op) => where[op][lhs] = rhs );
-					}
-					
-					parm.parseOP( /(.*?)(:=)(.*)/, doTest, (lhs,rhs,op) => index[lhs] = rhs );
-				}
-				
-				parm.parseOP( /^_(.*?)(=)(.*)/, doIndex, (lhs,rhs,op) => flags[lhs] = rhs.parseJSON( txt => txt ) );
-			}
-
-			doFlag(parm);
-		}
-
-		var 
-			path = this+"",
-			[x,path,parms] = path.match(/(.*?)\?(.*)/) || ["",path,""];
-		
-		operators.forEach( key => where[key] = {} );
-		
-		parms.split("&").forEach( parm => {
-			if (parm) 
-				doParm( parm );
-		});
-		
-		path.split("&").forEach( (parm,n) => {
-			if ( n )
-				parm.parseOP( /(.*?)(=)(.*)/, 
-					args => args.split(",").forEach( arg => index[arg] = ""), 
-					(lhs,rhs,op) => index[lhs] = rhs );
-				
-			else
-				path = parm;
-		});
-		
-		//Log({q: query,w: where,i: index,f: flags,p: path});
-		
-		return path;
-
-		/*
-		function doLast( str ) {
-			var
-				[x,lhs,op,rhs] = str.match( /(.*?)(=)(.*)/ ) || [];
-
-			if ( op ) 
-				query[lhs] = rhs;
-
-			else
-				doParm( str );
-		}
-
-	
-		var 
-			url = this+"",
-			parts = url.split("?"),
-			path = parts[0],
-			parms = parts[1] || "",
-			rem = parts.slice(2).join("?"),
-			parms = parms.split("&"),
-			last = parms.pop();
-		
-		operators.forEach( key => where[key] = {} );
-		
-		parms.forEach( parm => {
-			if (parm) 
-				doParm( parm );
-		});
-		
-		if ( last )
-			if ( rem ) 
-				doLast( last + "?" + rem );
-		
-			else
-				doParm( last );
-
-		path.split("&").forEach( (parm,n) => {
-			if ( n )
-				parm.parseOP( /(.*?)(=)(.*)/, 
-					args => args.split(",").forEach( arg => index[arg] = ""), 
-					(lhs,rhs,op) => index[lhs] = rhs );
-				
-			else
-				path = parm;
-		});
-		
-		if (false) Log({
-			q: query,
-			w: where,
-			i: index,
-			f: flags
-		});
-		
-		return path;
-		*/
-	},
-
-	/**
-		Parse XML string into json and callback cb(json) 
-
-		@memberof String
-		@param {Function} cb callback( json || null if error )
-	*/
-	function parseXML(cb) {
-		XML2JS.parseString(this, function (err,json) {				
-			cb( err ? null : json );
-		});
-	},
-	
-	function parseOP( reg, elsecb, ifcb ) {
-		var 
-			[x,lhs,op,rhs] = this.match(reg) || [];
-		
-		if ( op ) 
-			return ifcb( lhs, rhs, op );
-		
-		else
-		if ( elsecb )
-			return elsecb(this+"");
-	} 
-	
-].Extend(String);
 
 /**
 @class TOTEM.Unit_Tests_Use_Cases

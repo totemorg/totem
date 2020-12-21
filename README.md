@@ -53,10 +53,17 @@ TOTEM also provides a method to fetch data from a service or filesystem:
 	Fetch( path, null, stat => {		// delete request made
 	})
 	
-The path = PROTOCOL:FILE specifies a protocol (http || https, curl || curls, wget || wgets, mask || masks, 
-lexis || etc, file) where curls/wgets presents the certs/fetch.pfx certificate the the endpoint, 
-mask/masks routes the fetch request to a rotated proxy, lexis uses the oauth authorization-authentication 
-protocol, and file fetches from the file system.
+where the path = "PROTOCOL://HOST/FILE?batch=N&limit=N&rekey=from:to,...&comma=X&newline=X" a 
+PROTOCOL = http || https, curl || curls, wget || wgets, mask || masks, lexis || etc, file, book
+	
+	curls/wgets presents the certs/fetch.pfx certificate to the endpoint, 
+	mask/masks routes the fetch through rotated proxies, 
+	lexis/etc uses the oauth authorization-authentication protocol, 
+	file fetches from the file system, 
+	book selects a notebook record. 
+			
+If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
+regulate the file stream.
 
 
 ## Installation
