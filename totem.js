@@ -550,8 +550,8 @@ function neoThread(cb) {
 				}
 
 				catch (err) {
-					Log(">>>fetch index error", err);
-					cb( null );
+					//Log(">>>fetch index error", err);
+					cb( [] );
 				}
 
 			else {	// requesting static file
@@ -561,7 +561,7 @@ function neoThread(cb) {
 					[file,name,type] = path.parsePath(opts,{},{},{}),
 					{ batch } = opts;
 				
-				Log(">>>getfile", opts,name,type,file);
+				//Log(">>>fetch file", opts,name,type,file);
 				
 				if ( batch ) 	// regulate the file
 					switch (type) {
