@@ -532,14 +532,17 @@ function neoThread(cb) {
 		}
 		
 		function getFile(path, cb) {
+			const
+				src = "."+path;
+			
 			if ( path.endsWith("/") )  // index requested folder
 				try {
 					const 
 						{maxFiles} = fetchOptions,
 						files = [];
 
-					//Log(">>index", "."+path);
-					FS.readdirSync( "."+path ).forEach( file => {
+					//Log(">>index", src;
+					FS.readdirSync( src).forEach( file => {
 						var
 							ignore = file.startsWith(".") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
 
@@ -554,35 +557,15 @@ function neoThread(cb) {
 					cb( [] );
 				}
 
-			else {	// requesting static file
-				
-				const
-					opts = {},
-					[file,name,type] = path.parsePath(opts,{},{},{}),
-					{ batch } = opts;
-				
-				//Log(">>>fetch file", opts,name,type,file);
-				
-				if ( batch ) 	// regulate the file
-					switch (type) {
-						case "csv":
-							opts.keys = [];
-							("."+file).filterFile( opts, recs => cb( recs ) );
-							break;
+			else 	// requesting static file
+				try {		// these files are static so we never cache them
+					FS.readFile(src, (err,buf) => res( err ? "" : Buffer.from(buf) ) );
+				}
 
-						case "txt":
-						default:
-					}
-				
-				else				// no regulation
-					try {		// these files are static so we never cache them
-						FS.readFile( "."+file, (err,buf) => cb( err ? "" : Buffer.from(buf) ) );
-					}
-
-					catch (err) {
-						cb( null );
-					}
-			}
+				catch (err) {
+					Log(err);
+					cb( null );
+				};
 		}	
 		
 		const
