@@ -4061,7 +4061,7 @@ function getFile(req, res) {
 									[area+"."+name]
 								)
 								.on("result", function (det) {
-									sql.query("UPDATE detectors SET Dirty=Dirty+1");
+									sql.query("UPDATE openv.detectors SET Dirty=Dirty+1");
 								});
 								break;
 						}
