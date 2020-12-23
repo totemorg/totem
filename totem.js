@@ -1287,7 +1287,7 @@ Log("line ",idx,line.length);
 
 	startDogs: (sql,dogs) => {
 		sql.query(
-			"SELECT * FROM app.dogs WHERE Enabled AND ifnull(Starts,now()) <= now()", [])
+			"SELECT * FROM openv.dogs WHERE Enabled AND ifnull(Starts,now()) <= now()", [])
 		
 		.on("result", task => {
 
@@ -2838,7 +2838,7 @@ Log("line ",idx,line.length);
 		site.Lookups = Lookups || {};
 		
 		if ( lookups )
-			sql.query("SELECT Ref AS `Key`,group_concat(DISTINCT Path SEPARATOR '|') AS `Select` FROM app.lookups GROUP BY Ref", [], (err,recs) => {
+			sql.query("SELECT Ref AS `Key`,group_concat(DISTINCT Path SEPARATOR '|') AS `Select` FROM openv.lookups GROUP BY Ref", [], (err,recs) => {
 				recs.forEach( rec => {
 					lookups[rec.Key] = rec.Select;
 				});
@@ -2846,7 +2846,7 @@ Log("line ",idx,line.length);
 			});
 		
 		if ( Lookups )
-			sql.query("SELECT Ref,Path,Name FROM app.lookups", [], (err,recs) => {
+			sql.query("SELECT Ref,Path,Name FROM openv.lookups", [], (err,recs) => {
 				recs.forEach( rec => {
 					const 
 						{Ref,Path,Name} = rec,
@@ -4057,7 +4057,7 @@ function getFile(req, res) {
 								});
 
 								sql.query(
-									"SELECT detectors.ID, count(ID) AS counts FROM app.detectors LEFT JOIN proofs ON proofs.label LIKE detectors.PosCases AND proofs.name=? HAVING counts",
+									"SELECT detectors.ID, count(ID) AS counts FROM openv.detectors LEFT JOIN proofs ON proofs.label LIKE detectors.PosCases AND proofs.name=? HAVING counts",
 									[area+"."+name]
 								)
 								.on("result", function (det) {
@@ -4340,10 +4340,10 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 			if (CLUSTER.isMaster)
 				switch (process.argv[3]) {
 					case 1: 
-						sql.query( "select voxels.id as voxelID, chips.id as chipID from app.voxels left join app.chips on voxels.Ring = chips.Ring", function (err,recs) {
+						sql.query( "select voxels.id as voxelID, chips.id as chipID from openv.voxels left join openv.chips on voxels.Ring = chips.Ring", function (err,recs) {
 							Log(err);
 							recs.forEach( rec => {
-								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
+								sql.query("update openv.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
 									Log(err);
 								});
 							});
@@ -4351,10 +4351,10 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 						break;
 
 					case 2:
-						sql.query("select ID, Ring from app.voxels", function (err, recs) {
+						sql.query("select ID, Ring from openv.voxels", function (err, recs) {
 							recs.forEach( rec => {
 								sql.query(
-									"update app.voxels set Point=geomFromText(?) where ?", 
+									"update openv.voxels set Point=geomFromText(?) where ?", 
 									[ `POINT(${rec.Ring[0][0].x} ${rec.Ring[0][0].y})` , {ID: rec.ID} ], 
 									err => {
 										Log(err);
@@ -4364,10 +4364,10 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 						break;
 
 					case 3:
-						sql.query( "select voxels.id as voxelID, cache.id as chipID from app.voxels left join app.cache on voxels.Ring = cache.geo1", function (err,recs) {
+						sql.query( "select voxels.id as voxelID, cache.id as chipID from openv.voxels left join openv.cache on voxels.Ring = cache.geo1", function (err,recs) {
 							Log(err);
 							recs.forEach( rec => {
-								sql.query("update app.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
+								sql.query("update openv.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
 									Log(err);
 								});
 							});
@@ -4375,11 +4375,11 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 						break;
 
 					case 4:
-						sql.query("select ID, geo1 from app.cache where bank='chip'", function (err, recs) {
+						sql.query("select ID, geo1 from openv.cache where bank='chip'", function (err, recs) {
 							recs.forEach( rec => {
 								if (rec.geo1)
 									sql.query(
-										"update app.cache set x1=?, x2=? where ?", 
+										"update openv.cache set x1=?, x2=? where ?", 
 										[ rec.geo1[0][0].x, rec.geo1[0][0].y, {ID: rec.ID} ], 
 										err => {
 											Log(err);
@@ -4425,7 +4425,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 										eigen_vector: JSON.stringify( vecs[idx] )
 									};
 
-								sql.query("INSERT INTO app.pcs SET ? ON DUPLICATE KEY UPDATE ?", [save,save] );	
+								sql.query("INSERT INTO openv.pcs SET ? ON DUPLICATE KEY UPDATE ?", [save,save] );	
 							});
 						});
 						break;	
