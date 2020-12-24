@@ -318,6 +318,8 @@ function neoThread(cb) {
 			//[xt, table, ttype] = area ? ["","",""] : path.match( /\/(.*)\.(.*)/ ) || ["",path.substr(1),""];
 			
 		
+		//Log(">>>>path", [search, path, parms, area, table, type]);
+		
 		operators.forEach( key => where[key] = {} );
 		
 		parms.split("&").forEach( parm => {
