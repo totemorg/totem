@@ -533,7 +533,7 @@ function neoThread(cb) {
 			});
 		}
 		
-		function getFile(path, cb) {
+		function requestFile(path, cb) {
 			const
 				src = "."+path;
 			
@@ -551,6 +551,7 @@ function neoThread(cb) {
 						if ( !ignore && files.length < maxFiles ) 
 							files.push( (file.indexOf(".")>=0) ? file : file+"/" );
 					});
+					
 					cb( files );
 				}
 
@@ -738,7 +739,7 @@ function neoThread(cb) {
 				
 			case "file:":	// requesting file or folder index
 				//Log("index file", [path], opts);
-				getFile( opts.path.substr(1) ? opts.path : "/home/" , res );  
+				requestFile( opts.path.substr(1) ? opts.path : "/home/" , res );  
 				break;
 				
 			default:	// check if using a secure protocol
@@ -3946,8 +3947,9 @@ function getFile(req, res) {
 			if ( path.endsWith("/") )		// requesting folder
 				Fetch( path, files => {
 					req.type = "html"; // otherwise default type is json.
-					files.forEach( (file,n) => files[n] = file.tag( file ) );
-					res(`hello ${req.client}<br>Index of ${path}:<br>` + files.join("<br>") );
+					res( files );
+					//files.forEach( (file,n) => files[n] = file.tag( file ) );
+					//res(`hello ${req.client}<br>Index of ${path}:<br>` + files.join("<br>") );
 				});
 			
 			else	// requesting file
