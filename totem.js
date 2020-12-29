@@ -393,7 +393,7 @@ function neoThread(cb) {
 				path = parm;
 		});  */
 		
-		//Log({q: query, w: where, i: index, s: search, f: flags, p: path, a:area, t:type, T:table});
+		//Log(">>>path", {q: query, w: where, i: index, s: search, f: flags, p: path, a:area, t:type, T:table});
 		
 		return [path,table,type,area];
 
