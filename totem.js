@@ -284,6 +284,7 @@ function neoThread(cb) {
 		@param {Object} where hash of sql-ized conditional keys
 	*/
 	function parsePath(query,index,flags,where) { 
+		/*
 		function doParm(parm) {
 			function doFlag(parm) {
 				function doIndex(parm) {
@@ -309,19 +310,74 @@ function neoThread(cb) {
 
 			doFlag(parm);
 		}
-
+		*/
+		
 		var 
 			search = this+"",
+			ops = [ 
+				/(.*?)(:=|<=|>=|\!=|_=|\!bin=|\!exp=|\!nlp=)(.*)/,
+				/(.*?)(<|>|=)(.*)/ 
+			],
 			[xp, path, parms] = search.match(/(.*?)\?(.*)/) || ["",search,""],
 			[xf, area, table, type] = path.match( /\/(.*?)\/(.*)\.(.*)/ ) || path.match( /\/(.*?)\/(.*)/ ) || path.match( /(.*)\/(.*)\.(.*)/ ) || path.match( /(.*)\/(.*)(.*)/ ) || ["","","",""];
-			//[xd, name, ftype] = file.match( /(.*)\.(.*)/ ) || ["","",""],
-			//[xt, table, ttype] = area ? ["","",""] : path.match( /\/(.*)\.(.*)/ ) || ["",path.substr(1),""];
 			
 		
 		//Log(">>>>path", [search, path, parms, area, table, type]);
 		
 		operators.forEach( key => where[key] = {} );
 		
+		parms.split("&").forEach( parm => {
+			if (parm) {
+				const 
+					[lhs,op,rhs] = parm.parseOP(ops[0], parm => parm.parseOP( ops[1], parm => [parm,".","1"] )),
+					RHS = rhs.parseJSON( arg => arg );
+				
+				// Log(">>>parms", [parm,lhs,rhs,op]);
+				
+				switch (op) {
+					case "=":
+						switch ( lead = lhs.charAt(0) ) {
+							case "_":
+								flags[lhs.substr(1)] = RHS;
+								break;
+								
+							default:
+								where["="][lhs] = rhs;
+								query[lhs] = RHS;
+						}
+						break;
+
+					case "_":
+						flags[lhs] = RHS;
+						break;
+						
+					case ".":
+						query[lhs] = RHS;
+						break;
+						
+					case ":=":
+						index[lhs] = rhs;
+						break;
+						
+					case "<":
+					case ">":
+					case "<=":
+					case ">=":
+					case "!=":
+					case "!bin=":
+					case "!exp=":
+					case "!nlp=":
+						where[op][lhs] = rhs;
+						break;
+				}
+				
+				// doParm( parm );
+			}
+		});
+		
+		// Log(">>>url parms", {q:query, w:where, i:index, f:flags});
+		
+		/* legacy
 		parms.split("&").forEach( parm => {
 			if (parm) 
 				doParm( parm );
@@ -335,7 +391,7 @@ function neoThread(cb) {
 				
 			else
 				path = parm;
-		});
+		});  */
 		
 		//Log({q: query, w: where, i: index, s: search, f: flags, p: path, a:area, t:type, T:table});
 		
@@ -427,6 +483,7 @@ function neoThread(cb) {
 		});
 	},
 
+	/*
 	function parseOP( reg, elsecb, ifcb ) {
 		var 
 			[x,lhs,op,rhs] = this.match(reg) || [];
@@ -437,6 +494,26 @@ function neoThread(cb) {
 		else
 		if ( elsecb )
 			return elsecb(this+"");
+	}, */
+	function parseOP(reg, failcb, workcb) {
+		var 
+			[x,lhs,op,rhs] = this.match(reg) || [];
+		
+		return op ? workcb ? workcb(lhs,op,rhs) : [lhs, op, rhs] : failcb ? failcb(this+"") : null;
+	},
+	
+	function parseKEY( escape ) {
+		return this.parseOP( /(.*?)(\$)(.*)/, key => escape(key) , (lhs,op,rhs) => {
+			
+			if (lhs) {
+				var idx = rhs.split(",");
+				idx.forEach( (key,n) => idx[n] = escape( n ? key : op+key) );
+				return `json_extract(${escapeId(lhs)}, ${idx.join(",")} )`;
+			}
+
+			else
+				return escapeId(rhs);
+		});
 	},
 	
 	function fetchFile(data, cb) {	//< data fetching
