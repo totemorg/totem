@@ -31,6 +31,7 @@ export ODBC_USER=ileuser
 			
 # NEO4J
 export NEO4J="bolt://localhost" # "http://root:NGA@localhost:7474"
+export NEO4J_USER="neo4j"
 
 # doc and dev tools
 export PATH=/opt/cmake:$PATH 			# latest cmake

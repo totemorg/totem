@@ -64,7 +64,7 @@ const
 	JS2XML = require('js2xmlparser'), 			// JSON to XML parser
 	JS2CSV = require('json2csv'),				// JSON to CSV parser	
 	NEO4J = require("neo4j-driver"),			// light-weight graph database	
-	NEODRIVER = NEO4J.driver( ENV.NEO4J, NEO4J.auth.basic('neo4j', 'NGA'), { disableLosslessIntegers: true } ),
+	NEODRIVER = NEO4J.driver( ENV.NEO4J, NEO4J.auth.basic(ENV.NEO4J_USER, ENV.NEO4J_PASS), { disableLosslessIntegers: true } ),
 
 	// Totem modules
 	{ sqlThread } = JSDB = require("jsdb"),						// database agnosticator
@@ -72,16 +72,10 @@ const
 	  
 // neo4j i/f
 
-function NEOCONNECTOR() {
-	this.trace = 
-			args => {};
-			//args => console.log(">>>neo4j", args); 
+function NEOCONNECTOR(trace) {
+	this.trace = trace || false;
 }
 	
-function neoThread(cb) {
-	cb( new NEOCONNECTOR( ) );
-}
-
 [
 	function cypher(query,params,cb) {// submit cypher query to neo4j
 
@@ -97,7 +91,7 @@ function neoThread(cb) {
 				}
 			});
 
-		neo.trace(query);
+		if ( neo.trace) Log(query);
 
 		ses
 		.run( query, params )
@@ -117,7 +111,7 @@ function neoThread(cb) {
 			if (cb) cb(null, Recs);
 		})
 		.catch( err => {
-			neo.trace(err);
+			if ( neo.trace) Log(err);
 			if (cb) cb( err, null );
 		})
 		.then( () => {
@@ -131,77 +125,77 @@ function neoThread(cb) {
 		this.cypher( `MATCH (n:${net}) DETACH DELETE n` );
 	},
 	
-	function makeNodes(net, now, nodes, res ) {		// add typed-nodes to neo4j
+	function saveNodes(net, nodes, res ) {		// add typed-nodes to neo4j
 		var 
 			neo = this;
 
-		Stream( nodes, {}, (props, node, cb) => {
-			//Log(">>neo4j save", node,props);
-
+		Stream( nodes, {}, (node, name, cb) => {
 			if (cb) { // add node
-				props.created = now;
-			
-				//Log(">add", node, props);
-				
 				neo.cypher(
-					`MERGE (n:${net}:${props.type} {name:$name}) ON CREATE SET n += $props`, {
-						name: node,
-						props: props
+					`MERGE (n:${net}:${node.type} {name:$name}) ON CREATE SET n += $props`, {
+						name: name,
+						props: node || {}
 				}, err => {
-					neo.trace( err );
+					Log(">>>neo node", err || "ok");
 					cb();
 				});
 			}
 					 
-			else	// all nodes added so move forward
+			else	// all nodes processed so move forward
 				res( null );
 		});
 		
 	},
 
-	function makeEdge( net, name, created, pair ) { // link existing typed-nodes by topic
+	/*
+	function makeEdge( net, edge ) { // link existing typed-nodes by topic
 		var 
-			[src,tar,props] = pair,
+			[src,tar,props] = edge,
 			neo = this;
 		
 		//Log("edge", src.name, tar.name, props);
 		neo.cypher(
 			`MATCH (a:${net} {name:$srcName}), (b:${net} {name:$tarName}) `
 			+ "MERGE "
-			+ `(a)-[r:${name}]-(b) `
+			+ `(a)-[r:${props.name}]-(b) `
 			+ "ON CREATE SET r = $props ", {
 					srcName: src.name,
 					tarName: tar.name,
-					props: Copy( props||{}, {
-						created: created
-					})
+					props: props || {}
 		}, err => {
-			if (err) Log(">>>create edge failed", [src.name, tar.name, name] );
+			if (err) Log(">>>create edge failed", [src.name, tar.name] );
 		});
-	},
+	},*/
 	
 	function saveNet( net, nodes, edges ) {
 		var 
-			now = new Date(),
 			neo = this;
 		
 		//neo.cypher( `CREATE CONSTRAINT ON (n:${net}) ASSERT n.name IS UNIQUE` );
 
 		//Log("neo4j save net", net);
 		
-		neo.makeNodes( net, now, nodes, () => {
+		neo.saveNodes( net, nodes, () => {
 			//Log(">> edges", edges, "db=", db);
-			Each( edges, (name,pairs) => neo.savePairs( net, now, name, pairs ) );
+			//Each( edges, (name,pairs) => neo.saveEdges( net, pairs ) );
+			neo.saveEdges( net, edges ) ;
 		});	
 	},
 	
-	function savePairs( net, now, name, pairs ) {
+	function saveEdges( net, edges ) {
 		var 
 			neo = this;
 		
 		//Log("save pairs topic", name);
-		pairs.forEach( pair => {
-			neo.makeEdge( net, name, now, pair );
+		Each( edges, (name,edge) => {
+			//neo.makeEdge( net, edge );
+			neo.cypher(
+				`MATCH (a:${net} {name:$src}), (b:${net} {name:$tar}) MERGE (a)-[r:${edge.type}]-(b) ON CREATE SET r = $props`, {
+				src: edge.src,
+				tar: edge.tar,
+				props: edge || {}
+			}, err => Log(">>>neo edge", err || "ok" ) );
+			
 		});
 	}
 
@@ -902,7 +896,7 @@ function neoThread(cb) {
 const 
 	{ 
 		byArea, byType, byAction, byTable, 
-		//nodeDivider,
+		neoThread,
 		$master, $worker, Fetch, fetchOptions,
 		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
 		filterRecords,guestProfile,routeDS, startDogs,startJob,endJob, cache } = TOTEM = module.exports = {
@@ -2377,7 +2371,9 @@ Log("line ",idx,line.length);
 	*/
 	sqlThread: sqlThread,
 		
-	neoThread: neoThread,
+	neoThread: cb => {
+		cb( new NEOCONNECTOR( ) );
+	},
 		
 	/**
 		REST-to-CRUD translations
@@ -4498,7 +4494,6 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		break;
 		
 	case "T8":
-		const {neoThread} = TOTEM;
 		const $ = require("../man/man.js");
 		TOTEM.config();
 		neoThread( neo => {
