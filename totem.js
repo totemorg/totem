@@ -127,7 +127,8 @@ function NEOCONNECTOR(trace) {
 	
 	function saveNodes(net, nodes, res ) {		// add typed-nodes to neo4j
 		var 
-			neo = this;
+			neo = this,
+			trace = neo.trace;
 
 		Stream( nodes, {}, (node, name, cb) => {
 			if (cb) { // add node
@@ -136,7 +137,7 @@ function NEOCONNECTOR(trace) {
 						name: name,
 						props: node || {}
 				}, err => {
-					Log(">>>neo node", err || "ok");
+					if ( trace ) Log(">>>neo node", err || "ok");
 					cb();
 				});
 			}
@@ -184,7 +185,8 @@ function NEOCONNECTOR(trace) {
 	
 	function saveEdges( net, edges ) {
 		var 
-			neo = this;
+			neo = this,
+			trace = neo.trace;
 		
 		//Log("save pairs topic", name);
 		Each( edges, (name,edge) => {
@@ -194,7 +196,9 @@ function NEOCONNECTOR(trace) {
 				src: edge.src,
 				tar: edge.tar,
 				props: edge || {}
-			}, err => Log(">>>neo edge", err || "ok" ) );
+			}, err => {
+				if ( trace ) Log(">>>neo edge", err || "ok" );
+			});
 			
 		});
 	}
