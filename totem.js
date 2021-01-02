@@ -2862,13 +2862,10 @@ Log("line ",idx,line.length);
 			.on("result", user => site.pocs["user"] = (user.Clients || "").toLowerCase() )
 			.on("end", () => Log("POCs", site.pocs) );
 
-		if (guest)
-			sql.query(guest)
-			.on("result", rec => {
-				if ( guestProfile ) {
-					Copy( rec, guestProfile );
-					delete guestProfile.ID;
-				}
+		if (guest && guestProfile)
+			sql.query(guest, [], (err,profs) => {
+				if ( prof = profs[0] ) 
+					Copy( prof, guestProfile );
 			});
 
 		if (derive)  // derive site context vars
@@ -3096,15 +3093,18 @@ function validateClient(req,res) {
 	function makeProfile( sql, client ) {  // return a suitable guest profile or null
 
 		if ( guestProfile ) {  // allowing guests
-			var
-				guest = Copy({
+			const
+				{ newProfile } = sqls,
+				guest = Copy(guestProfile, {
 					Client: client,
 					//User: client.replace(/(.*)\@(.*)/g,(x,L,R) => L ).replace(/\./g,"").substr(0,12),
 					//Login: "",
 					Requested: new Date()
-				}, Copy(guestProfile,{}) );
+				});
+			
+			delete guest.ID;
 
-			sql.query( sqls.newProfile, guest );
+			sql.query( newProfile, guest );
 			return guest;
 		}
 
@@ -3980,15 +3980,15 @@ Shard specified task to the compute nodes given task post parameters.
 				}
 
 				if (qos) 
-					sql.startJob({ // job descriptor 
+					sql.queueTask({ // job descriptor 
 						index: Copy(index,{}),
 						//priority: 0,
 						every: "1", 
 						class: table,
-						client: client,
 						credit: credit,
-						name: name,
-						task: name,
+						Client: client,
+						Name: name,
+						Task: name,
 						notes: [
 								table.tag("?",query).tag( "/" + table + ".run" ), 
 								((credit>0) ? "funded" : "unfunded").tag( url ),
