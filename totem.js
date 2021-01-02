@@ -903,7 +903,7 @@ const
 		neoThread,
 		$master, $worker, Fetch, fetchOptions,
 		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
-		filterRecords,guestProfile,routeDS, startDogs,startJob,endJob, cache } = TOTEM = module.exports = {
+		filterRecords,guestProfile,routeDS, startDogs, cache } = TOTEM = module.exports = {
 	
 	fetchOptions: {	// Fetch parms
 		defHost: ENV.SERVICE_MASTER_URL,
@@ -3981,24 +3981,23 @@ Shard specified task to the compute nodes given task post parameters.
 				}
 
 				if (qos) 
-					sql.queueTask({ // job descriptor 
+					sql.queueTask( new Clock("second"), { // job descriptor 
 						index: Copy(index,{}),
 						//priority: 0,
-						every: "1", 
-						class: table,
-						credit: credit,
+						Class: table,
 						Client: client,
 						Name: name,
 						Task: name,
-						notes: [
+						Notes: [
 								table.tag("?",query).tag( "/" + table + ".run" ), 
 								((credit>0) ? "funded" : "unfunded").tag( url ),
 								"RTP".tag( `/rtpsqd.view?task=${name}` ),
 								"PMR brief".tag( `/briefs.view?options=${name}` )
 						].join(" || ")
-					}, (sql,job) => {
+					}, (recs,job,res) => {
 						//Log("reg job" , job);
 						runTask( job.index );
+						res();
 					});
 
 				else
