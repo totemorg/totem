@@ -68,7 +68,7 @@ const
 
 	// Totem modules
 	{ sqlThread } = JSDB = require("jsdb"),						// database agnosticator
-	{ Copy,Each,Log,Stream,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM = require("enum");
+	{ Copy,Each,Log,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM = require("enum");
 	  
 // neo4j i/f
 
@@ -1348,21 +1348,22 @@ Log("line ",idx,line.length);
 
 	startDogs: (sql,dogs) => {
 		sql.query(
-			"SELECT * FROM openv.dogs WHERE Enabled AND ifnull(Starts,now()) <= now()", [])
+			"SELECT * FROM openv.dogs WHERE Enabled")
 		
 		.on("result", task => {
-
-			//Log(">>>>dog", task, dogs[task.Name]);
+			//Log(">>>>dog", task, dogs[task.Name], every", task.Every);
 			if ( dog = dogs[task.Name.toLowerCase()] )
-				sql.startJob({
-					every: task.Every,
-					ends: task.Ends,
-					name: task.Name,
-					class: "system",
-					task: "watchdog",
-					notes: task.Description,
-					credit: 1e6
-				}, (sql,job) => dog(sql,job) );
+				sql.queueTask( new Clock(task.Every), {
+					Client: "system",
+					Name: task.Name,
+					Class: "system",
+					Task: "watchdog",
+					Notes: task.Description
+				}, (recs,job,res) => {
+					Log(">>>dog", job);
+					dog(sql,job);
+					res();
+				});
 		});
 	},
 
