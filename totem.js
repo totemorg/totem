@@ -91,7 +91,7 @@ function NEOCONNECTOR(trace) {
 				}
 			});
 
-		if ( neo.trace) Log(query);
+		// if ( neo.trace) Log(query);
 
 		ses
 		.run( query, params )
@@ -135,7 +135,7 @@ function NEOCONNECTOR(trace) {
 				neo.cypher(
 					`MERGE (n:${net}:${node.type} {name:$name}) ON CREATE SET n += $props`, {
 						name: name,
-						props: node || {}
+						props: node
 				}, err => {
 					if ( trace ) Log(">>>neo node", err || "ok");
 					cb();
@@ -2377,7 +2377,7 @@ Log("line ",idx,line.length);
 	sqlThread: sqlThread,
 		
 	neoThread: cb => {
-		cb( new NEOCONNECTOR( ) );
+		cb( new NEOCONNECTOR( true ) );
 	},
 		
 	/**
