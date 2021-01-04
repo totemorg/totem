@@ -168,8 +168,28 @@ function NEOCONNECTOR(trace) {
 		});
 	},*/
 	
+	function findAssoc( query, cb ) {
+		const 
+			neo = this,
+			[src,tar,rel] = query;
+		
+		neoThread( neo => {
+			neo.cypher( 
+				`MATCH ( a {name:$src} ) -[r:${rel}]-> ( b {name:$tar} ) RETURN r,a,b`, 
+				{
+					src: src,
+					tar: tar
+				}, 
+				(err,recs) => {
+				
+				if (err) Log(err);
+				cb( recs, query );
+			});
+		});		
+	},
+	
 	function saveNet( net, nodes, edges ) {
-		var 
+		const 
 			neo = this;
 		
 		//neo.cypher( `CREATE CONSTRAINT ON (n:${net}) ASSERT n.name IS UNIQUE` );
@@ -184,7 +204,7 @@ function NEOCONNECTOR(trace) {
 	},
 	
 	function saveEdges( net, edges ) {
-		var 
+		const 
 			neo = this,
 			trace = neo.trace;
 		
@@ -1001,90 +1021,6 @@ const
 		});
 	}),
 					
-	/*
-	_streamCsvTable: (path, {batch, filter, limit, skip}, cb) => {
-		
-		function parse(buf,idx,keys) {
-			if ( idx ) {	/// at data row
-				var 
-					rec = {},
-					cols = buf.split(",");
-
-				if ( cols.length == keys.length ) {	// full row buffer
-					keys.forEach( (key,m) => rec[key] = cols[m] );
-					return rec;
-				}
-
-				else	// incomplete row buffer
-					return null;
-			}
-
-			else {	// at header row
-				buf.split(",").forEach( key => keys.push(key));
-				Log(">>>header keys", keys);
-				return keys;
-			}
-		}
-		
-		var 
-			keys = [];
-		
-		FS.open( path, "r", (err, fd) => {
-			if (err) 
-				cb(null);	// signal pipe end
-
-			else {	// start pipe stream
-				var 
-					tot = pos = 0,
-					recs = [],
-					rem = "",
-					src = FS.createReadStream( "", { fd:fd, encoding: "utf8" }),
-					sink = new STREAM.Writable({
-						objectMode: true,
-						write: (bufs,en,sinkcb) => {
-							(rem+bufs).split("\n").forEach( buf => {
-								if (buf)	// got non-empty buffer 
-									if ( !limit || tot < limit )	// below record limit
-										if ( rec = parse(	// parse record
-														buf,
-														//pos ? buf : buf.substr(1),	// have to skip 1st char at start - why?
-														pos++,	// advance position marker
-														keys	// stash for header keys
-													) ) {	// valid event record so stack it
-											
-											if ( !filter || filter(rec) ) {	// stack valid records
-												if ( pos > skip ) {	// past the skip point
-													recs.push( rec );	// extend record batch
-													tot++;	// adjust total number of records processed
-
-													if ( batch && recs.length >= batch ) {	// flush this batch of records
-														cb( recs );
-														recs.length = 0;
-													}
-												}
-											}
-										}
-
-										else	// invalid event record so append to remainder
-											rem = buf;
-							});
-							sinkcb(null);  // signal no errors
-						}
-					});
-
-				sink
-					.on("finish", () => {
-						if ( recs.length ) cb( recs );
-						if ( batch ) cb( null ) ; 	// signal pipe end
-					})
-					.on("error", err => cb(null) );
-
-				src.pipe(sink);  // start the pipe
-			}
-		});			
-	},
-	*/
-	
 	/**
 		Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
 		byActionTable then byAction routers.	
@@ -2122,28 +2058,6 @@ Log("line ",idx,line.length);
 		Trace( `INITIALIZING ${TOTEM.name}` );
 	},
 	
-	/**
-		Common time intervals for watchdogs, queues and setintervals.
-		@cfg {Object}
-	*/
-	/*
-	timeIntervals: {
-		ms: 1e-3,
-		second: 1,
-		sec: 1,
-		minute: 60,
-		min: 60,
-		hour: 3600,
-		hr: 3600,
-		day: 86400,
-		week: 604800,
-		wk: 604800,
-		month: 2419200,
-		mth: 2419200,
-		year: 31449600,
-		yr: 31449600
-	},  */
-
 	getFile: getFile,
 	
 	queues: JSDB.queues, 	// pass along
@@ -2160,30 +2074,30 @@ Log("line ",idx,line.length);
 	onUpdate: null,
 		
 	/**
-	Shard one or more tasks to workers residing in a compute node cloud.
-	
-	@example
-		runTask({  		// example
-			keys: "i,j,k",  	// e.g. array indecies
-			i: [0,1,2,3],  		// domain of index i
-			j: [4,8],				// domain of index j
-			k: [0],					// domain of index k
-			qos: 0,				// regulation time in ms if not zero
-			local: false, 		// enable to run task local, i.e. w/o workers and nodes
-			workers: 4, 		// limit number of workers (aka cores) per node
-			nodes: 3 			// limit number of nodes (ala locales) in the cluster
-		}, 
-			// here, a simple task that returns a message 
-			$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
+		Shard one or more tasks to workers residing in a compute node cloud.
 
-			// here, a simple callback that displays the task results
-			msg => console.log(msg) 
-		);
-	
-	@cfg {Function}
-	@param {Object} opts tasking options (see example)
-	@param {Function} task runTask of the form ($) => {return msg} where $ contains process info
-	@param {Function} cb callback of the form (msg) => {...} to process msg returned by task
+		@example
+			runTask({  		// example
+				keys: "i,j,k",  	// e.g. array indecies
+				i: [0,1,2,3],  		// domain of index i
+				j: [4,8],				// domain of index j
+				k: [0],					// domain of index k
+				qos: 0,				// regulation time in ms if not zero
+				local: false, 		// enable to run task local, i.e. w/o workers and nodes
+				workers: 4, 		// limit number of workers (aka cores) per node
+				nodes: 3 			// limit number of nodes (ala locales) in the cluster
+			}, 
+				// here, a simple task that returns a message 
+				$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
+
+				// here, a simple callback that displays the task results
+				msg => console.log(msg) 
+			);
+
+		@cfg {Function}
+		@param {Object} opts tasking options (see example)
+		@param {Function} task runTask of the form ($) => {return msg} where $ contains process info
+		@param {Function} cb callback of the form (msg) => {...} to process msg returned by task
 	*/				
 	runTask: function (opts, task, cb) {
 
@@ -2333,13 +2247,6 @@ Log("line ",idx,line.length);
 	createCert: createCert, //< method to create PKI certificate
 		
 	/**
-		Node divider NODE $$ NODE ....  ("" disables dividing).
-		@cfg {String}
-		@member TOTEM
-	*/
-	//nodeDivider: "", 				//< node divider
-	
-	/**
 		Communicate with socket.io clients
 		@cfg {Function}
 		@method emitter
@@ -2377,7 +2284,7 @@ Log("line ",idx,line.length);
 	sqlThread: sqlThread,
 		
 	neoThread: cb => {
-		cb( new NEOCONNECTOR( true ) );
+		cb( new NEOCONNECTOR( false ) );
 	},
 		
 	/**
@@ -4405,7 +4312,6 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 				switch (process.argv[3]) {
 					case 1: 
 						sql.query( "select voxels.id as voxelID, chips.id as chipID from openv.voxels left join openv.chips on voxels.Ring = chips.Ring", function (err,recs) {
-							Log(err);
 							recs.forEach( rec => {
 								sql.query("update openv.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
 									Log(err);
