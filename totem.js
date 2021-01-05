@@ -1284,20 +1284,20 @@ Log("line ",idx,line.length);
 
 	startDogs: (sql,dogs) => {
 		sql.query(
-			"SELECT * FROM openv.dogs WHERE Enabled")
+			"SELECT * FROM openv.dogs WHERE Enabled AND Every")
 		
 		.on("result", task => {
 			//Log(">>>>dog", task, dogs[task.Name], every", task.Every);
 			if ( dog = dogs[task.Name.toLowerCase()] )
-				sql.queueTask( new Clock(task.Every), {
-					Client: "system",
+				sql.queueTask( new Clock("totem",task.Every), {
+					Client: "totem",
 					Name: task.Name,
-					Class: "system",
+					Class: "totem",
 					Task: "watchdog",
 					Notes: task.Description
 				}, (recs,job,res) => {
 					Log(">>>dog", job);
-					dog(sql,job);
+					dog(sql, job);
 					res();
 				});
 		});
@@ -3888,7 +3888,7 @@ Shard specified task to the compute nodes given task post parameters.
 				}
 
 				if (qos) 
-					sql.queueTask( new Clock("second"), { // job descriptor 
+					sql.queueTask( new Clock("totem", "second"), { // job descriptor 
 						index: Copy(index,{}),
 						//priority: 0,
 						Class: table,
