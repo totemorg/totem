@@ -31,8 +31,8 @@
 	@requires neo4j-driver	
 */
 
-function Trace(msg,req,res) {
-	"totem".trace(msg,req,res);
+function Trace(msg,args,req) {	// execution tracing
+	"totem".trace(msg, req, msg => console.log(msg,args) );
 }
 	
 const	
@@ -703,7 +703,7 @@ function NEOCONNECTOR(trace) {
 			opts.method = "POST";
 		}*/
 
-		//Trace("FETCH "+path);
+		//Trace("FETCH",path);
 		
 		opts.method = method;
 		
@@ -1079,7 +1079,7 @@ const
 						if ( log = req.log )  		// log if session log-able
 							logSession( log, sock );  
 
-				Trace( route.name.toUpperCase() + " " + req.path );
+				Trace( route.name.toUpperCase(), req.path );
 
 				route(req, recs => {	// route request and capture records
 					var call = null;
@@ -1222,7 +1222,7 @@ const
 						parms = {};
 					}
 					else {
-						//Trace("LOAD "+line);
+						//Trace("LOAD", line);
 
 						line.split(";").forEach( (arg,idx) => {  // process one file at a time
 Log("line ",idx,line.length);
@@ -1437,7 +1437,7 @@ Log("line ",idx,line.length);
 							HUBIO = TOTEM.HUBIO = new (SIOHUB); 		//< Hub fixes socket.io+cluster bug	
 
 						if (IO) { 							// Using socketio so setup client web-socket support
-							Trace("SOCKETS AT "+IO.path());
+							Trace("SOCKETS AT", IO.path());
 
 							TOTEM.emitter = IO.sockets.emit;
 
@@ -1489,18 +1489,12 @@ Log("line ",idx,line.length);
 						BUSY.maxLag(TOTEM.busyTime);
 
 					if (guard)  { // catch core faults
-						process.on("uncaughtException", err => {
-							Trace(`FAULTED ${err}`);
-						});
+						process.on("uncaughtException", err => Trace( "FAULTED" , err) );
 
-						process.on("exit", function (code) {
-							Trace(`HALTED ${code}`);
-						});
+						process.on("exit", code => Trace( "HALTED", code ) );
 
 						for (var signal in guards)
-							process.on(signal, function () {
-								Trace(`SIGNALED ${signal}`);
-							});
+							process.on(signal, () => Trace( "SIGNALED", signal) );
 					}
 
 					if (riddles) initChallenger();
@@ -1510,17 +1504,13 @@ Log("line ",idx,line.length);
 					server.on("request", cb);
 
 					server.listen( port, () => {  
-						Trace("LISTENING ON " + port);
+						Trace("LISTENING ON", port);
 					});
 
 					if (CLUSTER.isMaster)	{ // setup listener on master port
-						CLUSTER.on('exit', (worker, code, signal) =>  {
-							Trace("WORKER TERMINATED " + code || "ok");
-						});
+						CLUSTER.on('exit', (worker, code, signal) =>  Trace("WORKER TERMINATED", code || "ok"));
 
-						CLUSTER.on('online', worker => {
-							Trace("WORKER CONNECTED");
-						});
+						CLUSTER.on('online', worker => Trace("WORKER CONNECTED"));
 
 						for (var core = 0; core < TOTEM.cores; core++) // create workers
 							worker = CLUSTER.fork();
@@ -1635,7 +1625,7 @@ Log("line ",idx,line.length);
 				if ( isEncrypted() ) {  // have encrypted services so start https service
 					Each( FS.readdirSync(paths.certs+"truststore"), (n,file) => {
 						if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
-							Trace("TRUSTING " + file);
+							Trace("TRUSTING", file);
 							trustStore.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf-8") );
 						}
 					});
@@ -2194,7 +2184,7 @@ Log("line ",idx,line.length);
 		var 
 			modTimes = TOTEM.modTimes;
 		
-		Trace("WATCHING " + path);
+		Trace("WATCHING", path);
 		
 		modTimes[path] = 0; 
 
@@ -2207,7 +2197,7 @@ Log("line ",idx,line.length);
 					switch (ev) {
 						case "change":
 							sqlThread( sql => {
-								Trace(ev.toUpperCase()+" "+file);
+								Trace(ev.toUpperCase(), file);
 
 								FS.stat(path, function (err, stats) {
 
@@ -2921,7 +2911,7 @@ function createCert(owner,pass,cb) {
 		crt = name + ".crt",
 		ppk = name + ".ppk";
 		
-	Trace( "CREATE SELF-SIGNED SERVER CERT FOR "+owner );			
+	Trace( "CREATE SELF-SIGNED SERVER CERT", owner );			
 	
 	traceExecute(
 		`echo -e "\n\n\n\n\n\n\n" | openssl req -x509 -nodes -days 5000 -newkey rsa:2048 -keyout ${key} -out ${crt}`, 
@@ -3764,7 +3754,7 @@ To connect to ${site.Nick} from Windows:
 						
 						createCert(user.User, pass, () => {
 
-							Trace(`CREATE CERT FOR ${user.User}`, req);
+							Trace("CREATE CERT FOR", user.User );
 							
 							CP.exec(
 								`sudo adduser ${user.User} -gid ${user.Group}; sudo id ${user.User}`,
@@ -3989,7 +3979,7 @@ function getFile(req, res) {
 						}),
 						path = area+"/"+client+"_"+file.filename;
 
-					Trace(`UPLOAD ${file.filename} INTO ${area} FOR ${client}`, req);
+					Trace(`UPLOAD ${file.filename} INTO ${area} FOR`, client);
 
 					uploadFile( client, srcStream, "./"+path, tags, file => {
 
@@ -4132,7 +4122,7 @@ switch (process.argv[2]) { //< unit tests
 	@method T1
 	Create simple service but dont start it.
 	*/
-		Trace({
+		Trace("", {
 			msg: "Im simply a Totem interface so Im not even running as a service", 
 			default_fetcher_endpts: TOTEM.byTable,
 			default_protect_mode: TOTEM.guard,
@@ -4195,7 +4185,7 @@ these files. `
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 					res( "123" );
 
-					Trace({
+					Trace("", {
 						do_query: req.query
 					});
 				},
@@ -4207,7 +4197,7 @@ these files. `
 					else
 						res( new Error("We have a problem huston") );
 
-					Trace({
+					Trace("", {
 						msg: `Like dothis, but needs an ?x=value query`, 
 						or_query: req.query,
 						or_user: req.client
@@ -4215,7 +4205,7 @@ these files. `
 				}
 			}
 		}, sql => {
-			Trace({
+			Trace("", {
 				msg:
 `As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
 and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
@@ -4237,7 +4227,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 		TOTEM.config({
 			riddles: 20
 		}, sql => {
-			Trace({
+			Trace("", {
 				msg:
 `I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
 shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.`, 
