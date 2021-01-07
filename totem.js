@@ -171,11 +171,12 @@ function NEOCONNECTOR(trace) {
 	function findAssoc( query, cb ) {
 		const 
 			neo = this,
-			[src,tar,rel] = query;
+			[src,tar,rel] = query,
+			Rel = rel.replace( / /g, "");
 		
 		neoThread( neo => {
 			neo.cypher( 
-				`MATCH ( a {name:$src} ) -[r:${rel}]-> ( b {name:$tar} ) RETURN r,a,b`, 
+				`MATCH ( a {name:$src} ) -[r:${Rel}]-> ( b {name:$tar} ) RETURN r,a,b`, 
 				{
 					src: src,
 					tar: tar
@@ -211,8 +212,10 @@ function NEOCONNECTOR(trace) {
 		//Log("save pairs topic", name);
 		Each( edges, (name,edge) => {
 			//neo.makeEdge( net, edge );
+			var Type = edge.type.replace(/ /g, "");
+			
 			neo.cypher(
-				`MATCH (a:${net} {name:$src}), (b:${net} {name:$tar}) MERGE (a)-[r:${edge.type}]-(b) ON CREATE SET r = $props`, {
+				`MATCH (a:${net} {name:$src}), (b:${net} {name:$tar}) MERGE (a)-[r:${Type}]-(b) ON CREATE SET r = $props`, {
 				src: edge.src,
 				tar: edge.tar,
 				props: edge || {}
