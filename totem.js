@@ -923,7 +923,7 @@ function NEOCONNECTOR(trace) {
 const 
 	{ 
 		byArea, byType, byAction, byTable, 
-		neoThread,
+		neoThread, defaultType,
 		$master, $worker, Fetch, fetchOptions,
 		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
 		filterRecords,guestProfile,routeDS, startDogs, cache } = TOTEM = module.exports = {
@@ -978,6 +978,8 @@ const
 			}
 		}
 	},
+
+	defaultType: "run",
 
 	/**
 		Fetches data from a 
@@ -1117,7 +1119,7 @@ const
 			req.path = path;
 			req.area = area;
 			req.table = table;
-			req.type = type || "";
+			req.type = type || defaultType;
 
 			const
 				ds = req.ds = (routeDS[table] || routeDS.default)(req);
@@ -1159,7 +1161,7 @@ const
 			}
 
 			else
-			if ( route = byType[type] ) // route by type
+			if ( route = byType[req.type] ) // route by type
 				followRoute( route );
 
 			else	
@@ -3491,6 +3493,7 @@ function insertDS(req, res) {
 		{ sql, flags, body, client, action, ds } = req,
 		{ trace } = flags;
 
+	//Log(ds,body);
 	sql.Query(
 		"INSERT INTO ?? ${set}", [ds,body], {
 			trace: trace,
@@ -4077,12 +4080,12 @@ function getFile(req, res) {
 		
 		return recs;
 	} 
-	*/
 	function hashify(key,hash) {
 		var rtn = hash || {};
 		this.forEach( rec => rtn[rec[key]] = rec );
 		return rtn;
 	}
+	*/
 ].Extend(Array);
 
 /**
@@ -4440,7 +4443,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
 				Log("ingest starting");
-				sql.Ingest("./stores/_noarch/gtd.csv", {
+				sql.ingestFile("./stores/_noarch/gtd.csv", {
 					target: "gtd",
 					//limit: 1000,
 					keys: [
