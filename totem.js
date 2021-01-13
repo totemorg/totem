@@ -4442,31 +4442,52 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 	case "INGTD":
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
-				Log("ingest starting");
 				sql.ingestFile("./stores/_noarch/gtd.csv", {
 					target: "gtd",
-					//limit: 1000,
+					//limit: 10,
+					batch: 500,
 					keys: [
-						"evid varchar(16)",
-						"year int(11)",
+						"eventid varchar(16) unique key",
+						"date varchar(10)",
 						"latitude float",
 						"longitude float",
-						"attack varchar(64)",
-						"target varchar(32)",
-						"perp varchar(64)",
+						"weaptype1_txt varchar(64)",
+						"provstate varchar(64)",
+						"region_txt varchar(32)",
+						"country_txt varchar(32)",
+						"attacktype1_txt varchar(32)",
+						"targtype1_txt varchar(32)",
 						"nperps int(11)",
+						"gname varchar(64)",
+						"natlty1_txt varchar(32)",
 						"nkill int(11)",
 						"nkillus int(11)",
 						"nkillter int(11)",
 						"nwound int(11)",
 						"nwoundus int(11)",
-						"nwoundter int(11)",
-						"propvalue float"
-						].join(","),
-					batch: 500
-				},
-					// rec => rec.iyear != 1970,
-				);
+						"nwoundte int(11)",
+						"propvalue float",
+						"INT_LOG int(11)",
+						"INT_IDEO int(11)",
+						"INT_ANY int(11)"
+					]
+				});
+			});
+		});
+		break;
+		
+	case "INGTDSCITE":
+		prime( () => {
+			TOTEM.config({name:""}, sql => {
+				sql.ingestFile("./stores/_noarch/gtdscite.csv", {
+					target: "gtd",
+					//limit: 10,
+					batch: 500,
+					keys: [
+						"eventid varchar(16) unique key",
+						"scite1_source varchar(64)",
+					]
+				});
 			});
 		});
 		break;
@@ -4474,14 +4495,11 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 	case "INMEX":
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
-				Log("ingest starting");
-				sql.Ingest("./stores/_noarch/centam.csv", {
+				sql.ingestFile("./stores/_noarch/centam.csv", {
 					keys: "Criminal_group varchar(32),_Year int(11),Outlet_name varchar(32),Event varchar(32),Rival_group varchar(32),_Eventid varchar(8)",
 					batch: 500,
 					//limit: 1000
-				},
-					rec => rec.Country == "Mexico"
-				);
+				}, 'Country == "Mexico"' );
 			});
 		});
 		break;
