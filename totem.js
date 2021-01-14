@@ -112,7 +112,7 @@ function NEOCONNECTOR(trace) {
 		})
 		.catch( err => {
 			if ( neo.trace) Log(err);
-			if (cb) cb( err, null );
+			//if (cb) cb( err, null );
 		})
 		.then( () => {
 			ses.close();
