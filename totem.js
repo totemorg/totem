@@ -85,10 +85,15 @@ function NEOCONNECTOR(trace) {
 
 		if ( params )
 			Each( params, (key,val) => {	// fix stupid $tokens in neo4j driver
-				if ( isObject(val) ) {
-					query = query.replace(new RegExp("\\$"+key,"g"), arg => "{".tag(":",val)+"}" );
-					delete params[key];
+				if (val) {
+					if ( isObject(val) ) {
+						query = query.replace(new RegExp("\\$"+key,"g"), arg => "{".tag(":",val)+"}" );
+						delete params[key];
+					}
 				}
+				
+				else
+					Log("???????????????????? neo", key,val, params);
 			});
 
 		// if ( neo.trace) Log(query);
@@ -631,7 +636,7 @@ function NEOCONNECTOR(trace) {
 			});
 		}
 		
-		function requestFile(path, cb) {
+		function getFile(path, cb) {
 			const
 				src = "."+path;
 			
@@ -837,7 +842,7 @@ function NEOCONNECTOR(trace) {
 				
 			case "file:":	// requesting file or folder index
 				//Log("index file", [path], opts);
-				requestFile( opts.path.substr(1) ? opts.path : "/home/" , res );  
+				getFile( opts.path.substr(1) ? opts.path : "/home/" , res );  
 				break;
 				
 			default:	// check if using a secure protocol
@@ -922,12 +927,14 @@ function NEOCONNECTOR(trace) {
 
 const 
 	{ 
-		byArea, byType, byAction, byTable, 
+		byArea, byType, byAction, byTable, CORS,
 		neoThread, defaultType,
 		$master, $worker, Fetch, fetchOptions,
 		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
 		filterRecords,guestProfile,routeDS, startDogs, cache } = TOTEM = module.exports = {
 	
+	CORS: false,
+			
 	fetchOptions: {	// Fetch parms
 		defHost: ENV.SERVICE_MASTER_URL,
 		maxFiles: 1000,						//< max files to index
@@ -1078,31 +1085,42 @@ const
 					});
 				}
 
-				//Log("log check", req.area, req.reqSocket?true:false, req.log );
-				if ( !req.area )   // log if file not being specified
+				const
+					{ area, table, path } = req;
+				
+				Trace( route.name.toUpperCase(), path );
+
+				if ( area ) 
+					if ( area == "socket.io" )	// ignore socket keep-alives
+						Trace("HUSH SOCKET.IO");
+
+					else	// send file
+						route( req, txt => res(txt) );
+				
+				else {
+					//Log("log check", req.area, req.reqSocket?true:false, req.log );
 					if ( sock = req.reqSocket )  	// log if http has a request socket
 						if ( log = req.log )  		// log if session log-able
 							logSession( log, sock );  
 
-				Trace( route.name.toUpperCase(), req.path );
-
-				route(req, recs => {	// route request and capture records
-					var call = null;
-					if ( recs ) {
-						for ( var key in flags ) if ( !call ) {	// perform single data conversion
-							if ( key.startsWith("$") ) key = "$";
-							if ( call = reqFlags[key] ) {
-								call( recs, req, recs => cb(req, recs) );
-								break;
+					route(req, recs => {	// route request and capture records
+						var call = null;
+						if ( recs ) {
+							for ( var key in flags ) if ( !call ) {	// perform single data conversion
+								if ( key.startsWith("$") ) key = "$";
+								if ( call = reqFlags[key] ) {
+									call( recs, req, recs => cb(req, recs) );
+									break;
+								}
 							}
+
+							if ( !call ) cb(req, recs);
 						}
 
-						if ( !call ) cb(req, recs);
-					}
-					
-					else
-						cb(req, null);
-				});
+						else
+							cb(req, null);
+					});
+				}
 			}
 
 			//Log(">>>node", node);
@@ -1145,20 +1163,38 @@ const
 				delete body[id];
 			}
 
-			if ( area ) {	// send file
-				//Log(">>>route area", area);
-				if ( area == "socket.io" && !table )	// ignore socket keep-alives
-					res( "hush" );
+			if ( area ) 	// send file
+				followRoute( function send(req,res) {	// provide a route to send a file
+					const
+						{area,table,type,path} = req,
+						get = "file:" + path;
+					
+					if ( get.endsWith("/") )		// requesting folder
+						Fetch( get, files => {
+							req.type = "html"; // otherwise default type is json.
+							//res( files );
+							files.forEach( (file,n) => files[n] = file.tag( file ) );
+							res(`hello ${req.client}<br>Index of ${path}:<br>` + files.join("<br>") );
+						});
 
-				else
-				if ( route = byArea[area] )		// send uncached, static file
-					followRoute( route );
-
-				else	// send file
-					followRoute( function send(req,res) {	// provide a route to send a file
-						res( () => req.path );
-					});
-			}
+					else {	// requesting file						
+						const
+							file = table+"."+type,
+							{ never } = cache,
+							neverCache = never[file] || never[area];
+							  
+						//Log("cache", file, "never=", neverCache, "cached=", path in cache);
+						
+						if ( path in cache )
+							res( cache[path] );
+						
+						else
+							Fetch( get, txt => {
+								if ( !neverCache ) cache[path] = txt; 
+								res(txt);
+							});
+					}
+				});
 
 			else
 			if ( route = byType[req.type] ) // route by type
@@ -1373,7 +1409,7 @@ Log("line ",idx,line.length);
 				action: "select|update| ..."	// corresponding crude name
 				started: date		// date stamp when requested started
 				encrypted: bool		// true if request on encrypted server
-				socketio: "path"  	// filepath to client's socketio.js
+				// socketio: "path"  	// filepath to client's socketio.js
 				post: "..."			// raw body text
 				url	: "/query"		// requested url path
 				reqSocket: socket	// socket to retrieve client cert 
@@ -1403,6 +1439,42 @@ Log("line ",idx,line.length);
 
 			@param {Function} agent callback(req,res) to handle session request-response 
 		*/
+		function initChallenger () {		//< Create antibot challenges.
+			const 
+				{ riddle, riddles, riddleMap } = TOTEM,
+				{ captcha } = paths,
+				{ floor, random } = Math;
+
+			Trace("CHALLENGER", {
+				capPath: captcha, 
+				N: riddles
+			});
+
+			if ( captcha )
+				for (var n=0; n<riddles; n++) {
+					var 
+						Q = {
+							x: floor(random()*10),
+							y: floor(random()*10),
+							z: floor(random()*10),
+							n: floor(random()*riddleMap["0"].length)
+						},
+
+						A = {
+							x: "".tag("img", {src: `${captcha}/${Q.x}/${riddleMap[Q.x][Q.n]}.jpg`}),
+							y: "".tag("img", {src: `${captcha}/${Q.y}/${riddleMap[Q.y][Q.n]}.jpg`}),
+							z: "".tag("img", {src: `${captcha}/${Q.z}/${riddleMap[Q.z][Q.n]}.jpg`})
+						};
+
+					riddle.push( {
+						Q: `${A.x} * ${A.y} + ${A.z}`,
+						A: Q.x * Q.y + Q.z
+					} );
+				}
+
+			Log(riddle);
+		}
+
 		function setupService(agent) {  
 
 			/*
@@ -1418,7 +1490,7 @@ Log("line ",idx,line.length);
 				*/
 				function startService(port, cb) {
 					const 
-						{ routeRequest, sockets, name, server, dogs, guard, guards, proxy, proxies, riddles, cores } = TOTEM,
+						{ routeRequest, sockets, name, server, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM,
 						{ challenge } = sqls;
 					
 					Trace(`STARTING ${name}`);
@@ -1442,34 +1514,128 @@ Log("line ",idx,line.length);
 							HUBIO = TOTEM.HUBIO = new (SIOHUB); 		//< Hub fixes socket.io+cluster bug	
 
 						if (IO) { 							// Using socketio so setup client web-socket support
-							Trace("SOCKETS AT", IO.path());
+							Trace("SOCKETS AT", IO.path() );
 
 							TOTEM.emitter = IO.sockets.emit;
 
-							IO.on("connect", socket => {  // Trap every connect				
-								socket.on("select", req => { 		// Trap connect raised on client "select/join request"
-									Trace(`CONNECTING ${req.client}`);
-									sqlThread( sql => {	
-										/*
-										if (newSession = mysql.newSession) 
-											sql.query(newSession,  {
-												Client	: req.client,
-												Connects: 1,
-												Location: "unknown", //req.location,
-												//ipAddress: req.ip,
-												Joined: new Date(),
-												Message: req.message
-											});
-										*/
+							if ( challenge )		// allowing client challenges
+								IO.on("connect", socket => {  // Trap client connects when they call their io()
+									//Log("connect socket.io");
+									socket.on("select", req => { 		// Trap connect raised on client "select/join request"
+										const
+											{client,ip,location,message} = req;
 										
-										if ( challenge )
-											sql.query(challenge, {Client:req.client}).on("results", profile => {
-												if ( profile.Challenge)
-													challengeClient(sql, req.client, profile);	
+										Trace(`CONNECTING ${client}`);
+										//Log( req );
+										sqlThread( sql => {	
+											/*
+											if (newSession = mysql.newSession) 
+												sql.query(newSession,  {
+													Client	: req.client,
+													Connects: 1,
+													Location: "unknown", //req.location,
+													//ipAddress: req.ip,
+													Joined: new Date(),
+													Message: req.message
+												});
+											*/
+											//Log(challenge);
+											sql.query(challenge, [client], (err,profs) => { 
+												
+												/**
+													Create an antibot challenge and relay to client with specified profile parameters
+
+													@param {String} client being challenged
+													@param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
+												*/
+												function challengeClient (profile) { 
+													/**
+														Check clients response req.query to a antibot challenge.
+
+														@param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
+														@param {Array} rid List of riddles returned
+														@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
+													*/
+													function makeRiddles (msg,riddles,ids) { 
+														const
+															{ floor, random } = Math,
+															rand = N => floor( random() * N ),
+															{ riddle } = TOTEM,
+															N = riddle.length,
+															randRiddle = (x) => riddle[rand(N)];
+														
+														return N 
+															?	msg
+																.replace(/\(riddle\)/g, pat => {
+																	var QA = randRiddle();
+																	riddles.push( QA.A );
+																	return QA.Q;
+																})
+																.replace(/\(yesno\)/g, pat => {
+																	var QA = randRiddle();
+																	riddles.push( QA.A );
+																	return QA.Q;
+																})
+																.replace(/\(ids\)/g, pat => {
+																	var rtn = [];
+																	Each(ids, function (key, val) {
+																		rtn.push( key );
+																		rid.push( val );
+																	});
+																	return rtn.join(", ");
+																})
+																.replace(/\(rand\)/g, pat => {
+																	riddles.push( rand(10) );
+																	return "random integer between 0 and 9";		
+																})
+																.replace(/\(card\)/g, pat => {
+																	return "cac card challenge TBD";
+																})
+																.replace(/\(bio\)/g, pat => {
+																	return "bio challenge TBD";
+																})
+
+															: msg;
+													}
+
+													const
+														{ riddler } = paths,
+														{ Message, IDs, Retries, Timeout } = profile,
+														riddles = [],
+														probe = makeRiddles( Message, riddles, (IDs||"").parseJSON( {} ) );
+
+													Log(probe, riddles);
+													
+													if ( probe )
+														sql.query("REPLACE INTO openv.riddles SET ?", {
+															Riddle: riddles.join(",").replace(/ /g,""),
+															Client: client,
+															Made: new Date(),
+															Attempts: 0,
+															maxAttempts: Retries
+														}, (err,info) => {
+															TOTEM.IO.emit("select", {
+																message: probe,
+																riddles: riddles.length,
+																rejected: false,
+																retries: Retries,
+																timeout: Timeout,
+																ID: client, //info.insertId,
+																callback: riddler
+															});
+														});
+												}
+		
+												//Log(err,profs);
+												
+												if ( prof = profs[0] ) 
+													if ( prof.Challenge )
+														challengeClient(prof);	
 											});
+											
+										});
 									});
-								});
-							});	
+								});	
 
 							/*
 							// for debugging
@@ -1502,7 +1668,7 @@ Log("line ",idx,line.length);
 							process.on(signal, () => Trace( "SIGNALED", signal) );
 					}
 
-					if (riddles) initChallenger();
+					initChallenger();
 
 					TOTEM.initialize(null);	
 					
@@ -1526,10 +1692,10 @@ Log("line ",idx,line.length);
 								"AT "+`(${site.master}, ${site.worker})`,
 								"DATABASE " + site.db ,
 								"FROM " + process.cwd(),
-								"WITH " + (sockets||"NO")+" SOCKETS",
+								"WITH " + (sockets?"":"NO")+" SOCKETS",
 								"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
-								"WITH "+ (riddles?"ANTIBOT":"NO ANTIBOT") + " PROTECTION",
-								"WITH " + (site.sessions||"UNLIMITED")+" CONNECTIONS",
+								"WITH "+ (riddle.length?"":"NO") + " ANTIBOT PROTECTION",
+								"WITH " + (site.sessions||"UNLIMITED") + " CONNECTIONS",
 								"WITH " + (cores ? cores + " WORKERS AT "+site.worker : "NO WORKERS"),
 								"POCS " + JSON.stringify(site.pocs)
 							].join("\n- ") );
@@ -1699,7 +1865,7 @@ Log("line ",idx,line.length);
 												reqSocket: Req.socket,   // use supplied request socket 
 												resSocket: getSocket,		// use this method to return a response socket
 												encrypted: isEncrypted(),	// on encrypted worker
-												socketio: sockets ? paths.socketio : "",		// path to socket.io
+												// socketio: sockets ? paths.socketio : "",		// path to socket.io
 												url: unescape( Req.url || "/" )	// unescaped url
 												/*
 												There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
@@ -1713,7 +1879,7 @@ Log("line ",idx,line.length);
 
 								case "OPTIONS":  // client making cross-domain call - must respond with what are valid methods
 									//Req.method = Req.headers["access-control-request-method"];
-									Log(">>>>>>opts req", Req.headers);
+									//Log(">>>>>>opts req", Req.headers);
 									Res.writeHead(200, {
 										"access-control-allow-origin": "*", 
 										"access-control-allow-methods": "POST, GET, DELETE, PUT, OPTIONS"
@@ -1754,31 +1920,6 @@ Log("line ",idx,line.length);
 								function sendString( data ) {  // Send string - terminate sql connection
 									Res.end( data );
 								}
-
-								function sendFile( path ) { // Cache and send file to client - terminate sql connection
-
-									// Trace(`SENDING ${path}`);
-
-									const 
-										[x1, file] = path.match( /\/.*\/(.*)/ ) || [],
-										[x2, area] = path.match( /\/(.*?)\/.*/ ) || [],
-										{ never } = cache,
-										stash = (never[file] || never[area]) ? {} : cache;
-
-									//Log(path, stash[path] ? "cached" : "!cached");
-
-									if ( buf = stash[path] )
-										sendString( buf );
-
-									else
-										FS.readFile( "."+path, (err,buf) => {
-											if (err)
-												sendError( errors.noFile );
-
-											else
-												sendString( stash[path] = Buffer.from(buf) );
-										});
-								}		
 
 								function sendError(err) {  // Send pretty error message - terminate sql connection
 									switch ( req.type ) {
@@ -1835,75 +1976,57 @@ Log("line ",idx,line.length);
 									mime = mimes[ isError(data||0) ? "html" : req.type ] || mimes.html;
 
 								// set appropriate headers to prevent http-parse errors when using master-worker proxy
+								
 								if ( req.encrypted )
 									Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
 
-								//Log(">>mime", mime);
-								
-								Res.setHeader("Content-Type", mime);
-								// enable to support CORS
-								Res.setHeader("Access-Control-Allow-Origin", "*");
-								Res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-								Res.setHeader("Access-Control-Allow-Headers", '*');
-								Res.setHeader("Status", "200 OK");
-								Res.setHeader("Vary", "Accept");
-								/*
-								//self.send_header('Content-Type', 'application/octet-stream')
-								*/
-
-								Res.statusCode = 200;
-
-								if (data != null)
-									switch ( typeOf(data) ) {  // send based on its type
-										case "Error": 			// send error message
-											sendError( data );
-											break;
-
-										case "Function": 			// send file (search or direct)
-											
-											sendFile( data() );
-											/*
-											if ( (search = req.query.search) && sqls.search) 		// search for file via (e.g. nlp) score
-												sql.query(sqls.search, {FullSearch:search}, (err, files) => {
-
-													if (err) 
-														sendError( errors.noFile );
-
-													else
-														sendError( errors.noFile );  // reserved functionality
-
-												});
-
-											else {			
-												if ( credit = sqls.credit)  // credit/charge client when file pulled from file system
-													sql.query( credit, {Name:req.node,Area:req.area} )
-													.on("result", file => {
-														if (file.Client != req.client)
-															sql.query("UPDATE openv.profiles SET Credit=Credit+1 WHERE ?",{Client: file.Client});
-													});
-
-												sendFile( data(), req.file, req.type, req.area );
-											}  */
-
-											break;
-
-										case "Array": 			// send data records 
-											sendRecords(data);
-											break;
-
-										case "String":  			// send message
-										case "Buffer":
-											sendString(data);
-											break;
-
-										case "Object":
-										default: 					// send data record
-											sendObject(data);
-											break;
+								try {
+									Res.setHeader("Content-Type", mime);
+									
+									if ( CORS ) {	// support CORS
+										Res.setHeader("Access-Control-Allow-Origin", "*");
+										Res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+										Res.setHeader("Access-Control-Allow-Headers", '*');
+										Res.setHeader("Status", "200 OK");
+										Res.setHeader("Vary", "Accept");
 									}
 
-								else
-									sendError( errors.noData );
+									/*
+									Experimental:
+									self.send_header('Content-Type', 'application/octet-stream')
+									*/
+
+									Res.statusCode = 200;
+
+									if (data != null)
+										switch ( typeOf(data) ) {  // send based on its type
+											case "Error": 			// send error message
+												sendError( data );
+												break;
+
+											case "Array": 			// send data records 
+												sendRecords(data);
+												break;
+
+											case "String":  			// send message
+											case "Buffer":
+												sendString(data);
+												break;
+
+											case "Object":
+											default: 					// send data record
+												sendObject(data);
+												break;
+										}
+
+									else
+										sendError( errors.noData );
+								}
+								
+								catch (err) {
+									Trace("TRAP SOCKET.IO BUG - use /socket/socket.io.js");
+								}
+								
 							}
 
 							if (sock = req.reqSocket )	// have a valid request socket so ....
@@ -2028,7 +2151,7 @@ Log("line ",idx,line.length);
 		const {dbTrack,routeRequest,setContext,name} = TOTEM;
 		
 		JSDB.config({   // establish the db agnosticator 
-			//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server starte
+			//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server started
 			track: dbTrack
 			//fetch: fetch			
 		}, err => {  // derive server vars and site context vars
@@ -2052,8 +2175,6 @@ Log("line ",idx,line.length);
 	initialize: err => {
 		Trace( `INITIALIZING ${TOTEM.name}` );
 	},
-	
-	getFile: getFile,
 	
 	queues: JSDB.queues, 	// pass along
 		
@@ -2325,7 +2446,7 @@ Log("line ",idx,line.length);
 		Enabled to support web sockets
 		@cfg {Boolean} [sockets=false]
 	*/
-	sockets: false, 	//< enabled to support web sockets
+	sockets: true, 	//< enabled to support web sockets
 		
 	/**
 		Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
@@ -2458,9 +2579,9 @@ Log("line ",idx,line.length);
 		@cfg {Object} 
 	*/		
 	byArea: {	//< by-area routers
-		stores: getFile,
-		shares: getFile,
-		public: getFile,
+		//stores: getFile,
+		//shares: getFile,
+		//public: getFile,
 		//"": getFile,
 		//uploads: getFile,
 		//stash: getFile
@@ -2690,7 +2811,7 @@ Log("line ",idx,line.length);
 		riddler: "/riddle",
 
 		certs: "./certs/", 
-		sockets: ".", // path to socket.io
+		//sockets: ".", // path to socket.io
 		socketio: "/socket.io/socket.io.js",
 
 		nodes: {  // available nodes for task sharding
@@ -2700,7 +2821,7 @@ Log("line ",idx,line.length);
 			3: ENV.SHARD3 || "http://localhost:8080/task"
 		},
 
-		captcha: "./captcha",  // path to antibot captchas
+		captcha: "/captcha",  // path to antibot captchas
 			
 		mimes: {  // Extend and remove mime types as needed
 		}
@@ -2720,7 +2841,7 @@ Log("line ",idx,line.length);
 		newProfile: "INSERT INTO openv.profiles SET ?",
 		getSession: "SELECT * FROM openv.sessions WHERE ? LIMIT 1",
 		newSession: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1",
-		challenge: "SELECT * FROM openv.profiles WHERE least(?,1) LIMIT 1",
+		challenge: "SELECT * FROM openv.profiles WHERE Client=? LIMIT 1",
 		guest: "SELECT * FROM openv.profiles WHERE Client='guest@guest.org' LIMIT 1",
 		pocs: "SELECT lower(Hawk) AS Role, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Clients FROM openv.roles GROUP BY hawk"
 	},
@@ -2755,15 +2876,36 @@ Log("line ",idx,line.length);
 		const 
 			{pocs,users,guest,derive} = sqls;
 
-		if (pocs) 
-			sql.query(pocs)
-			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() );
-			//.on("end", () => Log("POCs", site.pocs) );
+		site.warning = "";
 
+		const 
+			{lookups,Lookups} = TOTEM;
+
+		site.lookups = lookups,
+		site.Lookups = Lookups;
+		
+		sql.query("SELECT Ref AS `Key`,group_concat(DISTINCT Path SEPARATOR '|') AS `Select` FROM openv.lookups GROUP BY Ref", [], (err,recs) => {
+			recs.forEach( rec => {
+				lookups[rec.Key] = rec.Select;
+			});
+			Log(">>>lookups", lookups);
+		});
+		
+		sql.query("SELECT Ref,Path,Name FROM openv.lookups", [], (err,recs) => {
+			recs.forEach( rec => {
+				const 
+					{Ref,Path,Name} = rec,
+					Lookup = Lookups[Ref] || (Lookups[Ref] = {});
+
+				Lookup[Name] = Path;
+			});
+			Log(">>>Lookups", Lookups);
+		});
+		
 		if (users) 
 			sql.query(users)
 			.on("result", user => site.pocs["user"] = (user.Clients || "").toLowerCase() )
-			.on("end", () => Log("POCs", site.pocs) );
+			.on("end", () => Log("user pocs", site.pocs) );
 
 		if (guest && guestProfile)
 			sql.query(guest, [], (err,profs) => {
@@ -2771,55 +2913,31 @@ Log("line ",idx,line.length);
 					Copy( prof, guestProfile );
 			});
 
-		if (derive)  // derive site context vars
-			sql.query(derive, {Nick:TOTEM.name})
-			.on("result", opts => {
-				Each(opts, (key,val) => {
-					key = key.toLowerCase();
-					site[key] = val;
-					
-					try {
-						site[key] = JSON.parse( val );
-					}
-					catch (err) {
-					}
+		sql.query(derive, {Nick:TOTEM.name})
+		.on("result", opts => {
+			Each(opts, (key,val) => {
+				key = key.toLowerCase();
+				site[key] = val;
 
-					//Log(">>>site",key,val);
-					if (key in TOTEM) 
-						TOTEM[key] = site[key];
-				});
+				try {
+					site[key] = JSON.parse( val );
+				}
+				catch (err) {
+				}
 
+				//Log(">>>site",key,val);
+				if (key in TOTEM) 
+					TOTEM[key] = site[key];
+			});
+		})
+		.on("end", () => {
+			sql.query(pocs)
+			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() )
+			.on("end", () => {
 				if (cb) cb();
 			});
-
-		site.warning = "";
-
-		const 
-			{lookups,Lookups} = TOTEM;
-
-		site.lookups = lookups || {},
-		site.Lookups = Lookups || {};
-		
-		if ( lookups )
-			sql.query("SELECT Ref AS `Key`,group_concat(DISTINCT Path SEPARATOR '|') AS `Select` FROM openv.lookups GROUP BY Ref", [], (err,recs) => {
-				recs.forEach( rec => {
-					lookups[rec.Key] = rec.Select;
-				});
-				Log(">>>lookups", lookups);
-			});
-		
-		if ( Lookups )
-			sql.query("SELECT Ref,Path,Name FROM openv.lookups", [], (err,recs) => {
-				recs.forEach( rec => {
-					const 
-						{Ref,Path,Name} = rec,
-						Lookup = Lookups[Ref] || (Lookups[Ref] = {});
-
-					Lookup[Name] = Path;
-				});
-				Log(">>>Lookups", Lookups);
-			});
-		
+		});
+			
 		/* legacy
 		sql.query("SELECT count(ID) AS Fails FROM openv.aspreqts WHERE Status LIKE '%fail%'").on("result", asp => {
 		sql.query("SELECT count(ID) AS Fails FROM openv.ispreqts WHERE Status LIKE '%fail%'").on("result", isp => {
@@ -2848,16 +2966,9 @@ Log("line ",idx,line.length);
 		@cfg {Object} 
 	*/		
 	cache: { 				//< file cacheing options
-
 		never: {	//< files to never cache - useful while debugging client side stuff
 			uis: 1,
 			jades: 1
-		},
-
-		clients: {  // cache clients area
-		},
-
-		"socket.io": {  // cache socketio area
 		}
 	}
 
@@ -3330,123 +3441,6 @@ Validate client session request.
 }
 
 /**
-	Create antibot challenges.
-*/
-function initChallenger () {
-	function Riddle(map, path) {
-		const { floor, random } = Math;
-		
-		var 
-			Q = {
-				x: floor(random()*10),
-				y: floor(random()*10),
-				z: floor(random()*10),
-				n: floor(random()*map["0"].length)
-			},
-
-			A = {
-				x: "".tag("img", {src: `${path}/${Q.x}/${map[Q.x][Q.n]}.jpg`}),
-				y: "".tag("img", {src: `${path}/${Q.y}/${map[Q.y][Q.n]}.jpg`}),
-				z: "".tag("img", {src: `${path}/${Q.z}/${map[Q.z][Q.n]}.jpg`})
-			};
-
-		return {
-			Q: `${A.x} * ${A.y} + ${A.z}`,
-			A: Q.x * Q.y + Q.z
-		};
-	}
-
-	const {riddle, riddles, riddleMap} = TOTEM;
-
-	if ( captcha = paths.captcha )
-		for (var n=0; n<riddles; n++) 
-			riddle.push( Riddle(riddleMap,captcha) );
-}
-
-/**
-	Check clients response req.query to a antibot challenge.
-
-	@param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
-	@param {Array} rid List of riddles returned
-	@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
-*/
-function makeRiddles (msg,rid,ids) { 
-	var 
-		riddles = TOTEM.riddle,
-		N = riddles.length;
-
-	if (N)
-		return msg
-			.replace(/\(riddle\)/g, (pat) => {
-				var QA = riddles[Math.floor( Math.random() * N )];
-				rid.push( QA.A );
-				return QA.Q;
-			})
-			.replace(/\(yesno\)/g, (pat) => {
-				var QA = riddles[Math.floor( Math.random() * N )];
-				rid.push( QA.A );
-				return QA.Q;
-			})
-			.replace(/\(ids\)/g, (pat) => {
-				var rtn = [];
-				Each(ids, function (key, val) {
-					rtn.push( key );
-					rid.push( val );
-				});
-				return rtn.join(", ");
-			})
-			.replace(/\(rand\)/g, (pat) => {
-				rid.push( Math.floor(Math.random()*10) );
-				return "random integer between 0 and 9";		
-			})
-			.replace(/\(card\)/g, (pat) => {
-				return "cac card challenge TBD";
-			})
-			.replace(/\(bio\)/g, (pat) => {
-			return "bio challenge TBD";
-		});
-
-	else
-		return msg;
-}
-
-/**
-	Create an antibot challenge and relay to client with specified profile parameters
-
-	@param {String} client being challenged
-	@param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
-*/
-function challengeClient (sql, client, profile) { 
-	const
-	{ riddler } = paths,
-		rid = [],
-		reply = (TOTEM.riddleMap && TOTEM.riddles)
-				? makeRiddles( profile.Message, rid, (profile.IDs||"").parseJSON( {} ) )
-				: profile.Message;
-
-	if (reply && TOTEM.IO) 
-		sqlThread( sql => {
-			sql.query("REPLACE INTO openv.riddles SET ?", {
-				Riddle: rid.join(",").replace(/ /g,""),
-				Client: client,
-				Made: new Date(),
-				Attempts: 0,
-				maxAttempts: profile.Retries
-			}, (err,info) => {
-				TOTEM.IO.emit("select", {
-					message: reply,
-					riddles: rid.length,
-					rejected: false,
-					retries: profile.Retries,
-					timeout: profile.Timeout,
-					ID: client, //info.insertId,
-					callback: riddler
-				});
-			});
-		});
-}
-
-/**
  @class TOTEM.End_Points.CRUDE_Interface
  Create / insert / post, Read / select / get, Update / put, Delete and Execute methods.
 */
@@ -3906,137 +3900,6 @@ Shard specified task to the compute nodes given task post parameters.
 				else
 					runTask( index );
 			});
-	}
-}
-
-/**
-	Endpoint to send, remove, or upload a static file from a requested area.
-
-	@param {Object} req Totem request
-	@param {Function} res Totem response
-*/
-function getFile(req, res) {
-	const {sql, query, body, client, action, table, path, files, canvas} = req;
-		   
-	var 
-		area = table,
-		now = new Date();
-	
-	switch (action) {
-		case "select":
-			if ( path.endsWith("/") )		// requesting folder
-				Fetch( path, files => {
-					req.type = "html"; // otherwise default type is json.
-					res( files );
-					//files.forEach( (file,n) => files[n] = file.tag( file ) );
-					//res(`hello ${req.client}<br>Index of ${path}:<br>` + files.join("<br>") );
-				});
-			
-			else	// requesting file
-				Fetch( path, res );
-			
-			break;
-					
-		case "delete":
-			res( errors.noFile );
-			break;
-			
-		case "update":
-		case "insert":
-			var
-				attach = [],
-				tags = Copy(query.tag || {}, {Location: query.location || "POINT(0 0)"});
-
-			res( "uploading" );
-
-			if ( canvas )
-				canvas.objects.forEach( obj => {	// upload provided canvas objects
-					switch (obj.type) {
-						case "image": // ignore blob
-							break;
-
-						case "rect":
-
-							attach.push(obj);
-
-							sql.query("REPLACE INTO proofs SET ?", {
-								top: obj.top,
-								left: obj.left,
-								width: obj.width,
-								height: obj.height,
-								label: tag,
-								made: now,
-								name: area+"."+name
-							});
-							break;			
-					}
-				});
-
-			if ( files )
-				files.forEach( file => {
-					var 
-						buf = Buffer.from(file,"base64"); //new Buffer(file.data,"base64"),
-						srcStream = new STREAM.Readable({  // source stream for event ingest
-							objectMode: true,
-							read: function () {  // return null if there are no more events
-								this.push( buf );
-								buf = null;
-							}
-						}),
-						path = area+"/"+client+"_"+file.filename;
-
-					Trace(`UPLOAD ${file.filename} INTO ${area} FOR`, client);
-
-					uploadFile( client, srcStream, "./"+path, tags, file => {
-
-						if (false)
-						sql.query(	// this might be generating an extra geo=null record for some reason.  works thereafter.
-							   "INSERT INTO openv.files SET ?,Location=GeomFromText(?) "
-							+ "ON DUPLICATE KEY UPDATE Client=?,Added=now(),Revs=Revs+1,Location=GeomFromText(?)", [ 
-								{
-										Client: req.client,
-										Name: file.filename,
-										Area: area,
-										Added: new Date(),
-										Classif: query.classif || "",
-										Revs: 1,
-										Ingest_Size: file.size,
-										Ingest_Tag: query.tag || ""
-									}, geoloc, req.client, geoloc
-								]);
-
-						if (false)
-						sql.query( // credit the client
-							"UPDATE openv.profiles SET Credit=Credit+?,useDisk=useDisk+? WHERE ?", [ 
-								1000, file.size, {Client: req.client} 
-							]);
-
-						switch (area) {
-							case "proofs": 
-								sql.query("REPLACE INTO proofs SET ?", {
-									top: 0,
-									left: 0,
-									width: file.Width,
-									height: file.Height,
-									label: tag,
-									made: now,
-									name: area+"."+name
-								});
-
-								sql.query(
-									"SELECT detectors.ID, count(ID) AS counts FROM openv.detectors LEFT JOIN proofs ON proofs.label LIKE detectors.PosCases AND proofs.name=? HAVING counts",
-									[area+"."+name]
-								)
-								.on("result", function (det) {
-									sql.query("UPDATE openv.detectors SET Dirty=Dirty+1");
-								});
-								break;
-						}
-					});
-				});
-			
-			break;
-			
 	}
 }
 
