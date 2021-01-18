@@ -1612,7 +1612,7 @@ const
 														riddles = [],
 														probe = makeRiddles( Message, riddles, (IDs||"").parseJSON( {} ) );
 
-													//Log(probe, riddles);
+													Log(client, probe, riddles);
 
 													sql.query("REPLACE INTO openv.riddles SET ?", {		// track riddle
 														Riddle: riddles.join(",").replace(/ /g,""),
