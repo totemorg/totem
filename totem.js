@@ -235,253 +235,6 @@ function NEOCONNECTOR(trace) {
 
 [ //< String prototypes
 	/**
-		Parse "$.KEY" || "$[INDEX]" expressions given $ hash.
-
-		@param {Object} $ source hash
-	*/
-	function parseEval($) {
-		try {
-			return eval(this+"");
-		}
-		
-		catch (err) {
-			return err+"";
-		}
-	},
-	
-	/**
-		Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
-
-		@param {Object} ctx context hash
-	*/
-	function parseJS(ctx, cb) {
-		try {
-			return VM.runInContext( this+"", VM.createContext(ctx || {}));
-		}
-		catch (err) {
-			//Log("parseJS", this+"", err, ctx);
-			if ( cb ) 
-				return cb(err);
-			
-			else
-				return null;
-		}
-	},
-	
-	/**
-		Return an EMAC "...${...}..." string using supplied req $-tokens and plugin methods.
-
-		@memberof String
-		@param {Object} query context hash
-	*/
-	function parse$(query) {
-		try {
-			return VM.runInContext( "`" + this + "`" , VM.createContext(query));
-		}
-		catch (err) {
-			return err+"";
-		}
-	},
-	
-	/**
-		Parse string into json.
-
-		@memberof String
-		@param {Function,Object} def default object or callback that returns default
-	*/
-	function parseJSON(def) {
-		try { 
-			return JSON.parse(this);
-		}
-		catch (err) {  
-			//Log("jparse", this, err);
-			return def ? (isFunction(def) ? def(this+"") : def) || null : null;
-		}
-	},
-
-	/**
-		Parse a "PATH?PARM&PARM&..." url into the specified query, index, flags, or keys hash
-		as directed by the PARM = ASKEY := REL || REL || _FLAG = VALUE where 
-		REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY and returns [path,file,type].
-
-		@memberof String
-		@param {Object} query hash of query keys
-		@param {Object} index hash of sql-ized indexing keys
-		@param {Object} flags hash of flag keys
-		@param {Object} where hash of sql-ized conditional keys
-	*/
-	function parsePath(query,index,flags,where) { 
-		/*
-		function doParm(parm) {
-			function doFlag(parm) {
-				function doIndex(parm) {
-					function doTest(parm) {
-						function doSimple(parm) {
-							function doTag(parm) {
-								parm.split(",").forEach( arg =>	query[arg] = 1);
-							}
-							
-							parm.parseOP( /(.*?)(=)(.*)/, null, (lhs,rhs,op) => query[lhs] = rhs.parseJSON( txt => txt ) );
-						
-							parm.parseOP( /(.*?)(<|>|=)(.*)/, doTag, (lhs,rhs,op) => where[op][lhs] = rhs );
-						}
-						
-						parm.parseOP( /(.*?)(<=|>=|\!=|\!bin=|\!exp=|\!nlp=)(.*)/, doSimple, (lhs,rhs,op) => where[op][lhs] = rhs );
-					}
-					
-					parm.parseOP( /(.*?)(:=)(.*)/, doTest, (lhs,rhs,op) => index[lhs] = rhs );
-				}
-				
-				parm.parseOP( /^_(.*?)(=)(.*)/, doIndex, (lhs,rhs,op) => flags[lhs] = rhs.parseJSON( txt => txt ) );
-			}
-
-			doFlag(parm);
-		}
-		*/
-		
-		var 
-			search = this+"",
-			ops = [ 
-				/(.*?)(:=|<=|>=|\!=|_=|\!bin=|\!exp=|\!nlp=)(.*)/,
-				/(.*?)(<|>|=)(.*)/ 
-			],
-			[xp, path, parms] = search.match(/(.*?)\?(.*)/) || ["",search,""],
-			[xf, area, table, type] = path.match( /\/(.*?)\/(.*)\.(.*)/ ) || path.match( /\/(.*?)\/(.*)/ ) || path.match( /(.*)\/(.*)\.(.*)/ ) || path.match( /(.*)\/(.*)(.*)/ ) || ["","","",""];
-			
-		
-		//Log(">>>>path", [search, path, parms, area, table, type]);
-		
-		operators.forEach( key => where[key] = {} );
-		
-		parms.split("&").forEach( parm => {
-			if (parm) {
-				const 
-					[lhs,op,rhs] = parm.parseOP(ops[0], parm => parm.parseOP( ops[1], parm => [parm,".","1"] )),
-					RHS = rhs.parseJSON( arg => arg );
-				
-				// Log(">>>parms", [parm,lhs,rhs,op]);
-				
-				switch (op) {
-					case "=":
-						switch ( lead = lhs.charAt(0) ) {
-							case "_":
-								flags[lhs.substr(1)] = RHS;
-								break;
-								
-							default:
-								where["="][lhs] = rhs;
-								query[lhs] = RHS;
-						}
-						break;
-
-					case "_":
-						flags[lhs] = RHS;
-						break;
-						
-					case ".":
-						query[lhs] = RHS;
-						break;
-						
-					case ":=":
-						index[lhs] = rhs;
-						break;
-						
-					case "<":
-					case ">":
-					case "<=":
-					case ">=":
-					case "!=":
-					case "!bin=":
-					case "!exp=":
-					case "!nlp=":
-						where[op][lhs] = rhs;
-						break;
-				}
-				
-				// doParm( parm );
-			}
-		});
-		
-		// Log(">>>url parms", {q:query, w:where, i:index, f:flags});
-		
-		/* legacy
-		parms.split("&").forEach( parm => {
-			if (parm) 
-				doParm( parm );
-		});
-		
-		path.split("&").forEach( (parm,n) => {
-			if ( n )
-				parm.parseOP( /(.*?)(=)(.*)/, 
-					args => args.split(",").forEach( arg => index[arg] = ""), 
-					(lhs,rhs,op) => index[lhs] = rhs );
-				
-			else
-				path = parm;
-		});  */
-		
-		//Log(">>>path", {q: query, w: where, i: index, s: search, f: flags, p: path, a:area, t:type, T:table});
-		
-		return [path,table,type,area];
-
-		/*
-		function doLast( str ) {
-			var
-				[x,lhs,op,rhs] = str.match( /(.*?)(=)(.*)/ ) || [];
-
-			if ( op ) 
-				query[lhs] = rhs;
-
-			else
-				doParm( str );
-		}
-
-	
-		var 
-			url = this+"",
-			parts = url.split("?"),
-			path = parts[0],
-			parms = parts[1] || "",
-			rem = parts.slice(2).join("?"),
-			parms = parms.split("&"),
-			last = parms.pop();
-		
-		operators.forEach( key => where[key] = {} );
-		
-		parms.forEach( parm => {
-			if (parm) 
-				doParm( parm );
-		});
-		
-		if ( last )
-			if ( rem ) 
-				doLast( last + "?" + rem );
-		
-			else
-				doParm( last );
-
-		path.split("&").forEach( (parm,n) => {
-			if ( n )
-				parm.parseOP( /(.*?)(=)(.*)/, 
-					args => args.split(",").forEach( arg => index[arg] = ""), 
-					(lhs,rhs,op) => index[lhs] = rhs );
-				
-			else
-				path = parm;
-		});
-		
-		if (false) Log({
-			q: query,
-			w: where,
-			i: index,
-			f: flags
-		});
-		
-		return path;
-		*/
-	},
-
-	/**
 		Parse XML string into json and callback cb(json) 
 
 		@memberof String
@@ -493,56 +246,31 @@ function NEOCONNECTOR(trace) {
 		});
 	},
 	
-	function parseURL(opts,base) {
-		const 
-			url = this+"",
-			{username,password,hostname,protocol,pathname,search,port,href} = new URL(url,base);
-
-		//Log(">>>>url", new URL(url,base) );
-
-		return Copy( opts || {}, {
-			auth: username + ":" + password,
-			path: pathname + search,
-			protocol: protocol,
-			host: hostname,
-			port: port,
-			href: href
-		});
-	},
-
-	/*
-	function parseOP( reg, elsecb, ifcb ) {
-		var 
-			[x,lhs,op,rhs] = this.match(reg) || [];
+	/**
+		Fetches data from a 
 		
-		if ( op ) 
-			return ifcb( lhs, rhs, op );
-		
-		else
-		if ( elsecb )
-			return elsecb(this+"");
-	}, */
-	function parseOP(reg, failcb, workcb) {
-		var 
-			[x,lhs,op,rhs] = this.match(reg) || [];
-		
-		return op ? workcb ? workcb(lhs,op,rhs) : [lhs, op, rhs] : failcb ? failcb(this+"") : null;
-	},
-	
-	function parseKEY( escape ) {
-		return this.parseOP( /(.*?)(\$)(.*)/, key => escape(key) , (lhs,op,rhs) => {
+			path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
 			
-			if (lhs) {
-				var idx = rhs.split(",");
-				idx.forEach( (key,n) => idx[n] = escape( n ? key : op+key) );
-				return `json_extract(${escapeId(lhs)}, ${idx.join(",")} )`;
-			}
-
-			else
-				return escapeId(rhs);
-		});
-	},
+		using the PUT || POST || DELETE || GET method given a data = Array || Object || null || Function spec where:
+		
+			PROTOCOL = http || https, curl || curls, wget || wgets, mask || masks, lexis || etc, file, book
 	
+		and where 
+		
+			curls/wgets presents the certs/fetch.pfx certificate to the endpoint, 
+			mask/masks routes the fetch through rotated proxies, 
+			lexis/etc uses the oauth authorization-authentication protocol, 
+			file fetches from the file system,
+			book selects a notebook record. 
+			
+		If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
+		regulate the file stream.
+		
+		@cfg {Function} 
+		@param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
+		@param {Object, Array, Function, null} data type induces method = get || post || put || delete
+		@param {Function} cb callback when data provided
+	*/
 	function fetchFile(data, cb) {	//< data fetching
 	
 		function sha256(s) { // reserved for other functionality
@@ -931,7 +659,7 @@ const
 		byArea, byType, byAction, byTable, CORS,
 		neoThread, defaultType,
 		$master, $worker, Fetch, fetchOptions,
-		operators, reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
+		reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
 		filterRecords,guestProfile,routeDS, startDogs, cache } = TOTEM = module.exports = {
 	
 	CORS: false,
@@ -1358,11 +1086,6 @@ const
 	},
 
 	/**
-		Defines url query parameter operators.
-	*/
-	operators: ["=", "<", "<=", ">", ">=", "!=", "!bin=", "!exp=", "!nlp="],
-
-	/**
 		Error messages
 		@cfg {Object} 
 	*/		
@@ -1567,41 +1290,34 @@ const
 														@param {Array} rid List of riddles returned
 														@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
 													*/
-													function makeRiddles (msg,riddles,ids) { 
+													function makeRiddles (msg,riddles,prof) { 
 														const
 															{ floor, random } = Math,
 															rand = N => floor( random() * N ),
 															{ riddle } = TOTEM,
 															N = riddle.length,
 															randRiddle = (x) => riddle[rand(N)];
-
+														
 														return msg
-																.replace(/\(riddle\)/g, pat => {
+																.parse$(prof)
+																.replace(/\#riddle/g, pat => {
 																	var QA = randRiddle();
 																	riddles.push( QA.A );
 																	return QA.Q;
 																})
-																.replace(/\(yesno\)/g, pat => {
+																.replace(/\#yesno/g, pat => {
 																	var QA = randRiddle();
 																	riddles.push( QA.A );
 																	return QA.Q;
 																})
-																.replace(/\(ids\)/g, pat => {
-																	var rtn = [];
-																	Each(ids, function (key, val) {
-																		rtn.push( key );
-																		rid.push( val );
-																	});
-																	return rtn.join(", ");
-																})
-																.replace(/\(rand\)/g, pat => {
+																.replace(/\#rand/g, pat => {
 																	riddles.push( rand(10) );
 																	return "random integer between 0 and 9";		
 																})
-																.replace(/\(card\)/g, pat => {
+																.replace(/\#card/g, pat => {
 																	return "cac card challenge TBD";
 																})
-																.replace(/\(bio\)/g, pat => {
+																.replace(/\#bio/g, pat => {
 																	return "bio challenge TBD";
 																});
 													}
@@ -1610,7 +1326,7 @@ const
 														{ riddler } = paths,
 														{ Message, IDs, Retries, Timeout } = profile,
 														riddles = [],
-														probe = makeRiddles( Message, riddles, (IDs||"").parseJSON( {} ) );
+														probe = makeRiddles( Message, riddles, profile );
 
 													Log(client, probe, riddles);
 
@@ -2790,7 +2506,7 @@ const
 		Repoll: true,	// challenge repoll during active sessions
 		Retries: 5,		// challenge number of retrys before session killed
 		Timeout: 30,	// challenge timeout in secs
-		Message: "Welcome guest - what is (riddle)?"		// challenge message with riddles, ids, etc
+		Message: "Welcome ${Client} - what is #riddle?"		// challenge message with riddles, ids, etc
 	},
 
 	/**
@@ -3622,238 +3338,6 @@ function executeDS(req,res) {
 
 function isAdmin(client) {
 	return site.pocs.admin.indexOf(client) >= 0;
-}
-
-/**
-	Return user profile information
-	@private
-	@deprecated
-	@method selectUser
-	@param {Object} req Totem session request 
-	@param {Function} res Totem response
-*/
-function selectUser(req,res) {
-	
-	const { sql, query, client, cert } = req;
-			
-	if (isAdmin(client))
-		Trace(sql.query(
-			"SELECT * FROM openv.profiles WHERE least(?,1)", 
-			[ query ], 
-			function (err,users) {
-				res( err || users );
-		}).sql);
-
-	else
-		sql.query(
-			"SELECT * FROM openv.profiles WHERE ? AND least(?,1)", 
-			[ {client:client}, query ], 
-			function (err,users) {
-				res( err || users );
-		});
-}
-
-/**
-	Update user profile information
-	@private
-	@deprecated
-	@method updateUser
-	@param {Object} req Totem session request 
-	@param {Function} res Totem response
-*/
-function updateUser(req,res) {
-	const { sql, query, client ,cert } = req;
-	
-	if (isAdmin(client)) 
-		// sql.context({users:{table:"openv.profile",where:{client:query.user},rec:query}});
-		Trace(sql.query(
-			"UPDATE openv.profiles SET ? WHERE ?", 
-			[ query, {client:query.user} ], 
-			(err,info) => {
-				res( err || errors.failedUser );
-		}).sql);
-
-	else
-		sql.query(
-			"UPDATE openv.profiles SET ? WHERE ?", 
-			[ query, {client:req.client} ],
-			(err,info) => {
-
-				res( err || errors.failedUser );
-		});
-			
-}
-
-/**
-	Remove user profile.
-	@private
-	@deprecated
-	@method deleteUser
-	@param {Object} req Totem session request 
-	@param {Function} res Totem response
-*/
-function deleteUser(req,res) {
-			
-	const { sql, query, client, cert } = req;
-
-	if (isAdmin(client))
-		// sql.context({users:{table:"openv.profiles",where:[ {client:query.user}, req.query ],rec:res}});
-		Trace(sql.query(
-			"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
-			[ {client:query.user}, req.query ], 
-			(err,info) => {
-				res( err || errors.failedUser );
-
-				// res should remove their files and other 
-				// allocated resources
-		}).sql);
-
-	else
-		sql.query(
-			"TEST FROM openv.profiles WHERE ? AND least(?,1)", 
-			[ {client:req.client}, req.query ], 
-			(err,info) => {
-				res( err || errors.failedUser );
-		});
-}
-			
-/**
-	Create user profile, associated certs and distribute info to user
-	@private
-	@deprecated
-	@method insertUser
-	@param {Object} req Totem session request 
-	@param {Function} res Totem response
-*/
-function insertUser (req,res) {
-			
-	const 
-		{sql, query, cert} = req,
-		{ resetpass } = paths;
-	
-	if ( isAdmin(client))
-		if (query.pass)
-			sql.query(
-				"SELECT * FROM openv.profiles WHERE Requested AND NOT Approved AND least(?,1)", 
-				query.user ? {User: query.user} : 1 )
-				
-			.on("result", user => {
-				var init = Copy({	
-					Approved: new Date(),
-					Banned: resetpass
-						? "Please "+"reset your password".tag( resetpass )+" to access"
-						: "",
-
-					Client: user.User,					
-					QoS: 0,
-
-					Message:
-
-`Greetings from ${site.Nick.tag(site.master)}-
-
-Admin:
-	Please create an AWS EC2 account for ${owner} using attached cert.
-
-To connect to ${site.Nick} from Windows:
-
-1. Establish gateway using 
-
-		Putty | SSH | Tunnels
-		
-	with the following LocalPort, RemotePort map:
-	
-		5001, ${site.master}:22
-		5100, ${site.master}:3389
-		5200, ${site.master}:8080
-		5910, ${site.master}:5910
-		5555, Dynamic
-	
-	and, for convienience:
-
-		Pageant | Add Keys | your private ppk cert
-
-2. Start a ${site.Nick} session using one of these methods:
-
-	${Putty} | Session | Host Name = localhost:5001 
-	Remote Desktop Connect| Computer = localhost:5100 
-	${FF} | Options | Network | Settings | Manual Proxy | Socks Host = localhost, Port = 5555, Socks = v5 `
-
-.replace(/\n/g,"<br>")					
-					
-				}, Copy(guestProfile,{}) );
-
-				sql.query(
-					"UPDATE openv.profiles SET ? WHERE ?",
-					[ init, {User: user.User} ],
-					err => {
-						
-						createCert(user.User, pass, () => {
-
-							Trace("CREATE CERT FOR", user.User );
-							
-							CP.exec(
-								`sudo adduser ${user.User} -gid ${user.Group}; sudo id ${user.User}`,
-								(err,out) => {
-									
-									sql.query(
-										"UPDATE openv.profiles SET ? WHERE ?",
-										[ {uid: out}, {User:user.User} ]
-									);
-
-									Log( err 
-										? `Account failed for ${user.User} - require "sudo adduser" to protect this service`
-										: `Account created and group rights assigned to ${user.User}`
-									);
-							});
-						});
-				});
-			})
-			.on("end", () => {
-				res("Creating user");
-			});
-		
-		else
-			res( errors.missingPass );
-
-	else
-		sql.query(
-			"INSERT openv.profiles SET ? WHERE ?", 
-			[ req.query , {User:req.User} ], 
-			(err,info) => {
-				
-				res( err || errors.failedUser );
-		});
-}
-
-/**
-	Return user profile for processing
-	@private
-	@deprecated
-	@method executeUser
-	@param {Object} req Totem session request 
-	@param {Function} res Totem response
-*/
-function executeUser(req,res) {	
-	var 
-		access = TOTEM.user,
-		query = req.query;
-		
-	query.user = query.user || query.select || query.delete || query.update || query.insert;
-	
-	if (access) {
-		for (var n in {select:1,delete:1,update:1,insert:1})			
-			if (query[n]) {
-				delete query[n];
-				return access[n](req,res);
-			}
-		
-		if (call = query.call) {
-			delete query.call;
-			return access[call](req,res);
-		}
-	}
-	
-	res( errors.failedUser );
 }
 
 /*
