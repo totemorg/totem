@@ -294,6 +294,7 @@ function NEOCONNECTOR(trace) {
 			return JSON.parse(this);
 		}
 		catch (err) {  
+			//Log("jparse", this, err);
 			return def ? (isFunction(def) ? def(this+"") : def) || null : null;
 		}
 	},
@@ -1234,53 +1235,65 @@ const
 			node = url;
 			//nodes = nodeDivider ? url.split(nodeDivider) : [url];
 
+		//Log(">>>>>>>>>>>post", post);
+		
 		req.body = post.parseJSON( post => {  // get parameters or yank files from body 
-			var files = req.files = [], parms = {}, file = "", rem,filename,name,type;
+			var 
+				files = req.files = [], 
+				parms = {}, 
+				file = "", 
+				rem,filename,name,type;
 
 			if (post)
-				post.split("\r\n").forEach( (line,idx) => {	// parse file posting parms
-					if ( idx % 2 )
-						files.push({
-							filename: filename.replace(/'/g,""),
-							name: name,
-							data: line,
-							type: type,
-							size: line.length
-						});
-
-					else {
-						[rem,filename,name,type] = line.match( /<; filename=(.*) name=(.*) ><\/;>type=(.*)/ ) || [];
-
-						if ( !filename ) 
-							line.split("&").forEach( parm => {
-								var [rem,key,value] = parm.match( /(.*)=(.*)/ ) || ["",parm,""];
-								parms[key] = value;
+				try {	// attempt extjs file upload
+					post.split("\r\n").forEach( (line,idx) => {	// parse file posting parms
+						if ( idx % 2 )
+							files.push({
+								filename: filename.replace(/'/g,""),
+								name: name,
+								data: line,
+								type: type,
+								size: line.length
 							});
-					}
-					/*
-					if (parms.type) {  // type was defined so have the file data
-						files.push( Copy(parms,{data: line, size: line.length}) );
-						parms = {};
-					}
-					else {
-						//Trace("LOAD", line);
 
-						line.split(";").forEach( (arg,idx) => {  // process one file at a time
-Log("line ",idx,line.length);
-							var tok = arg
-								.replace("Content-Disposition: ","disposition=")
-								.replace("Content-Type: ","type=")
-								.split("="), 
+						else {
+							[rem,filename,name,type] = line.match( /<; filename=(.*) name=(.*) ><\/;>type=(.*)/ ) || [];
 
-								val = tok.pop(), 
-								key = tok.pop();
+							if ( !filename ) 
+								line.split("&").forEach( parm => {
+									var [rem,key,value] = parm.match( /(.*)=(.*)/ ) || ["",parm,""];
+									parms[key] = value;
+								});
+						}
+						/*
+						if (parms.type) {  // type was defined so have the file data
+							files.push( Copy(parms,{data: line, size: line.length}) );
+							parms = {};
+						}
+						else {
+							//Trace("LOAD", line);
 
-							if (key)
-								parms[key.replace(/ /g,"")] = val.replace(/"/g,"");
-						});
-					}
-					*/										
-				});
+							line.split(";").forEach( (arg,idx) => {  // process one file at a time
+	Log("line ",idx,line.length);
+								var tok = arg
+									.replace("Content-Disposition: ","disposition=")
+									.replace("Content-Type: ","type=")
+									.split("="), 
+
+									val = tok.pop(), 
+									key = tok.pop();
+
+								if (key)
+									parms[key.replace(/ /g,"")] = val.replace(/"/g,"");
+							});
+						}
+						*/										
+					});
+				}
+				
+				catch (err) {
+					Trace("POST FAILED", post);
+				}
 
 			//Log("body files=", files.length);
 			return parms;
@@ -1445,10 +1458,7 @@ Log("line ",idx,line.length);
 				{ captcha } = paths,
 				{ floor, random } = Math;
 
-			Trace("CHALLENGER", {
-				capPath: captcha, 
-				N: riddles
-			});
+			Trace( `INIT CHALLENGER imageset=${captcha} riddles=${riddles}` );
 
 			if ( captcha )
 				for (var n=0; n<riddles; n++) {
@@ -1518,15 +1528,16 @@ Log("line ",idx,line.length);
 
 							TOTEM.emitter = IO.sockets.emit;
 
-							if ( challenge )		// allowing client challenges
-								IO.on("connect", socket => {  // Trap client connects when they call their io()
-									//Log("connect socket.io");
-									socket.on("select", req => { 		// Trap connect raised on client "select/join request"
-										const
-											{client,ip,location,message} = req;
-										
-										Trace(`CONNECTING ${client}`);
-										//Log( req );
+							IO.on("connect", socket => {  // Trap client connects when they call their io()
+								//Log("connect socket.io");
+								socket.on("select", req => { 		// Trap connect raised on client "select/join request"
+									const
+										{client,ip,location,message} = req;
+
+									Trace(`CONNECTING ${client}`);
+									//Log( req );
+
+									if ( riddle.length )
 										sqlThread( sql => {	
 											/*
 											if (newSession = mysql.newSession) 
@@ -1541,14 +1552,14 @@ Log("line ",idx,line.length);
 											*/
 											//Log(challenge);
 											sql.query(challenge, [client], (err,profs) => { 
-												
+
 												/**
 													Create an antibot challenge and relay to client with specified profile parameters
 
 													@param {String} client being challenged
 													@param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
 												*/
-												function challengeClient (profile) { 
+												function getChallenge (profile, cb) { 
 													/**
 														Check clients response req.query to a antibot challenge.
 
@@ -1563,9 +1574,8 @@ Log("line ",idx,line.length);
 															{ riddle } = TOTEM,
 															N = riddle.length,
 															randRiddle = (x) => riddle[rand(N)];
-														
-														return N 
-															?	msg
+
+														return msg
 																.replace(/\(riddle\)/g, pat => {
 																	var QA = randRiddle();
 																	riddles.push( QA.A );
@@ -1593,9 +1603,7 @@ Log("line ",idx,line.length);
 																})
 																.replace(/\(bio\)/g, pat => {
 																	return "bio challenge TBD";
-																})
-
-															: msg;
+																});
 													}
 
 													const
@@ -1604,38 +1612,62 @@ Log("line ",idx,line.length);
 														riddles = [],
 														probe = makeRiddles( Message, riddles, (IDs||"").parseJSON( {} ) );
 
-													Log(probe, riddles);
-													
-													if ( probe )
-														sql.query("REPLACE INTO openv.riddles SET ?", {
-															Riddle: riddles.join(",").replace(/ /g,""),
-															Client: client,
-															Made: new Date(),
-															Attempts: 0,
-															maxAttempts: Retries
-														}, (err,info) => {
-															TOTEM.IO.emit("select", {
-																message: probe,
-																riddles: riddles.length,
-																rejected: false,
-																retries: Retries,
-																timeout: Timeout,
-																ID: client, //info.insertId,
-																callback: riddler
-															});
+													//Log(probe, riddles);
+
+													sql.query("REPLACE INTO openv.riddles SET ?", {		// track riddle
+														Riddle: riddles.join(",").replace(/ /g,""),
+														Client: client,
+														Made: new Date(),
+														Attempts: 0,
+														maxAttempts: Retries
+													}, (err,info) => cb({		// send challenge to client
+															message: probe,
+															riddles: riddles.length,
+															rejected: false,
+															retries: Retries,
+															timeout: Timeout,
+															id: client, //info.insertId,
+															callback: riddler
+														}) );
+												}
+
+												//Log(err,profs);
+
+												if ( prof = profs[0] ) {
+													if ( prof.Banned ) 
+														IO.emit("select", {
+															message: `${client} banned: ${prof.Banned}`,
+															rejected: true
+														});
+
+													else
+													if ( prof.Challenge )
+														getChallenge(prof, challenge => {
+															Log(challenge);
+															IO.emit("select", challenge);
+														});
+
+													else
+														IO.emit("select", {
+															message: `Welcome ${client}!`
 														});
 												}
-		
-												//Log(err,profs);
-												
-												if ( prof = profs[0] ) 
-													if ( prof.Challenge )
-														challengeClient(prof);	
+
+												else
+													IO.emit("select", {
+														message: `Cant find ${client}`,
+														rejected: true
+													});
+
 											});
-											
 										});
-									});
-								});	
+									
+									else
+										IO.emit("select", {
+											message: "Welcome all!"
+										});
+								});
+							});	
 
 							/*
 							// for debugging
@@ -1851,6 +1883,7 @@ Log("line ",idx,line.length);
 								case "POST":
 								case "DELETE":
 									getPost( post => {
+										//Log(">>>>post", post);
 										sqlThread( sql => {
 											//Log(Req.headers, Req.url);
 											ses({			// prime session request
@@ -2808,7 +2841,7 @@ Log("line ",idx,line.length);
 		//wget: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 		//curl: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 		//http: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
-		riddler: "/riddle",
+		riddler: "/riddle.html",
 
 		certs: "./certs/", 
 		//sockets: ".", // path to socket.io
@@ -3397,25 +3430,27 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 */
 function sysCheck (req,res) {
 	const 
-		{ query, sql, type } = req,
-		{ id } = query;
+		{ query, sql, type, body, action } = req,
+		{ id , guess } = (action=="select") ? query : body;
+	
+	Log(id,guess);
 	
 	if ( type == "help" ) res(`
-Validate client session request.
+Validate session id=client guess=value.
 `);
 	
 	else
-	if (id)
+	if (id && guess)
 		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:id}, (err,rids) => {
 
 			if ( rid = rids[0] ) {
 				var 
 					ID = {Client:rid.ID},
-					guess = (query.guess+"").replace(/ /g,"");
+					Guess = (guess+"").replace(/ /g,"");
 
 				Log([rid,query]);
 
-				if (rid.Riddle == guess) {
+				if (rid.Riddle == Guess) {
 					res( "pass" );
 					sql.query("DELETE FROM openv.riddles WHERE ?",ID);
 				}
@@ -3432,12 +3467,12 @@ Validate client session request.
 			}
 
 			else
-				res( errors.noSession  );
+				res( "fail" );
 
 		});
 
 	else
-		res( errors.noID );
+		res( "fail" );
 }
 
 /**
