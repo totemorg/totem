@@ -142,7 +142,7 @@ function NEOCONNECTOR(trace) {
 						name: name,
 						props: node
 				}, err => {
-					if ( trace ) Log(">>>neo node", err || "ok");
+					// if ( trace ) Log(">>>neo node", err || "ok");
 					cb();
 				});
 			}
@@ -200,7 +200,7 @@ function NEOCONNECTOR(trace) {
 		
 		//neo.cypher( `CREATE CONSTRAINT ON (n:${net}) ASSERT n.name IS UNIQUE` );
 
-		//Log("neo4j save net", net);
+		//Log("++++++++++++++neo4j save net", net);
 		
 		neo.saveNodes( net, nodes, () => {
 			//Log(">> edges", edges, "db=", db);
@@ -225,7 +225,7 @@ function NEOCONNECTOR(trace) {
 				tar: edge.tar,
 				props: edge || {}
 			}, err => {
-				if ( trace ) Log(">>>neo edge", err || "ok" );
+				// if ( trace ) Log(">>>neo edge", err || "ok" );
 			});
 			
 		});
@@ -1228,16 +1228,6 @@ const
 					
 					Trace(`STARTING ${name}`);
 
-					/*
-					TOTEM.server = server;  || { 	// define server
-						listen: function () {
-							Trace("NO SERVER");
-						},
-						on: function () {
-							Trace("NO SERVER");
-						}
-					}; */
-
 					if ( sockets ) {   // attach socket.io and setup connection listeners
 						const 
 							IO = TOTEM.IO = new SIO(server, { // use defaults but can override ...
@@ -1248,8 +1238,6 @@ const
 
 						if (IO) { 							// Using socketio so setup client web-socket support
 							Trace("SOCKETS AT", IO.path() );
-
-							TOTEM.emitter = IO.sockets.emit;
 
 							IO.on("connect", socket => {  // Trap client connects when they call their io()
 								//Log("connect socket.io");
@@ -1351,7 +1339,7 @@ const
 
 												if ( prof = profs[0] ) {
 													if ( prof.Banned ) 
-														IO.emit("select", {
+														socket.emit("select", {
 															message: `${client} banned: ${prof.Banned}`,
 															rejected: true
 														});
@@ -1360,17 +1348,17 @@ const
 													if ( prof.Challenge )
 														getChallenge(prof, challenge => {
 															Log(challenge);
-															IO.emit("select", challenge);
+															socket.emit("select", challenge);
 														});
 
 													else
-														IO.emit("select", {
+														socket.emit("select", {
 															message: `Welcome ${client}!`
 														});
 												}
 
 												else
-													IO.emit("select", {
+													socket.emit("select", {
 														message: `Cant find ${client}`,
 														rejected: true
 													});
@@ -1379,8 +1367,8 @@ const
 										});
 									
 									else
-										IO.emit("select", {
-											message: "Welcome all!"
+										socket.emit("select", {
+											message: "Everyone welcome!"
 										});
 								});
 							});	
@@ -1900,7 +1888,6 @@ const
 		const {dbTrack,routeRequest,setContext,name} = TOTEM;
 		
 		JSDB.config({   // establish the db agnosticator 
-			//emitter: TOTEM.IO.sockets.emit,   // cant set socketio until server started
 			track: dbTrack
 			//fetch: fetch			
 		}, err => {  // derive server vars and site context vars
@@ -2110,13 +2097,6 @@ const
 		@param {Function} callback cb(sql, name, path) when file at path has changed
 	*/
 	createCert: createCert, //< method to create PKI certificate
-		
-	/**
-		Communicate with socket.io clients
-		@cfg {Function}
-		@method emitter
-	*/
-	emitter: null,
 		
 	/**
 		Reserved for socket.io support to multiple clients
@@ -3244,7 +3224,7 @@ function insertDS(req, res) {
 			trace: trace,
 			set: body,
 			client: client,
-			emitter: TOTEM.emitter
+			sio: TOTEM.IO
 		}, (err,info) => {
 
 			res( err || {ID: info.insertId} );
@@ -3271,7 +3251,7 @@ function deleteDS(req, res) {
 				trace: trace,			
 				where: where,
 				client: client,
-				emitter: TOTEM.emitter
+				sio: TOTEM.IO
 			}, (err,info) => {
 
 				body.ID = query.ID;
@@ -3303,11 +3283,12 @@ function updateDS(req, res) {
 		sql.Query(
 			"UPDATE ?? ${set} ${where}", [ds,body], {
 				trace: trace,
+				
 				from: ds,
 				where: where,
 				set: body,
 				client: client,
-				emitter: TOTEM.emitter
+				sio: TOTEM.IO
 			}, (err,info) => {
 
 				//res( err || info );
