@@ -903,7 +903,7 @@ const
 						Fetch( get, files => {
 							req.type = "html"; // otherwise default type is json.
 							//res( files );
-							files.forEach( (file,n) => files[n] = file.tag( file ) );
+							files.forEach( (file,n) => files[n] = file.link( file ) );
 							res(`hello ${req.client}<br>Index of ${path}:<br>` + files.join("<br>") );
 						});
 
@@ -1328,10 +1328,10 @@ const
 													}, (err,info) => cb({		// send challenge to client
 															message: probe,
 															riddles: riddles.length,
-															rejected: false,
+															command: "challenge",
 															retries: Retries,
 															timeout: Timeout,
-															id: client, //info.insertId,
+															id: client, 
 															callback: riddler
 														}) );
 												}
@@ -1342,7 +1342,7 @@ const
 													if ( prof.Banned ) 
 														socket.emit("select", {
 															message: `${client} banned: ${prof.Banned}`,
-															rejected: true
+															command: "exit"
 														});
 
 													else
@@ -1354,14 +1354,15 @@ const
 
 													else
 														socket.emit("select", {
-															message: `Welcome ${client}!`
+															message: `Welcome ${client}!`,
+															command: "enter"
 														});
 												}
 
 												else
 													socket.emit("select", {
 														message: `Cant find ${client}`,
-														rejected: true
+														command: "exit"
 													});
 
 											});
@@ -1369,7 +1370,8 @@ const
 									
 									else
 										socket.emit("select", {
-											message: "Everyone welcome!"
+											message: "Everyone welcome!",
+											command: "enter"
 										});
 								});
 							});	
@@ -2676,10 +2678,10 @@ const
 
 			site.warning = [
 				site.warning || "",
-				"ASP".fontcolor(asp.Fails ? "red" : "green").tag( "/help?from=asp" ),
-				"ISP".fontcolor(isp.Fails ? "red" : "green").tag( "/help?from=isp" ),
-				"SW".fontcolor(sw.Fails ? "red" : "green").tag( "/help?from=swap" ),   // mails list of failed swapIDs (and link to all sw reqts) to swap PMO
-				"HW".fontcolor(hw.Fails ? "red" : "green").tag( "/help?from=pmo" )   // mails list of failed hw reqts (and link to all hw reqts) to pod lead
+				"ASP".fontcolor(asp.Fails ? "red" : "green").link( "/help?from=asp" ),
+				"ISP".fontcolor(isp.Fails ? "red" : "green").link( "/help?from=isp" ),
+				"SW".fontcolor(sw.Fails ? "red" : "green").link( "/help?from=swap" ),   // mails list of failed swapIDs (and link to all sw reqts) to swap PMO
+				"HW".fontcolor(hw.Fails ? "red" : "green").link( "/help?from=pmo" )   // mails list of failed hw reqts (and link to all hw reqts) to pod lead
 			].join(" ");
 
 		});
@@ -2977,7 +2979,7 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 					sqlThread( sql => {
 						sql.query("UPDATE apps.files SET ? WHERE ?", [{
 							_Ingest_Tag: JSON.stringify(tags || null),
-							_State_Notes: "Please go " + "here".tag("/files.view") + " to manage your holdings."
+							_State_Notes: "Please go " + "here".link("/files.view") + " to manage your holdings."
 						}, {ID: file.ID} ] );
 					});
 				})
@@ -3387,10 +3389,10 @@ Shard specified task to the compute nodes given task post parameters.
 						Name: name,
 						Task: name,
 						Notes: [
-								table.tag("?",query).tag( "/" + table + ".run" ), 
-								((credit>0) ? "funded" : "unfunded").tag( url ),
-								"RTP".tag( `/rtpsqd.view?task=${name}` ),
-								"PMR brief".tag( `/briefs.view?options=${name}` )
+								table.tag("?",query).link( "/" + table + ".run" ), 
+								((credit>0) ? "funded" : "unfunded").link( url ),
+								"RTP".link( `/rtpsqd.view?task=${name}` ),
+								"PMR brief".link( `/briefs.view?options=${name}` )
 						].join(" || ")
 					}, (recs,job,res) => {
 						//Log("reg job" , job);
