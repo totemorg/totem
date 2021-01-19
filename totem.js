@@ -200,7 +200,7 @@ function NEOCONNECTOR(trace) {
 		
 		//neo.cypher( `CREATE CONSTRAINT ON (n:${net}) ASSERT n.name IS UNIQUE` );
 
-		//Log("++++++++++++++neo4j save net", net);
+		Log("++++++++++++++neo4j save net", net);
 		
 		neo.saveNodes( net, nodes, () => {
 			//Log(">> edges", edges, "db=", db);
@@ -225,7 +225,8 @@ function NEOCONNECTOR(trace) {
 				tar: edge.tar,
 				props: edge || {}
 			}, err => {
-				// if ( trace ) Log(">>>neo edge", err || "ok" );
+				//if ( trace ) 
+				Log(">>>neo edge", err || "ok" );
 			});
 			
 		});
@@ -1635,7 +1636,7 @@ const
 							}
 						}
 						
-						if ( isBusy = BUSY ? BUSY() : false )	// trap DNS attacks
+						if ( BUSY ? BUSY() : false )	// trap DNS attacks
 							return Res.end( errors.pretty( errors.toobusy ) );
 
 						else
