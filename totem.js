@@ -142,7 +142,7 @@ function NEOCONNECTOR(trace) {
 						name: name,
 						props: node
 				}, err => {
-					// if ( trace ) Log(">>>neo node", err || "ok");
+					// if ( trace ) Log(">>>neo save node", err || "ok");
 					cb();
 				});
 			}
@@ -200,7 +200,7 @@ function NEOCONNECTOR(trace) {
 		
 		//neo.cypher( `CREATE CONSTRAINT ON (n:${net}) ASSERT n.name IS UNIQUE` );
 
-		Log("++++++++++++++neo4j save net", net);
+		Log(">>>neo save net", net);
 		
 		neo.saveNodes( net, nodes, () => {
 			//Log(">> edges", edges, "db=", db);
@@ -226,7 +226,7 @@ function NEOCONNECTOR(trace) {
 				props: edge || {}
 			}, err => {
 				//if ( trace ) 
-				Log(">>>neo edge", err || "ok" );
+				//Log(">>>neo save edge", err || "ok" );
 			});
 			
 		});
