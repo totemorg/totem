@@ -1225,7 +1225,7 @@ const
 				function startService(port, cb) {
 					const 
 						{ routeRequest, sockets, name, server, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM,
-						{ challenge } = sqls;
+						{ getProfile } = sqls;
 					
 					Trace(`STARTING ${name}`);
 
@@ -1249,130 +1249,149 @@ const
 									Trace(`CONNECTING ${client}`);
 									//Log( req );
 
-									if ( riddle.length )
-										sqlThread( sql => {	
-											/*
-											if (newSession = mysql.newSession) 
-												sql.query(newSession,  {
-													Client	: req.client,
-													Connects: 1,
-													Location: "unknown", //req.location,
-													//ipAddress: req.ip,
-													Joined: new Date(),
-													Message: req.message
-												});
+									sqlThread( sql => {	
+										/*
+										if (newSession = mysql.newSession) 
+											sql.query(newSession,  {
+												Client	: req.client,
+												Connects: 1,
+												Location: "unknown", //req.location,
+												//ipAddress: req.ip,
+												Joined: new Date(),
+												Message: req.message
+											});
+										*/
+										//Log(getProfile);
+										sql.query(getProfile, [client], (err,profs) => { 
+
+											/**
+												Create an antibot challenge and relay to client with specified profile parameters
+
+												@param {String} client being challenged
+												@param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
 											*/
-											//Log(challenge);
-											sql.query(challenge, [client], (err,profs) => { 
-
+											function getChallenge (profile, cb) { 
 												/**
-													Create an antibot challenge and relay to client with specified profile parameters
+													Check clients response req.query to a antibot challenge.
 
-													@param {String} client being challenged
-													@param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
+													@param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
+													@param {Array} rid List of riddles returned
+													@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
 												*/
-												function getChallenge (profile, cb) { 
-													/**
-														Check clients response req.query to a antibot challenge.
-
-														@param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
-														@param {Array} rid List of riddles returned
-														@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
-													*/
-													function makeRiddles (msg,riddles,prof) { 
-														const
-															{ floor, random } = Math,
-															rand = N => floor( random() * N ),
-															{ riddle } = TOTEM,
-															N = riddle.length,
-															randRiddle = (x) => riddle[rand(N)];
-														
-														return msg
-																.parse$(prof)
-																.replace(/\#riddle/g, pat => {
-																	var QA = randRiddle();
-																	riddles.push( QA.A );
-																	return QA.Q;
-																})
-																.replace(/\#yesno/g, pat => {
-																	var QA = randRiddle();
-																	riddles.push( QA.A );
-																	return QA.Q;
-																})
-																.replace(/\#rand/g, pat => {
-																	riddles.push( rand(10) );
-																	return "random integer between 0 and 9";		
-																})
-																.replace(/\#card/g, pat => {
-																	return "cac card challenge TBD";
-																})
-																.replace(/\#bio/g, pat => {
-																	return "bio challenge TBD";
-																});
-													}
-
+												function makeRiddles (msg,riddles,prof) { 
 													const
-														{ riddler } = paths,
-														{ Message, IDs, Retries, Timeout } = profile,
-														riddles = [],
-														probe = makeRiddles( Message, riddles, profile );
+														{ floor, random } = Math,
+														rand = N => floor( random() * N ),
+														{ riddle } = TOTEM,
+														N = riddle.length,
+														randRiddle = (x) => riddle[rand(N)];
 
-													Log(client, probe, riddles);
-
-													sql.query("REPLACE INTO openv.riddles SET ?", {		// track riddle
-														Riddle: riddles.join(",").replace(/ /g,""),
-														Client: client,
-														Made: new Date(),
-														Attempts: 0,
-														maxAttempts: Retries
-													}, (err,info) => cb({		// send challenge to client
-															message: probe,
-															riddles: riddles.length,
-															command: "challenge",
-															retries: Retries,
-															timeout: Timeout,
-															id: client, 
-															callback: riddler
-														}) );
+													return msg
+															.parse$(prof)
+															.replace(/\#riddle/g, pat => {
+																var QA = randRiddle();
+																riddles.push( QA.A );
+																return QA.Q;
+															})
+															.replace(/\#yesno/g, pat => {
+																var QA = randRiddle();
+																riddles.push( QA.A );
+																return QA.Q;
+															})
+															.replace(/\#rand/g, pat => {
+																riddles.push( rand(10) );
+																return "random integer between 0 and 9";		
+															})
+															.replace(/\#card/g, pat => {
+																return "cac card challenge TBD";
+															})
+															.replace(/\#bio/g, pat => {
+																return "bio challenge TBD";
+															});
 												}
 
-												//Log(err,profs);
+												const
+													{ riddler } = paths,
+													{ Message, IDs, Retries, Timeout } = profile,
+													riddles = [],
+													probe = makeRiddles( Message, riddles, profile );
 
-												if ( prof = profs[0] ) {
-													if ( prof.Banned ) 
-														socket.emit("select", {
-															message: `${client} banned: ${prof.Banned}`,
-															command: "exit"
-														});
+												Log(client, probe, riddles);
 
-													else
-													if ( prof.Challenge )
-														getChallenge(prof, challenge => {
-															Log(challenge);
-															socket.emit("select", challenge);
-														});
+												sql.query("REPLACE INTO openv.riddles SET ?", {		// track riddle
+													Riddle: riddles.join(",").replace(/ /g,""),
+													Client: client,
+													Made: new Date(),
+													Attempts: 0,
+													maxAttempts: Retries
+												}, (err,info) => cb({		// send challenge to client
+														message: probe,
+														command: "challenge",
+														retries: Retries,
+														timeout: Timeout,
+														id: client, 
+														callback: riddler,
+														secure: prof.SecureCom
+													}) );
+											}
 
-													else
-														socket.emit("select", {
-															message: `Welcome ${client}!`,
-															command: "enter"
-														});
-												}
+											//Log(err,profs);
 
-												else
+											if ( prof = profs[0] ) {
+												if ( prof.Banned ) 
 													socket.emit("select", {
-														message: `Cant find ${client}`,
+														message: `${client} banned: ${prof.Banned}`,
 														command: "exit"
 													});
 
-											});
+												else
+												if ( prof.Challenge && riddle.length )
+													getChallenge(prof, challenge => {
+														Log(challenge);
+														socket.emit("select", challenge);
+													});
+
+												else
+												if ( prof.SecureCom )
+													socket.emit("select", {
+														message: `Welcome ${client}!`,
+														command: "secure",
+														secure: prof.SecureCom
+													});
+												
+												else
+													socket.emit("select", {
+														message: `Welcome ${client}!`,
+														command: "enter"
+													});
+													
+											}
+
+											else
+												socket.emit("select", {
+													message: `Cant find ${client}`,
+													command: "exit"
+												});
+
 										});
-									
-									else
-										socket.emit("select", {
-											message: "Everyone welcome!",
-											command: "enter"
-										});
+									});									
+								});
+								
+								socket.on("relay", req => {
+									const
+										{ client,message } = req;
+
+									Log(req);
+									sqlThread( sql => {
+										sql.query(
+											"INSERT INTO openv.relays SET ?", [{
+												Message: req.message,
+												To: req.to,
+												Rx: new Date(),
+												From: req.from,
+												Service: 1
+											}] );
+									});		
 								});
 							});	
 
@@ -2525,6 +2544,7 @@ const
 
 	proxies: null, /* [	// rotating proxy services
 		//"https://free-proxy-list.net",
+		//https://luminato.io
 		"https://sslproxies.org"
 	], */
 
@@ -2569,11 +2589,11 @@ const
 		// logMetrics: "INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
 		search: "SELECT * FROM openv.files HAVING Score > 0.1",
 		//credit: "SELECT * FROM openv.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 1",
-		getProfile: "SELECT * FROM openv.profiles WHERE ? LIMIT 1",
+		getProfile: "SELECT * FROM openv.profiles WHERE Client=? LIMIT 1",
 		newProfile: "INSERT INTO openv.profiles SET ?",
 		getSession: "SELECT * FROM openv.sessions WHERE ? LIMIT 1",
 		newSession: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1",
-		challenge: "SELECT * FROM openv.profiles WHERE Client=? LIMIT 1",
+		//challenge: "SELECT *,concat(client,password) AS Passphrase FROM openv.profiles WHERE Client=? LIMIT 1",
 		guest: "SELECT * FROM openv.profiles WHERE Client='guest@guest.org' LIMIT 1",
 		pocs: "SELECT lower(Hawk) AS Role, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Clients FROM openv.roles GROUP BY hawk"
 	},
@@ -2860,6 +2880,7 @@ function validateClient(req,res) {
 	
 	const 
 		{ sql,encrypted,reqSocket } = req,
+		{ getProfile } = sqls,
 		guest = "email:guest@guest.org",
 		cert = encrypted ? getCert( reqSocket ) : {
 			subject: {
@@ -2877,7 +2898,7 @@ function validateClient(req,res) {
 	req.cert = new Object(cert);
 	//Log("client>>>",client);
 	
-	sql.query(sqls.getProfile, {client: client}, (err,profs) => {
+	sql.query( getProfile, [client], (err,profs) => {
 
 		if ( err ) 
 			if ( encrypted )  // profile required on https service so return error
