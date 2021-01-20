@@ -1246,7 +1246,7 @@ const
 									const
 										{client,ip,location,message} = req;
 
-									Trace(`CONNECTING ${client}`);
+									Trace("CONNECTING", req);
 									//Log( req );
 
 									sqlThread( sql => {	
@@ -1325,14 +1325,13 @@ const
 													Attempts: 0,
 													maxAttempts: Retries
 												}, (err,info) => cb({		// send challenge to client
-														message: probe,
-														command: "challenge",
-														retries: Retries,
-														timeout: Timeout,
-														id: client, 
-														callback: riddler,
-														secure: prof.SecureCom
-													}) );
+													message: probe,
+													command: "challenge",
+													retries: Retries,
+													timeout: Timeout,
+													callback: riddler,
+													passphrase: prof.SecureCom || ""
+												}) );
 											}
 
 											//Log(err,profs);
@@ -1345,26 +1344,25 @@ const
 													});
 
 												else
-												if ( prof.Challenge && riddle.length )
+												if ( prof.Challenge && riddle.length )	// must solve challenge to enter
 													getChallenge(prof, challenge => {
 														Log(challenge);
 														socket.emit("select", challenge);
 													});
 
 												else
-												if ( prof.SecureCom )
+												if ( prof.SecureCom )	// allowed to use secure link
 													socket.emit("select", {
 														message: `Welcome ${client}!`,
 														command: "secure",
-														secure: prof.SecureCom
+														passphrase: prof.SecureCom
 													});
 												
-												else
+												else		// not allowed to use secure ink
 													socket.emit("select", {
 														message: `Welcome ${client}!`,
-														command: "enter"
+														command: "enter",
 													});
-													
 											}
 
 											else
@@ -1379,19 +1377,26 @@ const
 								
 								socket.on("relay", req => {
 									const
-										{ client,message } = req;
+										{ from,message,to } = req;
 
-									Log(req);
-									sqlThread( sql => {
-										sql.query(
-											"INSERT INTO openv.relays SET ?", [{
-												Message: req.message,
-												To: req.to,
-												Rx: new Date(),
-												From: req.from,
-												Service: 1
-											}] );
-									});		
+									Log("RELAY", req);
+									if ( false ) // if tracking enabled then ...
+										sqlThread( sql => {
+											sql.query(
+												"INSERT INTO openv.relays SET ?", [{
+													Message: message,
+													Rx: new Date(),
+													From: from,
+													To: to,
+													Service: 1
+												}] );
+										});
+									
+									IO.emit("relay", {	// broadcast message to everyone
+										message: message,
+										from: from,
+										to: to
+									});
 								});
 							});	
 
@@ -3151,17 +3156,17 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 function sysCheck (req,res) {
 	const 
 		{ query, sql, type, body, action } = req,
-		{ id , guess } = (action=="select") ? query : body;
+		{ client , guess } = (action=="select") ? query : body;
 	
-	Log(id,guess);
+	Log(client,guess);
 	
 	if ( type == "help" ) res(`
 Validate session id=client guess=value.
 `);
 	
 	else
-	if (id && guess)
-		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:id}, (err,rids) => {
+	if (client && guess)
+		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:client}, (err,rids) => {
 
 			if ( rid = rids[0] ) {
 				var 
