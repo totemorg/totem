@@ -1210,8 +1210,8 @@ const
 		}
 
 		/**
-		Establish socket.io sockets for the ClientIntercom link (at store,restore,relay,status,join,exit,content)
-		and the dbSync link (at select,update,insert,delete).
+		Establish socket.io sockets for the SecureIntercom link (at store,restore,login,relay,status,
+		sync,join,exit,content) and the dbSync link (at select,update,insert,delete).
 		*/
 		function configSockets (server) {
 			const 
@@ -1418,6 +1418,35 @@ const
 							to: to
 						});
 					});
+					
+					socket.on("login", req => {
+						const
+							{ client,pubKey } = req;
+
+						Log("LOGIN", req);
+
+						sqlThread( sql => {
+							sql.query(
+								"UPDATE openv.profiles SET pubKey=? WHERE Client=?",
+								[pubKey,client] );
+
+							sql.query( "SELECT Client,pubKey FROM openv.profiles WHERE Client!=? AND length(pubKey)", [client] )
+							.on("result", rec => {
+								socket.emit("sync", {	// broadcast other pubKeys to this client
+									message: rec.pubKey,
+									from: rec.Client,
+									to: client
+								});
+							});
+						});							
+						
+						IO.emit("sync", {	// broadcast client's pubKey to everyone
+							message: pubKey,
+							from: client,
+							to: "all"
+						});
+					});
+					
 				});	
 
 				// for debugging
