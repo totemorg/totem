@@ -663,6 +663,8 @@ const
 		reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
 		filterRecords,guestProfile,routeDS, startDogs, cache } = TOTEM = module.exports = {
 	
+	inspector: null,
+			
 	CORS: false,
 			
 	fetchOptions: {	// Fetch parms
@@ -1215,7 +1217,7 @@ const
 		*/
 		function configSockets (server) {
 			const 
-				{ riddle } = TOTEM,
+				{ riddle, inspector } = TOTEM,
 				{ getProfile } = sqls,
 				IO = TOTEM.IO = new SIO(server, { // use defaults but can override ...
 					//serveClient: true, // default true to prevent server from intercepting path
@@ -1412,11 +1414,46 @@ const
 									}] );
 							});
 
-						IO.emit("relay", {	// broadcast message to everyone
-							message: message,
-							from: from,
-							to: to
-						});
+						if ( message.indexOf("PGP PGP MESSAGE")>=0 ) // just relay encrypted messages
+							IO.emit("relay", {	// broadcast message to everyone
+								message: message,
+								from: from,
+								to: to
+							});
+						
+						else
+						if ( inspector ) 	// relay scored messages that are unencrypted
+							inspector( message, to, score => {
+								sqlThread( sql => {
+									sql.query(
+										"SELECT "
+											+ "max(timestampdiff(minute,Opened,now())) AS T, "
+											+ "count(ID) AS N FROM openv.sessions WHERE Client=?", 
+										[from], 
+										(err,recs) => {
+
+									const 
+										{N,T} = recs[0],
+										lambda = N/T,
+										hops = 0;
+										
+									//Log("inspection", score, lambda, hops);
+									IO.emit("relay", {	// broadcast message to everyone
+										message: message.tag("[]", Copy(score, {activity:lambda, robotic:hops})),
+										from: from,
+										to: to
+									});
+								});
+								});
+							});
+								
+						else 		// relay message as-is				   
+							IO.emit("relay", {	// broadcast message to everyone
+								message: message,
+								from: from,
+								to: to
+							});							
+							
 					});
 					
 					socket.on("login", req => {
