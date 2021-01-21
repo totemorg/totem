@@ -1242,26 +1242,12 @@ const
 
 							IO.on("connect", socket => {  // Trap client connects when they call their io()
 								//Log("connect socket.io");
-								socket.on("select", req => { 		// Trap connect raised on client "select/join request"
+								
+								socket.on("join", req => {
 									const
 										{client,ip,location,message} = req;
-
-									Trace("CONNECTING", req);
-									//Log( req );
-
-									sqlThread( sql => {	
-										/*
-										if (newSession = mysql.newSession) 
-											sql.query(newSession,  {
-												Client	: req.client,
-												Connects: 1,
-												Location: "unknown", //req.location,
-												//ipAddress: req.ip,
-												Joined: new Date(),
-												Message: req.message
-											});
-										*/
-										//Log(getProfile);
+									
+									sqlThread( sql => {
 										sql.query(getProfile, [client], (err,profs) => { 
 
 											/**
@@ -1326,7 +1312,6 @@ const
 													maxAttempts: Retries
 												}, (err,info) => cb({		// send challenge to client
 													message: probe,
-													command: "challenge",
 													retries: Retries,
 													timeout: Timeout,
 													callback: riddler,
@@ -1338,41 +1323,81 @@ const
 
 											if ( prof = profs[0] ) {
 												if ( prof.Banned ) 
-													socket.emit("select", {
-														message: `${client} banned: ${prof.Banned}`,
-														command: "exit"
+													socket.emit("exit", {
+														message: `${client} banned: ${prof.Banned}`
 													});
 
 												else
 												if ( prof.Challenge && riddle.length )	// must solve challenge to enter
 													getChallenge(prof, challenge => {
 														Log(challenge);
-														socket.emit("select", challenge);
+														socket.emit("challenge", challenge);
 													});
 
 												else
 												if ( prof.SecureCom )	// allowed to use secure link
-													socket.emit("select", {
-														message: `Welcome ${client}!`,
-														command: "secure",
+													socket.emit("secure", {
+														message: `Welcome ${client}`,
 														passphrase: prof.SecureCom
 													});
-												
+
 												else		// not allowed to use secure ink
-													socket.emit("select", {
-														message: `Welcome ${client}!`,
-														command: "enter",
+													socket.emit("status", {
+														message: `Welcome ${client}`
 													});
 											}
 
 											else
-												socket.emit("select", {
-													message: `Cant find ${client}`,
-													command: "exit"
+												socket.emit("exit", {
+													message: `Cant find ${client}`
 												});
 
 										});
-									});									
+									});
+								});
+								
+								socket.on("store", req => {
+									const
+										{client,ip,location,message} = req;
+									
+									Log(">>>store", req);
+									
+									sqlThread( sql => {
+										sql.query(
+											"INSERT INTO openv.saves SET ? ON DUPLICATE KEY UPDATE Content=?", 
+											[{Client: client,Content:message}, message],
+											err => {
+
+												socket.emit("status", {
+													message: err ? "store failed" : "store completed"
+												});
+										});
+									});
+								});
+								
+								socket.on("restore", req => {
+									const
+										{client,ip,location,message} = req;
+									
+									Log(">>>restore", req);
+									sqlThread( sql => {
+										sql.query("SELECT Content FROM openv.saves WHERE Client=? LIMIT 1", 
+										[client],
+										(err,recs) => {
+
+											Log("restore",err,recs);
+											
+											if ( rec = recs[0] )
+												socket.emit("content", {
+													message: rec.Content
+												});
+											
+											else
+												socket.emit("status", {
+													message: "cant restore content"
+												});
+										});
+									});
 								});
 								
 								socket.on("relay", req => {
