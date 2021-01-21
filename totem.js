@@ -1209,6 +1209,231 @@ const
 			Log(riddle);
 		}
 
+		/**
+		Establish socket.io sockets for the ClientIntercom link (at store,restore,relay,status,join,exit,content)
+		and the dbSync link (at select,update,insert,delete).
+		*/
+		function configSockets (server) {
+			const 
+				{ riddle } = TOTEM,
+				{ getProfile } = sqls,
+				IO = TOTEM.IO = new SIO(server, { // use defaults but can override ...
+					//serveClient: true, // default true to prevent server from intercepting path
+					//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
+				}),
+				HUBIO = TOTEM.HUBIO = new (SIOHUB); 		//< Hub fixes socket.io+cluster bug	
+
+			if (IO) { 							// Using socketio so setup client web-socket support
+				Trace("SOCKETS AT", IO.path() );
+
+				IO.on("connect", socket => {  
+					//Log("connect socket.io");
+
+					socket.on("join", req => {	// Traps client connect when they call io()
+						const
+							{client,message} = req;
+
+						sqlThread( sql => {
+							sql.query("INSERT INTO openv.sessions SET ?", {
+								Opened: new Date(),
+								Client: client,
+								Location: req.location,
+								IP: req.ip,
+								Agent: req.agent,
+								Platform: req.platform
+							});
+							
+							sql.query(getProfile, [client], (err,profs) => { 
+
+								/**
+									Create an antibot challenge and relay to client with specified profile parameters
+
+									@param {String} client being challenged
+									@param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
+								*/
+								function getChallenge (profile, cb) { 
+									/**
+										Check clients response req.query to a antibot challenge.
+
+										@param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
+										@param {Array} rid List of riddles returned
+										@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
+									*/
+									function makeRiddles (msg,riddles,prof) { 
+										const
+											{ floor, random } = Math,
+											rand = N => floor( random() * N ),
+											{ riddle } = TOTEM,
+											N = riddle.length,
+											randRiddle = (x) => riddle[rand(N)];
+
+										return msg
+												.parse$(prof)
+												.replace(/\#riddle/g, pat => {
+													var QA = randRiddle();
+													riddles.push( QA.A );
+													return QA.Q;
+												})
+												.replace(/\#yesno/g, pat => {
+													var QA = randRiddle();
+													riddles.push( QA.A );
+													return QA.Q;
+												})
+												.replace(/\#rand/g, pat => {
+													riddles.push( rand(10) );
+													return "random integer between 0 and 9";		
+												})
+												.replace(/\#card/g, pat => {
+													return "cac card challenge TBD";
+												})
+												.replace(/\#bio/g, pat => {
+													return "bio challenge TBD";
+												});
+									}
+
+									const
+										{ riddler } = paths,
+										{ Message, IDs, Retries, Timeout } = profile,
+										riddles = [],
+										probe = makeRiddles( Message, riddles, profile );
+
+									Log(client, probe, riddles);
+
+									sql.query("REPLACE INTO openv.riddles SET ?", {		// track riddle
+										Riddle: riddles.join(",").replace(/ /g,""),
+										Client: client,
+										Made: new Date(),
+										Attempts: 0,
+										maxAttempts: Retries
+									}, (err,info) => cb({		// send challenge to client
+										message: probe,
+										retries: Retries,
+										timeout: Timeout,
+										callback: riddler,
+										passphrase: prof.SecureCom || ""
+									}) );
+								}
+
+								//Log(err,profs);
+
+								if ( prof = profs[0] ) {
+									if ( prof.Banned ) 
+										socket.emit("exit", {
+											message: `${client} banned: ${prof.Banned}`
+										});
+
+									else
+									if ( prof.Challenge && riddle.length )	// must solve challenge to enter
+										getChallenge(prof, challenge => {
+											Log(challenge);
+											socket.emit("challenge", challenge);
+										});
+
+									else
+									if ( prof.SecureCom )	// allowed to use secure link
+										socket.emit("secure", {
+											message: `Welcome ${client}`,
+											passphrase: prof.SecureCom
+										});
+
+									else		// not allowed to use secure ink
+										socket.emit("status", {
+											message: `Welcome ${client}`
+										});
+								}
+
+								else
+									socket.emit("exit", {
+										message: `Cant find ${client}`
+									});
+
+							});
+						});
+					});
+
+					socket.on("store", req => {
+						const
+							{client,ip,location,message} = req;
+
+						Log(">>>store", req);
+
+						sqlThread( sql => {
+							sql.query(
+								"INSERT INTO openv.saves SET ? ON DUPLICATE KEY UPDATE Content=?", 
+								[{Client: client,Content:message}, message],
+								err => {
+
+									socket.emit("status", {
+										message: err ? "store failed" : "store completed"
+									});
+							});
+						});
+					});
+
+					socket.on("restore", req => {
+						const
+							{client,ip,location,message} = req;
+
+						Log(">>>restore", req);
+						sqlThread( sql => {
+							sql.query("SELECT Content FROM openv.saves WHERE Client=? LIMIT 1", 
+							[client],
+							(err,recs) => {
+
+								Log("restore",err,recs);
+
+								if ( rec = recs[0] )
+									socket.emit("content", {
+										message: rec.Content
+									});
+
+								else
+									socket.emit("status", {
+										message: "cant restore content"
+									});
+							});
+						});
+					});
+
+					socket.on("relay", req => {
+						const
+							{ from,message,to } = req;
+
+						Log("RELAY", req);
+						if ( false ) // if tracking enabled then ...
+							sqlThread( sql => {
+								sql.query(
+									"INSERT INTO openv.relays SET ?", [{
+										Message: message,
+										Rx: new Date(),
+										From: from,
+										To: to,
+										Service: 1
+									}] );
+							});
+
+						IO.emit("relay", {	// broadcast message to everyone
+							message: message,
+							from: from,
+							to: to
+						});
+					});
+				});	
+
+				// for debugging
+				IO.on("connect_error", err => {
+					Log(err);
+				});
+
+				IO.on("disconnection", socket => {
+					Log(">>DISCONNECT CLIENT");
+				});	
+			}
+
+			else 
+				throw errors.noSockets;
+		}
+		
 		function setupService(agent) {  
 
 			/*
@@ -1222,223 +1447,13 @@ const
 					@param {Number} port port to listen on
 					@param {Function} cb callback(Req,Res) to handle session request
 				*/
-				function startService(port, cb) {
+				function startSession(port, cb) {
 					const 
-						{ routeRequest, sockets, name, server, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM,
-						{ getProfile } = sqls;
+						{ routeRequest, sockets, name, server, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM;
 					
 					Trace(`STARTING ${name}`);
 
-					if ( sockets ) {   // attach socket.io and setup connection listeners
-						const 
-							IO = TOTEM.IO = new SIO(server, { // use defaults but can override ...
-								//serveClient: true, // default true to prevent server from intercepting path
-								//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
-							}),
-							HUBIO = TOTEM.HUBIO = new (SIOHUB); 		//< Hub fixes socket.io+cluster bug	
-
-						if (IO) { 							// Using socketio so setup client web-socket support
-							Trace("SOCKETS AT", IO.path() );
-
-							IO.on("connect", socket => {  // Trap client connects when they call their io()
-								//Log("connect socket.io");
-								
-								socket.on("join", req => {
-									const
-										{client,ip,location,message} = req;
-									
-									sqlThread( sql => {
-										sql.query(getProfile, [client], (err,profs) => { 
-
-											/**
-												Create an antibot challenge and relay to client with specified profile parameters
-
-												@param {String} client being challenged
-												@param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
-											*/
-											function getChallenge (profile, cb) { 
-												/**
-													Check clients response req.query to a antibot challenge.
-
-													@param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
-													@param {Array} rid List of riddles returned
-													@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
-												*/
-												function makeRiddles (msg,riddles,prof) { 
-													const
-														{ floor, random } = Math,
-														rand = N => floor( random() * N ),
-														{ riddle } = TOTEM,
-														N = riddle.length,
-														randRiddle = (x) => riddle[rand(N)];
-
-													return msg
-															.parse$(prof)
-															.replace(/\#riddle/g, pat => {
-																var QA = randRiddle();
-																riddles.push( QA.A );
-																return QA.Q;
-															})
-															.replace(/\#yesno/g, pat => {
-																var QA = randRiddle();
-																riddles.push( QA.A );
-																return QA.Q;
-															})
-															.replace(/\#rand/g, pat => {
-																riddles.push( rand(10) );
-																return "random integer between 0 and 9";		
-															})
-															.replace(/\#card/g, pat => {
-																return "cac card challenge TBD";
-															})
-															.replace(/\#bio/g, pat => {
-																return "bio challenge TBD";
-															});
-												}
-
-												const
-													{ riddler } = paths,
-													{ Message, IDs, Retries, Timeout } = profile,
-													riddles = [],
-													probe = makeRiddles( Message, riddles, profile );
-
-												Log(client, probe, riddles);
-
-												sql.query("REPLACE INTO openv.riddles SET ?", {		// track riddle
-													Riddle: riddles.join(",").replace(/ /g,""),
-													Client: client,
-													Made: new Date(),
-													Attempts: 0,
-													maxAttempts: Retries
-												}, (err,info) => cb({		// send challenge to client
-													message: probe,
-													retries: Retries,
-													timeout: Timeout,
-													callback: riddler,
-													passphrase: prof.SecureCom || ""
-												}) );
-											}
-
-											//Log(err,profs);
-
-											if ( prof = profs[0] ) {
-												if ( prof.Banned ) 
-													socket.emit("exit", {
-														message: `${client} banned: ${prof.Banned}`
-													});
-
-												else
-												if ( prof.Challenge && riddle.length )	// must solve challenge to enter
-													getChallenge(prof, challenge => {
-														Log(challenge);
-														socket.emit("challenge", challenge);
-													});
-
-												else
-												if ( prof.SecureCom )	// allowed to use secure link
-													socket.emit("secure", {
-														message: `Welcome ${client}`,
-														passphrase: prof.SecureCom
-													});
-
-												else		// not allowed to use secure ink
-													socket.emit("status", {
-														message: `Welcome ${client}`
-													});
-											}
-
-											else
-												socket.emit("exit", {
-													message: `Cant find ${client}`
-												});
-
-										});
-									});
-								});
-								
-								socket.on("store", req => {
-									const
-										{client,ip,location,message} = req;
-									
-									Log(">>>store", req);
-									
-									sqlThread( sql => {
-										sql.query(
-											"INSERT INTO openv.saves SET ? ON DUPLICATE KEY UPDATE Content=?", 
-											[{Client: client,Content:message}, message],
-											err => {
-
-												socket.emit("status", {
-													message: err ? "store failed" : "store completed"
-												});
-										});
-									});
-								});
-								
-								socket.on("restore", req => {
-									const
-										{client,ip,location,message} = req;
-									
-									Log(">>>restore", req);
-									sqlThread( sql => {
-										sql.query("SELECT Content FROM openv.saves WHERE Client=? LIMIT 1", 
-										[client],
-										(err,recs) => {
-
-											Log("restore",err,recs);
-											
-											if ( rec = recs[0] )
-												socket.emit("content", {
-													message: rec.Content
-												});
-											
-											else
-												socket.emit("status", {
-													message: "cant restore content"
-												});
-										});
-									});
-								});
-								
-								socket.on("relay", req => {
-									const
-										{ from,message,to } = req;
-
-									Log("RELAY", req);
-									if ( false ) // if tracking enabled then ...
-										sqlThread( sql => {
-											sql.query(
-												"INSERT INTO openv.relays SET ?", [{
-													Message: message,
-													Rx: new Date(),
-													From: from,
-													To: to,
-													Service: 1
-												}] );
-										});
-									
-									IO.emit("relay", {	// broadcast message to everyone
-										message: message,
-										from: from,
-										to: to
-									});
-								});
-							});	
-
-							/*
-							// for debugging
-							IO.on("connect_error", err => {
-								Log(err);
-							});
-
-							IO.on("disconnection", socket => {
-								Log(">>DISCONNECT CLIENT");
-							});	*/
-						}
-
-						else 
-							return TOTEM.initialize( errors.noSockets );	
-					}
+					if ( sockets ) configSockets(server);
 
 					// The BUSY interface provides a means to limit client connections that would lock the 
 					// service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
@@ -1462,7 +1477,7 @@ const
 					
 					server.on("request", cb);
 
-					server.listen( port, () => {  
+					server.listen( port, () => {  	// listen on specified port
 						Trace("LISTENING ON", port);
 					});
 
@@ -1604,7 +1619,7 @@ const
 				else  // unencrpted services so start http service
 					TOTEM.server = HTTP.createServer();
 				
-				startService( port, (Req,Res) => {		// start session
+				startSession( port, (Req,Res) => {		// start session
 					/**
 						Provide a request to the supplied session, or terminate the session if the service
 						is too busy.
