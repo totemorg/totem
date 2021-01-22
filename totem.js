@@ -1208,7 +1208,7 @@ const
 					} );
 				}
 
-			Log(riddle);
+			//Log(riddle);
 		}
 
 		/**
@@ -1432,6 +1432,11 @@ const
 										[from], 
 										(err,recs) => {
 
+									function pretty(x) {
+										Each( x, (key,val) => x[key] = parseFloat(val.toFixed(2)) );
+										return x;
+									}
+									
 									const 
 										{N,T} = recs[0],
 										lambda = N/T,
@@ -1439,7 +1444,10 @@ const
 										
 									//Log("inspection", score, lambda, hops);
 									IO.emit("relay", {	// broadcast message to everyone
-										message: message.tag("[]", Copy(score, {activity:lambda, robotic:hops})),
+										message: message.tag("[]", pretty(Copy(score, {
+											activity:lambda, 
+											robotic:hops
+										}))),
 										from: from,
 										to: to
 									});
@@ -2751,7 +2759,7 @@ const
 			recs.forEach( rec => {
 				lookups[rec.Key] = rec.Select;
 			});
-			Log(">>>lookups", lookups);
+			//Log(">>>lookups", lookups);
 		});
 		
 		sql.query("SELECT Ref,Path,Name FROM openv.lookups", [], (err,recs) => {
@@ -2762,13 +2770,13 @@ const
 
 				Lookup[Name] = Path;
 			});
-			Log(">>>Lookups", Lookups);
+			//Log(">>>Lookups", Lookups);
 		});
 		
 		if (users) 
 			sql.query(users)
-			.on("result", user => site.pocs["user"] = (user.Clients || "").toLowerCase() )
-			.on("end", () => Log("user pocs", site.pocs) );
+			.on("result", user => site.pocs["user"] = (user.Clients || "").toLowerCase() );
+			//.on("end", () => Log("user pocs", site.pocs) );
 
 		if (guest && guestProfile)
 			sql.query(guest, [], (err,profs) => {
