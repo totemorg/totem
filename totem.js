@@ -1235,6 +1235,8 @@ const
 						const
 							{client,message} = req;
 
+						console.log(req);
+						
 						sqlThread( sql => {
 							sql.query("INSERT INTO openv.sessions SET ?", {
 								Opened: new Date(),
@@ -1399,21 +1401,10 @@ const
 
 					socket.on("relay", req => {
 						const
-							{ from,message,to } = req;
+							{ from,message,to,track,route } = req;
 
 						Log("RELAY", req);
-						if ( false ) // if tracking enabled then ...
-							sqlThread( sql => {
-								sql.query(
-									"INSERT INTO openv.relays SET ?", [{
-										Message: message,
-										Rx: new Date(),
-										From: from,
-										To: to,
-										Service: 1
-									}] );
-							});
-
+						
 						if ( message.indexOf("PGP PGP MESSAGE")>=0 ) // just relay encrypted messages
 							IO.emit("relay", {	// broadcast message to everyone
 								message: message,
@@ -1432,26 +1423,33 @@ const
 										[from], 
 										(err,recs) => {
 
-									function pretty(x) {
-										Each( x, (key,val) => x[key] = parseFloat(val.toFixed(2)) );
-										return x;
-									}
-									
-									const 
-										{N,T} = recs[0],
-										lambda = N/T,
-										hops = 0;
-										
-									//Log("inspection", score, lambda, hops);
-									IO.emit("relay", {	// broadcast message to everyone
-										message: message.tag("[]", pretty(Copy(score, {
-											activity:lambda, 
-											robotic:hops
-										}))),
-										from: from,
-										to: to
+										const 
+											{N,T} = recs[0],
+											lambda = N/T;
+
+										//Log("inspection", score, lambda, hops);
+
+										if ( track ) // if tracking permiited by client then ...
+											sql.query(
+												"INSERT INTO openv.relays SET ?", {
+													Message: message,
+													Rx: new Date(),
+													From: from,
+													To: to,
+													New: 1,
+													Score: JSON.stringify(score)
+												} );
+
+										IO.emit("relay", {	// broadcast message to everyone
+											message: message,
+											score: Copy(score, {
+												Activity:lambda, 
+												Hopping:0
+											}),
+											from: from,
+											to: to
+										});
 									});
-								});
 								});
 							});
 								
@@ -1460,7 +1458,7 @@ const
 								message: message,
 								from: from,
 								to: to
-							});							
+							});	
 							
 					});
 					
