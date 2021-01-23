@@ -1233,19 +1233,21 @@ const
 
 					socket.on("join", req => {	// Traps client connect when they call io()
 						const
-							{client,message} = req;
+							{client,message,track} = req;
 
 						console.log(req);
 						
 						sqlThread( sql => {
-							sql.query("INSERT INTO openv.sessions SET ?", {
-								Opened: new Date(),
-								Client: client,
-								Location: req.location,
-								IP: req.ip,
-								Agent: req.agent,
-								Platform: req.platform
-							});
+							
+							if ( track )	// log sessions if client permits tracking
+								sql.query("INSERT INTO openv.sessions SET ?", {
+									Opened: new Date(),
+									Client: client,
+									Location: req.location,
+									IP: req.ip,
+									Agent: req.agent,
+									Platform: req.platform
+								});
 							
 							sql.query(getProfile, [client], (err,profs) => { 
 
@@ -1424,12 +1426,12 @@ const
 										(err,recs) => {
 
 										const 
-											{N,T} = recs[0],
+											{N,T} = err ? {N:0,T:1} : recs[0],
 											lambda = N/T;
 
 										//Log("inspection", score, lambda, hops);
 
-										if ( track ) // if tracking permiited by client then ...
+										if ( track ) // if tracking permitted by client then ...
 											sql.query(
 												"INSERT INTO openv.relays SET ?", {
 													Message: message,
