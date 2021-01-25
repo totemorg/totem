@@ -13,7 +13,8 @@
 	@requires os
 	@requires stream
 	@requires vm
-	@reqquire url
+	@requires url
+	@requires crypto
 
 	@requires enum
 	@requires jsdb
@@ -46,6 +47,7 @@ const
 	FS = require("fs"),							// access file system
 	CONS = require("constants"),				// constants for setting tcp sessions
 	CLUSTER = require("cluster"),				// multicore  processing
+	CRYPTO = require("crypto"),					// crypto for SecureLink
 	//URL = require("url"),						// url parsing
 	//NET = require("net"), 						// network interface
 	VM = require("vm"), 						// virtual machines for tasking
@@ -56,8 +58,6 @@ const
 	//AGENT = require("http-proxy-agent"),		// agent to access proxies
 	SCRAPE = require("cheerio"), 				// scraper to load proxies
 	MIME = require("mime"), 					// file mime types
-	SIO = require('socket.io'), 				// Socket.io client mesh
-	SIOHUB = require('socket.io-clusterhub'),	// Socket.io client mesh for multicore app
 	{ escape, escapeId } = SQLDB = require("mysql"),	//< mysql conector
 	XML2JS = require("xml2js"),					// xml to json parser (*)
 	BUSY = require('toobusy-js'),  				// denial-of-service protector (cant install on NodeJS 5.x+)
@@ -652,6 +652,253 @@ function NEOCONNECTOR(trace) {
 	
 ].Extend(String);
 
+/*	the bad socketio
+const
+	SIO = require('socket.io'), 				// Socket.io client mesh
+	SIOHUB = require('socket.io-clusterhub');  // Socket.io client mesh for multicore app
+*/
+
+function SIO(server) {			// the good socketio
+	const
+		{ cbs } = sio = {
+			cbs: {
+			},
+			
+			on: (channel,cb) => {
+				//Log("set cb",channel,cb?true:false);
+				cbs[channel] = cb;
+			},
+			
+			path: () => "**** The good socketio of the west ****"
+		};
+	
+	server.on('upgrade', (req, socket) => {	// intercept socketio request
+		// ref: https://medium.com/hackernoon/implementing-a-websocket-server-with-node-js-d9b78ec5ffa8
+
+		function generateAcceptValue (acceptKey) {
+			return CRYPTO
+				.createHash('sha1')
+				.update(acceptKey + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', 'binary')
+				.digest('base64');
+		}
+
+		// Read the websocket key provided by the client: 
+		const 
+			acceptKey = req.headers['sec-websocket-key'],
+			requestSocket = req.headers['upgrade'],
+			requestProtocol = req.headers["Sec-WebSocket-Protocol"];
+		
+		// if the client has requested use of a subprotocol but hasn’t provided any that the server is able 
+		// to support, the server must send a failure response and close the connection
+		// IANA registry for Websocket Subprotocol Names
+		// https://www.iana.org/assignments/websocket/websocket.xml
+		// includes soap, xmpp, wamp, mqtt
+
+		if ( requestSocket !== 'websocket') {
+			socket.end('HTTP/1.1 400 Bad Request');
+			return null;
+		}
+		
+		const 
+			hash = generateAcceptValue(acceptKey), 			// Generate the response value to use in the response
+			responseHeaders = [ 							// Write the HTTP response into an array of response lines
+				'HTTP/1.1 101 Web Socket Protocol Handshake', 
+				'Upgrade: WebSocket', 
+				'Connection: Upgrade', 
+				`Sec-WebSocket-Accept: ${hash}`,
+				`Sec-WebSocket-Protocol: json`
+			]; 
+
+		// Write the response back to the client socket, being sure to append two 
+		// additional newlines so that the browser recognises the end of the response 
+		// header and doesn't continue to wait for more header data: 
+		
+		socket.write(responseHeaders.join('\r\n') + '\r\n\r\n');
+
+		socket.on("data", d => {
+			function parseRFC5234buffer (buffer) {
+
+				function getOpCode() {
+					const 
+						firstByte = buffer.readUInt8(0),
+						isFinalFrame = Boolean((firstByte >>> 7) & 0x1),
+						[reserved1, reserved2, reserved3] = [ 
+							Boolean((firstByte >>> 6) & 0x1), 
+							Boolean((firstByte >>> 5) & 0x1), 
+							Boolean((firstByte >>> 4) & 0x1) ],
+						opCode = firstByte & 0xF; 
+
+					return opCode;
+				}
+
+				function getText() {
+					const 
+						secondByte = buffer.readUInt8(1),
+						isMasked = Boolean((secondByte >>> 7) & 0x1); 
+
+					// Keep track of our current position as we advance through the buffer 
+					let 
+						currentOffset = 2,
+						payloadLength = secondByte & 0x7F; 
+
+					if (payloadLength > 125) { 
+						if (payloadLength === 126) { 
+							payloadLength = buffer.readUInt16BE(currentOffset); 
+							currentOffset += 2; 
+						} 
+
+						else { 
+							// 127 
+							// If this has a value, the frame size is ridiculously huge! 
+							const leftPart = buffer.readUInt32BE(currentOffset); 
+							const rightPart = buffer.readUInt32BE(currentOffset += 4); 
+							// Honestly, if the frame length requires 64 bits, you're probably doing it wrong. 
+							// In Node.js you'll require the BigInt type, or a special library to handle this. 
+							throw new Error('Large payloads not currently implemented'); 
+						} 
+					}
+
+					// Allocate somewhere to store the final message data
+					const data = Buffer.alloc(payloadLength);
+
+					if ( isMasked ) {	// browser always sends masked data
+						let maskingKey;
+						maskingKey = buffer.readUInt32BE(currentOffset);
+						currentOffset += 4;
+
+						// Loop through the source buffer one byte at a time, keeping track of which
+						// byte in the masking key to use in the next XOR calculation
+						for (let i = 0, j = 0; i < payloadLength; ++i, j = i % 4) {
+							// Extract the correct byte mask from the masking key
+							const shift = j == 3 ? 0 : (3 - j) << 3; 
+							const mask = (shift == 0 ? maskingKey : (maskingKey >>> shift)) & 0xFF;
+							// Read a byte from the source buffer 
+							const source = buffer.readUInt8(currentOffset++); 
+							// XOR the source byte and write the result to the data 
+							data.writeUInt8(mask ^ source, i); 
+						}
+					}
+
+					else {
+						buffer.copy(data, 0, currentOffset++);
+					}
+
+					return data.toString('utf8');
+				}
+
+				switch ( opCode = getOpCode() ) {
+					case 0x0:	// denotes a continuation frame
+					case 0x2: 	// denotes a binary frame
+					case 0x3:
+					case 0x4:
+					case 0x5:
+					case 0x6:
+					case 0x7: 	// reserved for further non-control frames
+					case 0x8: 		// denotes a connection close
+						return null;  	// signal end of frame
+
+					case 0x9:	// denotes a ping
+					case 0xA:	// denotes a pong
+					case 0xB:
+					case 0xC:
+					case 0xD:
+					case 0xE:
+					case 0xF:	// reserved for further control frames
+						return null;									
+
+					case 0x1: 	// denotes a text frame
+						return getText();
+				}
+			}
+
+			function constructReply (data) {
+				// Convert the data to JSON and copy it into a buffer
+				const json = JSON.stringify(data)
+				const jsonByteLength = Buffer.byteLength(json);
+				// Note: we're not supporting > 65535 byte payloads at this stage 
+				const lengthByteCount = jsonByteLength < 126 ? 0 : 2; 
+				const payloadLength = lengthByteCount === 0 ? jsonByteLength : 126; 
+				const buffer = Buffer.alloc(2 + lengthByteCount + jsonByteLength); 
+				// Write out the first byte, using opcode `1` to indicate that the message 
+				// payload contains text data 
+				buffer.writeUInt8(0b10000001, 0); 
+				buffer.writeUInt8(payloadLength, 1); 
+				// Write the length of the JSON payload to the second byte 
+				let payloadOffset = 2; 
+				if (lengthByteCount > 0) { 
+					buffer.writeUInt16BE(jsonByteLength, 2); payloadOffset += lengthByteCount; 
+				} 
+				// Write the JSON data to the data buffer 
+				buffer.write(json, payloadOffset); 
+				return buffer;
+			}
+			
+			//Log(d);
+			try {
+				const
+					ctrl = parseRFC5234buffer(d);
+				
+				//Log(ctrl);
+				if ( ctrl ) {		// client's new WebSocket() creates a null ctrl
+					const 
+						{channel,message,id} = JSON.parse( ctrl );
+
+					/*Log("sio>>>", {
+						c: channel,  
+						m: message,
+						id: id,
+						cok: channel in cbs
+					});  */
+
+					if ( cb = cbs[channel] ) {
+						switch (channel) {
+							case "connect":
+							case "disconnect":
+								
+								socket.on = (channel,cb) => {
+									//Log("set cb",channel,cb?true:false);
+									cbs[channel] = cb;
+								};
+
+								cb( socket );
+								break;
+
+							default:
+								cb( message );
+						}
+						
+						socket.write(constructReply({ message: 'Acknowledge' })); 
+						
+						socket.end();
+					}
+					
+					else
+					if ( cb = cbs.error )
+						cb( new Error("invalid control channel") );
+
+					else
+						throw new Error(">>invalid control channel");
+				}
+				
+				else {
+					Log("sio>>> close");
+				}
+			}
+			
+			catch (err) {
+				if ( cb = cbs.error )
+					cb( new Error("invalid socketio control") );
+				
+				else {
+					throw new Error("**invalid socketio control");
+				}
+			}
+		});
+		
+	});
+	
+	return sio;
+}
 
 // totem i/f
 
@@ -821,9 +1068,10 @@ const
 					{ area, table, path } = req;
 				
 				Trace( route.name.toUpperCase(), path );
-
+				//Log("****>>>", [area,table,req.body,node],"body=",req.body);
+				
 				if ( area ) 
-					if ( area == "socket.io" )	// ignore socket keep-alives
+					if ( area == "socket.io" && !table)	// ignore socket keep-alives
 						Trace("HUSH SOCKET.IO");
 
 					else	// send file
@@ -858,7 +1106,10 @@ const
 			//Log(">>>node", node);
 			const 
 				{ strips, prefix, traps, id } = reqFlags,
-				{ action, body } = req,
+				{ action, body } = req;
+			
+			//Log("body=", req.body, body);
+			const
 
 				query = req.query = {},
 				index = req.index = {},	
@@ -884,12 +1135,15 @@ const
 				if ( trap = traps[key] )
 					trap(req);
 
+			//Log("body=", req.body, body);
+			
 			for (var key in body) 		// remap body flags
 				if ( key.startsWith(prefix) ) {  
 					flags[key.substr(1)] = body[key]+"";
 					delete body[key];
 				}
 
+			//Log("body=", req.body, body);
 			if (id in body) {  			// remap body record id
 				where["="][id] = query[id] = body[id]+""; 
 				delete body[id];
@@ -1030,6 +1284,7 @@ const
 			return parms;
 		});		// get body parameters/files
 
+		req.body = {};
 		routeNode( node, req, (req,recs) => {
 			//Log("exit route node", typeOf(recs), typeOf(recs[0]) );
 			res(recs);
@@ -1212,300 +1467,297 @@ const
 		}
 
 		/**
-		Establish socket.io sockets for the SecureIntercom link (at store,restore,login,relay,status,
-		sync,join,exit,content) and the dbSync link (at select,update,insert,delete).
+			Establish socket.io sockets for the SecureIntercom link (at store,restore,login,relay,status,
+			sync,join,exit,content) and the dbSync link (at select,update,insert,delete).
 		*/
 		function configSockets (server) {
 			const 
 				{ riddle, inspector } = TOTEM,
-				{ getProfile } = sqls,
-				IO = TOTEM.IO = new SIO(server, { // use defaults but can override ...
-					//serveClient: true, // default true to prevent server from intercepting path
-					//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
-				}),
-				HUBIO = TOTEM.HUBIO = new (SIOHUB); 		//< Hub fixes socket.io+cluster bug	
+				{ getProfile, addSession } = sqls;
+			
+			const
+				IO = TOTEM.IO = SIO(server); /*{ // use defaults but can override ...
+						//serveClient: true, // default true to prevent server from intercepting path
+						//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
+					}),  */
+				//HUBIO = TOTEM.HUBIO = new (SIOHUB);		//< Hub fixes socket.io+cluster bug	
 
-			if (IO) { 							// Using socketio so setup client web-socket support
-				Trace("SOCKETS AT", IO.path() );
+			Trace("SOCKETS AT", IO.path() );
 
-				IO.on("connect", socket => {  
-					//Log("connect socket.io");
+			IO.on("connect", socket => {  	// listen to side channels 
+				Log("====>>>>connect socket.io");
 
-					socket.on("join", req => {	// Traps client connect when they call io()
-						const
-							{client,message,track} = req;
+				socket.on("join", req => {	// Traps client connect when they call io()
+					console.log("====>>>>join", req);
+					/*
+					const
+						{client,message,track} = req;
 
-						console.log(req);
-						
-						sqlThread( sql => {
-							
-							if ( track )	// log sessions if client permits tracking
-								sql.query("INSERT INTO openv.sessions SET ?", {
-									Opened: new Date(),
-									Client: client,
-									Location: req.location,
-									IP: req.ip,
-									Agent: req.agent,
-									Platform: req.platform
-								});
-							
-							sql.query(getProfile, [client], (err,profs) => { 
+					sqlThread( sql => {
 
-								/**
-									Create an antibot challenge and relay to client with specified profile parameters
+						if ( track && addSession )	// log sessions if client permits and if allowed
+							sql.query( addSession, {
+								Opened: new Date(),
+								Client: client,
+								Location: req.location,
+								IP: req.ip,
+								Agent: req.agent,
+								Platform: req.platform
+							});
 
-									@param {String} client being challenged
-									@param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
-								*/
-								function getChallenge (profile, cb) { 
-									/**
-										Check clients response req.query to a antibot challenge.
+						sql.query(getProfile, [client], (err,profs) => { 
 
-										@param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
-										@param {Array} rid List of riddles returned
-										@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
-									*/
-									function makeRiddles (msg,riddles,prof) { 
-										const
-											{ floor, random } = Math,
-											rand = N => floor( random() * N ),
-											{ riddle } = TOTEM,
-											N = riddle.length,
-											randRiddle = (x) => riddle[rand(N)];
+							/ **
+								Create an antibot challenge and relay to client with specified profile parameters
 
-										return msg
-												.parse$(prof)
-												.replace(/\#riddle/g, pat => {
-													var QA = randRiddle();
-													riddles.push( QA.A );
-													return QA.Q;
-												})
-												.replace(/\#yesno/g, pat => {
-													var QA = randRiddle();
-													riddles.push( QA.A );
-													return QA.Q;
-												})
-												.replace(/\#rand/g, pat => {
-													riddles.push( rand(10) );
-													return "random integer between 0 and 9";		
-												})
-												.replace(/\#card/g, pat => {
-													return "cac card challenge TBD";
-												})
-												.replace(/\#bio/g, pat => {
-													return "bio challenge TBD";
-												});
-									}
+								@param {String} client being challenged
+								@param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
+							* /
+							function getChallenge (profile, cb) { 
+								/ **
+									Check clients response req.query to a antibot challenge.
 
+									@param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
+									@param {Array} rid List of riddles returned
+									@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
+								* /
+								function makeRiddles (msg,riddles,prof) { 
 									const
-										{ riddler } = paths,
-										{ Message, IDs, Retries, Timeout } = profile,
-										riddles = [],
-										probe = makeRiddles( Message, riddles, profile );
+										{ floor, random } = Math,
+										rand = N => floor( random() * N ),
+										{ riddle } = TOTEM,
+										N = riddle.length,
+										randRiddle = (x) => riddle[rand(N)];
 
-									Log(client, probe, riddles);
-
-									sql.query("REPLACE INTO openv.riddles SET ?", {		// track riddle
-										Riddle: riddles.join(",").replace(/ /g,""),
-										Client: client,
-										Made: new Date(),
-										Attempts: 0,
-										maxAttempts: Retries
-									}, (err,info) => cb({		// send challenge to client
-										message: probe,
-										retries: Retries,
-										timeout: Timeout,
-										callback: riddler,
-										passphrase: prof.SecureCom || ""
-									}) );
+									return msg
+											.parse$(prof)
+											.replace(/\#riddle/g, pat => {
+												var QA = randRiddle();
+												riddles.push( QA.A );
+												return QA.Q;
+											})
+											.replace(/\#yesno/g, pat => {
+												var QA = randRiddle();
+												riddles.push( QA.A );
+												return QA.Q;
+											})
+											.replace(/\#rand/g, pat => {
+												riddles.push( rand(10) );
+												return "random integer between 0 and 9";		
+											})
+											.replace(/\#card/g, pat => {
+												return "cac card challenge TBD";
+											})
+											.replace(/\#bio/g, pat => {
+												return "bio challenge TBD";
+											});
 								}
 
-								//Log(err,profs);
+								const
+									{ riddler } = paths,
+									{ Message, IDs, Retries, Timeout } = profile,
+									riddles = [],
+									probe = makeRiddles( Message, riddles, profile );
 
-								if ( prof = profs[0] ) {
-									if ( prof.Banned ) 
-										socket.emit("exit", {
-											message: `${client} banned: ${prof.Banned}`
-										});
+								Log(client, probe, riddles);
 
-									else
-									if ( prof.Challenge && riddle.length )	// must solve challenge to enter
-										getChallenge(prof, challenge => {
-											Log(challenge);
-											socket.emit("challenge", challenge);
-										});
+								sql.query("REPLACE INTO openv.riddles SET ?", {		// track riddle
+									Riddle: riddles.join(",").replace(/ /g,""),
+									Client: client,
+									Made: new Date(),
+									Attempts: 0,
+									maxAttempts: Retries
+								}, (err,info) => cb({		// send challenge to client
+									message: probe,
+									retries: Retries,
+									timeout: Timeout,
+									callback: riddler,
+									passphrase: prof.SecureCom || ""
+								}) );
+							}
 
-									else
-									if ( prof.SecureCom )	// allowed to use secure link
-										socket.emit("secure", {
-											message: `Welcome ${client}`,
-											passphrase: prof.SecureCom
-										});
+							//Log(err,profs);
 
-									else		// not allowed to use secure ink
-										socket.emit("status", {
-											message: `Welcome ${client}`
-										});
-								}
-
-								else
+							if ( prof = profs[0] ) {
+								if ( prof.Banned ) 
 									socket.emit("exit", {
-										message: `Cant find ${client}`
-									});
-
-							});
-						});
-					});
-
-					socket.on("store", req => {
-						const
-							{client,ip,location,message} = req;
-
-						Log(">>>store", req);
-
-						sqlThread( sql => {
-							sql.query(
-								"INSERT INTO openv.saves SET ? ON DUPLICATE KEY UPDATE Content=?", 
-								[{Client: client,Content:message}, message],
-								err => {
-
-									socket.emit("status", {
-										message: err ? "store failed" : "store completed"
-									});
-							});
-						});
-					});
-
-					socket.on("restore", req => {
-						const
-							{client,ip,location,message} = req;
-
-						Log(">>>restore", req);
-						sqlThread( sql => {
-							sql.query("SELECT Content FROM openv.saves WHERE Client=? LIMIT 1", 
-							[client],
-							(err,recs) => {
-
-								Log("restore",err,recs);
-
-								if ( rec = recs[0] )
-									socket.emit("content", {
-										message: rec.Content
+										message: `${client} banned: ${prof.Banned}`
 									});
 
 								else
+								if ( prof.Challenge && riddle.length )	// must solve challenge to enter
+									getChallenge(prof, challenge => {
+										Log(challenge);
+										socket.emit("challenge", challenge);
+									});
+
+								else
+								if ( prof.SecureCom )	// allowed to use secure link
+									socket.emit("secure", {
+										message: `Welcome ${client}`,
+										passphrase: prof.SecureCom
+									});
+
+								else		// not allowed to use secure ink
 									socket.emit("status", {
-										message: "cant restore content"
+										message: `Welcome ${client}`
 									});
-							});
-						});
-					});
+							}
 
-					socket.on("relay", req => {
-						const
-							{ from,message,to,track,route } = req;
-
-						Log("RELAY", req);
-						
-						if ( message.indexOf("PGP PGP MESSAGE")>=0 ) // just relay encrypted messages
-							IO.emit("relay", {	// broadcast message to everyone
-								message: message,
-								from: from,
-								to: to
-							});
-						
-						else
-						if ( inspector ) 	// relay scored messages that are unencrypted
-							inspector( message, to, score => {
-								sqlThread( sql => {
-									sql.query(
-										"SELECT "
-											+ "max(timestampdiff(minute,Opened,now())) AS T, "
-											+ "count(ID) AS N FROM openv.sessions WHERE Client=?", 
-										[from], 
-										(err,recs) => {
-
-										const 
-											{N,T} = err ? {N:0,T:1} : recs[0],
-											lambda = N/T;
-
-										//Log("inspection", score, lambda, hops);
-
-										if ( track ) // if tracking permitted by client then ...
-											sql.query(
-												"INSERT INTO openv.relays SET ?", {
-													Message: message,
-													Rx: new Date(),
-													From: from,
-													To: to,
-													New: 1,
-													Score: JSON.stringify(score)
-												} );
-
-										IO.emit("relay", {	// broadcast message to everyone
-											message: message,
-											score: Copy(score, {
-												Activity:lambda, 
-												Hopping:0
-											}),
-											from: from,
-											to: to
-										});
-									});
+							else
+								socket.emit("exit", {
+									message: `Cant find ${client}`
 								});
-							});
-								
-						else 		// relay message as-is				   
-							IO.emit("relay", {	// broadcast message to everyone
-								message: message,
-								from: from,
-								to: to
-							});	
-							
-					});
-					
-					socket.on("login", req => {
-						const
-							{ client,pubKey } = req;
 
-						Log("LOGIN", req);
-
-						sqlThread( sql => {
-							sql.query(
-								"UPDATE openv.profiles SET pubKey=? WHERE Client=?",
-								[pubKey,client] );
-
-							sql.query( "SELECT Client,pubKey FROM openv.profiles WHERE Client!=? AND length(pubKey)", [client] )
-							.on("result", rec => {
-								socket.emit("sync", {	// broadcast other pubKeys to this client
-									message: rec.pubKey,
-									from: rec.Client,
-									to: client
-								});
-							});
-						});							
-						
-						IO.emit("sync", {	// broadcast client's pubKey to everyone
-							message: pubKey,
-							from: client,
-							to: "all"
 						});
-					});
-					
-				});	
-
-				// for debugging
-				IO.on("connect_error", err => {
-					Log(err);
+					}); */
 				});
 
-				IO.on("disconnection", socket => {
-					Log(">>DISCONNECT CLIENT");
-				});	
-			}
+				socket.on("store", req => {
+					const
+						{client,ip,location,message} = req;
 
-			else 
-				throw errors.noSockets;
+					Log(">>>store", req);
+
+					sqlThread( sql => {
+						sql.query(
+							"INSERT INTO openv.saves SET ? ON DUPLICATE KEY UPDATE Content=?", 
+							[{Client: client,Content:message}, message],
+							err => {
+
+								socket.emit("status", {
+									message: err ? "store failed" : "store completed"
+								});
+						});
+					});
+				});
+
+				socket.on("restore", req => {
+					const
+						{client,ip,location,message} = req;
+
+					Log(">>>restore", req);
+					sqlThread( sql => {
+						sql.query("SELECT Content FROM openv.saves WHERE Client=? LIMIT 1", 
+						[client],
+						(err,recs) => {
+
+							Log("restore",err,recs);
+
+							if ( rec = recs[0] )
+								socket.emit("content", {
+									message: rec.Content
+								});
+
+							else
+								socket.emit("status", {
+									message: "cant restore content"
+								});
+						});
+					});
+				});
+
+				socket.on("relay", req => {
+					const
+						{ from,message,to,track,route } = req;
+
+					Log("RELAY", req);
+
+					if ( message.indexOf("PGP PGP MESSAGE")>=0 ) // just relay encrypted messages
+						IO.emit("relay", {	// broadcast message to everyone
+							message: message,
+							from: from,
+							to: to
+						});
+
+					else
+					if ( inspector ) 	// relay scored messages that are unencrypted
+						inspector( message, to, score => {
+							sqlThread( sql => {
+								sql.query(
+									"SELECT "
+										+ "max(timestampdiff(minute,Opened,now())) AS T, "
+										+ "count(ID) AS N FROM openv.sessions WHERE Client=?", 
+									[from], 
+									(err,recs) => {
+
+									const 
+										{N,T} = err ? {N:0,T:1} : recs[0],
+										lambda = N/T;
+
+									//Log("inspection", score, lambda, hops);
+
+									if ( track ) // if tracking permitted by client then ...
+										sql.query(
+											"INSERT INTO openv.relays SET ?", {
+												Message: message,
+												Rx: new Date(),
+												From: from,
+												To: to,
+												New: 1,
+												Score: JSON.stringify(score)
+											} );
+
+									IO.emit("relay", {	// broadcast message to everyone
+										message: message,
+										score: Copy(score, {
+											Activity:lambda, 
+											Hopping:0
+										}),
+										from: from,
+										to: to
+									});
+								});
+							});
+						});
+
+					else 		// relay message as-is				   
+						IO.emit("relay", {	// broadcast message to everyone
+							message: message,
+							from: from,
+							to: to
+						});	
+
+				});
+
+				socket.on("login", req => {
+					Log("LOGIN", req);
+
+					const
+						{ client,pubKey } = req;
+
+					sqlThread( sql => {
+						sql.query(
+							"UPDATE openv.profiles SET pubKey=? WHERE Client=?",
+							[pubKey,client] );
+
+						sql.query( "SELECT Client,pubKey FROM openv.profiles WHERE Client!=? AND length(pubKey)", [client] )
+						.on("result", rec => {
+							socket.emit("sync", {	// broadcast other pubKeys to this client
+								message: rec.pubKey,
+								from: rec.Client,
+								to: client
+							});
+						});
+					});							
+
+					IO.emit("sync", {	// broadcast client's pubKey to everyone
+						message: pubKey,
+						from: client,
+						to: "all"
+					});
+				});
+
+			});	
+
+			// for debugging
+			IO.on("connect_error", err => {
+				Log(err);
+			});
+
+			IO.on("disconnection", socket => {
+				Log(">>DISCONNECT CLIENT");
+			});			
 		}
 		
 		function setupService(agent) {  
@@ -1523,11 +1775,11 @@ const
 				*/
 				function startSession(port, cb) {
 					const 
-						{ routeRequest, sockets, name, server, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM;
+						{ routeRequest, socketIO, name, server, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM;
 					
 					Trace(`STARTING ${name}`);
 
-					if ( sockets ) configSockets(server);
+					if ( socketIO ) configSockets(server);
 
 					// The BUSY interface provides a means to limit client connections that would lock the 
 					// service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
@@ -1698,7 +1950,7 @@ const
 						Provide a request to the supplied session, or terminate the session if the service
 						is too busy.
 
-						@param {Function} ses callback(req) session accepting the provided request
+						@param {Function} ses session(req) callback accepting the provided request
 					*/
 					function startRequest( ses ) { 
 						function getSocket() {  //< returns suitable response socket depending on cross/same domain session
@@ -1738,7 +1990,7 @@ const
 												sql: sql,	// sql connector
 												post: post, // raw post body
 												method: Req.method,		// get,put, etc
-												started: Req.headers.Date,  // time client started request
+												started: new Date(),  // Req.headers.Date,  // time client started request
 												action: crudIF[Req.method],	// crud action being requested
 												reqSocket: Req.socket,   // use supplied request socket 
 												resSocket: getSocket,		// use this method to return a response socket
@@ -1788,7 +2040,7 @@ const
 							Provide a response to a session after attaching sql, cert, client, profile 
 							and session info to this request.  
 
-							@param {Function} ses session accepting the provided response callback
+							@param {Function} cb connection accepting the provided response callback
 						*/
 						function startResponse( ses ) {  
 							function res(data) {  // Session response callback
@@ -1902,6 +2154,7 @@ const
 								}
 								
 								catch (err) {
+									Log(err);
 									Trace("TRAP SOCKET.IO BUG - use /socket/socket.io.js");
 								}
 								
@@ -1909,43 +2162,24 @@ const
 
 							if (sock = req.reqSocket )	// have a valid request socket so ....
 								validateClient(req, err => {	// admit good client
+									const 
+										{sql,client} = req,
+										{ addConnect } = sqls;
+									
 									//Log("prof>>>", req.profile);
 									
-									if (err)
-										res(err);
+									if (err)			// client was rejected
+										res(null);
 
 									else  {
-										ses(res);
-										const {sql,client} = req;
-										sql.query(sqls.newSession, {
-											Client: client,
-											Message: "joined", //JSON.stringify(cert),
-											Joined: new Date()
-										});
+										ses(res);		// start connection
+										if ( addConnect )
+											sql.query(addConnect, {
+												Client: client,
+												Message: "joined", //JSON.stringify(cert),
+												Joined: new Date()
+											});
 									}
-									/*
-									if ( getSession = sqls.getSession )
-										req.sql.query(getSession, {Client: req.client}, (err,ses) => {
-											if ( err )
-												res(err);
-
-											else {
-												req.session = new Object( ses[0] || {
-													Client: "guest@guest.org",
-													Connects: 1,
-													//ipAddress : "unknown",
-													Location: "unknown",
-													Joined: new Date()
-												});
-												cb( res );
-											}
-										});
-
-									else {  // using dummy sessions
-										req.session = {};
-										cb( res );
-									}*/
-
 								});
 
 							else 	// lost reqest socket for some reason so ...
@@ -1954,7 +2188,11 @@ const
 
 						Req.req = req;
 						startResponse( res => {	// route the request on the provided response callback
-							routeRequest(req,res);
+							if ( res ) 
+								routeRequest(req,res);
+							
+							else
+								Trace("SESSION REJECTED");
 						});
 					});
 				});
@@ -2316,7 +2554,7 @@ const
 		Enabled to support web sockets
 		@cfg {Boolean} [sockets=false]
 	*/
-	sockets: true, 	//< enabled to support web sockets
+	socketIO: true, 	//< enabled to support web sockets
 		
 	/**
 		Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
@@ -2426,8 +2664,9 @@ const
 		@cfg {Object} 
 	*/				
 	byTable: {			  //< by-table routers	
-		riddle: sysCheck,
-		task: sysTask
+		riddle: sysChallenge,
+		task: sysTask,
+		login: sysLogin
 	},
 		
 	/**
@@ -2709,9 +2948,10 @@ const
 		search: "SELECT * FROM openv.files HAVING Score > 0.1",
 		//credit: "SELECT * FROM openv.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 1",
 		getProfile: "SELECT * FROM openv.profiles WHERE Client=? LIMIT 1",
+		addSession: "INSERT INTO openv.sessions SET ?",
 		newProfile: "INSERT INTO openv.profiles SET ?",
 		getSession: "SELECT * FROM openv.sessions WHERE ? LIMIT 1",
-		newSession: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1",
+		//addConnect: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1",
 		//challenge: "SELECT *,concat(client,password) AS Passphrase FROM openv.profiles WHERE Client=? LIMIT 1",
 		guest: "SELECT * FROM openv.profiles WHERE Client='guest@guest.org' LIMIT 1",
 		pocs: "SELECT lower(Hawk) AS Role, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Clients FROM openv.roles GROUP BY hawk"
@@ -3262,59 +3502,6 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 */
 
 /**
-	Validate clients response to an antibot challenge.
-
-	@param {Object} req Totem session request
-	@param {Function} res Totem response callback
-*/
-function sysCheck (req,res) {
-	const 
-		{ query, sql, type, body, action } = req,
-		{ client , guess } = (action=="select") ? query : body;
-	
-	Log(client,guess);
-	
-	if ( type == "help" ) res(`
-Validate session id=client guess=value.
-`);
-	
-	else
-	if (client && guess)
-		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:client}, (err,rids) => {
-
-			if ( rid = rids[0] ) {
-				var 
-					ID = {Client:rid.ID},
-					Guess = (guess+"").replace(/ /g,"");
-
-				Log([rid,query]);
-
-				if (rid.Riddle == Guess) {
-					res( "pass" );
-					sql.query("DELETE FROM openv.riddles WHERE ?",ID);
-				}
-				else
-				if (rid.Attempts > rid.maxAttempts) {
-					res( "fail" );
-					sql.query("DELETE FROM openv.riddles WHERE ?",ID);
-				}
-				else {
-					res( "retry" );
-					sql.query("UPDATE openv.riddles SET Attempts=Attempts+1 WHERE ?",ID);
-				}
-
-			}
-
-			else
-				res( "fail" );
-
-		});
-
-	else
-		res( "fail" );
-}
-
-/**
  @class TOTEM.End_Points.CRUDE_Interface
  Create / insert / post, Read / select / get, Update / put, Delete and Execute methods.
 */
@@ -3495,7 +3682,7 @@ function simThread(sock) {
 	@param {Object} req Totem request
 	@param {Function} res Totem response
 */
-function sysTask(req,res) {  //< task sharding
+function sysTask (req,res) {  //< task sharding
 	const {query,body,sql,type,table,url} = req;
 	const {task,domains,cb,client,credit,name,qos} = body;
 	
@@ -3544,6 +3731,242 @@ Shard specified task to the compute nodes given task post parameters.
 					runTask( index );
 			});
 	}
+}
+
+/**
+	Validate clients response to an antibot challenge.
+
+	@param {Object} req Totem session request
+	@param {Function} res Totem response callback
+*/
+function sysChallenge (req,res) {
+	const 
+		{ query, sql, type, body, action } = req,
+		{ client , guess } = (action=="select") ? query : body;
+	
+	Log(client,guess);
+	
+	if ( type == "help" ) res(`
+Validate session id=client guess=value.
+`);
+	
+	else
+	if (client && guess)
+		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:client}, (err,rids) => {
+
+			if ( rid = rids[0] ) {
+				var 
+					ID = {Client:rid.ID},
+					Guess = (guess+"").replace(/ /g,"");
+
+				Log([rid,query]);
+
+				if (rid.Riddle == Guess) {
+					res( "pass" );
+					sql.query("DELETE FROM openv.riddles WHERE ?",ID);
+				}
+				else
+				if (rid.Attempts > rid.maxAttempts) {
+					res( "fail" );
+					sql.query("DELETE FROM openv.riddles WHERE ?",ID);
+				}
+				else {
+					res( "retry" );
+					sql.query("UPDATE openv.riddles SET Attempts=Attempts+1 WHERE ?",ID);
+				}
+
+			}
+
+			else
+				res( "fail" );
+
+		});
+
+	else
+		res( "fail" );
+}
+
+function sysLogin(req,res) {
+	function passwordOk(pass) {
+		return (pass.length >= 4);
+	}
+
+	function accountOk(acct) {
+		return (acct == "brian.d.james@comcast.net") || acct.endsWith(".mil") || acct.endsWith("@secure.org");
+	}
+
+	function genPassword( len, cb ) {
+		CRYPTO.randomBytes( len, (err, code) => cb( code.toString("hex") ) );
+	}
+
+	function genAccount( password, cb ) {
+		genPassword(16, code => {
+			const account = code+"@totem.opt";
+			sql.query(
+				"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
+				[{
+					Client: account,
+					Challenge: false,
+					Banned: "",
+					//Requested: requestDate,
+					Expires: expireDate
+				},  password, encryptionPassword, allowSecureConnect ], 	
+				(err,info) => {
+
+					if ( err )
+						genAccount( password, cb );
+
+					else
+						cb( account, password );
+			});
+		});
+	}
+
+	const
+		passwordPostfixLength = 3,
+		encryptionPassword = ENV.USERS_PASS,
+		allowSecureConnect = true,
+		expireAccountDays = 5,
+		expireAccountWindowDays = 10;
+
+	const 
+		{ sql, query, type, profile, body, action } = req,
+		{ account, password } = (action == "select") ? query : body,
+		{ sendMail } = TOTEM,
+		{ random, round } = Math,
+		now = new Date(),
+		requestDate = now,
+		expireDate = now;
+
+	expireDate.setDate( requestDate.getDate() + expireAccountDays + round(random()*expireAccountWindowDays) );
+
+/*  Accessing instructions for AWS envs 
+`
+Greetings from ${site.Nick.tag(site.master)}-
+
+Admin:
+Please create an AWS EC2 account for ${owner} using attached cert.
+
+To connect to ${site.Nick} from Windows:
+
+1. Establish gateway using 
+
+	Putty | SSH | Tunnels
+
+with the following LocalPort, RemotePort map:
+
+	5001, ${site.master}:22
+	5100, ${site.master}:3389
+	5200, ${site.master}:8080
+	5910, ${site.master}:5910
+	5555, Dynamic
+
+and, for convienience:
+
+	Pageant | Add Keys | your private ppk cert
+
+2. Start a ${site.Nick} session using one of these methods:
+
+${Putty} | Session | Host Name = localhost:5001 
+Remote Desktop Connect| Computer = localhost:5100 
+${FF} | Options | Network | Settings | Manual Proxy | Socks Host = localhost, Port = 5555, Socks = v5 `
+
+.replace(/\n/g,"<br>")	
+*/
+/* create user certs
+createCert(user.User, pass, () => {
+
+	Trace("CREATE CERT FOR", user.User );
+
+	CP.exec(
+		`sudo adduser ${user.User} -gid ${user.Group}; sudo id ${user.User}`,
+		(err,out) => {
+
+			sql.query(
+				"UPDATE openv.profiles SET ? WHERE ?",
+				[ {uid: out}, {User:user.User} ]
+			);
+
+			Log( err 
+				? `Account failed for ${user.User} - require "sudo adduser" to protect this service`
+				: `Account created and group rights assigned to ${user.User}`
+			);
+	});
+});
+*/
+
+	if ( type == "help" )
+		return res( `
+Login with specified account=NAME and password=TEXT
+` );
+
+	Log(account,password,profile);
+
+	if ( account && password )
+		sql.query(
+			"SELECT Banned,aes_decrypt(unhex(Password),?) as Password FROM openv.profiles WHERE Client=?", 
+			[encryptionPassword,account], (err,profs) => {
+
+			if ( prof = profs[0] ) {
+				if ( prof.Banned ) 
+					res( prof.Banned );
+
+				else
+				if (password == prof.Password)
+					res( "welcome" );
+
+				else
+					res( "bad account/password" );
+			}
+
+			else
+			if ( account == "!rand" ) 
+				genAccount( password, (account,password) => {
+					res( "login".link("/login.view") + " with " + account + " / " + password + " until " + expireDate );
+				});
+
+			else
+			if ( accountOk( account ) && passwordOk( password ) ) 
+				genPassword( passwordPostfixLength, passcode => {
+
+					Log("code=", err, code, passcode );
+
+					sql.query(
+						"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
+
+						[{
+							Client: account,
+							Challenge: false,
+							Banned: "",
+							//Requested: requestDate,
+							Expires: expireDate
+						},  password+passcode, encryptionPassword, allowSecureConnect ], 
+
+						err => {
+							if ( err )
+								res("See your email for login instructions");
+
+							else {
+								res("See your email for login instructions");
+
+								if (sendMail)
+								sendMail({
+									to: account,
+									subject: "Totem verification",
+									text: `Login using your your ${account} account and password + '${passcode}'` 
+										// .tag("a",{href:"http://totem.hopto.org/login"}) 
+								});
+							}
+					});
+				});	
+
+			else
+				res("bad account/password");
+		});
+	
+	else
+		res("bad account/password");
+
 }
 
 [  //< date prototypes
