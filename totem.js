@@ -1159,7 +1159,6 @@ const
 				action: "select|update| ..."	// corresponding crude name
 				started: date		// date stamp when requested started
 				encrypted: bool		// true if request on encrypted server
-				// socketio: "path"  	// filepath to client's socketio.js
 				post: "..."			// raw body text
 				url	: "/query"		// requested url path
 				reqSocket: socket	// socket to retrieve client cert 
@@ -1246,11 +1245,11 @@ const
 				socket.on("join", req => {	// Traps client connect when they call io()
 					console.log("====>>>>join", req);
 					const
-						{client,message,track} = req;
+						{client,message,insecureok} = req;
 
 					sqlThread( sql => {
 
-						if ( track && addSession )	// log sessions if client permits and if allowed
+						if ( insecureok && addSession )	// log sessions if client permits and if allowed
 							sql.query( addSession, {
 								Opened: new Date(),
 								Client: client,
@@ -1414,7 +1413,7 @@ const
 
 				socket.on("relay", req => {
 					const
-						{ from,message,to,track,route } = req;
+						{ from,message,to,insecureok,route } = req;
 
 					Log("RELAY", req);
 
@@ -1426,7 +1425,7 @@ const
 						});
 
 					else
-					if ( inspector && track ) 	// relay scored messages that are unencrypted
+					if ( inspector && insecureok ) 	// relay scored messages that are unencrypted
 						inspector( message, to, score => {
 							sqlThread( sql => {
 								sql.query(
@@ -1442,7 +1441,7 @@ const
 
 									//Log("inspection", score, lambda, hops);
 
-									if ( track ) // if tracking permitted by client then ...
+									if ( insecureok ) // if tracking permitted by client then ...
 										sql.query(
 											"INSERT INTO openv.relays SET ?", {
 												Message: message,
@@ -1750,7 +1749,6 @@ const
 												reqSocket: Req.socket,   // use supplied request socket 
 												resSocket: getSocket,		// use this method to return a response socket
 												encrypted: isEncrypted(),	// on encrypted worker
-												// socketio: sockets ? paths.socketio : "",		// path to socket.io
 												url: unescape( Req.url || "/" )	// unescaped url
 												/*
 												There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
@@ -2375,7 +2373,11 @@ const
 		Site context extended by the mysql derived query when service starts
 		@cfg {Object} 
 	*/
-	site: {  	//< reserved for derived context vars		
+	site: {  	//< reserved for derived context vars
+		socketio: 
+			"/socketio/socketio-client.js",		// working
+			//  "/socket.io/socket.io-client.js",	// buggy
+		
 		started: new Date(),
 		worker:  ENV.SERVICE_WORKER_URL || "http://localhost:8081", 
 		master:  ENV.SERVICE_MASTER_URL || "http://localhost:8080",
@@ -2676,10 +2678,6 @@ const
 		riddler: "/riddle.html",
 
 		certs: "./certs/", 
-		//sockets: ".", // path to socket.io
-		socketio: 
-			"/socketio/socketio.js",		// working
-			//  "/socket.io/socket.io.js",	// buggy
 
 		nodes: {  // available nodes for task sharding
 			0: ENV.SHARD0 || "http://localhost:8080/task",
