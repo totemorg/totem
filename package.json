@@ -22,9 +22,6 @@
     "neo4j-driver": "^4.0.2",
     "pcsclite": "^1.0.0",
     "smartcard": "^1.0.37",
-    "socket.io": "^3.1.0",
-    "socket.io-client": "^3.1.0",
-    "socket.io-clusterhub": "^0.2.1",
     "toobusy-js": "^0.5.1",
     "xml2js": "^0.4.23",
     "xml2json": "^0.11.2"

@@ -31,9 +31,9 @@
 	@requires neo4j-driver	
 */
 
-function Trace(msg,args,req) {	// execution tracing
-	"totem".trace(msg, req, msg => console.log(msg,args) );
-}
+const
+	Log = (...args) => console.log("totem>>>", args),
+	Trace = (msg,args,req) => "totem".trace(msg, req, msg => console.log(msg,args) );
 	
 const	
 	// NodeJS modules
@@ -64,15 +64,9 @@ const
 	JS2CSV = require('json2csv'),				// JSON to CSV parser	
 	NEO4J = require("neo4j-driver"),			// light-weight graph database	
 	NEODRIVER = NEO4J.driver( ENV.NEO4J, NEO4J.auth.basic(ENV.NEO4J_USER, ENV.NEO4J_PASS), { disableLosslessIntegers: true } ),
-
-	// For using buggy socket.io
-	//SIO = require('socket.io'), 				// Socket.io client mesh
-	//SIOHUB = require('socket.io-clusterhub');  // Socket.io client mesh for multicore app
-
-	// acmeSDS modules
-	SIO = require("socketio"),
+	SECLINK = require("securelink"),
 	{ sqlThread } = JSDB = require("jsdb"),						// database agnosticator
-	{ Copy,Each,Log,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM = require("enum");
+	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM = require("enum");
 	  
 // neo4j i/f
 
@@ -1221,299 +1215,6 @@ const
 			//Log(riddle);
 		}
 
-		/**
-			Establish socket.io sockets for the SecureIntercom link (at store,restore,login,relay,status,
-			sync,join,exit,content) and the dbSync link (at select,update,insert,delete).
-		*/
-		function configSockets (server) {
-			const 
-				{ riddle, inspector } = TOTEM,
-				{ getProfile, addSession } = sqls;
-			
-			const
-				IO = TOTEM.IO = SIO(server); /*{ // use defaults but can override ...
-						//serveClient: true, // default true to prevent server from intercepting path
-						//path: "/socket.io" // default get-url that the client-side connect issues on calling io()
-					}),  */
-				//HUBIO = TOTEM.HUBIO = new (SIOHUB);		//< Hub fixes socket.io+cluster bug	
-
-			Trace("SOCKETS AT", IO.path() );
-
-			IO.on("connect", socket => {  	// listen to side channels 
-				Log("====>>>>connect socket.io");
-
-				socket.on("join", req => {	// Traps client connect when they call io()
-					console.log("====>>>>join", req);
-					const
-						{client,message,insecureok} = req;
-
-					sqlThread( sql => {
-
-						if ( insecureok && addSession )	// log sessions if client permits and if allowed
-							sql.query( addSession, {
-								Opened: new Date(),
-								Client: client,
-								Location: req.location,
-								IP: req.ip,
-								Agent: req.agent,
-								Platform: req.platform
-							});
-
-						sql.query(getProfile, [client], (err,profs) => { 
-
-							/**
-								Create an antibot challenge and relay to client with specified profile parameters
-
-								@param {String} client being challenged
-								@param {Object} profile with a .Message riddle mask and a .IDs = {key:value, ...}
-							*/
-							function getChallenge (profile, cb) { 
-								/**
-									Check clients response req.query to a antibot challenge.
-
-									@param {String} msg riddle mask contianing (riddle), (yesno), (ids), (rand), (card), (bio) keys
-									@param {Array} rid List of riddles returned
-									@param {Object} ids Hash of {id: value, ...} replaced by (ids) key
-								*/
-								function makeRiddles (msg,riddles,prof) { 
-									const
-										{ floor, random } = Math,
-										rand = N => floor( random() * N ),
-										{ riddle } = TOTEM,
-										N = riddle.length,
-										randRiddle = (x) => riddle[rand(N)];
-
-									return msg
-											.parse$(prof)
-											.replace(/\#riddle/g, pat => {
-												var QA = randRiddle();
-												riddles.push( QA.A );
-												return QA.Q;
-											})
-											.replace(/\#yesno/g, pat => {
-												var QA = randRiddle();
-												riddles.push( QA.A );
-												return QA.Q;
-											})
-											.replace(/\#rand/g, pat => {
-												riddles.push( rand(10) );
-												return "random integer between 0 and 9";		
-											})
-											.replace(/\#card/g, pat => {
-												return "cac card challenge TBD";
-											})
-											.replace(/\#bio/g, pat => {
-												return "bio challenge TBD";
-											});
-								}
-
-								const
-									{ riddler } = paths,
-									{ Message, IDs, Retries, Timeout } = profile,
-									riddles = [],
-									probe = makeRiddles( Message, riddles, profile );
-
-								Log(client, probe, riddles);
-
-								sql.query("REPLACE INTO openv.riddles SET ?", {		// track riddle
-									Riddle: riddles.join(",").replace(/ /g,""),
-									Client: client,
-									Made: new Date(),
-									Attempts: 0,
-									maxAttempts: Retries
-								}, (err,info) => cb({		// send challenge to client
-									message: probe,
-									retries: Retries,
-									timeout: Timeout,
-									callback: riddler,
-									passphrase: prof.SecureCom || ""
-								}) );
-							}
-
-							Log(err,profs);
-
-							if ( prof = profs[0] ) {
-								if ( prof.Banned ) 
-									socket.emit("exit", {
-										message: `${client} banned: ${prof.Banned}`
-									});
-
-								else
-								if ( prof.Challenge && riddle.length )	// must solve challenge to enter
-									getChallenge(prof, challenge => {
-										Log(challenge);
-										socket.emit("challenge", challenge);
-									});
-
-								else
-								if ( prof.SecureCom )	// allowed to use secure link
-									socket.emit("secure", {
-										message: `Welcome ${client}`,
-										passphrase: prof.SecureCom
-									});
-
-								else		// not allowed to use secure link
-									socket.emit("status", {
-										message: `Welcome ${client}`
-									});
-							}
-
-							else
-								socket.emit("exit", {
-									message: `Cant find ${client}`
-								});
-
-						});
-					}); 
-				});
-
-				socket.on("store", req => {
-					const
-						{client,ip,location,message} = req;
-
-					Log(">>>store", req);
-
-					sqlThread( sql => {
-						sql.query(
-							"INSERT INTO openv.saves SET ? ON DUPLICATE KEY UPDATE Content=?", 
-							[{Client: client,Content:message}, message],
-							err => {
-
-								socket.emit("status", {
-									message: err ? "store failed" : "store completed"
-								});
-						});
-					});
-				});
-
-				socket.on("restore", req => {
-					const
-						{client,ip,location,message} = req;
-
-					Log(">>>restore", req);
-					sqlThread( sql => {
-						sql.query("SELECT Content FROM openv.saves WHERE Client=? LIMIT 1", 
-						[client],
-						(err,recs) => {
-
-							Log("restore",err,recs);
-
-							if ( rec = recs[0] )
-								socket.emit("content", {
-									message: rec.Content
-								});
-
-							else
-								socket.emit("status", {
-									message: "cant restore content"
-								});
-						});
-					});
-				});
-
-				socket.on("relay", req => {
-					const
-						{ from,message,to,insecureok,route } = req;
-
-					Log("RELAY", req);
-
-					if ( message.indexOf("PGP PGP MESSAGE")>=0 ) // just relay encrypted messages
-						IO.emit("relay", {	// broadcast message to everyone
-							message: message,
-							from: from,
-							to: to
-						});
-
-					else
-					if ( inspector && insecureok ) 	// relay scored messages that are unencrypted
-						inspector( message, to, score => {
-							sqlThread( sql => {
-								sql.query(
-									"SELECT "
-										+ "max(timestampdiff(minute,Opened,now())) AS T, "
-										+ "count(ID) AS N FROM openv.sessions WHERE Client=?", 
-									[from], 
-									(err,recs) => {
-
-									const 
-										{N,T} = err ? {N:0,T:1} : recs[0],
-										lambda = N/T;
-
-									//Log("inspection", score, lambda, hops);
-
-									if ( insecureok ) // if tracking permitted by client then ...
-										sql.query(
-											"INSERT INTO openv.relays SET ?", {
-												Message: message,
-												Rx: new Date(),
-												From: from,
-												To: to,
-												New: 1,
-												Score: JSON.stringify(score)
-											} );
-
-									IO.emit("relay", {	// broadcast message to everyone
-										message: message,
-										score: Copy(score, {
-											Activity:lambda, 
-											Hopping:0
-										}),
-										from: from,
-										to: to
-									});
-								});
-							});
-						});
-
-					else 		// relay message as-is				   
-						IO.emit("relay", {	// broadcast message to everyone
-							message: message,
-							from: from,
-							to: to
-						});	
-
-				});
-
-				socket.on("login", req => {
-					Log("LOGIN", req);
-
-					const
-						{ client,pubKey } = req;
-
-					sqlThread( sql => {
-						sql.query(
-							"UPDATE openv.profiles SET pubKey=? WHERE Client=?",
-							[pubKey,client] );
-
-						sql.query( "SELECT Client,pubKey FROM openv.profiles WHERE Client!=? AND length(pubKey)", [client] )
-						.on("result", rec => {
-							socket.emit("sync", {	// broadcast other pubKeys to this client
-								message: rec.pubKey,
-								from: rec.Client,
-								to: client
-							});
-						});
-					});							
-
-					IO.emit("sync", {	// broadcast client's pubKey to everyone
-						message: pubKey,
-						from: client,
-						to: "all"
-					});
-				});
-
-			});	
-
-			// for debugging
-			IO.on("connect_error", err => {
-				Log(err);
-			});
-
-			IO.on("disconnection", socket => {
-				Log(">>DISCONNECT CLIENT");
-			});			
-		}
-		
 		function setupService(agent) {  
 
 			/*
@@ -1533,8 +1234,13 @@ const
 					
 					Trace(`STARTING ${name}`);
 
-					if ( socketIO ) configSockets(server);
-
+					if ( socketIO ) SECLINK.config({
+						sqlThread: sqlThread,
+						server: server,
+						riddle: TOTEM.riddle,
+						inspector: TOTEM.inspector
+					});
+					
 					// The BUSY interface provides a means to limit client connections that would lock the 
 					// service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
 					// service attacks.  (Alas latest versions do not compile in latest NodeJS.)
@@ -1907,8 +1613,7 @@ const
 								}
 								
 								catch (err) {
-									Log(err);
-									Trace("TRAP SOCKET.IO BUG - use /socket/socket.io.js");
+									Log("responder", err);
 								}
 								
 							}
@@ -2230,13 +1935,6 @@ const
 	*/
 	createCert: createCert, //< method to create PKI certificate
 		
-	/**
-		Reserved for socket.io support to multiple clients
-		@cfg {Object}
-		@member TOTEM
-	*/
-	IO: null, 
-
 	/**
 		Reserved for dataset attributes derived by JSDB config
 		@cfg {Object}
