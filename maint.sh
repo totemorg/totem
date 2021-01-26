@@ -6,7 +6,7 @@
 #
 
 export HERE=`pwd`
-export MODULES=(totem atomic geohack flex enum reader debe jsdb man randpr liegroup)
+export MODULES=(totem atomic geohack flex enum reader debe jsdb man randpr liegroup securelink socketio)
 export MODULE=`basename $HERE`
 
 case "$1." in
@@ -53,6 +53,18 @@ pkg.)
 
 	# make the s/a repo
 	zip -r $2.zip /var/tmp/$2/
+	;;
+
+resync.)
+
+	for mod in "${MODULES[@]}"; do
+
+		cd /local/service/$mod
+			echo ">>>> $mod"
+			git pull agent master
+		cd ..
+
+	done
 	;;
 
 all.)
