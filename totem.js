@@ -1,8 +1,9 @@
 // UNCLASSIFIED   
 
 /**
-	@module totem
-	Basic web service.  See https://github.com/totemstan/totem.git.
+	@module TOTEM
+	
+	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.
 
 	@requires http
 	@requires https
@@ -13,7 +14,6 @@
 	@requires os
 	@requires stream
 	@requires vm
-	@requires url
 	@requires crypto
 
 	@requires enum
@@ -31,10 +31,6 @@
 	@requires neo4j-driver	
 */
 
-const
-	Log = (...args) => console.log("totem>>>", args),
-	Trace = (msg,args,req) => "totem".trace(msg, req, msg => console.log(msg,args) );
-	
 const	
 	// NodeJS modules
 				  
@@ -47,7 +43,6 @@ const
 	CONS = require("constants"),				// constants for setting tcp sessions
 	CLUSTER = require("cluster"),				// multicore  processing
 	CRYPTO = require("crypto"),					// crypto for SecureLink
-	//URL = require("url"),						// url parsing
 	//NET = require("net"), 						// network interface
 	VM = require("vm"), 						// virtual machines for tasking
 	OS = require('os'),							// OS utilitites
@@ -439,7 +434,7 @@ function NEOCONNECTOR(trace) {
 			opts.method = "POST";
 		}*/
 
-		//Trace("FETCH",path);
+		//Log("FETCH",path);
 		
 		opts.method = method;
 		
@@ -654,12 +649,16 @@ function NEOCONNECTOR(trace) {
 
 const 
 	{ 
+		Log, Trace,
 		byArea, byType, byAction, byTable, CORS,
 		neoThread, defaultType,
 		$master, $worker, Fetch, fetchOptions,
 		reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
 		filterRecords,guestProfile,routeDS, startDogs, cache } = TOTEM = module.exports = {
 	
+	Log: (...args) => console.log("totem>>>", args),
+	Trace: (msg,args,req) => "totem".trace(msg, req, msg => console.log(msg,args) ),	
+			
 	inspector: null,
 			
 	CORS: false,
@@ -817,12 +816,12 @@ const
 				const
 					{ area, table, path } = req;
 				
-				Trace( route.name.toUpperCase(), path );
+				Log( route.name.toUpperCase(), path );
 				//Log("****>>>", [area,table,req.body,node],"body=",req.body);
 				
 				if ( area ) 
 					if ( area == "socket.io" && !table)	// ignore socket keep-alives
-						Trace("HUSH SOCKET.IO");
+						Log("HUSH SOCKET.IO");
 
 					else	// send file
 						route( req, txt => res(txt) );
@@ -1006,7 +1005,7 @@ const
 							parms = {};
 						}
 						else {
-							//Trace("LOAD", line);
+							//Log("LOAD", line);
 
 							line.split(";").forEach( (arg,idx) => {  // process one file at a time
 	Log("line ",idx,line.length);
@@ -1027,7 +1026,7 @@ const
 				}
 				
 				catch (err) {
-					Trace("POST FAILED", post);
+					Log("POST FAILED", post);
 				}
 
 			//Log("body files=", files.length);
@@ -1182,39 +1181,6 @@ const
 
 			@param {Function} agent callback(req,res) to handle session request-response 
 		*/
-		function initChallenger () {		//< Create antibot challenges.
-			const 
-				{ riddle, riddles, riddleMap } = TOTEM,
-				{ captcha } = paths,
-				{ floor, random } = Math;
-
-			Trace( `INIT CHALLENGER imageset=${captcha} riddles=${riddles}` );
-
-			if ( captcha )
-				for (var n=0; n<riddles; n++) {
-					var 
-						Q = {
-							x: floor(random()*10),
-							y: floor(random()*10),
-							z: floor(random()*10),
-							n: floor(random()*riddleMap["0"].length)
-						},
-
-						A = {
-							x: "".tag("img", {src: `${captcha}/${Q.x}/${riddleMap[Q.x][Q.n]}.jpg`}),
-							y: "".tag("img", {src: `${captcha}/${Q.y}/${riddleMap[Q.y][Q.n]}.jpg`}),
-							z: "".tag("img", {src: `${captcha}/${Q.z}/${riddleMap[Q.z][Q.n]}.jpg`})
-						};
-
-					riddle.push( {
-						Q: `${A.x} * ${A.y} + ${A.z}`,
-						A: Q.x * Q.y + Q.z
-					} );
-				}
-
-			//Log(riddle);
-		}
-
 		function setupService(agent) {  
 
 			/*
@@ -1232,13 +1198,19 @@ const
 					const 
 						{ routeRequest, socketIO, name, server, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM;
 					
-					Trace(`STARTING ${name}`);
+					Log(`STARTING ${name} AntibotExtend=${TOTEM.riddles}`);
 
 					if ( socketIO ) SECLINK.config({
 						sqlThread: sqlThread,
 						server: server,
-						riddle: TOTEM.riddle,
-						inspector: TOTEM.inspector
+						inspector: TOTEM.inspector,
+						challenge: {
+							extend: TOTEM.riddles,
+							store: TOTEM.riddle,
+							map: TOTEM.riddleMap,
+							riddler: paths.riddler,
+							captcha: paths.captcha,
+						}
 					});
 					
 					// The BUSY interface provides a means to limit client connections that would lock the 
@@ -1249,34 +1221,34 @@ const
 						BUSY.maxLag(TOTEM.busyTime);
 
 					if (guard)  { // catch core faults
-						process.on("uncaughtException", err => Trace( "FAULTED" , err) );
+						process.on("uncaughtException", err => Log( "FAULTED" , err) );
 
-						process.on("exit", code => Trace( "HALTED", code ) );
+						process.on("exit", code => Log( "HALTED", code ) );
 
 						for (var signal in guards)
-							process.on(signal, () => Trace( "SIGNALED", signal) );
+							process.on(signal, () => Log( "SIGNALED", signal) );
 					}
 
-					initChallenger();
+					//initChallenger();
 
 					TOTEM.initialize(null);	
 					
 					server.on("request", cb);
 
 					server.listen( port, () => {  	// listen on specified port
-						Trace("LISTENING ON", port);
+						Log("LISTENING ON", port);
 					});
 
 					if (CLUSTER.isMaster)	{ // setup listener on master port
-						CLUSTER.on('exit', (worker, code, signal) =>  Trace("WORKER TERMINATED", code || "ok"));
+						CLUSTER.on('exit', (worker, code, signal) =>  Log("WORKER TERMINATED", code || "ok"));
 
-						CLUSTER.on('online', worker => Trace("WORKER CONNECTED"));
+						CLUSTER.on('online', worker => Log("WORKER CONNECTED"));
 
 						for (var core = 0; core < TOTEM.cores; core++) // create workers
 							worker = CLUSTER.fork();
 						
 						sqlThread( sql => {	// get a sql connection
-							Trace( [ // splash
+							Log( [ // splash
 								"HOSTING " + site.nick,
 								"AT "+`(${site.master}, ${site.worker})`,
 								"DATABASE " + site.db ,
@@ -1385,7 +1357,7 @@ const
 				if ( isEncrypted() ) {  // have encrypted services so start https service
 					Each( FS.readdirSync(paths.certs+"truststore"), (n,file) => {
 						if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
-							Trace("TRUSTING", file);
+							Log("TRUSTING", file);
 							trustStore.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf-8") );
 						}
 					});
@@ -1650,7 +1622,7 @@ const
 								routeRequest(req,res);
 							
 							else
-								Trace("SESSION REJECTED");
+								Log("SESSION REJECTED");
 						});
 					});
 				});
@@ -1660,7 +1632,7 @@ const
 				{ name, cores } = TOTEM,
 				pfx = `${paths.certs}${name}.pfx` ;
 
-			Trace( `PROTECTING ${name} USING ${pfx}` );
+			Log( `PROTECTING ${name} USING ${pfx}` );
 
 			Copy( new URL(site.master), $master);
 			Copy( new URL(site.worker), $worker);
@@ -1686,7 +1658,7 @@ const
 
 		if (opts) Copy(opts, TOTEM, ".");
 
-		//Trace(`CONFIGURING ${name}`); 
+		//Log(`CONFIGURING ${name}`); 
 
 		Each( paths.mimes, (key,val) => {	// extend or remove mime types
 			if ( val ) 
@@ -1704,7 +1676,7 @@ const
 						nameParam: 'Alice'
 				}, (err, recs) => {
 					if (err) 
-						Trace( err );
+						Log( err );
 
 					else 
 						if ( rec = recs[0] ) 
@@ -1718,7 +1690,7 @@ const
 			if (false) // clear db on startup
 				neo.cypher(
 					"MATCH (n) DETACH DELETE n", {}, err => {
-					Trace( err || "CLEAR GRAPH DB" );
+					Log( err || "CLEAR GRAPH DB" );
 				});  
 		});
 		
@@ -1729,7 +1701,7 @@ const
 			//fetch: fetch			
 		}, err => {  // derive server vars and site context vars
 			if (err)
-				Trace(err);
+				Log(err);
 
 			else
 				sqlThread( sql => {
@@ -1746,7 +1718,7 @@ const
 	},
 
 	initialize: err => {
-		Trace( `INITIALIZING ${TOTEM.name}` );
+		Log( `INITIALIZING ${TOTEM.name}` );
 	},
 	
 	queues: JSDB.queues, 	// pass along
@@ -1883,7 +1855,7 @@ const
 		var 
 			modTimes = TOTEM.modTimes;
 		
-		Trace("WATCHING", path);
+		Log("WATCHING", path);
 		
 		modTimes[path] = 0; 
 
@@ -1896,7 +1868,7 @@ const
 					switch (ev) {
 						case "change":
 							sqlThread( sql => {
-								Trace(ev.toUpperCase(), file);
+								Log(ev.toUpperCase(), file);
 
 								FS.stat(path, function (err, stats) {
 
@@ -2313,7 +2285,7 @@ const
 		Charge: 0,	// current job charges
 		LikeUs: 0,	// number of user likeus
 		Challenge: 1,		// enable to challenge user at session join
-		Client: "guest@guest.org",		// default client id
+		Client: "guest@totem.org",		// default client id
 		User: "",		// default user ID (reserved for login)
 		Login: "",	// existing login ID
 		Group: "app",		// default group name (db to access)
@@ -2325,13 +2297,13 @@ const
 	},
 
 	/**
-		Number of riddles to protect site (0 to disable anti-bot)
+		Number of antibot riddles to extend 
 		@cfg {Number} [riddles=0]
 	*/		
-	riddles: 0, 			
+	riddles: 0,
 	
 	/**
-		Store generated riddles to protect site 
+		Antibot riddle store to protect site 
 		@cfg {Array} 
 		@private
 	*/		
@@ -2406,7 +2378,7 @@ const
 		getSession: "SELECT * FROM openv.sessions WHERE ? LIMIT 1",
 		//addConnect: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1",
 		//challenge: "SELECT *,concat(client,password) AS Passphrase FROM openv.profiles WHERE Client=? LIMIT 1",
-		guest: "SELECT * FROM openv.profiles WHERE Client='guest@guest.org' LIMIT 1",
+		guest: "SELECT * FROM openv.profiles WHERE Client='guest@totem.org' LIMIT 1",
 		pocs: "SELECT lower(Hawk) AS Role, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Clients FROM openv.roles GROUP BY hawk"
 	},
 
@@ -2435,7 +2407,7 @@ const
 		@cfg {Function}
 	*/		
 	setContext: function (sql,cb) { 
-		Trace(`CONTEXTING ${TOTEM.name}`);
+		Log(`CONTEXTING ${TOTEM.name}`);
 	
 		const 
 			{pocs,users,guest,derive} = sqls;
@@ -2550,7 +2522,7 @@ const
 function stopService() {
 	if (server = TOTEM.server)
 		server.close(function () {
-			Trace("STOPPED");
+			Log("STOPPED");
 		});
 	
 	sqlThread( sql => sql.end() );				  
@@ -2569,7 +2541,7 @@ function createCert(owner,pass,cb) {
 
 	function traceExecute(cmd,cb) {
 
-		Trace(cmd.replace(/\n/g,"\\n"));
+		Log(cmd.replace(/\n/g,"\\n"));
 
 		CP.exec(cmd, err => {
 
@@ -2591,7 +2563,7 @@ function createCert(owner,pass,cb) {
 		crt = name + ".crt",
 		ppk = name + ".ppk";
 		
-	Trace( "CREATE SELF-SIGNED SERVER CERT", owner );			
+	Log( "CREATE SELF-SIGNED SERVER CERT", owner );			
 	
 	traceExecute(
 		`echo -e "\n\n\n\n\n\n\n" | openssl req -x509 -nodes -days 5000 -newkey rsa:2048 -keyout ${key} -out ${crt}`, 
@@ -2609,7 +2581,7 @@ function createCert(owner,pass,cb) {
 		`puttygen ${owner}.key -N ${pass} -o ${ppk}`, 	
 		function () {
 		
-		Trace("IGNORE PUTTYGEN ERRORS IF NOT INSTALLED"); 
+		Log("IGNORE PUTTYGEN ERRORS IF NOT INSTALLED"); 
 		cb();
 	});
 	});
@@ -2693,7 +2665,7 @@ function validateClient(req,res) {
 	const 
 		{ sql,encrypted,reqSocket } = req,
 		{ getProfile } = sqls,
-		guest = "email:guest@guest.org",
+		guest = "guest@totem.org",
 		cert = encrypted ? getCert( reqSocket ) : {
 			subject: {
 				C: "",
@@ -2808,7 +2780,7 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 			sinkStream = FS.createWriteStream( sinkPath, "utf-8")
 				.on("finish", function() {  // establish sink stream for export pipe
 
-					//Trace("UPLOADED FILE");
+					//Log("UPLOADED FILE");
 					sqlThread( sql => {
 						sql.query("UPDATE apps.files SET ? WHERE ?", [{
 							_Ingest_Tag: JSON.stringify(tags || null),
@@ -3205,38 +3177,10 @@ Validate session id=client guess=value.
 	
 	else
 	if (client && guess)
-		sql.query("SELECT * FROM openv.riddles WHERE ? LIMIT 1", {Client:client}, (err,rids) => {
-
-			if ( rid = rids[0] ) {
-				var 
-					ID = {Client:rid.ID},
-					Guess = (guess+"").replace(/ /g,"");
-
-				Log([rid,query]);
-
-				if (rid.Riddle == Guess) {
-					res( "pass" );
-					sql.query("DELETE FROM openv.riddles WHERE ?",ID);
-				}
-				else
-				if (rid.Attempts > rid.maxAttempts) {
-					res( "fail" );
-					sql.query("DELETE FROM openv.riddles WHERE ?",ID);
-				}
-				else {
-					res( "retry" );
-					sql.query("UPDATE openv.riddles SET Attempts=Attempts+1 WHERE ?",ID);
-				}
-
-			}
-
-			else
-				res( "fail" );
-
-		});
+		SECLINK.admitClient( client, guess, pass => res(pass) );
 
 	else
-		res( "fail" );
+		res( "no admission credentials provided" );
 }
 
 function sysLogin(req,res) {
@@ -3245,7 +3189,7 @@ function sysLogin(req,res) {
 	}
 
 	function accountOk(acct) {
-		return (acct == "brian.d.james@comcast.net") || acct.endsWith(".mil") || acct.endsWith("@secure.org");
+		return (acct == "brian.d.james@comcast.net") || acct.endsWith(".mil") || acct.endsWith("@totem.org");
 	}
 
 	function genPassword( len, cb ) {
@@ -3329,7 +3273,7 @@ ${FF} | Options | Network | Settings | Manual Proxy | Socks Host = localhost, Po
 /* create user certs
 createCert(user.User, pass, () => {
 
-	Trace("CREATE CERT FOR", user.User );
+	Log("CREATE CERT FOR", user.User );
 
 	CP.exec(
 		`sudo adduser ${user.User} -gid ${user.Group}; sudo id ${user.User}`,
@@ -3510,7 +3454,7 @@ switch (process.argv[2]) { //< unit tests
 	@method T1
 	Create simple service but dont start it.
 	*/
-		Trace("", {
+		Log("", {
 			msg: "Im simply a Totem interface so Im not even running as a service", 
 			default_fetcher_endpts: TOTEM.byTable,
 			default_protect_mode: TOTEM.guard,
@@ -3530,7 +3474,7 @@ switch (process.argv[2]) { //< unit tests
 			cores: 2
 		}, sql => {
 
-			Trace( 
+			Log( 
 `I'm a Totem service running in fault protection mode, no database, no UI; but I am running
 with 2 workers and the default endpoint routes` );
 
@@ -3549,7 +3493,7 @@ with 2 workers and the default endpoint routes` );
 
 		TOTEM.config({
 		}, sql => {
-			Trace( 
+			Log( 
 `I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
 my startup options (see the openv.apps table for the Nick="Totem1").  
 No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
@@ -3573,7 +3517,7 @@ these files. `
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 					res( "123" );
 
-					Trace("", {
+					Log("", {
 						do_query: req.query
 					});
 				},
@@ -3585,7 +3529,7 @@ these files. `
 					else
 						res( new Error("We have a problem huston") );
 
-					Trace("", {
+					Log("", {
 						msg: `Like dothis, but needs an ?x=value query`, 
 						or_query: req.query,
 						or_user: req.client
@@ -3593,7 +3537,7 @@ these files. `
 				}
 			}
 		}, sql => {
-			Trace("", {
+			Log("", {
 				msg:
 `As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
 and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
@@ -3615,7 +3559,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 		TOTEM.config({
 			riddles: 20
 		}, sql => {
-			Trace("", {
+			Log("", {
 				msg:
 `I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
 shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.`, 
@@ -3673,7 +3617,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 			}
 
 		}, sql => {
-			Trace( "Testing runTask with database and 3 cores at /test endpoint" );
+			Log( "Testing runTask with database and 3 cores at /test endpoint" );
 		});
 		break;
 		
@@ -3684,7 +3628,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 		
 		TOTEM.config({
 		}, sql => {				
-			Trace( "db maintenance" );
+			Log( "db maintenance" );
 
 			if (CLUSTER.isMaster)
 				switch (process.argv[3]) {

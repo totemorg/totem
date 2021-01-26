@@ -1,28 +1,25 @@
 # TOTEM
 
-TOTEM provides a basic http/https web service with the following customizable features:
+**TOTEM** provides a basic http/https web service with the following customizable features:
 
 	+ endpoint routing
 	+ denial-of-service protection
-	+ web sockets for inter-client communications
+	+ secure link providing encrypted inter-client communications with antibot guard
 	+ client profiles 
-	+ account management for priviledged hawks and normal users
 	+ PKI encryption and authentication
 	+ fault protected run states
 	+ indexing, uploading, downloading and cacheing static files
-	+ antibot protection
 	+ crud interface
-	+ mysql database agnosticator 
+	+ mysql database agnosticator and task queuing
 	+ neo4j graph database 
 	+ poll files and services
 	+ automattic server cert generation
 	+ task sharding
-	+ job queues
 	+ file stream and ingest
 	+ data fetch w and w/o rotating proxies
 	+ smartcard reader
   
-TOTEM defines endpoints:
+**TOTEM** defines endpoints:
 
 	POST / NODE 
 	GET / NODE 
@@ -35,11 +32,11 @@ to access dataset, file or command NODEs:
 	AREA/PATH/FILE.TYPE ? QUERY
 	COMMAND.TYPE ? QUERY
 
-By default, TOTEM provides `db | xml | csv | json` TYPEs for converting DATASETs, 
+By default, **TOTEM** provides `db | xml | csv | json` TYPEs for converting DATASETs, 
 `riddle | task | ping` COMMANDs for validating a session, sharding tasks,
 and the `stores | shares` file AREAs for sharing static files.
 
-TOTEM also provides a method to fetch data from a service or filesystem:
+**TOTEM** also provides a method to fetch data from a service or filesystem:
 
 	Fetch( path, text => {			// get-select request made
 	})
@@ -68,10 +65,10 @@ regulate the file stream.
 
 ## Installation
 
-Clone [TOTEM base web service](https://github.com/totemstan/totem) || [COE](https://sc.appdev.proj.coe/acmesds/totem) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/totem) into your PROJECT/totem folder.   
+Clone [**TOTEM** base web service](https://github.com/totemstan/totem) || [COE](https://sc.appdev.proj.coe/acmesds/totem) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/totem) into your PROJECT/totem folder.   
 
-TOTEM passwords to sql databases etc are held in _pass.sh; revise as needed.
-TOTEM sql tables can be primed/reset using `maint mysql prime`.
+**TOTEM** passwords to sql databases etc are held in _pass.sh; revise as needed.
+**TOTEM** sql tables can be primed/reset using `maint mysql prime`.
 
 ## Requires
 
@@ -85,9 +82,9 @@ TOTEM sql tables can be primed/reset using `maint mysql prime`.
 
 ## Usage
 
-Require, configure and start TOTEM:
+Require, configure and start **TOTEM**:
 	
-	var TOTEM = require("totem")({
+	var **TOTEM** = require("totem")({
 		key: value, 						// set key
 		"key.key": value, 					// indexed set
 		"key.key.": value					// indexed append
@@ -100,18 +97,18 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 
 ### T1 - A do-nothing service
 		
-	var TOTEM = require("totem");
+	var **TOTEM** = require("totem");
 
 	Trace({
 		msg: "Im simply a Totem interface so Im not even running as a service", 
-		default_fetcher_endpts: TOTEM.byTable,
-		default_protect_mode: TOTEM.faultless,
-		default_cores_used: TOTEM.cores
+		default_fetcher_endpts: **TOTEM**.byTable,
+		default_protect_mode: **TOTEM**.faultless,
+		default_cores_used: **TOTEM**.cores
 	});
 	
 ### T2 - A do-little service
 
-	TOTEM.config({
+	**TOTEM**.config({
 		name: "iamwhoiam",
 		faultless: true,
 		cores: 2
@@ -125,7 +122,7 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 
 ### T3 - Add a database
 
-	TOTEM.config({
+	**TOTEM**.config({
 		name: "Totem",
 
 		mysql: {
@@ -144,7 +141,7 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 		
 ### T4 - Add custom endpoints
 	
-	TOTEM.config({
+	**TOTEM**.config({
 		mysql: {
 			host: ENV.MYSQL_HOST,
 			user: ENV.MYSQL_USER,
@@ -181,13 +178,13 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 				aka core), Im running unprotected, and have a mysql database.  
 				[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
 				associated public NICK.crt and private NICK.key certs it creates.`,
-			my_endpoints: TOTEM.byTable
+			my_endpoints: **TOTEM**.byTable
 		});
 	});
 		
 ### T5 - Add antibot protection
 	
-	TOTEM.config({
+	**TOTEM**.config({
 		mysql: {
 			host: ENV.MYSQL_HOST,
 			user: ENV.MYSQL_USER,
@@ -202,12 +199,12 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 			msg:
 				`I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield.  
 				Anti-bot shields require an Encrypted service, and a user interface (eg DEBE) to be of use.`, 
-			mysql_derived_parms: TOTEM.site
+			mysql_derived_parms: **TOTEM**.site
 		});
 	});
 ### T6 - Add tasking endpoints
 
-	TOTEM.config({  // configure the service for tasking
+	**TOTEM**.config({  // configure the service for tasking
 		name: "Totem1",  // default parms from openv.apps nick=Totem1
 		faultless: false,	// ex override default 
 		cores: 3,		// ex override default
@@ -222,7 +219,7 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 				if (CLUSTER.isMaster)  // setup tasking examples on on master
 					switch (req.query.opt || 1) {  // test example tasker
 						case 1: 
-							TOTEM.tasker({  // setup tasking for loops over these keys
+							**TOTEM**.tasker({  // setup tasking for loops over these keys
 								keys: "i,j",
 								i: [1,2,3],
 								j: [4,5]
@@ -236,7 +233,7 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 							break;
 
 						case 2:
-							TOTEM.tasker({
+							**TOTEM**.tasker({
 								qos: 1,
 								keys: "i,j",
 								i: [1,2,3],
@@ -260,9 +257,9 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 
 ## Contacting, Contributing, Following
 
-Feel free to [submit and status TOTEM issues](http://totem.hopto.org/issues.view) || [COE](https://totem.west.ile.nga.ic.gov/issues.view) || [SBU](https://totem.nga.mil/issues.view), [contribute TOTEM notebooks](http://totem.hopto.org/shares/notebooks/) || [COE](https://totem.west.ile.nga.ic.gov/shares/notebooks/) || [SBU](https://totem.nga.mil/shares/notebooks/),
-[inspect TOTEM requirements](http://totem.hopto.org/reqts.view) || [COE](https://totem.west.ile.nga.ic.gov/reqts.view) || [SBU](https://totem.nga.mil/reqts.view), [browse TOTEM holdings](http://totem.hopto.org/) || [COE](https://totem.west.ile.nga.ic.gov/) || [SBU](https://totem.nga.mil/), 
-or [follow TOTEM milestones](http://totem.hopto.org/milestones.view) || [COE](https://totem.west.ile.nga.ic.gov/milestones.view) || [SBU](https://totem.nga.mil/milestones.view).
+Feel free to [submit and status **TOTEM** issues](http://totem.hopto.org/issues.view) || [COE](https://totem.west.ile.nga.ic.gov/issues.view) || [SBU](https://totem.nga.mil/issues.view), [contribute **TOTEM** notebooks](http://totem.hopto.org/shares/notebooks/) || [COE](https://totem.west.ile.nga.ic.gov/shares/notebooks/) || [SBU](https://totem.nga.mil/shares/notebooks/),
+[inspect **TOTEM** requirements](http://totem.hopto.org/reqts.view) || [COE](https://totem.west.ile.nga.ic.gov/reqts.view) || [SBU](https://totem.nga.mil/reqts.view), [browse **TOTEM** holdings](http://totem.hopto.org/) || [COE](https://totem.west.ile.nga.ic.gov/) || [SBU](https://totem.nga.mil/), 
+or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE](https://totem.west.ile.nga.ic.gov/milestones.view) || [SBU](https://totem.nga.mil/milestones.view).
 
 ## License
 
