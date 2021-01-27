@@ -2678,7 +2678,7 @@ function validateClient(req,res) {
 				User: "",		// default user ID (reserved for login)
 				Login: "",	// existing login ID
 				Group: "app",		// default group name (db to access)
-				SecureCom: "",	// default securecom passphrase
+				SecureCom: client,	// default securecom passphrase
 				Repoll: true,	// challenge repoll during active sessions
 				Retries: 5,		// challenge number of retrys before session killed
 				Timeout: 30,	// challenge timeout in secs
