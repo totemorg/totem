@@ -1033,7 +1033,6 @@ const
 			return parms;
 		});		// get body parameters/files
 
-		req.body = {};
 		routeNode( node, req, (req,recs) => {
 			//Log("exit route node", typeOf(recs), typeOf(recs[0]) );
 			res(recs);
@@ -3007,7 +3006,7 @@ function updateDS(req, res) {
 		{ sql, flags, body, where, query, client, action, ds,table } = req,
 		{ trace } = flags;
 	
-	//Log({w:where, q:query, b:body});
+	//Log({w:where, q:query, b:body, t:table, ds: ds});
 	
 	if ( isEmpty(body) )
 		res( errors.noBody );
@@ -3016,7 +3015,13 @@ function updateDS(req, res) {
 	if ( isEmpty( where ) )
 		res( errors.noID );
 	
-	else
+	else {
+		sql.query(
+			"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1", {
+				Dataset: table,
+				Client: client
+			});
+		
 		sql.Query(
 			"UPDATE ?? ${set} ${where}", [ds,body], {
 				trace: trace,
@@ -3025,18 +3030,17 @@ function updateDS(req, res) {
 				where: where,
 				set: body,
 				client: client,
-				sio: TOTEM.IO
+				sio: null //TOTEM.IO
 			}, (err,info) => {
 
-				//res( err || info );
 				body.ID = query.ID;
-				//Log(">>>>rtn", query, body);
 				res( err || body );
 
 				if ( onUpdate = TOTEM.onUpdate )
 					onUpdate(sql, table, body);
 
 			});
+	}
 	
 }
 
