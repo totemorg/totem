@@ -654,7 +654,7 @@ const
 		neoThread, defaultType,
 		$master, $worker, Fetch, fetchOptions,
 		reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitClient,
-		filterRecords,guestProfile,routeDS, startDogs, cache } = TOTEM = module.exports = {
+		filterRecords,routeDS, startDogs, cache } = TOTEM = module.exports = {
 	
 	Log: (...args) => console.log("totem>>>", args),
 	Trace: (msg,args,req) => "totem".trace(msg, req, msg => console.log(msg,args) ),	
@@ -2275,28 +2275,6 @@ const
 	},
 
 	/**
-		Default guest profile (unencrypted or client profile not found).  Null to bar guests.
-		@cfg {Object}
-	*/		
-	guestProfile: {				//< null if guests are barred
-		Banned: "",  // nonempty to ban user
-		QoS: 10,  // [secs] job regulation interval
-		Credit: 100,  // job cred its
-		Charge: 0,	// current job charges
-		LikeUs: 0,	// number of user likeus
-		Challenge: 1,		// enable to challenge user at session join
-		Client: "guest@totem.org",		// default client id
-		User: "",		// default user ID (reserved for login)
-		Login: "",	// existing login ID
-		Group: "app",		// default group name (db to access)
-		IDs: "{}",		// challenge key:value pairs
-		Repoll: true,	// challenge repoll during active sessions
-		Retries: 5,		// challenge number of retrys before session killed
-		Timeout: 30,	// challenge timeout in secs
-		Message: "Welcome ${Client} - what is #riddle?"		// challenge message with riddles, ids, etc
-	},
-
-	/**
 		Number of antibot riddles to extend 
 		@cfg {Number} [riddles=0]
 	*/		
@@ -2374,7 +2352,7 @@ const
 		//credit: "SELECT * FROM openv.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 1",
 		getProfile: "SELECT * FROM openv.profiles WHERE Client=? LIMIT 1",
 		addSession: "INSERT INTO openv.sessions SET ?",
-		newProfile: "INSERT INTO openv.profiles SET ?",
+		addProfile: "INSERT INTO openv.profiles SET ?",
 		getSession: "SELECT * FROM openv.sessions WHERE ? LIMIT 1",
 		//addConnect: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1",
 		//challenge: "SELECT *,concat(client,password) AS Passphrase FROM openv.profiles WHERE Client=? LIMIT 1",
@@ -2442,12 +2420,6 @@ const
 			sql.query(users)
 			.on("result", user => site.pocs["user"] = (user.Clients || "").toLowerCase() );
 			//.on("end", () => Log("user pocs", site.pocs) );
-
-		if (guest && guestProfile)
-			sql.query(guest, [], (err,profs) => {
-				if ( prof = profs[0] ) 
-					Copy( prof, guestProfile );
-			});
 
 		sql.query(derive, {Nick:TOTEM.name})
 		.on("result", opts => {
@@ -2644,7 +2616,7 @@ function validateClient(req,res) {
 
 		if ( guestProfile ) {  // allowing guests
 			const
-				{ newProfile } = sqls,
+				{ addProfile } = sqls,
 				guest = Copy(guestProfile, {
 					Client: client,
 					//User: client.replace(/(.*)\@(.*)/g,(x,L,R) => L ).replace(/\./g,"").substr(0,12),
@@ -2654,7 +2626,7 @@ function validateClient(req,res) {
 			
 			delete guest.ID;
 
-			sql.query( newProfile, guest );
+			sql.query( addProfile, guest );
 			return guest;
 		}
 
@@ -2664,7 +2636,7 @@ function validateClient(req,res) {
 	
 	const 
 		{ sql,encrypted,reqSocket } = req,
-		{ getProfile } = sqls,
+		{ getProfile, addProfile } = sqls,
 		guest = "guest@totem.org",
 		cert = encrypted ? getCert( reqSocket ) : {
 			subject: {
@@ -2685,19 +2657,7 @@ function validateClient(req,res) {
 	sql.query( getProfile, [client], (err,profs) => {
 
 		if ( err ) 
-			if ( encrypted )  // profile required on https service so return error
-				res( errors.noDB );
-
-			else
-			if ( profile = makeProfile(sql, req.client) )  { // admit guest client on http service
-				//req.socket = null;
-				req.reqSocket = null;   // disable guest session metrics
-				req.profile = profile;
-				admitClient(req, res);	
-			}
-
-			else
-				res( errors.rejectedClient );
+			res( errors.rejectedClient );
 		
 		else			
 		if ( profile = profs[0] ) { // admit known client
@@ -2705,11 +2665,33 @@ function validateClient(req,res) {
 			admitClient(req, res);
 		}
 
-		else	// admit guest client
-		if ( profile = makeProfile(sql, req.client) ) {
-			req.profile = profile;
-			admitClient(req, res);
-		}
+		else	// admit client
+		if ( addProfile )
+			sql.query( addProfile, req.profile = {
+				Banned: "",  // nonempty to ban user
+				QoS: 10,  // [secs] job regulation interval
+				Credit: 100,  // job cred its
+				Charge: 0,	// current job charges
+				LikeUs: 0,	// number of user likeus
+				Challenge: !client.endsWith(".mil"),		// enable to challenge user at session join
+				Client: client,
+				User: "",		// default user ID (reserved for login)
+				Login: "",	// existing login ID
+				Group: "app",		// default group name (db to access)
+				SecureCom: "",	// default securecom passphrase
+				Repoll: true,	// challenge repoll during active sessions
+				Retries: 5,		// challenge number of retrys before session killed
+				Timeout: 30,	// challenge timeout in secs
+				Message: `Welcome ${client} - what is #riddle?`		// challenge message with riddles, ids, etc
+			}, err => {
+				
+				if (err)
+					res( errors.rejectedClient );
+				
+				else 
+					admitClient(req, res);
+
+			});
 
 		else
 			res( errors.rejectedClient );
@@ -3197,8 +3179,8 @@ function sysLogin(req,res) {
 	}
 
 	function genAccount( password, cb ) {
-		genPassword(16, code => {
-			const account = code+"@totem.opt";
+		genPassword(8, name => {
+			const account = name+"@totem.org";
 			sql.query(
 				"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
 				[{
