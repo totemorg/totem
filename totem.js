@@ -874,7 +874,7 @@ const
 			const
 				ds = req.ds = (routeDS[table] || routeDS.default)(req);
 			
-			//Log([ds,action,path,area,table,type]);
+			Log([ds,action,path,area,table,type]);
 
 			for (var key in query) 		// strip or remap bogus keys
 				if ( key in strips )
@@ -932,28 +932,28 @@ const
 				});
 
 			else
-			if ( route = byType[req.type] ) // route by type
-				followRoute( route );
-
-			else	
-			if ( route = byTable[table] ) 	// route by endpoint name
-				followRoute( route );
-
-			else  
-			if ( route = byAction[action] ) {	// route by crud action
-				if ( route = route[table] )
+			if ( table )
+				if ( route = byType[req.type] ) // route by type
 					followRoute( route );
 
 				else
-				if ( route = TOTEM[action] )
-					followRoute( route );				
+				if ( route = byTable[table] ) 	// route by endpoint name
+					followRoute( route );
+
+				else  
+				if ( route = byAction[action] ) {	// route by crud action
+					if ( route = route[table] )
+						followRoute( route );
+
+					else
+					if ( route = TOTEM[action] )
+						followRoute( route );				
+
+					else
+						cb( req, errors.noRoute );
+				}
 
 				else
-					cb( req, errors.noRoute );
-			}
-
-			else
-			if ( table )
 				if ( route = TOTEM[action] )	// route to database
 					followRoute( route );
 
@@ -1101,7 +1101,7 @@ const
 		},
 		badMethod: new Error("unsupported request method"),
 		noProtocol: new Error("no fetch protocol specified"),
-		noRoute: new Error("no route"),
+		noRoute: new Error("no route - use "+"home".link("/home/")),
 		badQuery: new Error("invalid query"),
 		badGroup: new Error("invalid group requested"),
 		lostConnection: new Error("client connection lost"),
@@ -2681,7 +2681,7 @@ function validateClient(req,res) {
 				Repoll: true,	// challenge repoll during active sessions
 				Retries: 5,		// challenge number of retrys before session killed
 				Timeout: 30,	// challenge timeout in secs
-				Message: `Welcome ${client} - what is #riddle?`		// challenge message with riddles, ids, etc
+				Message: `What is #riddle?`		// challenge message with riddles, ids, etc
 			}, err => {
 				
 				if (err)
@@ -3163,7 +3163,7 @@ Validate session id=client guess=value.
 	
 	else
 	if (client && guess)
-		SECLINK.admitClient( client, guess, pass => res(pass) );
+		SECLINK.testClient( client, guess, pass => res(pass) );
 
 	else
 		res( "no admission credentials provided" );
@@ -3296,16 +3296,16 @@ Login with specified account=NAME and password=TEXT
 
 				else
 				if (password == prof.Password)
-					res( "welcome" );
+					res( `welcome ${account}<br>` + ["site".link("/site.view"), "home".link("/home.view"), "browse".link("/browse.view")].join(" || ") );
 
 				else
 					res( "bad account/password" );
 			}
 
 			else
-			if ( account == "!rand" ) 
+			if ( account == "temp" ) 
 				genAccount( password, (account,password) => {
-					res( "login".link("/login.view") + " with " + account + " / " + password + " until " + expireDate );
+					res( `Your ${account} ` + ("account is good till " + expireDate).link("/login.view") );
 				});
 
 			else
