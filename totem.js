@@ -2343,6 +2343,9 @@ const
 	Lookups: {},
 		
 	sqls: {	// sql queries
+		getAccount:	"SELECT Banned,aes_decrypt(unhex(Password),?) as Password,SecureCom FROM openv.profiles WHERE Client=?", 
+		addAccount:	"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
+
 		//logThreads: "show session status like 'Thread%'",
 		users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM openv.dblogs WHERE instr(dataset,'@')",
 		derive: "SELECT * FROM openv.apps WHERE ? LIMIT 1",
@@ -3178,13 +3181,26 @@ function sysLogin(req,res) {
 		return (acct == "brian.d.james@comcast.net") || acct.endsWith(".mil") || acct.endsWith("@totem.org");
 	}
 
-	function genPassword( len, cb ) {
-		CRYPTO.randomBytes( len, (err, code) => cb( code.toString("hex") ) );
+	function genCode( len, cb ) {
+		CRYPTO.randomBytes( len/2, (err, code) => cb( code.toString("hex") ) );
 	}
 
-	function genAccount( password, cb ) {
-		genPassword(8, name => {
-			const account = name+"@totem.org";
+	function genExpires( expire ) {
+		const
+			{ round, random } = Math,
+			[min,max] = expire,
+			expires = new Date();
+
+		expires.setDate( expires.getDate() + min + round(random()*max) );
+		return expires;
+	}
+	
+	function genAccount( password, expire, cb ) {
+		const 
+			accountLen = 16;
+
+		genCode(accountLen, code => {
+			const account = code+"@totem.org";
 			sql.query(
 				"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
 				[{
@@ -3192,37 +3208,50 @@ function sysLogin(req,res) {
 					Challenge: false,
 					Banned: "",
 					//Requested: requestDate,
-					Expires: expireDate
+					Expires: genExpires(expire)
 				},  password, encryptionPassword, allowSecureConnect ], 	
 				(err,info) => {
 
 					if ( err )
-						genAccount( password, cb );
+						genAccount( password, expire, cb );
 
-					else
+					else 
 						cb( account, password );
 			});
 		});
 	}
 
+	function genSession( account, expire, cb ) {
+		const 
+			tokenLength = 16;
+		
+		genCode(tokenLength, code => {
+			sql.query(
+				"UPDATE openv.profiles SET SessionID=? WHERE Client=?", 
+				[code,account], err => {
+
+					if ( err )
+						genSession( account, cb );
+
+					else cb( code, genExpires(expire) );
+			});
+		});
+	}
+
 	const
-		passwordPostfixLength = 3,
+		{ getAccount, addAccount} = sqls,
+		passwordPostfixLength = 4,
 		encryptionPassword = ENV.USERS_PASS,
 		allowSecureConnect = true,
-		expireAccountDays = 5,
-		expireAccountWindowDays = 10;
+		expireTempAccount = [5,10],
+		expirePermAccount = [365,0],
+		expireSession = [1,0];
 
 	const 
 		{ sql, query, type, profile, body, action } = req,
 		{ account, password } = (action == "select") ? query : body,
-		{ sendMail } = TOTEM,
-		{ random, round } = Math,
-		now = new Date(),
-		requestDate = now,
-		expireDate = now;
-
-	expireDate.setDate( requestDate.getDate() + expireAccountDays + round(random()*expireAccountWindowDays) );
-
+		{ sendMail } = TOTEM;
+	
 /*  Accessing instructions for AWS envs 
 `
 Greetings from ${site.Nick.tag(site.master)}-
@@ -3283,60 +3312,77 @@ createCert(user.User, pass, () => {
 Login with specified account=NAME and password=TEXT
 ` );
 
-	Log(account,password,profile);
+	//Log(account,password,profile);
 
 	if ( account && password )
-		sql.query(
-			"SELECT Banned,aes_decrypt(unhex(Password),?) as Password FROM openv.profiles WHERE Client=?", 
-			[encryptionPassword,account], (err,profs) => {
+		sql.query( getAccount, [encryptionPassword,account], (err,profs) => {
 
 			if ( prof = profs[0] ) {
 				if ( prof.Banned ) 
-					res( prof.Banned );
+					res({
+						message: prof.Banned,
+						cookie: ""
+					});
 
 				else
 				if (password == prof.Password)
-					res( `welcome ${account}<br>` + ["site".link("/site.view"), "home".link("/home.view"), "browse".link("/browse.view")].join(" || ") );
+					genSession( account, expireSession, (token,expires) => {
+						res({
+							message: account,
+							cookie: `totem=${token}; expires=${expires}`,
+							passphrase: prof.SecureCom
+						});
+					});
 
 				else
-					res( "bad account/password" );
+					res({
+						message: "bad account/password",
+						cookie: ""
+					});
 			}
 
 			else
 			if ( account == "temp" ) 
-				genAccount( password, (account,password) => {
-					res( `Your ${account} ` + ("account is good till " + expireDate).link("/login.view") );
+				genAccount( password, expireTempAccount, (account,password) => {
+					genSession( account, expireSession, (token,expires) => {
+						res({
+							message: `You may login to ${account}`,
+							cookie: ""
+						});							
+					});
 				});
 
 			else
-			if ( accountOk( account ) && passwordOk( password ) ) 
-				genPassword( passwordPostfixLength, passcode => {
+			if ( accountOk( account ) && passwordOk( password ) && sendMail ) 
+				genCode( passwordPostfixLength, passPostfix => {
 
-					Log("code=", err, code, passcode );
+					Log("pass postfix", passPostfix );
 
-					sql.query(
-						"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
-
-						[{
+					sql.query( addAccount, [{
 							Client: account,
 							Challenge: false,
 							Banned: "",
 							//Requested: requestDate,
-							Expires: expireDate
-						},  password+passcode, encryptionPassword, allowSecureConnect ], 
+							Expires: genExpires( expirePermAccount )
+						}, password+passPostfix, encryptionPassword, allowSecureConnect ], 
 
 						err => {
 							if ( err )
-								res("See your email for login instructions");
+								res({
+									message: "Cant create that account",
+									cookie: ""
+								});
 
 							else {
-								res("See your email for login instructions");
+								res({
+									message: "See your email for login instructions",
+									cookie: ""
+								});
 
-								if (sendMail)
 								sendMail({
 									to: account,
 									subject: "Totem verification",
-									text: `Login using your your ${account} account and password + '${passcode}'` 
+									text: `Login using your your ${account} account and password + '${passPostfix}'` 
 										// .tag("a",{href:"http://totem.hopto.org/login"}) 
 								});
 							}
@@ -3344,11 +3390,17 @@ Login with specified account=NAME and password=TEXT
 				});	
 
 			else
-				res("bad account/password");
+				res({
+					message: "bad account/password",
+					cookie: ""
+				});
 		});
 	
 	else
-		res("bad account/password");
+		res({
+			message: "bad account/password",
+			cookie: ""
+		});
 
 }
 
