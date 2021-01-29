@@ -3255,7 +3255,7 @@ function sysLogin(req,res) {
 		expireSession = [1,0];
 
 	const 
-		{ sql, query, type, profile, body, action } = req,
+		{ sql, query, type, profile, body, action, client } = req,
 		{ account, password } = (action == "select") ? query : body,
 		{ sendMail } = TOTEM,
 		now = new Date();
@@ -3323,7 +3323,7 @@ Login with specified account=NAME and password=TEXT
 	//Log(account,password,profile);
 
 	if ( account && password )
-		if ( account == "temp" ) 
+		if ( account == "temp" && client == "guest@totem.org" ) 
 			genAccount( password, expireTempAccount, (account,password) => {
 				genSession( account, expireSession, (token,expires) => {
 					res({
