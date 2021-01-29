@@ -2343,9 +2343,9 @@ const
 	Lookups: {},
 		
 	sqls: {	// sql queries
-		getAccount:	"SELECT Banned,aes_decrypt(unhex(Password),?) as Password,SecureCom FROM openv.profiles WHERE Client=?", 
+		getAccount:	"SELECT validEmail, Banned, aes_decrypt(unhex(Password),?) as Password, SecureCom FROM openv.profiles WHERE Client=?", 
 		addAccount:	"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
-
+		resetAccount: "UPDATE openv.profile SET Password=hex(aes_encrypt(?,?)),Expires=?,SecureCom=if(?,concat(Client,Password),'') WHERE Client=?",
 		//logThreads: "show session status like 'Thread%'",
 		users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM openv.dblogs WHERE instr(dataset,'@')",
 		derive: "SELECT * FROM openv.apps WHERE ? LIMIT 1",
@@ -3195,6 +3195,13 @@ function sysLogin(req,res) {
 		return expires;
 	}
 	
+	function genPassword( expire, cb ) {
+		const
+			passwordLen = 16;
+		
+		genCode(passwordLen, code => cb(code, genExpires(expire)) );
+	}
+	
 	function genAccount( password, expire, cb ) {
 		const 
 			accountLen = 16;
@@ -3239,7 +3246,7 @@ function sysLogin(req,res) {
 	}
 
 	const
-		{ getAccount, addAccount} = sqls,
+		{ getAccount, addAccount, resetAccount } = sqls,
 		passwordPostfixLength = 4,
 		encryptionPassword = ENV.USERS_PASS,
 		allowSecureConnect = true,
@@ -3250,7 +3257,8 @@ function sysLogin(req,res) {
 	const 
 		{ sql, query, type, profile, body, action } = req,
 		{ account, password } = (action == "select") ? query : body,
-		{ sendMail } = TOTEM;
+		{ sendMail } = TOTEM,
+		now = new Date();
 	
 /*  Accessing instructions for AWS envs 
 `
@@ -3315,86 +3323,116 @@ Login with specified account=NAME and password=TEXT
 	//Log(account,password,profile);
 
 	if ( account && password )
-		sql.query( getAccount, [encryptionPassword,account], (err,profs) => {
-
-			if ( prof = profs[0] ) {
-				if ( prof.Banned ) 
+		if ( account == "temp" ) 
+			genAccount( password, expireTempAccount, (account,password) => {
+				genSession( account, expireSession, (token,expires) => {
 					res({
-						message: prof.Banned,
+						message: `You may login to ${account}`,
 						cookie: ""
-					});
+					});							
+				});
+			});
+
+		else
+			sql.query( getAccount, [encryptionPassword,account], (err,profs) => {
+
+				if ( prof = profs[0] ) {
+					if ( prof.Banned ) 
+						res({
+							message: prof.Banned,
+							cookie: ""
+						});
+
+					else
+					if ( prof.Expires > now )
+						res({
+							message: "Your account has expires - please contact system admin",
+							cookie: ""
+						});
+					
+					else
+					if (password == prof.Password)
+						genSession( account, expireSession, (token,expires) => {
+							res({
+								message: account,
+								cookie: `totem=${token}; expires=${expires}`,
+								passphrase: prof.SecureCom
+							});
+						});
+
+					else
+					if ( password == "temp" && prof.validEmail ) 
+						genPassword( expireTempAccount, (password,expires) => {
+							Log(password,expires);
+							sql.query(resetAccount, [password,encryptionPassword,expires,allowSecureConnect,account], err => {
+								Log(err);
+								
+								res({
+									message: `Check your ${account} email`,
+									cookie: "",
+								});
+								
+								sendMail({
+									to: account,
+									subject: "Totem account reset",
+									text: `Login using your your ${account} account and temporary password '${password}'` 
+										// .tag("a",{href:"http://totem.hopto.org/login"}) 
+								}, info => {
+									Log("send email status", info);
+								});
+							});
+						});
+						
+					else			
+						res({
+							message: "bad account/password",
+							cookie: ""
+						});
+				}
 
 				else
-				if (password == prof.Password)
-					genSession( account, expireSession, (token,expires) => {
-						res({
-							message: account,
-							cookie: `totem=${token}; expires=${expires}`,
-							passphrase: prof.SecureCom
+				if ( accountOk( account ) && passwordOk( password ) && sendMail ) 
+					genCode( passwordPostfixLength, passPostfix => {
+
+						Log("pass postfix", passPostfix );
+
+						sql.query( addAccount, [{
+								Client: account,
+								Challenge: false,
+								Banned: "",
+								//Requested: requestDate,
+								Expires: genExpires( expirePermAccount )
+							}, password+passPostfix, encryptionPassword, allowSecureConnect ], 
+
+							err => {
+								if ( err )
+									res({
+										message: "Cant create that account",
+										cookie: ""
+									});
+
+								else {
+									res({
+										message: `Check your ${account} email`,
+										cookie: ""
+									});
+
+									sendMail({
+										to: account,
+										subject: "Totem verification",
+										text: `Login using your your ${account} account and password + '${passPostfix}'` 
+											// .tag("a",{href:"http://totem.hopto.org/login"}) 
+									});
+								}
 						});
-					});
+					});	
 
 				else
 					res({
 						message: "bad account/password",
 						cookie: ""
 					});
-			}
-
-			else
-			if ( account == "temp" ) 
-				genAccount( password, expireTempAccount, (account,password) => {
-					genSession( account, expireSession, (token,expires) => {
-						res({
-							message: `You may login to ${account}`,
-							cookie: ""
-						});							
-					});
-				});
-
-			else
-			if ( accountOk( account ) && passwordOk( password ) && sendMail ) 
-				genCode( passwordPostfixLength, passPostfix => {
-
-					Log("pass postfix", passPostfix );
-
-					sql.query( addAccount, [{
-							Client: account,
-							Challenge: false,
-							Banned: "",
-							//Requested: requestDate,
-							Expires: genExpires( expirePermAccount )
-						}, password+passPostfix, encryptionPassword, allowSecureConnect ], 
-
-						err => {
-							if ( err )
-								res({
-									message: "Cant create that account",
-									cookie: ""
-								});
-
-							else {
-								res({
-									message: "See your email for login instructions",
-									cookie: ""
-								});
-
-								sendMail({
-									to: account,
-									subject: "Totem verification",
-									text: `Login using your your ${account} account and password + '${passPostfix}'` 
-										// .tag("a",{href:"http://totem.hopto.org/login"}) 
-								});
-							}
-					});
-				});	
-
-			else
-				res({
-					message: "bad account/password",
-					cookie: ""
-				});
-		});
+			});
 	
 	else
 		res({
