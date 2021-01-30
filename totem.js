@@ -2642,34 +2642,28 @@ function validateClient(req,res) {
 	//req.cert = new Object(cert);
 	//Log("client>>>",client);
 	
-	if ( cookie ) {
+	if ( cookie ) 
 		cookie.split("; ").forEach( cook => {
 			const [key,val] = cook.split("=");
 			cookies[key] = val;
 		});
-
-		const { totem, session } = cookies;
-		
-		if ( session )
-			sql.query(
-				"SELECT * FROM openv.profiles WHERE SessionID=? LIMIT 1", 
-				[session], (err,profs) => {
-					//Log("session", session, profs[0]);
-					if ( profile = profs[0] ) {
-						req.log = null;
-						req.client = profile.Client;
-						req.profile = Copy(profile, {});
-						res( null );
-					}
-
-					else
-						res( errors.rejectedClient );
-			});
-		
-		else
-			res( errors.rejectedClient );
-	}
 	
+	if ( session = cookies.session )
+		sql.query(
+			"SELECT * FROM openv.profiles WHERE SessionID=? LIMIT 1", 
+			[session], (err,profs) => {
+				//Log("session", session, profs[0]);
+				if ( profile = profs[0] ) {
+					req.log = null;
+					req.client = profile.Client;
+					req.profile = Copy(profile, {});
+					res( null );
+				}
+
+				else
+					res( errors.rejectedClient );
+		});
+		
 	else
 		sql.query( getProfile, [client], (err,profs) => {
 
