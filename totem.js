@@ -2590,7 +2590,9 @@ function validateClient(req,res) {
 	}
 	
 	function checkCert(req, cb) { 
-		const { cert, sql, encrypted } = req;
+		const 
+			{ cert, sql, encrypted } = req,
+			now = new Date();
 		
 		if (cert) 
 			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
