@@ -663,7 +663,7 @@ const
 			
 	CORS: false,
 		
-	isTrusted: (account, cb ) => cb( account.endsWith(".mil") && !account.match(/\.ctr@.&\.mil/) ),
+	isTrusted: account=> account.endsWith(".mil") && !account.match(/\.ctr@.&\.mil/) ,
 
 	fetchOptions: {	// Fetch parms
 		defHost: ENV.SERVICE_MASTER_URL,
@@ -2680,19 +2680,25 @@ function validateClient(req,res) {
 		}
 
 		else								// admit guest client
-		if ( addProfile )
+		if ( addProfile ) {
+			const
+				trust = isTrusted(client);
+			
 			sql.query( addProfile, req.profile = {
 				Banned: "",  // nonempty to ban user
 				QoS: 10,  // [secs] job regulation interval
 				Credit: 100,  // job cred its
 				Charge: 0,	// current job charges
 				LikeUs: 0,	// number of user likeus
-				Challenge: !client.endsWith(".mil"),		// enable to challenge user at session join
+				Trusted: trust,
+				Expires: null,
+				Password: "",	
+				SecureCom: client,	// default securecom passphrase
+				Challenge: !trust,		// enable to challenge user at session join
 				Client: client,
 				User: "",		// default user ID (reserved for login)
 				Login: "",	// existing login ID
 				Group: "app",		// default group name (db to access)
-				SecureCom: client,	// default securecom passphrase
 				Repoll: true,	// challenge repoll during active sessions
 				Retries: 5,		// challenge number of retrys before session killed
 				Timeout: 30,	// challenge timeout in secs
@@ -3215,20 +3221,20 @@ function sysLogin(req,res) {
 	}
 
 	function newAccount( account, password, cb) {
-		isTrusted( account, trust => {
-			sql.query(
-				addAccount,
-				//"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
-				[{
-					Client: account,
-					Challenge: false,
-					Banned: "",
-					Trusted: trust,
-					//Requested: requestDate,
-					Expires: getExpires( trust ? expireTempAccount : expirePermAccount ),
-				},  password, encryptionPassword, allowSecureConnect ], 	
-				(err,info) => cb(err) );
-		});
+		const
+			trust = isTrusted( account );
+		
+		sql.query(
+			addAccount,
+			[{
+				Client: account,
+				Challenge: false,
+				Banned: "",
+				Trusted: trust,
+				//Requested: requestDate,
+				Expires: getExpires( trust ? expireTempAccount : expirePermAccount ),
+			},  password, encryptionPassword, allowSecureConnect ], 	
+			(err,info) => cb(err) );
 	}
 	
 	function genAccount( password, cb ) {
