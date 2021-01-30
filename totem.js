@@ -2715,6 +2715,7 @@ function validateClient(req,res) {
 					});
 
 			});
+		}
 
 		else
 			res( errors.rejectedClient );
