@@ -1098,9 +1098,7 @@ const
 		@cfg {Object} 
 	*/		
 	errors: {
-		pretty: err => { 
-			return err+"";
-		},
+		pretty: err => (err+"").replace("Error:",""),
 		badMethod: new Error("unsupported request method"),
 		noProtocol: new Error("no fetch protocol specified"),
 		noRoute: new Error("no route - use "+"home".link("/home/")),
@@ -1149,6 +1147,7 @@ const
 				host: "proto://domain:port"	// requested host 
 				cookie: "...."		// client cookie string
 				agent: "..."		// client browser info
+				ipAddress: "..."	// client ip address
 				referer: "proto://domain:port/query"	//  url during a cross-site request
 				method: "GET|PUT|..." 			// http request method
 				action: "select|update| ..."	// corresponding crude name
@@ -1416,9 +1415,10 @@ const
 									//Log(">>>>post", post);
 									sqlThread( sql => {
 										//Log(Req.headers, Req.url);
-
+										
 										ses({			// prime session request
 											cookie: Req.headers["cookie"] || "",
+											ipAddress: Req.connection.remoteAddress,
 											host: $master.protocol+"//"+Req.headers["host"],	// domain being requested
 											referer: Req.headers["referer"], 	// proto://domain used
 											agent: Req.headers["user-agent"] || "",	// requester info
@@ -1428,7 +1428,7 @@ const
 											started: new Date(),  // Req.headers.Date,  // time client started request
 											action: crudIF[Req.method],	// crud action being requested
 											reqSocket: Req.socket,   // use supplied request socket 
-											resSocket: getSocket,		// use this method to return a response socket
+											resSocket: getSocket,		// attach method to return a response socket
 											encrypted: isEncrypted(),	// on encrypted worker
 											url: unescape( Req.url || "/" )	// unescaped url
 											/*
@@ -2569,11 +2569,17 @@ function validateClient(req,res) {
 
 	function makeProfile( sql, client ) {  // return a suitable guest profile or null
 
+		const 
+			trust = isTrusted(client);
+		
 		if ( guestProfile ) {  // allowing guests
 			const
 				{ addProfile } = sqls,
 				guest = Copy(guestProfile, {
 					Client: client,
+					Trust: trust,
+					Challenge: !trust,
+					SecureCom: trust ? client : "",
 					//User: client.replace(/(.*)\@(.*)/g,(x,L,R) => L ).replace(/\./g,"").substr(0,12),
 					//Login: "",
 					Requested: new Date()
@@ -2693,7 +2699,7 @@ function validateClient(req,res) {
 				Trusted: trust,
 				Expires: null,
 				Password: "",	
-				SecureCom: client,	// default securecom passphrase
+				SecureCom: trust ? client : "",	// default securecom passphrase
 				Challenge: !trust,		// enable to challenge user at session join
 				Client: client,
 				User: "",		// default user ID (reserved for login)
@@ -3200,7 +3206,22 @@ function sysLogin(req,res) {
 	}
 
 	function accountOk(acct) {
-		return !!account.match( /.*@.*\..*/ );
+		const
+			banned = {
+				"tempail.com": 1,
+				"temp-mail.io":1,
+				"anonymmail.net":1,
+				"mail.tm": 1,
+				"tempmail.ninja":1,
+				"getnada.com":1,
+				"protonmail.com":1,
+				"maildrop.cc":1,
+				"":1,
+			},
+			  
+			[account,domain] = acct.split("@");
+		
+		return banned[domain] ? false : true;
 	}
 
 	function genCode( len, cb ) {
