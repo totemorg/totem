@@ -652,7 +652,7 @@ const
 		Log, Trace,
 		byArea, byType, byAction, byTable, CORS,
 		neoThread, defaultType, isTrusted,
-		$master, $worker, Fetch, fetchOptions,
+		$master, $worker, Fetch, fetchOptions, 
 		reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitRules,
 		filterRecords,routeDS, startDogs, cache } = TOTEM = module.exports = {
 	
@@ -663,7 +663,7 @@ const
 			
 	CORS: false,
 		
-	isTrusted: account=> account.endsWith(".mil") && !account.match(/\.ctr@.&\.mil/) ,
+	isTrusted: account => account.endsWith(".mil") && !account.match(/\.ctr@.&\.mil/) ,
 
 	fetchOptions: {	// Fetch parms
 		defHost: ENV.SERVICE_MASTER_URL,
@@ -1159,7 +1159,7 @@ const
 				resSocket: socket	// socket to accept response
 				sql: connector 		// sql database connector 
 
-				// phase2 validateClient
+				// phase2 resolveClient
 				log: {...}			// info to trap socket stats
 				joined: date		// time admitted
 				client: "..."		// name of client from cert or "guest"
@@ -1203,8 +1203,10 @@ const
 					Log(`STARTING ${name} AntibotExtend=${TOTEM.riddles}`);
 
 					if ( socketIO ) SECLINK.config({
-						sqlThread: sqlThread,
 						server: server,
+						sqlThread: sqlThread,
+						isTrsuted: TOTEM.isTrusted,
+						sendMail: TOTEM.sendMail,
 						inspector: TOTEM.inspector,
 						challenge: {
 							extend: TOTEM.riddles,
@@ -1537,9 +1539,11 @@ const
 
 								// set appropriate headers to prevent http-parse errors when using master-worker proxy
 								
+								/*
 								if ( req.encrypted )
 									Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
-
+								*/
+								
 								try {
 									Res.setHeader("Content-Type", mime);
 									
@@ -1591,17 +1595,17 @@ const
 							}
 
 							if (sock = req.reqSocket )	// have a valid request socket so ....
-								validateClient(req, err => {	// admit good client
+								resolveClient(req, err => {	// admit good client
 									const 
 										{ sql, client } = req,
 										{ addConnect } = sqls;
 									
-									if (err)			// client was rejected
+									if (err)			// client rejected
 										res(null);
 
 									else  {
-										ses(res);		// start connection
-										if ( addConnect )
+										ses(res);			// client accepted so start connection
+										if ( addConnect )	// optional logging of connections
 											sql.query(addConnect, {
 												Client: client,
 												Message: "joined", //JSON.stringify(cert),
@@ -2285,12 +2289,13 @@ const
 	Lookups: {},
 		
 	sqls: {	// sql queries
-		getAccount:	"SELECT Trusted, validEmail, Banned, aes_decrypt(unhex(Password),?) as Password, SecureCom FROM openv.profiles WHERE Client=?", 
+		getAccount:	"SELECT Trusted, validEmail, Banned, aes_decrypt(unhex(Password),?) AS Password, SecureCom FROM openv.profiles WHERE Client=? AND !Online", 
 		addAccount:	"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
-		setToken: "UPDATE openv.profiles SET Password=hex(aes_encrypt(?,?)), SecureCom=if(?,concat(Client,Password),''), TokenID='' WHERE TokenID=?",
-		getToken: "SELECT Client FROM openv.profiles WHERE TokenID=?", 
-		addToken: "UPDATE openv.profiles SET TokenID=? WHERE Client=?",
-		addSession: "UPDATE openv.profiles SET SessionID=? WHERE Client=?",
+		setToken: "UPDATE openv.profiles SET Password=hex(aes_encrypt(?,?)), SecureCom=if(?,concat(Client,Password),''), TokenID=null WHERE TokenID=?",
+		//getToken: "SELECT Client FROM openv.profiles WHERE TokenID=?", 
+		addToken: "UPDATE openv.profiles SET SessionID=? WHERE Client=?",
+		addSession: "UPDATE openv.profiles SET Online=1, SessionID=? WHERE Client=?",
+		endSession: "UPDATE openv.profiles SET Online=0, SessionID=null WHERE Client=?",
 		//logThreads: "show session status like 'Thread%'",
 		users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM openv.dblogs WHERE instr(dataset,'@')",
 		derive: "SELECT * FROM openv.apps WHERE ? LIMIT 1",
@@ -2518,214 +2523,118 @@ function createCert(owner,pass,cb) {
 	@param {Object} req totem request
 	@param {Function} res totem response
 */
-function validateClient(req,res) {  
+function resolveClient(req,res) {  
 	
-	function getCert(sock) {  //< Return cert presented on this socket (w or w/o proxy).
-		const 
-			cert =  (encrypted && sock.getPeerCertificate) ? sock.getPeerCertificate() : {
-				subject: {
-					C: "",
-					O: "",
-					OU: "",
-					CN: ""
-				},
-				subjectaltname: ""
-			};		
-		
-		//Log("getcert>>>", cert);
-		if (behindProxy && cert) {  // update cert with originating cert info that was placed in header
-			var 
-				//cert = new Object(cert),  // clone so we can modify
-				NA = Req.headers.ssl_client_notafter,
-				NB = Req.headers.sll_client_notbefore,
-				DN = Req.headers.ssl_client_s_dn;
+	function checkCert(cb) { 
+		function getCert(sock) {  //< Return cert presented on this socket (w or w/o proxy).
+			const 
+				cert =  (encrypted && sock.getPeerCertificate) ? sock.getPeerCertificate() : {
+					subject: {
+						C: "",
+						O: "",
+						OU: "",
+						CN: ""
+					},
+					subjectaltname: ""
+				};		
 
-			if (NA) cert.valid_to = new Date(
-					[NA.substr(2,2),NA.substr(4,2),NA.substr(0,2)].join("/")+" "+
-					[NA.substr(6,2),NA.substr(8,2),NA.substr(10,2)].join(":")
-				);
+			//Log("getcert>>>", cert);
+			if (behindProxy) {  // update cert with originating cert info that was placed in header
+				var 
+					NA = Req.headers.ssl_client_notafter,
+					NB = Req.headers.sll_client_notbefore,
+					DN = Req.headers.ssl_client_s_dn;
 
-			if (NB) cert.valid_to = new Date(
-					[NB.substr(2,2),NB.substr(4,2),NB.substr(0,2)].join("/")+" "+
-					[NB.substr(6,2),NB.substr(8,2),NB.substr(10,2)].join(":")
-				);
+				if (NA) cert.valid_to = new Date(
+						[NA.substr(2,2),NA.substr(4,2),NA.substr(0,2)].join("/")+" "+
+						[NA.substr(6,2),NA.substr(8,2),NA.substr(10,2)].join(":")
+					);
 
-			if (DN)
-				Each(DN.split("/"), function (n,hdr) {
-					if (hdr) {
-						var sub = hdr.split("=");
-						cert.subject[sub[0]] += sub[1];
-					}
-				});
+				if (NB) cert.valid_to = new Date(
+						[NB.substr(2,2),NB.substr(4,2),NB.substr(0,2)].join("/")+" "+
+						[NB.substr(6,2),NB.substr(8,2),NB.substr(10,2)].join(":")
+					);
 
-			if ( CN = cert.subject.CN ) {
-				CN = CN.split(" ");
-				cert.subject.CN = CN[CN.length-1] + "@lost.org";
+				if (DN)
+					Each(DN.split("/"), function (n,hdr) {
+						if (hdr) {
+							var sub = hdr.split("=");
+							cert.subject[sub[0]] += sub[1];
+						}
+					});
+
+				if ( CN = cert.subject.CN ) {
+					CN = CN.split(" ");
+					cert.subject.CN = CN[CN.length-1] + "@lost.org";
+				}
 			}
-		}
-		
-		return cert;
-	}
 
-	function makeProfile( sql, client ) {  // return a suitable guest profile or null
-
-		const 
-			trust = isTrusted(client);
-		
-		if ( guestProfile ) {  // allowing guests
-			const
-				{ addProfile } = sqls,
-				guest = Copy(guestProfile, {
-					Client: client,
-					Trust: trust,
-					Challenge: !trust,
-					SecureCom: trust ? client : "",
-					//User: client.replace(/(.*)\@(.*)/g,(x,L,R) => L ).replace(/\./g,"").substr(0,12),
-					//Login: "",
-					Requested: new Date()
-				});
-			
-			delete guest.ID;
-
-			sql.query( addProfile, guest );
-			return guest;
+			return cert;
 		}
 
-		else	// blocking guests
-			return null;
-	}
-	
-	function checkCert(req, cb) { 
 		const 
-			{ cert, sql, encrypted } = req,
+			cert = getCert(reqSocket),
 			now = new Date();
 		
-		if (cert) 
-			if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
-				cb( null );
-
-			else
-			if ( user = cert.subject || cert.issuer ) {
-				for (var key in admitRules) 
-					if ( test = user[key] ) 
-						if ( test.toLowerCase().indexOf( admitRules[key] ) < 0 ) return cb( null );
-
-					else
-						return cb( null );
-
-				cb({ 
-					Event: new Date(), 			// start time
-					Action: req.action, 		// db action
-					Stamp: "totem"
-				});	
-			}
-		
-			else
-				cb( null );
-		
-		else
-		if ( encrypted )
+		if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
 			cb( null );
-		
-		else 
-			cb({ 
+
+		else
+		if ( user = cert.subject || cert.issuer ) {
+			for (var key in admitRules) 
+				if ( test = user[key] ) 
+					if ( test.toLowerCase().indexOf( admitRules[key] ) < 0 ) return cb( null );
+
+				else
+					return cb( null );
+
+			cb( cert );
+			/*{ 
 				Event: new Date(), 			// start time
 				Action: req.action, 		// db action
 				Stamp: "totem"
-			});	
+			});	 */
+		}
+
+		else
+			cb( null );
 	}
 
 	const 
 		{ sql,encrypted,reqSocket, cookie } = req,
 		{ getProfile, addProfile } = sqls,
 		guest = "guest@totem.org",
+		/* 
 		cert = req.cert = getCert( reqSocket ),
 		joined = req.joined = new Date(),
 		client = req.client = (cert.subjectaltname||guest).toLowerCase().split(",")[0].replace("email:",""),
+		*/
 		cookies = req.cookies = {};
 	
-	//req.cert = certs[client] = cert ? new Object(cert) : null;
-	//req.cert = new Object(cert);
-	//Log("client>>>",client);
-	
-	if ( cookie ) 
-		cookie.split("; ").forEach( cook => {
-			const [key,val] = cook.split("=");
-			cookies[key] = val;
-		});
-	
-	if ( session = cookies.session )
-		sql.query(
-			"SELECT * FROM openv.profiles WHERE SessionID=? LIMIT 1", 
-			[session], (err,profs) => {
-				//Log("session", session, profs[0]);
-				if ( profile = profs[0] ) {
-					req.log = null;
-					req.client = profile.Client;
-					req.profile = Copy(profile, {});
-					res( null );
-				}
+	checkCert( cert => {
+		const
+			{ Login } = SECLINK,
+			account = req.client = (cert.subjectaltname||"").toLowerCase().split(",")[0].replace("email:","");
 
-				else
-					res( errors.rejectedClient );
-		});
-		
-	else
-		sql.query( getProfile, [client], (err,profs) => {
-
-		if ( err ) 
-			res( errors.rejectedClient );
-		
-		else			
-		if ( profile = profs[0] ) { 		// admit known client
-			req.profile = Copy(profile, {});
-			checkCert(req, log => {
-				req.log = log;
-				res( log ? null : errors.rejectedClient );
+		if ( cookie ) 						//  client providing cookie to speed profile setup
+			cookie.split("; ").forEach( cook => {
+				const [key,val] = cook.split("=");
+				cookies[key] = val;
 			});
-		}
+	
+		Log("cookies", cookies);
+		
+		Login( cookies.session || account, "", (err,profile) => {
+			if ( err ) 
+				res(err);
 
-		else								// admit guest client
-		if ( addProfile ) {
-			const
-				trust = isTrusted(client);
-			
-			sql.query( addProfile, req.profile = {
-				Banned: "",  // nonempty to ban user
-				QoS: 10,  // [secs] job regulation interval
-				Credit: 100,  // job cred its
-				Charge: 0,	// current job charges
-				LikeUs: 0,	// number of user likeus
-				Trusted: trust,
-				Expires: null,
-				Password: "",	
-				SecureCom: trust ? client : "",	// default securecom passphrase
-				Challenge: !trust,		// enable to challenge user at session join
-				Client: client,
-				User: "",		// default user ID (reserved for login)
-				Login: "",	// existing login ID
-				Group: "app",		// default group name (db to access)
-				Repoll: true,	// challenge repoll during active sessions
-				Retries: 5,		// challenge number of retrys before session killed
-				Timeout: 30,	// challenge timeout in secs
-				Message: `What is #riddle?`		// challenge message with riddles, ids, etc
-			}, err => {
-				
-				if (err)
-					res( errors.rejectedClient );
-				
-				else 
-					checkCert(req, log => {
-						req.log = log;
-						res( log ? null : errors.rejectedClient );
-					});
-
-			});
-		}
-
-		else
-			res( errors.rejectedClient );
-	});	
+			else {
+				req.client = profile.Client;
+				req.profile = Copy( profile,{});
+				res( null );
+			}
+		});
+	});
 }
 
 /**
@@ -3201,126 +3110,9 @@ Validate session id=client guess=value.
 }
 
 function sysLogin(req,res) {
-	function passwordOk(pass) {
-		return (pass.length >= 4);
-	}
-
-	function accountOk(acct) {
-		const
-			banned = {
-				"tempail.com": 1,
-				"temp-mail.io":1,
-				"anonymmail.net":1,
-				"mail.tm": 1,
-				"tempmail.ninja":1,
-				"getnada.com":1,
-				"protonmail.com":1,
-				"maildrop.cc":1,
-				"":1,
-			},
-			  
-			[account,domain] = acct.split("@");
-		
-		return banned[domain] ? false : true;
-	}
-
-	function genCode( len, cb ) {
-		CRYPTO.randomBytes( len/2, (err, code) => cb( code.toString("hex") ) );
-	}
-
-	function getExpires( expire ) {
-		const
-			{ round, random } = Math,
-			[min,max] = expire,
-			expires = new Date();
-
-		expires.setDate( expires.getDate() + min + round(random()*max) );
-		return expires;
-	}
-	
-	function genPassword( cb ) {
-		genCode(passwordLen, code => cb(code, getExpires(expireSession)) );
-	}
-
-	function newAccount( account, password, cb) {
-		const
-			trust = isTrusted( account );
-		
-		sql.query(
-			addAccount,
-			[{
-				Client: account,
-				Challenge: false,
-				Banned: "",
-				Trusted: trust,
-				//Requested: requestDate,
-				Expires: getExpires( trust ? expireTempAccount : expirePermAccount ),
-			},  password, encryptionPassword, allowSecureConnect ], 	
-			(err,info) => cb(err) );
-	}
-	
-	function genAccount( password, cb ) {
-		genCode(accountLen, code => {
-			newAccount( code+"@totem.org", password, err => {
-				if ( err )
-					genAccount( password, cb );
-
-				else 
-					cb( code+"@totem.org", password );
-			});
-		});
-	}
-
-	function genSession( account, cb ) {
-		genCode(sessionLen, code => {
-			sql.query(
-				addSession, 
-				[code,account], err => {
-
-					if ( err )	// has to be unqiue
-						genSession( account, cb );
-
-					else cb( code, getExpires(expireSession) );
-			});
-		});
-	}
-
-	function genToken( account, cb ) {
-		genCode(tokenLen, code => {
-			sql.query(
-				addToken, 
-				[code,account], err => {
-
-					if ( err )	// has to be unqiue
-						genToken( account, cb );
-
-					else cb( code, getExpires(expireSession) );
-			});
-		});
-	}
-
-	const
-		expireTempAccount = [5,10],
-		expirePermAccount = [365,0],
-		expireSession = [1,0];
-	
-	const
-		passwordPostfixLength = 4,
-		passwordLen = 4,
-		accountLen = 16,
-		sessionLen = 32,
-		tokenLen = 4;
-		
-	const
-		{ getAccount, addAccount, addSession, addToken, resetAccount, resetPassword, getToken, setToken } = sqls,
-		encryptionPassword = ENV.USERS_PASS,
-		allowSecureConnect = true;
-
 	const 
 		{ sql, query, type, profile, body, action, client } = req,
-		{ account, password } = (action == "select") ? query : body,
-		{ sendMail } = TOTEM,
-		now = new Date();
+		{ account, password, option } = (action == "select") ? query : body;
 	
 /*  Accessing instructions for AWS envs 
 `
@@ -3379,149 +3171,28 @@ createCert(user.User, pass, () => {
 
 	if ( type == "help" )
 		return res( `
-Login with specified account=NAME and password=TEXT
+Login, request password reset, make temp account, return online users, mane an account using option = 
+login||reset||temp||make with the specified account=NAME and password=TEXT.
 ` );
 
-	//Log(account,password,profile);
+	Log(account,password,option);
 
-	if ( account && password )
-		if ( account == "temp" && client == "guest@totem.org" ) 	// requesting temp account
-			if ( passwordOk(password) )
-				genAccount( password, (account,password) => {
-					res({
-						message: `You may login to ${account}`,
-						cookie: ""
-					});							
-				});
-	
-			else
-				res({
-					message: "Password not complex enough",
-					cookie: ""
-				});	
-
-		else
-			sql.query( getAccount, [encryptionPassword,account], (err,profs) => {		// try to locate the account
-
-				if ( prof = profs[0] ) {			// account located
-					if ( prof.Banned ) 				// account was banned for some reason
-						res({
-							message: prof.Banned,
-							cookie: ""
-						});
-
-					else
-					if ( prof.Expires > now )		// account expired
-						res({
-							message: "Your account has expires - please contact system admin",
-							cookie: ""
-						});
-					
-					else
-					if (password == prof.Password)	// account matched
-						genSession( account, (sessionID,expires) => {	// admit client with a sessionID
-							res({
-								message: account,
-								cookie: `session=${sessionID}; expires=${expires.toUTCString()}`,
-								passphrase: prof.SecureCom		// nonnull if account allowed to use secureLink
-							});
-						});
-
-					else
-					if ( password == "reset" && prof.validEmail && sendMail ) 		// reset account password
-						genToken( account, (tokenID,expires) => {	// gen a token account						
-							res({
-								message: `See your ${account} email for further instructions`,
-								cookie: ""
-							});
-							
-							sendMail({
-								to: account,
-								subject: "Totem password reset request",
-								text: `Please login using !!${tokenID}/NEWPASSWORD by ${expires}`
-							});
-						});
-								 
-					else
-						res({
-							message: "bad account/password",
-							cookie: ""
-						});
-				}
-
-				else
-				if ( password == "new" )
-					if ( accountOk( account ) && sendMail ) 	// create new account
-						genPassword( password => {				// generate a secret password
-							newAccount(account, password, err => {		// add the account
-								if ( err )		// account already exist
-									res({
-										message: "Cant create that account",
-										cookie: ""
-									});
-
-								else {			// account created
-									res({
-										message: `Your ${account} email contains further instructions`,
-										cookie: ""
-									});
-
-									sendMail({
-										to: account,
-										subject: "Totem account verification",
-										text: `
-Login using !!${account}/${password}
-Please ignore if you did not request a Totem account.` 
-											// .tag("a",{href:"http://totem.hopto.org/login"}) 
-									});
-								}
-							});
-						});	
-
-					else
-						res({
-							message: "bad account/password",
-							cookie: ""
-						});
-					
-				else
-				sql.query( getToken, [account], (err, profs) => {		// try to locate a token account
-					
-					if ( prof = profs[0] ) 		// located token account for resetting password
-						if ( passwordOk(password) )
-							sql.query( setToken, [password, encryptionPassword, allowSecureConnect, account], err => {
-								if ( err ) 
-									res({
-										message: "Your password could not be reset at this time",
-										cookie: ""
-									});
-
-								else
-									res({
-										message: `You may login to ${prof.Client} using your new password.`,
-										cookie: ""
-									});
-							});
-					
-						else
-							res({
-								message: "Password not complex enough",
-								cookie: ""
-							});
-					
-					else
-						res({
-							message: "bad account/password",
-							cookie: ""
-						});
-				});
+	switch ( option ) {
+		case "keys":
+			const 
+				keys = {};
+			
+			sql.query("SELECT Client,pubKey FROM openv.profiles WHERE Online")
+			.on("result", rec => keys[rec.Client] = rec.pubKey )
+			.on("end", () => res( keys ) );
+		
+			break;
+			
+		default:
+			res({
+				message: "bad account/password",
 			});
-	
-	else
-		res({
-			message: "bad account/password",
-			cookie: ""
-		});
+	}
 
 }
 
