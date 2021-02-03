@@ -10,13 +10,13 @@
 	+ fault protected run states
 	+ indexing, uploading, downloading and cacheing static files
 	+ crud interface
-	+ mysql database agnosticator and task queuing
-	+ neo4j graph database 
+	+ mysql/neo4j database agnosticator
+	+ task queuing and regulation
 	+ poll files and services
 	+ automattic server cert generation
 	+ task sharding
 	+ file stream and ingest
-	+ data fetch w and w/o rotating proxies
+	+ data fetching, rotating proxies, oauth access
 	+ smartcard reader
   
 **TOTEM** defines endpoints:
