@@ -18,9 +18,10 @@
 
 	@requires enum
 	@requires jsdb
+	@requires securelink
+	@requires socketio
 
 	@requires mime
-	@requires socketio
 	@requires mysql
 	@requires xml2js
 	@requires toobusy
@@ -28,7 +29,6 @@
 	@requires js2xmlparser
 	@requires toobusy-js
 	@requires cheerio
-	@requires neo4j-driver	
 */
 
 const	
@@ -57,176 +57,10 @@ const
 	BUSY = require('toobusy-js'),  				// denial-of-service protector (cant install on NodeJS 5.x+)
 	JS2XML = require('js2xmlparser'), 			// JSON to XML parser
 	JS2CSV = require('json2csv'),				// JSON to CSV parser	
-	NEO4J = require("neo4j-driver"),			// light-weight graph database	
-	NEODRIVER = NEO4J.driver( ENV.NEO4J, NEO4J.auth.basic(ENV.NEO4J_USER, ENV.NEO4J_PASS), { disableLosslessIntegers: true } ),
-	SECLINK = require("securelink"),
-	{ sqlThread } = JSDB = require("jsdb"),						// database agnosticator
+	SECLINK = require("securelink"),			// secure com and login
+	{ sqlThread, neoThread } = JSDB = require("jsdb"),		// database agnosticator
 	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM = require("enum");
 	  
-// neo4j i/f
-
-function NEOCONNECTOR(trace) {
-	this.trace = trace || false;
-}
-	
-[
-	function cypher(query,params,cb) {// submit cypher query to neo4j
-
-		var 
-			neo = this,
-			ses = NEODRIVER.session();	// no pooled connectors so must create and close them
-
-		if ( params )
-			Each( params, (key,val) => {	// fix stupid $tokens in neo4j driver
-				if (val) {
-					if ( isObject(val) ) {
-						query = query.replace(new RegExp("\\$"+key,"g"), arg => "{".tag(":",val)+"}" );
-						delete params[key];
-					}
-				}
-				
-				else
-					Log("???????????????????? neo", key,val, params);
-			});
-
-		// if ( neo.trace) Log(query);
-
-		ses
-		.run( query, params )
-		.then( res => {
-			
-			var 
-				recs = res.records,
-				Recs = [];
-			
-			if (recs)
-				recs.forEach( (rec,n) => {
-					var Rec = {};
-					rec.keys.forEach( key => Rec[key] = rec.get(key) );
-					Recs.push( Rec );
-				});
-			
-			if (cb) cb(null, Recs);
-		})
-		.catch( err => {
-			if ( neo.trace) Log(err);
-			//if (cb) cb( err, null );
-		})
-		.then( () => {
-			ses.close();
-		})
-	},
-
-	function clearNet( net ) {
-		Log( "clear net", net);	
-		
-		this.cypher( `MATCH (n:${net}) DETACH DELETE n` );
-	},
-	
-	function saveNodes(net, nodes, res ) {		// add typed-nodes to neo4j
-		var 
-			neo = this,
-			trace = neo.trace;
-
-		Stream( nodes, {}, (node, name, cb) => {
-			if (cb) { // add node
-				neo.cypher(
-					`MERGE (n:${net}:${node.type} {name:$name}) ON CREATE SET n += $props`, {
-						name: name,
-						props: node
-				}, err => {
-					// if ( trace ) Log(">>>neo save node", err || "ok");
-					cb();
-				});
-			}
-					 
-			else	// all nodes processed so move forward
-				res( null );
-		});
-		
-	},
-
-	/*
-	function makeEdge( net, edge ) { // link existing typed-nodes by topic
-		var 
-			[src,tar,props] = edge,
-			neo = this;
-		
-		//Log("edge", src.name, tar.name, props);
-		neo.cypher(
-			`MATCH (a:${net} {name:$srcName}), (b:${net} {name:$tarName}) `
-			+ "MERGE "
-			+ `(a)-[r:${props.name}]-(b) `
-			+ "ON CREATE SET r = $props ", {
-					srcName: src.name,
-					tarName: tar.name,
-					props: props || {}
-		}, err => {
-			if (err) Log(">>>create edge failed", [src.name, tar.name] );
-		});
-	},*/
-	
-	function findAssoc( query, cb ) {
-		const 
-			neo = this,
-			[src,tar,rel] = query,
-			Rel = rel.replace( / /g, "");
-		
-		neoThread( neo => {
-			neo.cypher( 
-				`MATCH ( a {name:$src} ) -[r:${Rel}]-> ( b {name:$tar} ) RETURN r,a,b`, 
-				{
-					src: src,
-					tar: tar
-				}, 
-				(err,recs) => {
-				
-				if (err) Log(err);
-				cb( recs, query );
-			});
-		});		
-	},
-	
-	function saveNet( net, nodes, edges ) {
-		const 
-			neo = this;
-		
-		//neo.cypher( `CREATE CONSTRAINT ON (n:${net}) ASSERT n.name IS UNIQUE` );
-
-		Log(">>>neo save net", net);
-		
-		neo.saveNodes( net, nodes, () => {
-			//Log(">> edges", edges, "db=", db);
-			//Each( edges, (name,pairs) => neo.saveEdges( net, pairs ) );
-			neo.saveEdges( net, edges ) ;
-		});	
-	},
-	
-	function saveEdges( net, edges ) {
-		const 
-			neo = this,
-			trace = neo.trace;
-		
-		//Log("save pairs topic", name);
-		Each( edges, (name,edge) => {
-			//neo.makeEdge( net, edge );
-			var Type = edge.type.replace(/ /g, "");
-			
-			neo.cypher(
-				`MATCH (a:${net} {name:$src}), (b:${net} {name:$tar}) MERGE (a)-[r:${Type}]-(b) ON CREATE SET r = $props`, {
-				src: edge.src,
-				tar: edge.tar,
-				props: edge || {}
-			}, err => {
-				//if ( trace ) 
-				//Log(">>>neo save edge", err || "ok" );
-			});
-			
-		});
-	}
-
-].Extend(NEOCONNECTOR);
-
 [ //< String prototypes
 	/**
 		Parse XML string into json and callback cb(json) 
@@ -651,7 +485,7 @@ const
 	{ 
 		Log, Trace,
 		byArea, byType, byAction, byTable, CORS,
-		neoThread, defaultType, isTrusted,
+		defaultType, isTrusted,
 		$master, $worker, Fetch, fetchOptions, 
 		reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitRules,
 		filterRecords,routeDS, startDogs, cache } = TOTEM = module.exports = {
@@ -822,7 +656,7 @@ const
 				//Log("****>>>", [area,table,req.body,node],"body=",req.body);
 				
 				if ( area ) 
-					if ( area == "socket.io" && !table)	// ignore socket keep-alives
+					if ( area == "socket.io" && !table)	// ignore keep-alives from legacy socket.io 
 						Log("HUSH SOCKET.IO");
 
 					else	// send file
@@ -1129,6 +963,8 @@ const
 	api: {
 	},
 
+	savers: {},
+			
 	/**
 		Configure and start the service with options and optional callback when started.
 		Configure database, define site context, then protect, connect, start and initialize this server.
@@ -1250,10 +1086,9 @@ const
 							worker = CLUSTER.fork();
 						
 						sqlThread( sql => {	// get a sql connection
-							Log( [ // splash
+							console.log( [ // splash
 								"HOSTING " + site.nick,
 								"AT "+`(${site.master}, ${site.worker})`,
-								"DATABASE " + site.db ,
 								"FROM " + process.cwd(),
 								"WITH " + (sockets?"":"NO")+" SOCKETS",
 								"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
@@ -1665,7 +1500,10 @@ const
 
 		if (opts) Copy(opts, TOTEM, ".");
 
-		//Log(`CONFIGURING ${name}`); 
+		const
+			{ name, dbTrack, setContext, routeRequest } = TOTEM;
+		
+		Log(`CONFIGURING ${name}`); 
 
 		Each( paths.mimes, (key,val) => {	// extend or remove mime types
 			if ( val ) 
@@ -1674,37 +1512,10 @@ const
 				delete MIME.types[key];
 		});
 
-		neoThread( neo => {	// add prototypes and test neo4j connection
-			if (false) // test connection
-				neo.cypher(
-					// 'MATCH (u:User {email: {email}}) RETURN u',
-					'MERGE (alice:Person {name : $nameParam}) RETURN alice.name AS name', {
-						// email: 'alice@example.com',
-						nameParam: 'Alice'
-				}, (err, recs) => {
-					if (err) 
-						Log( err );
-
-					else 
-						if ( rec = recs[0] ) 
-							Log("neodb test alice user", rec );
-									// JSON.stringify(rec['u'], null, 4));
-
-						else
-							Log('neodb test - alice has no records.');
-				});
-
-			if (false) // clear db on startup
-				neo.cypher(
-					"MATCH (n) DETACH DELETE n", {}, err => {
-					Log( err || "CLEAR GRAPH DB" );
-				});  
-		});
-		
-		const {dbTrack,routeRequest,setContext,name} = TOTEM;
-		
 		JSDB.config({   // establish the db agnosticator 
-			track: dbTrack
+			track: dbTrack,
+			sio: SECLINK.sio,
+			savers: TOTEM.savers
 			//fetch: fetch			
 		}, err => {  // derive server vars and site context vars
 			if (err)
@@ -1915,14 +1726,6 @@ const
 	createCert: createCert, //< method to create PKI certificate
 		
 	/**
-		Reserved for dataset attributes derived by JSDB config
-		@cfg {Object}
-		@member TOTEM
-	*/
-	dsAttrs: {
-	},
-		
-	/**
 		Stop the server.
 		@cfg {Function}
 		@member TOTEM	
@@ -1931,16 +1734,19 @@ const
 	stop: stopService,
 	
 	/**
-		Thread a new sql connection to a callback.  Unless overridden, will default to the JSDB thread method.
+		Thread a new sql connection to a callback.  
 		@cfg {Function}
 		@param {Function} cb callback(sql connector)
 	*/
 	sqlThread: sqlThread,
-		
-	neoThread: cb => {
-		cb( new NEOCONNECTOR( false ) );
-	},
-		
+
+	/**
+		Thread a new neo4j connection to a callback.  
+		@cfg {Function}
+		@param {Function} cb callback(sql connector)
+	*/
+	neoThread: neoThread,
+			
 	/**
 		REST-to-CRUD translations
 		@cfg {Object}  
@@ -2896,7 +2702,7 @@ function insertDS(req, res) {
 			trace: trace,
 			set: body,
 			client: client,
-			sio: TOTEM.IO
+			sio: SECLINK.sio
 		}, (err,info) => {
 
 			res( err || {ID: info.insertId} );
@@ -2923,7 +2729,7 @@ function deleteDS(req, res) {
 				trace: trace,			
 				where: where,
 				client: client,
-				sio: TOTEM.IO
+				sio: SECLINK.sio
 			}, (err,info) => {
 
 				body.ID = query.ID;
@@ -2966,7 +2772,7 @@ function updateDS(req, res) {
 				where: where,
 				set: body,
 				client: client,
-				sio: null //TOTEM.IO
+				sio: null //SECLINK.sio
 			}, (err,info) => {
 
 				body.ID = query.ID;
