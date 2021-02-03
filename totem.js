@@ -2100,7 +2100,7 @@ const
 	byTable: {			  //< by-table routers	
 		riddle: sysChallenge,
 		task: sysTask,
-		login: sysLogin
+		//login: sysLogin
 	},
 		
 	/**
@@ -3105,66 +3105,12 @@ Validate session id=client guess=value.
 		res( "no admission credentials provided" );
 }
 
+/*
 function sysLogin(req,res) {
 	const 
 		{ sql, query, type, profile, body, action, client } = req,
 		{ account, password, option } = (action == "select") ? query : body;
 	
-/*  Accessing instructions for AWS envs 
-`
-Greetings from ${site.Nick.tag(site.master)}-
-
-Admin:
-Please create an AWS EC2 account for ${owner} using attached cert.
-
-To connect to ${site.Nick} from Windows:
-
-1. Establish gateway using 
-
-	Putty | SSH | Tunnels
-
-with the following LocalPort, RemotePort map:
-
-	5001, ${site.master}:22
-	5100, ${site.master}:3389
-	5200, ${site.master}:8080
-	5910, ${site.master}:5910
-	5555, Dynamic
-
-and, for convienience:
-
-	Pageant | Add Keys | your private ppk cert
-
-2. Start a ${site.Nick} session using one of these methods:
-
-${Putty} | Session | Host Name = localhost:5001 
-Remote Desktop Connect| Computer = localhost:5100 
-${FF} | Options | Network | Settings | Manual Proxy | Socks Host = localhost, Port = 5555, Socks = v5 `
-
-.replace(/\n/g,"<br>")	
-*/
-/* create user certs
-createCert(user.User, pass, () => {
-
-	Log("CREATE CERT FOR", user.User );
-
-	CP.exec(
-		`sudo adduser ${user.User} -gid ${user.Group}; sudo id ${user.User}`,
-		(err,out) => {
-
-			sql.query(
-				"UPDATE openv.profiles SET ? WHERE ?",
-				[ {uid: out}, {User:user.User} ]
-			);
-
-			Log( err 
-				? `Account failed for ${user.User} - require "sudo adduser" to protect this service`
-				: `Account created and group rights assigned to ${user.User}`
-			);
-	});
-});
-*/
-
 	if ( type == "help" )
 		return res( `
 Login, request password reset, make temp account, return online users, mane an account using option = 
@@ -3191,6 +3137,7 @@ login||reset||temp||make with the specified account=NAME and password=TEXT.
 	}
 
 }
+*/
 
 [  //< date prototypes
 ].Extend(Date);
