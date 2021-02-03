@@ -1161,7 +1161,6 @@ const
 
 				// phase2 resolveClient
 				log: {...}			// info to trap socket stats
-				joined: date		// time admitted
 				client: "..."		// name of client from cert or "guest"
 				cert: {...} 		// full client cert
 
@@ -1601,7 +1600,7 @@ const
 										{ addConnect } = sqls;
 									
 									if (err)			// client rejected
-										res(null);
+										ses(null);
 
 									else  {
 										ses(res);			// client accepted so start connection
@@ -1621,16 +1620,17 @@ const
 						if ( req ) {
 							Req.req = req;
 							startResponse( res => {	// route the request on the provided response callback
+								
 								if ( res ) 
 									routeRequest(req,res);
 
-								else
-									Res.end("INVALID REQUEST");
+								else 
+									Res.end( errors.pretty( new Error("invalid session") ) );
 							});
 						}
 									
 						else
-							Res.end("INVALID SESSION");
+							Res.end( errors.pretty( new Error("invalid session") ) );
 					});
 				});
 			}
@@ -2601,20 +2601,15 @@ function resolveClient(req,res) {
 	}
 
 	const 
-		{ sql,encrypted,reqSocket, cookie } = req,
+		{ sql, cookie, encrypted, reqSocket, ipAddress } = req,
 		{ getProfile, addProfile } = sqls,
-		guest = "guest@totem.org",
-		/* 
-		cert = req.cert = getCert( reqSocket ),
-		joined = req.joined = new Date(),
-		client = req.client = (cert.subjectaltname||guest).toLowerCase().split(",")[0].replace("email:",""),
-		*/
-		cookies = req.cookies = {};
+		cookies = req.cookies = {},
+		guest = `guest${ipAddress}@totem.org`;
 	
 	checkCert( cert => {
 		const
 			{ Login } = SECLINK,
-			account = req.client = (cert.subjectaltname||"").toLowerCase().split(",")[0].replace("email:","");
+			account = req.client = (cert.subjectaltname||guest).toLowerCase().split(",")[0].replace("email:","");
 
 		if ( cookie ) 						//  client providing cookie to speed profile setup
 			cookie.split("; ").forEach( cook => {
@@ -2622,7 +2617,7 @@ function resolveClient(req,res) {
 				cookies[key] = val;
 			});
 	
-		Log("cookies", cookies);
+		//Log("cookies", cookies, account);
 		
 		Login( cookies.session || account, "", (err,profile) => {
 			if ( err ) 
@@ -2631,6 +2626,7 @@ function resolveClient(req,res) {
 			else {
 				req.client = profile.Client;
 				req.profile = Copy( profile,{});
+				req.cert = Copy(cert,{});
 				res( null );
 			}
 		});
