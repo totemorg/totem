@@ -1309,7 +1309,7 @@ const
 							if ( req.reqSocket )	// have a valid request socket so ....
 								resolveClient(req, (err,profile) => {	// admit good client
 									
-									Log("resolve", err);
+									//Log("resolve", err);
 									
 									if ( err ) 
 										ses( err );
@@ -1450,7 +1450,7 @@ const
 								res( new Error("socket lost") );
 						}
 
-						Log("startReq", err);
+						//Log("startReq", err);
 						
 						if (err)
 							Res.end( errors.pretty( err ) );
@@ -1458,7 +1458,7 @@ const
 						else {
 							Req.req = req;
 							startResponse( (err,res) => {	// route the request on the provided response callback
-								Log("startRes", err);
+								//Log("startRes", err);
 								
 								if ( err ) 
 									Res.end( errors.pretty( err ) );
