@@ -1018,26 +1018,26 @@ const
 
 			@param {Function} agent callback(req,res) to handle session request-response 
 		*/
-		function setupService(agent) {  
+		function configService(agent) {  
 
 			/*
 				If the service is already connected, inherit the server; otherwise define a suitable 
 				http/https interface, then start and initialize the service.
 			*/
-			function connectService() {
+			function createServer() {
 				
 				/*
 					Attach a port listener to service then start it.
 					@param {Number} port port to listen on
 					@param {Function} cb callback(Req,Res) to handle session request
 				*/
-				function startSession(port, cb) {
+				function startServer(server, port, cb) {
 					const 
-						{ routeRequest, socketIO, name, server, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM;
+						{ routeRequest, socketIO, name, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM;
 					
-					Log(`STARTING ${name} AntibotExtend=${TOTEM.riddles}`);
+					Log(`STARTING ${name}`);
 
-					if ( socketIO ) {
+					if ( socketIO )		// setup socketio if allowed
 						SECLINK.config({
 							server: server,
 							sqlThread: sqlThread,
@@ -1052,8 +1052,6 @@ const
 								captcha: paths.captcha,
 							}
 						});
-						Log("sio def", SECLINK.sio);
-					}
 						
 					// The BUSY interface provides a means to limit client connections that would lock the 
 					// service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
@@ -1069,8 +1067,6 @@ const
 						for (var signal in guards)
 							process.on(signal, () => Log( "SIGNALED", signal) );
 					}
-
-					//initChallenger();
 
 					TOTEM.initialize(null);	
 					
@@ -1194,30 +1190,28 @@ const
 
 				//Log("enc>>>", isEncrypted(), paths.certs+"truststore" );
 				
-				if ( isEncrypted() ) {  // have encrypted services so start https service
-					Each( FS.readdirSync(paths.certs+"truststore"), (n,file) => {
-						if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
-							Log("TRUSTING", file);
-							trustStore.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf-8") );
-						}
-					});
+				Each( FS.readdirSync(paths.certs+"truststore"), (n,file) => {
+					if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
+						Log("TRUSTING", file);
+						trustStore.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf-8") );
+					}
+				});
 
-					TOTEM.server = HTTPS.createServer({
-						passphrase: TOTEM.passEncrypted,		// passphrase for pfx
-						pfx: certs.totem.pfx,			// pfx/p12 encoded crt and key 
-						ca: trustStore,				// list of pki authorities (trusted serrver.trust)
-						crl: [],						// pki revocation list
-						requestCert: true,
-						rejectUnauthorized: true,
-						secureProtocol: 'TLSv1_2_method',
-						//secureOptions: CONS.SSL_OP_NO_TLSv1_0
-					});					
-				}
+				const
+					server = isEncrypted() 
+						? HTTPS.createServer({
+							passphrase: TOTEM.passEncrypted,		// passphrase for pfx
+							pfx: certs.totem.pfx,			// pfx/p12 encoded crt and key 
+							ca: trustStore,				// list of pki authorities (trusted serrver.trust)
+							crl: [],						// pki revocation list
+							requestCert: true,
+							rejectUnauthorized: true,
+							secureProtocol: 'TLSv1_2_method',
+							//secureOptions: CONS.SSL_OP_NO_TLSv1_0
+						})	// have encrypted services so start https service			
+						: HTTP.createServer();		// unencrpted services so start http service
 
-				else  // unencrpted services so start http service
-					TOTEM.server = HTTP.createServer();
-				
-				startSession( port, (Req,Res) => {		// start session
+				startServer( server, port, (Req,Res) => {		// start session
 					/**
 						Provide a request to the supplied session, or terminate the session if the service
 						is too busy.
@@ -1255,7 +1249,7 @@ const
 									sqlThread( sql => {
 										//Log(Req.headers, Req.url);
 										
-										ses({			// prime session request
+										ses(null, {			// prime session request
 											cookie: Req.headers["cookie"] || "",
 											ipAddress: Req.connection.remoteAddress,
 											host: $master.protocol+"//"+Req.headers["host"],	// domain being requested
@@ -1297,14 +1291,14 @@ const
 								break;
 
 							default:
-								Res.end( "NO METHOD" );
+								ses( new Error("invalid method") );
 						}
 					}
 
 					if ( BUSY ? BUSY() : false )	// trap DNS attacks
 						return Res.end( "BUSY" );
 
-					startRequest( req => {  // start request if service not busy.
+					startRequest( (err,req) => {  // start request if service not busy.
 						/**
 							Provide a response to a session after attaching sql, cert, client, profile 
 							and session info to this request.  
@@ -1312,136 +1306,137 @@ const
 							@param {Function} cb connection accepting the provided response callback
 						*/
 						function startResponse( ses ) {  
-							function res(data) {  // Session response callback
+							if ( req.reqSocket )	// have a valid request socket so ....
+								resolveClient(req, (err,profile) => {	// admit good client
+									
+									Log("resolve", err);
+									
+									if ( err ) 
+										ses( err );
 
-								// Session terminators respond with a string, file, db structure, or error message.
+									else {			// client accepted so start session
+										req.client = profile.Client;
+										req.profile = Copy( profile, {});
+									
+										const 
+											{ sql, client } = req,
+											{ addConnect } = sqls;
 
-								function sendString( data ) {  // Send string - terminate sql connection
-									Res.end( data );
-								}
+										ses(null, data => {  // Provide session response callback
 
-								function sendError(err) {  // Send pretty error message - terminate sql connection
-									switch ( req.type ) {
-										case "html":
-										case "db":
-											Res.end( errors.pretty(err) );
-											break;
+											function sendString( data ) {  // Send string - terminate sql connection
+												Res.end( data );
+											}
 
-										default:
-											Res.end( err+"" );
-									}
-								}
-
-								function sendObject(obj) {
-									try {
-										sendString( JSON.stringify(obj) );
-									}
-									catch (err) {  // infinite cycle
-										sendError( errors.badReturn );
-									}		
-								}
-
-								function sendRecords(recs) { // Send records via converter
-									if ( route = filterRecords[req.type] )  // process record conversions
-										route(recs, req, recs => {
-											if (recs) 
-												switch ( typeOf(recs) ) {
-													case "Error":
-														sendError( recs );
+											function sendError(err) {  // Send pretty error message - terminate sql connection
+												switch ( req.type ) {
+													case "html":
+													case "db":
+														Res.end( errors.pretty(err) );
 														break;
 
-													case "String":
-														sendString( recs );
-														break;
-
-													case "Array":
-													case "Object":
 													default:
-														sendObject( recs );
-												} 
+														Res.end( err+"" );
+												}
+											}
 
-											else
-												sendError( errors.badReturn );
-										});
+											function sendObject(obj) {
+												try {
+													sendString( JSON.stringify(obj) );
+												}
+												catch (err) {  // infinite cycle
+													sendError( errors.badReturn );
+												}		
+											}
 
-									else 
-										sendObject( recs );
-								}
+											function sendRecords(recs) { // Send records via converter
+												if ( route = filterRecords[req.type] )  // process record conversions
+													route(recs, req, recs => {
+														if (recs) 
+															switch ( typeOf(recs) ) {
+																case "Error":
+																	sendError( recs );
+																	break;
 
-								const
-									{ req } = Req,
-									{ sql } = req,
-									mimes = MIME.types,
-									mime = mimes[ isError(data||0) ? "html" : req.type ] || mimes.html;
+																case "String":
+																	sendString( recs );
+																	break;
 
-								// set appropriate headers to prevent http-parse errors when using master-worker proxy
-								
-								/*
-								if ( req.encrypted )
-									Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
-								*/
-								
-								try {
-									Res.setHeader("Content-Type", mime);
-									
-									if ( CORS ) {	// support CORS
-										Res.setHeader("Access-Control-Allow-Origin", "*");
-										Res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-										Res.setHeader("Access-Control-Allow-Headers", '*');
-										Res.setHeader("Status", "200 OK");
-										Res.setHeader("Vary", "Accept");
-									}
+																case "Array":
+																case "Object":
+																default:
+																	sendObject( recs );
+															} 
 
-									/*
-									Experimental:
-									self.send_header('Content-Type', 'application/octet-stream')
-									*/
+														else
+															sendError( errors.badReturn );
+													});
 
-									Res.statusCode = 200;
+												else 
+													sendObject( recs );
+											}
 
-									if (data != null)
-										switch ( typeOf(data) ) {  // send based on its type
-											case "Error": 			// send error message
-												sendError( data );
-												break;
+											const
+												{ req } = Req,
+												{ sql } = req,
+												mimes = MIME.types,
+												mime = mimes[ isError(data||0) ? "html" : req.type ] || mimes.html;
 
-											case "Array": 			// send data records 
-												sendRecords(data);
-												break;
+											// set appropriate headers to prevent http-parse errors when using master-worker proxy
 
-											case "String":  			// send message
-											case "Buffer":
-												sendString(data);
-												break;
+											/*
+											if ( req.encrypted )
+												Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
+											*/
 
-											case "Object":
-											default: 					// send data record
-												sendObject(data);
-												break;
-										}
+											try {
+												Res.setHeader("Content-Type", mime);
 
-									else
-										sendError( errors.noData );
-								}
-								
-								catch (err) {
-									Log("header issues", err);
-									Res.end();
-								}
-								
-							}
+												if ( CORS ) {	// support CORS
+													Res.setHeader("Access-Control-Allow-Origin", "*");
+													Res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+													Res.setHeader("Access-Control-Allow-Headers", '*');
+													Res.setHeader("Status", "200 OK");
+													Res.setHeader("Vary", "Accept");
+												}
 
-							if (sock = req.reqSocket )	// have a valid request socket so ....
-								resolveClient(req, err => {	// admit good client
-									const 
-										{ sql, client } = req,
-										{ addConnect } = sqls;
-									
-									if (err)			// client rejected
-										ses(null);
+												/*
+												Experimental:
+												self.send_header('Content-Type', 'application/octet-stream')
+												*/
 
-									else  {
-										ses(res);			// client accepted so start connection
+												Res.statusCode = 200;
+
+												if (data != null)
+													switch ( typeOf(data) ) {  // send based on its type
+														case "Error": 			// send error message
+															sendError( data );
+															break;
+
+														case "Array": 			// send data records 
+															sendRecords(data);
+															break;
+
+														case "String":  			// send message
+														case "Buffer":
+															sendString(data);
+															break;
+
+														case "Object":
+														default: 					// send data record
+															sendObject(data);
+															break;
+													}
+
+												else
+													sendError( errors.noData );
+											}
+
+											catch (err) {
+												Res.end();
+											}	
+										});	
+										
 										if ( addConnect )	// optional logging of connections
 											sql.query(addConnect, {
 												Client: client,
@@ -1452,23 +1447,26 @@ const
 								});
 
 							else 	// lost reqest socket for some reason so ...
-								res( null );
+								res( new Error("socket lost") );
 						}
 
-						if ( req ) {
+						Log("startReq", err);
+						
+						if (err)
+							Res.end( errors.pretty( err ) );
+						
+						else {
 							Req.req = req;
-							startResponse( res => {	// route the request on the provided response callback
+							startResponse( (err,res) => {	// route the request on the provided response callback
+								Log("startRes", err);
 								
-								if ( res ) 
-									routeRequest(req,res);
-
-								else 
-									Res.end( errors.pretty( new Error("invalid session") ) );
+								if ( err ) 
+									Res.end( errors.pretty( err ) );
+								
+								else
+									routeRequest(req,res); 
 							});
 						}
-									
-						else
-							Res.end( errors.pretty( new Error("invalid session") ) );
 					});
 				});
 			}
@@ -1490,15 +1488,15 @@ const
 				FS.access( pfx, FS.F_OK, err => {
 					if (err) // create self-signed cert then connect
 						createCert(name, TOTEM.passEncrypted, () => {
-							connectService();
+							createServer();
 						});	
 
 					else // got the pfx so connect
-						connectService();
+						createServer();
 				});
 
 			else 
-				connectService();
+				createServer();
 		}
 
 		if (opts) Copy(opts, TOTEM, ".");
@@ -1527,7 +1525,7 @@ const
 				sqlThread( sql => {
 					if (name)	// derive site context
 						setContext(sql, () => {
-							setupService(routeRequest);
+							configService(routeRequest);
 							if (cb) cb(sql);
 						});
 					
@@ -2427,16 +2425,8 @@ function resolveClient(req,res) {
 	
 		//Log("cookies", cookies, account);
 		
-		Login( cookies.session || account, "", (err,profile) => {
-			if ( err ) 
-				res(err);
-
-			else {
-				req.client = profile.Client;
-				req.profile = Copy( profile,{});
-				req.cert = Copy(cert,{});
-				res( null );
-			}
+		Login( cookies.session || account, function guestSession(err,profile) {
+			res( err, profile );
 		});
 	});
 }
@@ -2823,7 +2813,7 @@ function simThread(sock) {
 				}
 			};
 				
-		startSession(Req,Res);
+		startServer(Req,Res);
 	});
 } */
 
