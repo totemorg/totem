@@ -1037,21 +1037,24 @@ const
 					
 					Log(`STARTING ${name} AntibotExtend=${TOTEM.riddles}`);
 
-					if ( socketIO ) SECLINK.config({
-						server: server,
-						sqlThread: sqlThread,
-						isTrsuted: TOTEM.isTrusted,
-						sendMail: TOTEM.sendMail,
-						inspector: TOTEM.inspector,
-						challenge: {
-							extend: TOTEM.riddles,
-							store: TOTEM.riddle,
-							map: TOTEM.riddleMap,
-							riddler: paths.riddler,
-							captcha: paths.captcha,
-						}
-					});
-					
+					if ( socketIO ) {
+						SECLINK.config({
+							server: server,
+							sqlThread: sqlThread,
+							isTrsuted: TOTEM.isTrusted,
+							sendMail: TOTEM.sendMail,
+							inspector: TOTEM.inspector,
+							challenge: {
+								extend: TOTEM.riddles,
+								store: TOTEM.riddle,
+								map: TOTEM.riddleMap,
+								riddler: paths.riddler,
+								captcha: paths.captcha,
+							}
+						});
+						Log("sio def", SECLINK.sio);
+					}
+						
 					// The BUSY interface provides a means to limit client connections that would lock the 
 					// service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
 					// service attacks.  (Alas latest versions do not compile in latest NodeJS.)
@@ -1514,7 +1517,6 @@ const
 
 		JSDB.config({   // establish the db agnosticator 
 			track: dbTrack,
-			sio: SECLINK.sio,
 			savers: TOTEM.savers
 			//fetch: fetch			
 		}, err => {  // derive server vars and site context vars
@@ -2772,7 +2774,7 @@ function updateDS(req, res) {
 				where: where,
 				set: body,
 				client: client,
-				sio: null //SECLINK.sio
+				sio: SECLINK.sio
 			}, (err,info) => {
 
 				body.ID = query.ID;
