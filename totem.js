@@ -1018,26 +1018,17 @@ const
 
 			@param {Function} agent callback(req,res) to handle session request-response 
 		*/
-		function configService(agent) {  
+		function configService(agent) {  	//< configure, create, then start the server
 
-			/*
-				If the service is already connected, inherit the server; otherwise define a suitable 
-				http/https interface, then start and initialize the service.
-			*/
-			function createServer() {
+			function createServer() {		//< create and start the server
 				
-				/*
-					Attach a port listener to service then start it.
-					@param {Number} port port to listen on
-					@param {Function} cb callback(Req,Res) to handle session request
-				*/
-				function startServer(server, port, cb) {
+				function startServer(server, port, cb) {	//< attach listener callback cb(Req,Res) to the specified port
 					const 
-						{ routeRequest, socketIO, name, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM;
+						{ routeRequest, secureLink, name, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM;
 					
 					Log(`STARTING ${name}`);
 
-					if ( socketIO )		// setup socketio if allowed
+					if ( secureLink )		// setup secureLink socketio 
 						SECLINK.config({
 							server: server,
 							sqlThread: sqlThread,
@@ -1517,7 +1508,7 @@ const
 			track: dbTrack,
 			savers: TOTEM.savers
 			//fetch: fetch			
-		}, err => {  // derive server vars and site context vars
+		}, err => {  // derive server vars and site context, then configure and start the server
 			if (err)
 				Log(err);
 
@@ -1790,7 +1781,7 @@ const
 		Enabled to support web sockets
 		@cfg {Boolean} [sockets=false]
 	*/
-	socketIO: true, 	//< enabled to support web sockets
+	secureLink: true, 	//< enabled to support web sockets
 		
 	/**
 		Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
