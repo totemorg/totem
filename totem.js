@@ -3536,6 +3536,21 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 			Log( "doc=>", doc );
 		});
 		break;
+		
+	case "XX":
+		"testabc; testdef;".replaceSync(/test(.*?);/g, (args,cb) => {
+			//console.log(args);
+			
+			if ( cb ) 
+				Fetch( "http://localhost:8080/nets.txt?x:=Name", txt => {
+					//console.log("fetch", args, txt);
+					cb( "#"+args[1] );
+					//cb( "#"+txt );
+				});
+			
+			else
+				console.log("final", args); 
+		});
 }
 
 // UNCLASSIFIED
