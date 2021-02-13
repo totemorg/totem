@@ -609,7 +609,7 @@ const
 		@param {Object} res session response
 	*/
 	routeRequest: (req,res) => {
-		function routeNode(node, req, cb) {	//< Parse and route the NODE = /DATASET.TYPE request
+		function routeNode(node, req, res) {	//< Parse and route the NODE = /DATASET.TYPE request
 			/*
 				Log session metrics, trace the current route, then callback route on the supplied 
 				request-response thread.
@@ -653,14 +653,15 @@ const
 					{ area, table, path } = req;
 				
 				Log( route.name.toUpperCase(), path );
-				//Log("****>>>", [area,table,req.body,node],"body=",req.body);
 				
-				if ( area ) 
+				if ( area || !table ) 
+					/* legacy socket.io side effect
 					if ( area == "socket.io" && !table)	// ignore keep-alives from legacy socket.io 
 						Log("HUSH SOCKET.IO");
 
 					else	// send file
-						route( req, txt => res(txt) );
+					*/
+					route( req, txt => res(txt) );
 				
 				else {
 					//Log("log check", req.area, req.reqSocket?true:false, req.log );
@@ -679,11 +680,11 @@ const
 								}
 							}
 
-							if ( !call ) cb(req, recs);
+							if ( !call ) res(recs);
 						}
 
 						else
-							cb(req, null);
+							res(null);
 					});
 				}
 			}
@@ -695,7 +696,6 @@ const
 			
 			//Log("body=", req.body, body);
 			const
-
 				query = req.query = {},
 				index = req.index = {},	
 				where = req.where = {},
@@ -734,20 +734,19 @@ const
 				delete body[id];
 			}
 
-			if ( area ) 	// send file
+			if ( area || !table ) 	// send file
 				followRoute( function send(req,res) {	// provide a route to send a file
 					const
-						{area,table,type,path} = req,
-						get = "file:" + path;
+						{area,table,type,path} = req;
 					
-					if ( get.endsWith("/") )		// requesting folder
-						Fetch( get, files => {
-							req.type = "html"; // otherwise default type is json.
-							//res( files );
-							files.forEach( (file,n) => files[n] = file.link( file ) );
-							res(`hello ${req.client}<br>Index of ${path}:<br>` + files.join("<br>") );
-						});
-
+					//Log(area,path,type);
+					if ( path.endsWith("/") )		// requesting folder
+						if ( route = byArea[area] || byArea.default )
+							route(req,res);
+					
+						else
+							res( errors.noRoute );
+					
 					else {	// requesting file						
 						const
 							file = table+"."+type,
@@ -760,7 +759,7 @@ const
 							res( cache[path] );
 						
 						else
-							Fetch( get, txt => {
+							Fetch( "file:" + path, txt => {
 								if ( !neverCache ) cache[path] = txt; 
 								res(txt);
 							});
@@ -786,7 +785,7 @@ const
 						followRoute( route );				
 
 					else
-						cb( req, errors.noRoute );
+						res( errors.noRoute );
 				}
 
 				else
@@ -794,10 +793,10 @@ const
 					followRoute( route );
 
 				else 
-					cb( req, errors.noRoute );
+					res( errors.noRoute );
 			
 			else
-				cb( req, errors.noRoute );
+				res( errors.noRoute );
 		}
 					
 		const 
@@ -869,10 +868,7 @@ const
 			return parms;
 		});		// get body parameters/files
 
-		routeNode( node, req, (req,recs) => {
-			//Log("exit route node", typeOf(recs), typeOf(recs[0]) );
-			res(recs);
-		});
+		routeNode( node, req, res);
 		
 		/*
 		if ( !nodes.length )
@@ -935,7 +931,7 @@ const
 		pretty: err => (err+"").replace("Error:",""),
 		badMethod: new Error("unsupported request method"),
 		noProtocol: new Error("no fetch protocol specified"),
-		noRoute: new Error("no route - use "+"home".link("/home/")),
+		noRoute: new Error("no route found"),
 		badQuery: new Error("invalid query"),
 		badGroup: new Error("invalid group requested"),
 		lostConnection: new Error("client connection lost"),
@@ -1918,13 +1914,19 @@ const
 		By-area endpoint routers {area: method(req,res), ... } for sending/cacheing files
 		@cfg {Object} 
 	*/		
-	byArea: {	//< by-area routers
-		//stores: getFile,
-		//shares: getFile,
-		//public: getFile,
-		//"": getFile,
-		//uploads: getFile,
-		//stash: getFile
+	byArea: {
+		default: (req,res) => {
+			const
+				{client,path} = req;
+
+			Fetch( "file:" + path, files => {
+				req.type = "html"; // otherwise default type is json.
+				res(
+					`hello ${client}<br>Index of ${path}<br>` +
+					files.map( file.link( file ) ).join("<br>") 
+				);
+			});
+		}
 	},
 
 	/**
