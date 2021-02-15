@@ -263,7 +263,8 @@ start_cesium.)
 		echo -e "cesium service running: \n$P"
 	else
 		#node $BASE/cesium/geonode/geocesium --port 8083 --public &
-		node $BASE/cesium/server --port 8083 --public &
+		//node $BASE/cesium/server --port 8083 --public &
+		node $BASE/cesium/server.cjs --port 8083 --public &
 	fi
 	;;
 
