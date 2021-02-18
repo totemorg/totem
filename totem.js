@@ -1923,7 +1923,7 @@ const
 				req.type = "html"; // otherwise default type is json.
 				res(
 					`hello ${client}<br>Index of ${path}<br>` +
-					files.map( file.link( file ) ).join("<br>") 
+					files.map( file => file.link( file ) ).join("<br>") 
 				);
 			});
 		}
