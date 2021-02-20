@@ -654,7 +654,7 @@ const
 				
 				Log( route.name.toUpperCase(), path );
 				
-				if ( area || !table ) 
+				if ( area || !table ) // routing a file or no endpoint 
 					/* legacy socket.io side effect
 					if ( area == "socket.io" && !table)	// ignore keep-alives from legacy socket.io 
 						Log("HUSH SOCKET.IO");
@@ -670,17 +670,28 @@ const
 							logSession( log, sock );  
 
 					route(req, recs => {	// route request and capture records
-						var call = null;
 						if ( recs ) {
-							for ( var key in flags ) if ( !call ) {	// perform single data conversion
+							//Log("flags", flags);
+							/*
+							var call = null;
+							for ( var key in flags ) if ( !call ) {	// perform single data modifier
 								if ( key.startsWith("$") ) key = "$";
 								if ( call = reqFlags[key] ) {
-									call( recs, req, recs => cb(req, recs) );
+									call( recs, req, recs => res(req, recs) );
 									break;
 								}
 							}
 
-							if ( !call ) res(recs);
+							if ( !call ) res(recs);  */
+							
+							var mod;
+							for ( var key in flags ) mod = reqFlags[key];
+							
+							if ( mod ) 
+								mod( recs, req, recs => res(recs) );
+							
+							else
+								res(recs);
 						}
 
 						else
@@ -767,7 +778,7 @@ const
 				});
 
 			else
-			if ( table )
+			if ( table ) {
 				if ( route = byType[req.type] ) // route by type
 					followRoute( route );
 
@@ -794,6 +805,7 @@ const
 
 				else 
 					res( errors.noRoute );
+			}
 			
 			else
 				res( errors.noRoute );
