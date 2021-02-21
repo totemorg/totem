@@ -779,14 +779,14 @@ const
 
 			else
 			if ( table ) {
-				if ( route = byType[req.type] ) // route by type
-					followRoute( route );
-
-				else
 				if ( route = byTable[table] ) 	// route by endpoint name
 					followRoute( route );
 
 				else  
+				if ( route = byType[req.type] ) // route by type
+					followRoute( route );
+
+				else
 				if ( route = byAction[action] ) {	// route by crud action
 					if ( route = route[table] )
 						followRoute( route );
@@ -1905,7 +1905,7 @@ const
 	byTable: {			  //< by-table routers	
 		riddle: sysChallenge,
 		task: sysTask,
-		//login: sysLogin
+		ping: sysPing
 	},
 		
 	/**
@@ -2825,6 +2825,14 @@ function simThread(sock) {
 /**
 @class TOTEM.End_Points.System_Probes
 */
+
+function sysPing(req,res) {
+	const 
+		{ client } = req,
+		{ nick } = site;
+	
+	res( `Welcome ${client} to ${nick}` );
+}
 
 /**
 	Endpoint to shard a task to the compute nodes.
