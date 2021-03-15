@@ -16,7 +16,7 @@
 	@requires vm
 	@requires crypto
 
-	@requires enum
+	@requires enums
 	@requires jsdb
 	@requires securelink
 	@requires socketio
@@ -59,7 +59,7 @@ const
 	JS2CSV = require('json2csv'),				// JSON to CSV parser	
 	SECLINK = require("securelink"),			// secure com and login
 	{ sqlThread, neoThread } = JSDB = require("jsdb"),		// database agnosticator
-	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = ENUM = require("enum");
+	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = require("enums");
 	  
 [ //< String prototypes
 	/**
