@@ -2387,6 +2387,8 @@ function resolveClient(req,res) {
 			cert = getCert(reqSocket),
 			now = new Date();
 		
+		Log("cert>>>", cert, admitRules);
+
 		if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
 			cb( null );
 
@@ -2415,24 +2417,32 @@ function resolveClient(req,res) {
 		{ sql, cookie, encrypted, reqSocket, ipAddress } = req,
 		{ getProfile, addProfile } = sqls,
 		cookies = req.cookies = {},
-		guest = `guest${ipAddress}@totem.org`;
+		guest = `email:guest${ipAddress}@totem.org`;
 	
 	checkCert( cert => {
+		
 		const
 			{ Login } = SECLINK,
-			account = req.client = (cert.subjectaltname||guest).toLowerCase().split(",")[0].replace("email:","");
+			[x,account] = (cert.subjectaltname||guest).toLowerCase().split(",")[0].match(/email:(.*)/) || [];
 
-		if ( cookie ) 						//  client providing cookie to speed profile setup
-			cookie.split("; ").forEach( cook => {
-				const [key,val] = cook.split("=");
-				cookies[key] = val;
+		if ( account ) {
+			req.client = account;
+			
+			if ( cookie ) 						//  client providing cookie to speed profile setup
+				cookie.split("; ").forEach( cook => {
+					const [key,val] = cook.split("=");
+					cookies[key] = val;
+				});
+
+			//Log("cookies", cookies, account);
+
+			Login( cookies.session || account, function guestSession(err,profile) {
+				res( err, profile );
 			});
-	
-		//Log("cookies", cookies, account);
+		}
 		
-		Login( cookies.session || account, function guestSession(err,profile) {
-			res( err, profile );
-		});
+		else
+			res( new Error("must present an email cert") );
 	});
 }
 
