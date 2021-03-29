@@ -134,7 +134,7 @@ _configall.)
 
 flatten.)
 	echo "flattening $2/* -> $2.tar -> $2.hex -> F_$2_xx*"
-	tar cvf $2.tar $2
+	tar cvf $2.tar $2 --exclude=.git
 	xxd -p $2.tar $2.hex
 	split -b 10m $2.hex F_$2_$xx
 	rm $2.tar

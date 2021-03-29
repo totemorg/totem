@@ -616,13 +616,12 @@ const
 			*/
 			function followRoute(route) {	//< route the request
 
-				function logSession( log, sock) { //< log session metrics 
+				function logSession(sock) { //< log session metrics 
 					
-					const { logMetrics } = sqls;
-
-					if ( !logMetrics ) return;
-					
-					sock._started = new Date();
+					sock._log = { 
+						Event: new Date(), 			// start time
+						Client: req.client
+					};	
 
 					/*
 					If maxlisteners is not set to infinity=0, the connection becomes sensitive to a sql 
@@ -632,30 +631,36 @@ const
 					sock.setMaxListeners(0);
 					
 					sock.on('close', () => { 		// cb when connection closed
+						const
+							{ _log } = sock;
+						
 						var 
-							secs = sock._started ? ((new Date()).getTime() - sock._started.getTime()) / 1000 : 0,
+							started = _log.Event,
+							ended = new Date(),
+							secs = (ended.getTime() - started.getTime()) * 1e-3,
 							bytes = sock.bytesWritten;
 
 						sqlThread( sql => {
-							sql.query(logMetrics, [ Copy(log, {
+							sql.query(logMetrics, [{
 								Delay: secs,
 								Transfer: bytes,
-								Event: sock._started,
+								Event: started,
 								Dataset: "",
-								Client: req.client,
-								Actions: 1
-							}), bytes, secs, log.Event  ], err => Log("dblog", err) );
+								Actions: 1,
+								Client: _log.Client,
+							}, bytes, secs] );
 						});
 					});
 				}
 
 				const
+					{ logMetrics } = sqls,
 					{ area, table, path } = req;
 				
 				Log( route.name.toUpperCase(), path );
 				
 				if ( area || !table ) // routing a file or no endpoint 
-					/* legacy socket.io side effect
+					/* trap for legacy socket.io 
 					if ( area == "socket.io" && !table)	// ignore keep-alives from legacy socket.io 
 						Log("HUSH SOCKET.IO");
 
@@ -665,9 +670,9 @@ const
 				
 				else {
 					//Log("log check", req.area, req.reqSocket?true:false, req.log );
-					if ( sock = req.reqSocket )  	// log if http has a request socket
-						if ( log = req.log )  		// log if session log-able
-							logSession( log, sock );  
+					if ( logMetrics )
+						if ( sock = req.reqSocket ) 
+							logSession( sock );  
 
 					route(req, recs => {	// route request and capture records
 						if ( recs ) {
@@ -816,8 +821,6 @@ const
 			node = url;
 			//nodes = nodeDivider ? url.split(nodeDivider) : [url];
 
-		//Log(">>>>>>>>>>>post", post);
-		
 		req.body = post.parseJSON( post => {  // get parameters or yank files from body 
 			var 
 				files = req.files = [], 
@@ -880,38 +883,7 @@ const
 			return parms;
 		});		// get body parameters/files
 
-		routeNode( node, req, res);
-		
-		/*
-		if ( !nodes.length )
-			res( null );
-
-		else
-		if (nodes.length == 1) 	// route just this node
-			routeNode( nodes[0], req, (req,recs) => {
-				//Log("exit route node", typeOf(recs), typeOf(recs[0]) );
-				res(recs);
-			});
-
-		else {	// serialize nodes
-			//Log(">>>>multi nodes", nodes);
-			var
-				routed = 0;
-			const 
-				routes = nodes.length,
-				rtns = {};
-
-			nodes.forEach( node => {	// enumerate nodes
-				if ( node )
-					routeNode( node, Copy(req,{}), (req,recs) => {	// route the node and capture returned records
-						rtns[req.table] = recs;
-						//Log(">>node", req.table, recs);
-						
-						if ( ++routed == routes ) res( rtns );
-					});
-			});
-		}
-		*/
+		routeNode( node, req, res);		
 	},
 
 	startDogs: (sql,dogs) => {
@@ -2110,7 +2082,7 @@ const
 		//logThreads: "show session status like 'Thread%'",
 		users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM openv.dblogs WHERE instr(dataset,'@')",
 		derive: "SELECT * FROM openv.apps WHERE ? LIMIT 1",
-		// logMetrics: "INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?, Event=?",
+		// logMetrics: "INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?",
 		search: "SELECT * FROM openv.files HAVING Score > 0.1",
 		//credit: "SELECT * FROM openv.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 1",
 		getProfile: "SELECT * FROM openv.profiles WHERE Client=? LIMIT 1",
@@ -2336,7 +2308,7 @@ function createCert(owner,pass,cb) {
 */
 function resolveClient(req,res) {  
 	
-	function checkCert(cb) { 
+	function checkCert(cb) { //< callbck cb(cert || null)
 		function getCert(sock) {  //< Return cert presented on this socket (w or w/o proxy).
 			const 
 				cert =  (encrypted && sock.getPeerCertificate) ? sock.getPeerCertificate() : {
@@ -2387,7 +2359,7 @@ function resolveClient(req,res) {
 			cert = getCert(reqSocket),
 			now = new Date();
 		
-		Log("cert>>>", cert, admitRules);
+		// Log("cert>>>", cert, admitRules);
 
 		if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
 			cb( null );
@@ -2402,11 +2374,6 @@ function resolveClient(req,res) {
 					return cb( null );
 
 			cb( cert );
-			/*{ 
-				Event: new Date(), 			// start time
-				Action: req.action, 		// db action
-				Stamp: "totem"
-			});	 */
 		}
 
 		else
