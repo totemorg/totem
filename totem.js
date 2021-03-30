@@ -490,7 +490,7 @@ const
 		reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitRules,
 		filterRecords,routeDS, startDogs, cache } = TOTEM = module.exports = {
 	
-	Log: (...args) => console.log("totem>>>", args),
+	Log: (...args) => console.log(">>>totem", args),
 	Trace: (msg,args,req) => "totem".trace(msg, req, msg => console.log(msg,args) ),	
 			
 	inspector: null,
@@ -676,7 +676,7 @@ const
 
 					route(req, recs => {	// route request and capture records
 						if ( recs ) {
-							//Log("flags", flags);
+							Log("route flags", flags);
 							/*
 							var call = null;
 							for ( var key in flags ) if ( !call ) {	// perform single data modifier
@@ -705,12 +705,10 @@ const
 				}
 			}
 
-			//Log(">>>node", node);
 			const 
 				{ strips, prefix, traps, id } = reqFlags,
 				{ action, body } = req;
 			
-			//Log("body=", req.body, body);
 			const
 				query = req.query = {},
 				index = req.index = {},	
@@ -727,6 +725,7 @@ const
 				ds = req.ds = (routeDS[table] || routeDS.default)(req);
 			
 			//Log(ds,action,path,area,table,type);
+			//Log({n:node, f: flags, q:query, b:body, i:index, w:where});
 
 			for (var key in query) 		// strip or remap bogus keys
 				if ( key in strips )
@@ -819,7 +818,6 @@ const
 		const 
 			{ post, url } = req,
 			node = url;
-			//nodes = nodeDivider ? url.split(nodeDivider) : [url];
 
 		req.body = post.parseJSON( post => {  // get parameters or yank files from body 
 			var 
