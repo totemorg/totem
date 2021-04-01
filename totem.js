@@ -704,10 +704,52 @@ const
 					});
 				}
 			}
+			
+			function checkAccess( cb ) {
+				
+				if ( true ) 
+					cb(true);
+				
+				else {
+					const
+						power = {
+							guest: 1,
+							reporter: 2,
+							reviewer: 3,
+							developer: 4,
+							owner: 5
+						},
+						tx = {
+							pub: "reviewer",
+							publish: "reviewer",
+							exe: "reporter",
+							doc: "guest",
+							run: "guest",
+							exam: "guest",
+							brief: "guest",
+							browse: "guest",
+							export: "reviewer",
+							import: "reviewer",
+							mod: "developer",
+						};						  
+
+					sql.query("SELECT Access FROM openv.acl WHERE least(?) LIMIT 1", {
+					Client: client,
+					Resource: table
+				}, (err,recs) => {
+					const
+						{Access} = recs[0] || {Access:"guest"},
+						minPower = power[tx[type] || "guest"];
+					
+					Log( "check "+type, Access, power[Access], minPower );
+					cb( power[Access] >= minPower );
+				});
+				}
+			}
 
 			const 
 				{ strips, prefix, traps, id } = reqFlags,
-				{ action, body } = req;
+				{ action, body, sql, client } = req;
 			
 			const
 				query = req.query = {},
@@ -788,7 +830,13 @@ const
 
 				else  
 				if ( route = byType[req.type] ) // route by type
-					followRoute( route );
+					checkAccess( ok => {
+						if ( ok )
+							followRoute( route );
+						
+						else
+							res( new Error("no access") );
+					});
 
 				else
 				if ( route = byAction[action] ) {	// route by crud action
@@ -881,7 +929,7 @@ const
 			return parms;
 		});		// get body parameters/files
 
-		routeNode( node, req, res);		
+		routeNode( node, req, res );		
 	},
 
 	startDogs: (sql,dogs) => {
@@ -957,7 +1005,7 @@ const
 
 			The session request is constructed in the following phases:
 
-				// phase1 connectSession
+				// phase1 startRequest
 				host: "proto://domain:port"	// requested host 
 				cookie: "...."		// client cookie string
 				agent: "..."		// client browser info
@@ -973,7 +1021,7 @@ const
 				resSocket: socket	// socket to accept response
 				sql: connector 		// sql database connector 
 
-				// phase2 resolveClient
+				// phase2 startResponse
 				log: {...}			// info to trap socket stats
 				client: "..."		// name of client from cert or "guest"
 				cert: {...} 		// full client cert
@@ -1183,7 +1231,7 @@ const
 				startServer( server, port, (Req,Res) => {		// start session
 					/**
 						Provide a request to the supplied session, or terminate the session if the service
-						is too busy.
+						is too busy.  Attaches a sql connection.
 
 						@param {Function} ses session(req) callback accepting the provided request
 					*/
@@ -1269,7 +1317,7 @@ const
 
 					startRequest( (err,req) => {  // start request if service not busy.
 						/**
-							Provide a response to a session after attaching sql, cert, client, profile 
+							Provide a response to a session after attaching cert, client, profile 
 							and session info to this request.  
 
 							@param {Function} cb connection accepting the provided response callback
@@ -1415,7 +1463,7 @@ const
 									}
 								});
 
-							else 	// lost reqest socket for some reason so ...
+							else 	// lost request socket for some reason so ...
 								res( new Error("socket lost") );
 						}
 
@@ -2090,7 +2138,7 @@ const
 		//addConnect: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1",
 		//challenge: "SELECT *,concat(client,password) AS Passphrase FROM openv.profiles WHERE Client=? LIMIT 1",
 		guest: "SELECT * FROM openv.profiles WHERE Client='guest@totem.org' LIMIT 1",
-		pocs: "SELECT lower(Hawk) AS Role, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Clients FROM openv.roles GROUP BY hawk"
+		pocs: "SELECT lower(Access) AS Role, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Clients FROM openv.acl GROUP BY Access"
 	},
 
 	/**
