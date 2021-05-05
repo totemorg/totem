@@ -1519,7 +1519,7 @@ const
 		if (opts) Copy(opts, TOTEM, ".");
 
 		const
-			{ name, dbTrack, setContext, routeRequest } = TOTEM;
+			{ name, setContext, routeRequest } = TOTEM;
 		
 		Log(`CONFIGURING ${name}`); 
 
@@ -1531,25 +1531,21 @@ const
 		});
 
 		JSDB.config({   // establish the db agnosticator 
-			track: dbTrack,
 			savers: TOTEM.savers
+			//track: dbTrack,
 			//fetch: fetch			
-		}, err => {  // derive server vars and site context, then configure and start the server
-			if (err)
-				Log(err);
+		});
+		
+		sqlThread( sql => {
+			if (name)	// derive site context
+				setContext(sql, () => {
+					configService(routeRequest);
+					if (cb) cb(sql);
+				});
 
 			else
-				sqlThread( sql => {
-					if (name)	// derive site context
-						setContext(sql, () => {
-							configService(routeRequest);
-							if (cb) cb(sql);
-						});
-					
-					else
-					if (cb) cb( sql );
-				});
-		});	
+			if (cb) cb( sql );
+		});
 	},
 
 	initialize: err => {
