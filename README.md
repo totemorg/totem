@@ -50,18 +50,17 @@ and the `stores | shares` file AREAs for sharing static files.
 	Fetch( path, null, stat => {		// delete request made
 	})
 	
-where the path = "PROTOCOL://HOST/FILE?batch=N&limit=N&rekey=from:to,...&comma=X&newline=X" a 
-PROTOCOL = http || https, curl || curls, wget || wgets, mask || masks, lexis || etc, file, book
-	
-	curls/wgets presents the certs/fetch.pfx certificate to the endpoint, 
-	mask/masks routes the fetch through rotated proxies, 
-	lexis/etc uses the oauth authorization-authentication protocol, 
-	file fetches from the file system, 
+where the path = "PROTOCOL://HOST/FILE" and where the PROTOCOL can be
+
+	http/https fetches data from the HOST
+	curls/wgets presents the certs/fetch.pfx certificate to the HOST, 
+	mask/masks routes the HOST fetch through rotated proxies, 
+	lexis/etc uses the oauth authorization-authentication protocol to read the HOST, 
+	file fetches data from the file system, 
 	book selects a notebook record. 
 			
-If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
-regulate the file stream.
-
+If the path is terminated by a "/", then a file index is returned; if terminated by "?batch=N&limit=N&rekey=from:to,...&comma=X&newline=X, 
+specified options are used to ingest the requested FILE stream.
 
 ## Installation
 
