@@ -989,8 +989,6 @@ const
 	api: {
 	},
 
-	savers: {},
-			
 	/**
 		Configure and start the service with options and optional callback when started.
 		Configure database, define site context, then protect, connect, start and initialize this server.
@@ -1530,12 +1528,6 @@ const
 				delete MIME.types[key];
 		});
 
-		JSDB.config({   // establish the db agnosticator 
-			savers: TOTEM.savers
-			//track: dbTrack,
-			//fetch: fetch			
-		});
-		
 		sqlThread( sql => {
 			if (name)	// derive site context
 				setContext(sql, () => {
