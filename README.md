@@ -312,6 +312,8 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
         * [.routeRequest(req, res)](#module_TOTEM.routeRequest)
         * [.config(opts, cb)](#module_TOTEM.config)
             * [~configService(agent)](#module_TOTEM.config..configService)
+                * [~createServer()](#module_TOTEM.config..configService..createServer)
+                    * [~startServer(server, port, cb)](#module_TOTEM.config..configService..createServer..startServer)
         * [.runTask(opts, task, cb)](#module_TOTEM.runTask)
         * [.watchFile(path, callback)](#module_TOTEM.watchFile)
         * [.getBrick()](#module_TOTEM.getBrick)
@@ -327,45 +329,6 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
         * [~executeDS(req, res)](#module_TOTEM..executeDS)
         * [~sysTask(req, res)](#module_TOTEM..sysTask)
         * [~sysChallenge(req, res)](#module_TOTEM..sysChallenge)
-        * [~T1
-	Create simple service but dont start it.()](#module_TOTEM..T1
-	Create simple service but dont start it.)
-        * [~T2
-	Totem service running in fault protection mode, no database, no UI; but I am running
-	with 2 workers and the default endpoint routes.()](#module_TOTEM..T2
-	Totem service running in fault protection mode, no database, no UI; but I am running
-	with 2 workers and the default endpoint routes.)
-        * [~T3
-	Im a Totem serv
-	ice with no workers. I do, however, have a mysql database from which Ive derived 
-	my startup options (see the openv.apps table for the Nick=Totem1).  
-	No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit /files/ to index 
-	these files.()](#module_TOTEM..T3
-	Im a Totem serv
-	ice with no workers. I do, however, have a mysql database from which Ive derived 
-	my startup options (see the openv.apps table for the Nick=Totem1).  
-	No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit /files/ to index 
-	these files.)
-        * [~T4
-	As always, if the openv.apps Encrypt is set for the Nick=Totem app, this service is now **encrypted** [*]
-	and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
-	aka core), Im running unprotected, and have a mysql database.  
-	[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
-	associated public NICK.crt and private NICK.key certs it creates.()](#module_TOTEM..T4
-	As always, if the openv.apps Encrypt is set for the Nick=Totem app, this service is now **encrypted** [*]
-	and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
-	aka core), Im running unprotected, and have a mysql database.  
-	[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
-	associated public NICK.crt and private NICK.key certs it creates.)
-        * [~T5
-	I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
-	shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.()](#module_TOTEM..T5
-	I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
-	shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.)
-        * [~T6
-	Testing tasker with database and 3 cores at /test endpoint.()](#module_TOTEM..T6
-	Testing tasker with database and 3 cores at /test endpoint.)
-        * [~T7()](#module_TOTEM..T7)
 
 <a name="module_TOTEM.errors"></a>
 
@@ -723,6 +686,12 @@ Configure and start the service with options and optional callback when started.
 | opts | <code>Object</code> | configuration options following the Copy() conventions. |
 | cb | <code>function</code> | callback(err) after service configured |
 
+
+* [.config(opts, cb)](#module_TOTEM.config)
+    * [~configService(agent)](#module_TOTEM.config..configService)
+        * [~createServer()](#module_TOTEM.config..configService..createServer)
+            * [~startServer(server, port, cb)](#module_TOTEM.config..configService..createServer..startServer)
+
 <a name="module_TOTEM.config..configService"></a>
 
 #### config~configService(agent)
@@ -773,6 +742,34 @@ Setup (connect, start then initialize) a service that will handle its request-re
 | Param | Type | Description |
 | --- | --- | --- |
 | agent | <code>function</code> | callback(req,res) to handle session request-response |
+
+
+* [~configService(agent)](#module_TOTEM.config..configService)
+    * [~createServer()](#module_TOTEM.config..configService..createServer)
+        * [~startServer(server, port, cb)](#module_TOTEM.config..configService..createServer..startServer)
+
+<a name="module_TOTEM.config..configService..createServer"></a>
+
+##### configService~createServer()
+Create and start the HTTP/HTTPS server.  If starting a HTTPS server, the truststore
+			is scanned for PKI certs.
+
+**Kind**: inner method of [<code>configService</code>](#module_TOTEM.config..configService)  
+<a name="module_TOTEM.config..configService..createServer..startServer"></a>
+
+###### createServer~startServer(server, port, cb)
+Start service and attach listener.  Established the secureLink if configured.  Establishes
+				server-busy tests to thwart deniel-of-service attackes and process guards to trap faults.  When
+				starting the master process, other configurations are completed.  Watchdogs and proxies are
+				also established.
+
+**Kind**: inner method of [<code>createServer</code>](#module_TOTEM.config..configService..createServer)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| server | <code>Object</code> | server being started |
+| port | <code>Numeric</code> | port number to listen on |
+| cb | <code>function</code> | callback listener cb(Req,Res) |
 
 <a name="module_TOTEM.runTask"></a>
 
@@ -941,66 +938,6 @@ Validate clients response to an antibot challenge.
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem response callback |
 
-<a name="module_TOTEM..T1
-	Create simple service but dont start it."></a>
-
-### TOTEM~T1
-	Create simple service but dont start it.()
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-<a name="module_TOTEM..T2
-	Totem service running in fault protection mode, no database, no UI; but I am running
-	with 2 workers and the default endpoint routes."></a>
-
-### TOTEM~T2
-	Totem service running in fault protection mode, no database, no UI; but I am running
-	with 2 workers and the default endpoint routes.()
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-<a name="module_TOTEM..T3
-	Im a Totem serv
-	ice with no workers. I do, however, have a mysql database from which Ive derived 
-	my startup options (see the openv.apps table for the Nick=Totem1).  
-	No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit /files/ to index 
-	these files."></a>
-
-### TOTEM~T3
-	Im a Totem serv
-	ice with no workers. I do, however, have a mysql database from which Ive derived 
-	my startup options (see the openv.apps table for the Nick=Totem1).  
-	No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit /files/ to index 
-	these files.()
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-<a name="module_TOTEM..T4
-	As always, if the openv.apps Encrypt is set for the Nick=Totem app, this service is now **encrypted** [*]
-	and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
-	aka core), Im running unprotected, and have a mysql database.  
-	[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
-	associated public NICK.crt and private NICK.key certs it creates."></a>
-
-### TOTEM~T4
-	As always, if the openv.apps Encrypt is set for the Nick=Totem app, this service is now \*\*encrypted\*\* [\*]
-	and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
-	aka core), Im running unprotected, and have a mysql database.  
-	[\*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
-	associated public NICK.crt and private NICK.key certs it creates.()
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-<a name="module_TOTEM..T5
-	I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
-	shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use."></a>
-
-### TOTEM~T5
-	I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
-	shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.()
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-<a name="module_TOTEM..T6
-	Testing tasker with database and 3 cores at /test endpoint."></a>
-
-### TOTEM~T6
-	Testing tasker with database and 3 cores at /test endpoint.()
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-<a name="module_TOTEM..T7"></a>
-
-### TOTEM~T7()
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 
 * * *
 
