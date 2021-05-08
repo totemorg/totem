@@ -6,7 +6,7 @@
 #
 
 export HERE=`pwd`
-export MODULES=(totem atomic geohack flex enums reader debe jsdb man randpr liegroup securelink socketio)
+export MODULES=(totem atomic geohack flex enums reader debe pipe jsdb man randpr liegroup securelink socketio)
 export MODULE=`basename $HERE`
 
 case "$1." in
