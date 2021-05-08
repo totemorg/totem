@@ -36,7 +36,7 @@ export NEO4J_USER="neo4j"
 # doc and dev tools
 export PATH=/opt/cmake:$PATH 			# latest cmake
 #export PATH=$BASE/oxygen/bin:$PATH    	# doxygen code documenter if needed (jsduck used)
-export PATH=$PATH:/usr/local/share/gems/gems/jsduck-5.3.4/bin 	# for jsduck
+#export PATH=$PATH:/usr/local/share/gems/gems/jsduck-5.3.4/bin 	# for jsduck
 
 # docker
 export GPU="--device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm"
@@ -81,7 +81,7 @@ export SERVICE_WORKER_URL=https://localhost:8081
 #export SERVICE_WORKER_URL=http://localhost:8081  # in debug mode
 
 # PRM doc interface
-export DUCK=/media/sf_vmshare/ducksrc
+#export DUCK=/media/sf_vmshare/ducksrc
 
 # define passwords
 source _pass.sh

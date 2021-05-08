@@ -274,6 +274,8 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
         * [.errors](#module_TOTEM.errors)
         * [.tasking](#module_TOTEM.tasking)
         * [.dogs](#module_TOTEM.dogs)
+        * [.createCert](#module_TOTEM.createCert)
+        * [.stop](#module_TOTEM.stop)
         * [.sqlThread](#module_TOTEM.sqlThread)
         * [.neoThread](#module_TOTEM.neoThread)
         * [.crudIF](#module_TOTEM.crudIF)
@@ -304,6 +306,8 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
         * [.admitRules](#module_TOTEM.admitRules)
         * [.riddles](#module_TOTEM.riddles)
         * [.paths](#module_TOTEM.paths)
+        * [.getBrick](#module_TOTEM.getBrick)
+        * [.uploadFile](#module_TOTEM.uploadFile)
         * [.busyTime](#module_TOTEM.busyTime)
         * [.cache](#module_TOTEM.cache)
         * [.Fetch(path, method)](#module_TOTEM.Fetch)
@@ -314,17 +318,19 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
                     * [~startServer(server, port, cb)](#module_TOTEM.config..configService..createServer..startServer)
         * [.runTask(opts, task, cb)](#module_TOTEM.runTask)
         * [.watchFile(path, callback)](#module_TOTEM.watchFile)
-        * [.getBrick()](#module_TOTEM.getBrick)
         * [.setContext()](#module_TOTEM.setContext)
     * _inner_
-        * [~isAdmin](#module_TOTEM..isAdmin)
-        * [~stop()](#module_TOTEM..stop)
-        * [~uploadFile()](#module_TOTEM..uploadFile)
+        * [~stopService()](#module_TOTEM..stopService)
+        * [~createCert(owner, password, cb)](#module_TOTEM..createCert)
+        * [~resolveClient(req, res)](#module_TOTEM..resolveClient)
+        * [~getBrick(client, name, cb)](#module_TOTEM..getBrick)
+        * [~uploadFile(client, source, sinkPath, tags, cb)](#module_TOTEM..uploadFile)
         * [~selectDS(req, res)](#module_TOTEM..selectDS)
         * [~insertDS(req, res)](#module_TOTEM..insertDS)
         * [~deleteDS(req, res)](#module_TOTEM..deleteDS)
         * [~updateDS(req, res)](#module_TOTEM..updateDS)
         * [~executeDS(req, res)](#module_TOTEM..executeDS)
+        * [~sysPing(req, res)](#module_TOTEM..sysPing)
         * [~sysTask(req, res)](#module_TOTEM..sysTask)
         * [~sysChallenge(req, res)](#module_TOTEM..sysChallenge)
 
@@ -346,10 +352,30 @@ Common methods for task sharding
 
 ### TOTEM.dogs
 Watchdogs {name: dog(sql, lims), ... } run at intervals dog.cycle seconds usings its
-		dog.trace, dog.parms, sql connector and threshold parameters.
+dog.trace, dog.parms, sql connector and threshold parameters.
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
+<a name="module_TOTEM.createCert"></a>
+
+### TOTEM.createCert
+Create a PKI cert given user name and password.
+
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
+**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| path | <code>String</code> | to file being watched |
+| callback | <code>function</code> | cb(sql, name, path) when file at path has changed |
+
+<a name="module_TOTEM.stop"></a>
+
+### TOTEM.stop
+Stop the server.
+
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
+**Cfg**: <code>Function</code>  
 <a name="module_TOTEM.sqlThread"></a>
 
 ### TOTEM.sqlThread
@@ -399,9 +425,9 @@ Enabled to support web sockets
 
 ### TOTEM.cores
 Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
-		become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
-		encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
-		workers via the masterport.
+become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
+encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
+workers via the masterport.
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Number</code> [cores=0]  
@@ -430,12 +456,12 @@ Enable if https server being proxied
 
 ### TOTEM.name
 Service name used to
-			1) derive site parms from mysql openv.apps by Nick=name
-			2) set mysql name.table for guest clients,
-			3) identify server cert name.pfx file.
-			
-		If the Nick=name is not located in openv.apps, the supplied	config() options 
-		are not overridden.
+	1) derive site parms from mysql openv.apps by Nick=name
+	2) set mysql name.table for guest clients,
+	3) identify server cert name.pfx file.
+
+If the Nick=name is not located in openv.apps, the supplied	config() options 
+are not overridden.
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.passEncrypted"></a>
@@ -449,7 +475,7 @@ Enabled when master/workers on encrypted service
 
 ### TOTEM.$master
 Host information: https encryption passphrase,
-		domain name of workers, domain name of master.
+domain name of workers, domain name of master.
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>String</code> [name="Totem"]  
@@ -609,6 +635,20 @@ Default paths to service files
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
+<a name="module_TOTEM.getBrick"></a>
+
+### TOTEM.getBrick
+Get a file and make it if it does not exist
+
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
+**Cfg**: <code>Function</code>  
+<a name="module_TOTEM.uploadFile"></a>
+
+### TOTEM.uploadFile
+File uploader
+
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
+**Cfg**: <code>Function</code>  
 <a name="module_TOTEM.busyTime"></a>
 
 ### TOTEM.busyTime
@@ -627,23 +667,23 @@ File cache
 
 ### TOTEM.Fetch(path, method)
 Fetches data from a 
-		
-			path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
-			
-		using the PUT || POST || DELETE || GET method given a data = Array || Object || null || Function spec where:
-		
-			PROTOCOL = http || https, curl || curls, wget || wgets, mask || masks, lexis || etc, file, book
-	
-		and where 
-		
-			curls/wgets presents the certs/fetch.pfx certificate to the endpoint, 
-			mask/masks routes the fetch through rotated proxies, 
-			lexis/etc uses the oauth authorization-authentication protocol, 
-			file fetches from the file system,
-			book selects a notebook record. 
-			
-		If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
-		regulate the file stream.
+
+	path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
+
+using the PUT || POST || DELETE || GET method given a data = Array || Object || null || Function spec where:
+
+	PROTOCOL = http || https, curl || curls, wget || wgets, mask || masks, lexis || etc, file, book
+
+and where 
+
+	curls/wgets presents the certs/fetch.pfx certificate to the endpoint, 
+	mask/masks routes the fetch through rotated proxies, 
+	lexis/etc uses the oauth authorization-authentication protocol, 
+	file fetches from the file system,
+	book selects a notebook record. 
+
+If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
+regulate the file stream.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
@@ -657,11 +697,11 @@ Fetches data from a
 
 ### TOTEM.routeRequest(req, res)
 Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
-		byActionTable then byAction routers.	
+byActionTable then byAction routers.	
 
-		The provided response method accepts a string, an objects, an array, an error, or 
-		a file-cache function and terminates the session's sql connection.  The client is 
-		validated and their session logged.
+The provided response method accepts a string, an objects, an array, an error, or 
+a file-cache function and terminates the session's sql connection.  The client is 
+validated and their session logged.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 
@@ -674,7 +714,7 @@ Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable
 
 ### TOTEM.config(opts, cb)
 Configure and start the service with options and optional callback when started.
-	Configure database, define site context, then protect, connect, start and initialize this server.
+Configure database, define site context, then protect, connect, start and initialize this server.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
@@ -786,23 +826,21 @@ Shard one or more tasks to workers residing in a compute node cloud.
 **Example**  
 ```js
 runTask({  		// example
-				keys: "i,j,k",  	// e.g. array indecies
-				i: [0,1,2,3],  		// domain of index i
-				j: [4,8],				// domain of index j
-				k: [0],					// domain of index k
-				qos: 0,				// regulation time in ms if not zero
-				local: false, 		// enable to run task local, i.e. w/o workers and nodes
-				workers: 4, 		// limit number of workers (aka cores) per node
-				nodes: 3 			// limit number of nodes (ala locales) in the cluster
-			}, 
-				// here, a simple task that returns a message 
-				$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
+		keys: "i,j,k",  	// e.g. array indecies
+		i: [0,1,2,3],  		// domain of index i
+		j: [4,8],				// domain of index j
+		k: [0],					// domain of index k
+		qos: 0,				// regulation time in ms if not zero
+		local: false, 		// enable to run task local, i.e. w/o workers and nodes
+		workers: 4, 		// limit number of workers (aka cores) per node
+		nodes: 3 			// limit number of nodes (ala locales) in the cluster
+	}, 
+		// here, a simple task that returns a message 
+		$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
 
-				// here, a simple callback that displays the task results
-				msg => console.log(msg) 
-			);
-
-		
+		// here, a simple callback that displays the task results
+		msg => console.log(msg) 
+	);
 ```
 <a name="module_TOTEM.watchFile"></a>
 
@@ -817,13 +855,6 @@ Establish smart file watcher when file at area/name has changed.
 | path | <code>String</code> | to file being watched |
 | callback | <code>function</code> | cb(sql, name, path) when file at path has changed |
 
-<a name="module_TOTEM.getBrick"></a>
-
-### TOTEM.getBrick()
-Get a file and make it if it does not exist
-
-**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
 <a name="module_TOTEM.setContext"></a>
 
 ### TOTEM.setContext()
@@ -831,27 +862,69 @@ Sets the site context parameters.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
-<a name="module_TOTEM..isAdmin"></a>
+<a name="module_TOTEM..stopService"></a>
 
-### TOTEM~isAdmin
-TOTEM.End_Points.Users_Interface
- Create user maint end points
-
-**Kind**: inner class of [<code>TOTEM</code>](#module_TOTEM)  
-<a name="module_TOTEM..stop"></a>
-
-### TOTEM~stop()
+### TOTEM~stopService()
 Stop the server.
 
 **Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
-<a name="module_TOTEM..uploadFile"></a>
+<a name="module_TOTEM..createCert"></a>
 
-### TOTEM~uploadFile()
-File uploader
+### TOTEM~createCert(owner, password, cb)
+Create a cert for the desired owner with the desired passphrase then 
+callback cb() when complete.
 
 **Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| owner | <code>String</code> | userID to own this cert |
+| password | <code>String</code> | for this cert |
+| cb | <code>function</code> | callback when completed |
+
+<a name="module_TOTEM..resolveClient"></a>
+
+### TOTEM~resolveClient(req, res)
+Validate a client's session by attaching a log, profile, group, client, 
+cert and joined info to this req request then callback res(error) with 
+null error if session was validated.
+
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | totem request |
+| res | <code>function</code> | totem response |
+
+<a name="module_TOTEM..getBrick"></a>
+
+### TOTEM~getBrick(client, name, cb)
+Get (or create if needed) a file with callback cb(fileID, sql) if no errors
+
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| client | <code>String</code> | owner of file |
+| name | <code>String</code> | of file to get/make |
+| cb | <code>function</code> | callback(file, sql) if no errors |
+
+<a name="module_TOTEM..uploadFile"></a>
+
+### TOTEM~uploadFile(client, source, sinkPath, tags, cb)
+Uploads a source stream srcStream to a target file sinkPath owned by a 
+specified client.  Optional tags are logged with the upload.
+
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| client | <code>String</code> | file owner |
+| source | <code>Stream</code> | stream |
+| sinkPath | <code>String</code> | path to target file |
+| tags | <code>Object</code> | hach of tags to add to file |
+| cb | <code>function</code> | callback(file) if upload sucessful |
+
 <a name="module_TOTEM..selectDS"></a>
 
 ### TOTEM~selectDS(req, res)
@@ -912,6 +985,18 @@ CRUD execute endpoint.
 | req | <code>Object</code> | Totem's request |
 | res | <code>function</code> | Totem's response callback |
 
+<a name="module_TOTEM..sysPing"></a>
+
+### TOTEM~sysPing(req, res)
+Endpoint to test connectivity.
+
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem request |
+| res | <code>function</code> | Totem response |
+
 <a name="module_TOTEM..sysTask"></a>
 
 ### TOTEM~sysTask(req, res)
@@ -927,7 +1012,7 @@ Endpoint to shard a task to the compute nodes.
 <a name="module_TOTEM..sysChallenge"></a>
 
 ### TOTEM~sysChallenge(req, res)
-Validate clients response to an antibot challenge.
+Endpoint to validate clients response to an antibot challenge.
 
 **Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 

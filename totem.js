@@ -60,43 +60,43 @@ const
 	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = require("enums");
 	  
 [ //< String prototypes
-	/**
-		Parse XML string into json and callback cb(json) 
+/**
+Parse XML string into json and callback cb(json) 
 
-		@memberof String
-		@param {Function} cb callback( json || null if error )
-	*/
+@memberof String
+@param {Function} cb callback( json || null if error )
+*/
 	function parseXML(cb) {
 		XML2JS.parseString(this, function (err,json) {				
 			cb( err ? null : json );
 		});
 	},
 	
-	/**
-		Fetches data from a 
-		
-			path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
-			
-		using the PUT || POST || DELETE || GET method given a data = Array || Object || null || Function spec where:
-		
-			PROTOCOL = http || https, curl || curls, wget || wgets, mask || masks, lexis || etc, file, book
-	
-		and where 
-		
-			curls/wgets presents the certs/fetch.pfx certificate to the endpoint, 
-			mask/masks routes the fetch through rotated proxies, 
-			lexis/etc uses the oauth authorization-authentication protocol, 
-			file fetches from the file system,
-			book selects a notebook record. 
-			
-		If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
-		regulate the file stream.
-		
-		@cfg {Function} 
-		@param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
-		@param {Object} data type induces method = get || post || put || delete
-		@param {Function} cb callback when data provided
-	*/
+/**
+Fetches data from a 
+
+	path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
+
+using the PUT || POST || DELETE || GET method given a data = Array || Object || null || Function spec where:
+
+	PROTOCOL = http || https, curl || curls, wget || wgets, mask || masks, lexis || etc, file, book
+
+and where 
+
+	curls/wgets presents the certs/fetch.pfx certificate to the endpoint, 
+	mask/masks routes the fetch through rotated proxies, 
+	lexis/etc uses the oauth authorization-authentication protocol, 
+	file fetches from the file system,
+	book selects a notebook record. 
+
+If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
+regulate the file stream.
+
+@cfg {Function} 
+@param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
+@param {Object} data type induces method = get || post || put || delete
+@param {Function} cb callback when data provided
+*/
 	function fetchFile(data, cb) {	//< data fetching
 	
 		function sha256(s) { // reserved for other functionality
@@ -550,30 +550,30 @@ const
 
 	defaultType: "run",
 
-	/**
-		Fetches data from a 
-		
-			path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
-			
-		using the PUT || POST || DELETE || GET method given a data = Array || Object || null || Function spec where:
-		
-			PROTOCOL = http || https, curl || curls, wget || wgets, mask || masks, lexis || etc, file, book
-	
-		and where 
-		
-			curls/wgets presents the certs/fetch.pfx certificate to the endpoint, 
-			mask/masks routes the fetch through rotated proxies, 
-			lexis/etc uses the oauth authorization-authentication protocol, 
-			file fetches from the file system,
-			book selects a notebook record. 
-			
-		If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
-		regulate the file stream.
-		
-		@cfg {Function} 
-		@param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
-		@param {Object} method induces probe method
-	*/
+/**
+Fetches data from a 
+
+	path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
+
+using the PUT || POST || DELETE || GET method given a data = Array || Object || null || Function spec where:
+
+	PROTOCOL = http || https, curl || curls, wget || wgets, mask || masks, lexis || etc, file, book
+
+and where 
+
+	curls/wgets presents the certs/fetch.pfx certificate to the endpoint, 
+	mask/masks routes the fetch through rotated proxies, 
+	lexis/etc uses the oauth authorization-authentication protocol, 
+	file fetches from the file system,
+	book selects a notebook record. 
+
+If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
+regulate the file stream.
+
+@cfg {Function} 
+@param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
+@param {Object} method induces probe method
+*/
 	Fetch: (path, data, cb) => path.fetchFile(data,cb),
 	
 	routeDS: {	// setup default DataSet routes
@@ -595,17 +595,17 @@ const
 		});
 	}),
 					
-	/**
-		Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
-		byActionTable then byAction routers.	
+/**
+Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
+byActionTable then byAction routers.	
 
-		The provided response method accepts a string, an objects, an array, an error, or 
-		a file-cache function and terminates the session's sql connection.  The client is 
-		validated and their session logged.
+The provided response method accepts a string, an objects, an array, an error, or 
+a file-cache function and terminates the session's sql connection.  The client is 
+validated and their session logged.
 
-		@param {Object} req session request
-		@param {Object} res session response
-	*/
+@param {Object} req session request
+@param {Object} res session response
+*/
 	routeRequest: (req,res) => {
 		function routeNode(node, req, res) {	//< Parse and route the NODE = /DATASET.TYPE request
 			/*
@@ -951,10 +951,10 @@ const
 		});
 	},
 
-	/**
-		Error messages
-		@cfg {Object} 
-	*/		
+/**
+Error messages
+@cfg {Object} 
+*/		
 	errors: {
 		pretty: err => (err+"").replace("Error:",""),
 		badMethod: new Error("unsupported request method"),
@@ -987,13 +987,13 @@ const
 	api: {
 	},
 
-	/**
-	Configure and start the service with options and optional callback when started.
-	Configure database, define site context, then protect, connect, start and initialize this server.
-	@cfg {Function}
-	@param {Object} opts configuration options following the Copy() conventions.
-	@param {Function} cb callback(err) after service configured
-	*/
+/**
+Configure and start the service with options and optional callback when started.
+Configure database, define site context, then protect, connect, start and initialize this server.
+@cfg {Function}
+@param {Object} opts configuration options following the Copy() conventions.
+@param {Function} cb callback(err) after service configured
+*/
 	config: (opts,cb) => {
 		/**
 		Setup (connect, start then initialize) a service that will handle its request-response sessions
@@ -1559,10 +1559,10 @@ const
 	
 	queues: JSDB.queues, 	// pass along
 		
-	/**
-		Common methods for task sharding
-		@cfg {Object}
-	*/
+/**
+Common methods for task sharding
+@cfg {Object}
+*/
 	tasking: {
 		console: console,
 		log: console.log
@@ -1570,32 +1570,32 @@ const
 	
 	onUpdate: null,
 		
-	/**
-		Shard one or more tasks to workers residing in a compute node cloud.
+/**
+Shard one or more tasks to workers residing in a compute node cloud.
 
-		@example
-			runTask({  		// example
-				keys: "i,j,k",  	// e.g. array indecies
-				i: [0,1,2,3],  		// domain of index i
-				j: [4,8],				// domain of index j
-				k: [0],					// domain of index k
-				qos: 0,				// regulation time in ms if not zero
-				local: false, 		// enable to run task local, i.e. w/o workers and nodes
-				workers: 4, 		// limit number of workers (aka cores) per node
-				nodes: 3 			// limit number of nodes (ala locales) in the cluster
-			}, 
-				// here, a simple task that returns a message 
-				$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
+@example
+	runTask({  		// example
+		keys: "i,j,k",  	// e.g. array indecies
+		i: [0,1,2,3],  		// domain of index i
+		j: [4,8],				// domain of index j
+		k: [0],					// domain of index k
+		qos: 0,				// regulation time in ms if not zero
+		local: false, 		// enable to run task local, i.e. w/o workers and nodes
+		workers: 4, 		// limit number of workers (aka cores) per node
+		nodes: 3 			// limit number of nodes (ala locales) in the cluster
+	}, 
+		// here, a simple task that returns a message 
+		$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
 
-				// here, a simple callback that displays the task results
-				msg => console.log(msg) 
-			);
+		// here, a simple callback that displays the task results
+		msg => console.log(msg) 
+	);
 
-		@cfg {Function}
-		@param {Object} opts tasking options (see example)
-		@param {Function} task runTask of the form ($) => {return msg} where $ contains process info
-		@param {Function} cb callback of the form (msg) => {...} to process msg returned by task
-	*/				
+@cfg {Function}
+@param {Object} opts tasking options (see example)
+@param {Function} task runTask of the form ($) => {return msg} where $ contains process info
+@param {Function} cb callback of the form (msg) => {...} to process msg returned by task
+*/				
 	runTask: function (opts, task, cb) {
 
 		function genDomain(depth, keys, opts, index, lastIndex, cb) {
@@ -1673,20 +1673,20 @@ const
 			});
 	},
 					
-	/**
-		Watchdogs {name: dog(sql, lims), ... } run at intervals dog.cycle seconds usings its
-		dog.trace, dog.parms, sql connector and threshold parameters.
-		@cfg {Object}
-	*/		
+/**
+Watchdogs {name: dog(sql, lims), ... } run at intervals dog.cycle seconds usings its
+dog.trace, dog.parms, sql connector and threshold parameters.
+@cfg {Object}
+*/		
 	dogs: { //< watchdog functions(sql, lims)
 	},
 	
-	/**
-		Establish smart file watcher when file at area/name has changed.
-		@cfg {Function}
-		@param {String} path to file being watched
-		@param {Function} callback cb(sql, name, path) when file at path has changed
-	*/
+/**
+Establish smart file watcher when file at area/name has changed.
+@cfg {Function}
+@param {String} path to file being watched
+@param {Function} callback cb(sql, name, path) when file at path has changed
+*/
 	watchFile: function (path, cb) { 
 		var 
 			modTimes = TOTEM.modTimes;
@@ -1732,43 +1732,39 @@ const
 		}
 	},
 		
-	/**
-		Create a PKI cert given user name and password.
+/**
+Create a PKI cert given user name and password.
 
-		@cfg {Function}
-		@private
-		@method createCert
-		@param {String} path to file being watched
-		@param {Function} callback cb(sql, name, path) when file at path has changed
-	*/
+@cfg {Function}
+@param {String} path to file being watched
+@param {Function} callback cb(sql, name, path) when file at path has changed
+*/
 	createCert: createCert, //< method to create PKI certificate
 		
-	/**
-		Stop the server.
-		@cfg {Function}
-		@member TOTEM	
-		@method stop
-	*/
+/**
+Stop the server.
+@cfg {Function}
+*/
 	stop: stopService,
 	
-	/**
-		Thread a new sql connection to a callback.  
-		@cfg {Function}
-		@param {Function} cb callback(sql connector)
-	*/
+/**
+Thread a new sql connection to a callback.  
+@cfg {Function}
+@param {Function} cb callback(sql connector)
+*/
 	sqlThread: sqlThread,
 
-	/**
-		Thread a new neo4j connection to a callback.  
-		@cfg {Function}
-		@param {Function} cb callback(sql connector)
-	*/
+/**
+Thread a new neo4j connection to a callback.  
+@cfg {Function}
+@param {Function} cb callback(sql connector)
+*/
 	neoThread: neoThread,
 			
-	/**
-		REST-to-CRUD translations
-		@cfg {Object}  
-	*/
+/**
+REST-to-CRUD translations
+@cfg {Object}  
+*/
 	crudIF: {
 		GET: "select",
 		DELETE: "delete",
@@ -1776,10 +1772,10 @@ const
 		PUT: "update"
 	},
 	
-	/**
-		Options to parse request flags
-		@cfg {Object} 
-	*/
+/**
+Options to parse request flags
+@cfg {Object} 
+*/
 	reqFlags: {				//< Properties for request flags
 		traps: { //< cb(query) traps to reorganize query
 			filters: req => {
@@ -1804,65 +1800,65 @@ const
 		} */
 	},
 
-	/**
-		Enabled to support web sockets
-		@cfg {Boolean} [sockets=false]
-	*/
+/**
+Enabled to support web sockets
+@cfg {Boolean} [sockets=false]
+*/
 	secureLink: true, 	//< enabled to support web sockets
 		
-	/**
-		Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
-		become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
-		encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
-		workers via the masterport.	
-		@cfg {Number} [cores=0]
-	*/				
+/**
+Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
+become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
+encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
+workers via the masterport.	
+@cfg {Number} [cores=0]
+*/				
 	cores: 0,	//< Number of worker cores (0 for master-only)
 		
-	/**
-		Folder watching callbacks cb(path) 
-		@cfg {Object}
-	*/				
+/**
+Folder watching callbacks cb(path) 
+@cfg {Object}
+*/				
 	onFile: {		//< File folder watchers with callbacks cb(path) 
 	},
 	
-	/**
-		File mod-times tracked as OS will trigger multiple events when file changed
-		@cfg {Object}
-	*/
+/**
+File mod-times tracked as OS will trigger multiple events when file changed
+@cfg {Object}
+*/
 	modTimes: { 	//< File mod-times tracked as OS will trigger multiple events when file changed
 	},
 		
-	/**
-		Enable if https server being proxied
-		@cfg {Boolean} [behindProxy=false]
-	*/				
+/**
+Enable if https server being proxied
+@cfg {Boolean} [behindProxy=false]
+*/				
 	behindProxy: false,		//< Enable if https server being proxied
 
-	/**		
-		Service name used to
-			1) derive site parms from mysql openv.apps by Nick=name
-			2) set mysql name.table for guest clients,
-			3) identify server cert name.pfx file.
-			
-		If the Nick=name is not located in openv.apps, the supplied	config() options 
-		are not overridden.
-	*/
+/**		
+Service name used to
+	1) derive site parms from mysql openv.apps by Nick=name
+	2) set mysql name.table for guest clients,
+	3) identify server cert name.pfx file.
+
+If the Nick=name is not located in openv.apps, the supplied	config() options 
+are not overridden.
+*/
 	name: "Totem",
 
-	/**
-		Enabled when master/workers on encrypted service
-		@cfg {Boolean}
-	*/
+/**
+Enabled when master/workers on encrypted service
+@cfg {Boolean}
+*/
 	passEncrypted: ENV.SERVICE_PASS || "",
 			
 	isEncrypted: () => ( CLUSTER.isMaster ? $master.protocol : $worker.protocol ) == "https:",
 
-	/**
-		Host information: https encryption passphrase,
-		domain name of workers, domain name of master.
-		@cfg {String} [name="Totem"]
-	*/	
+/**
+Host information: https encryption passphrase,
+domain name of workers, domain name of master.
+@cfg {String} [name="Totem"]
+*/	
 
 	$master: { // derived
 	},
@@ -1870,10 +1866,10 @@ const
 	$worker: { // derived
 	},
 			
-	/**
-		Site context extended by the mysql derived query when service starts
-		@cfg {Object} 
-	*/
+/**
+Site context extended by the mysql derived query when service starts
+@cfg {Object} 
+*/
 	site: {  	//< reserved for derived context vars
 		socketio: 
 			"/socketio/socketio-client.js",		// working
@@ -1891,10 +1887,10 @@ const
 		}		
 	},
 
-	/**
-		Endpoint filterRecords cb(data data as string || error)
-		@cfg {Object} 
-	*/
+/**
+Endpoint filterRecords cb(data data as string || error)
+@cfg {Object} 
+*/
 	filterRecords: {  //< record data convertors
 		csv: (recs, req, res) => {
 			JS2CSV({ 
@@ -1917,34 +1913,34 @@ const
 		}		
 	},
 
-	/**
-		By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
-		@cfg {Object} 
-	*/				
+/**
+By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
+@cfg {Object} 
+*/				
 	byTable: {			  //< by-table routers	
 		riddle: sysChallenge,
 		task: sysTask,
 		ping: sysPing
 	},
 		
-	/**
-		By-action endpoint routers for accessing engines
-		@cfg {Object} 
-	*/				
+/**
+By-action endpoint routers for accessing engines
+@cfg {Object} 
+*/				
 	byAction: { //< by-action routers
 	},
 
-	/**
-		By-type endpoint routers  {type: method(req,res), ... } for accessing dataset readers
-		@cfg {Object} 
-	*/				
+/**
+By-type endpoint routers  {type: method(req,res), ... } for accessing dataset readers
+@cfg {Object} 
+*/				
 	byType: {  //< by-type routers
 	},
 
-	/**
-		By-area endpoint routers {area: method(req,res), ... } for sending/cacheing files
-		@cfg {Object} 
-	*/		
+/**
+By-area endpoint routers {area: method(req,res), ... } for sending/cacheing files
+@cfg {Object} 
+*/		
 	byArea: {
 		default: (req,res) => {
 			const
@@ -1960,72 +1956,72 @@ const
 		}
 	},
 
-	/**
-		Trust store extened with certs in the certs.truststore folder when the service starts in encrypted mode
-		@cfg {Object} 
-	*/		
+/**
+Trust store extened with certs in the certs.truststore folder when the service starts in encrypted mode
+@cfg {Object} 
+*/		
 	trustStore: [ ],   //< reserved for trust store
 		
-	/**
-		CRUDE (req,res) method to respond to Totem request
-		@cfg {Object} 
-	*/				
+/**
+CRUDE (req,res) method to respond to Totem request
+@cfg {Object} 
+*/				
 	server: null,  //< established by TOTEM at config
 	
 	//====================================== CRUDE interface
 		
-	/**
-		CRUDE (req,res) method to respond to a select||GET request
-		@cfg {Function}
-		@param {Object} req Totem session request
-		@param {Function} res Totem responder
-	*/				
+/**
+CRUDE (req,res) method to respond to a select||GET request
+@cfg {Function}
+@param {Object} req Totem session request
+@param {Function} res Totem responder
+*/				
 	select: selectDS,	
 	
-	/**
-		CRUDE (req,res) method to respond to a update||POST request
-		@cfg {Function}	
-		@param {Object} req Totem session request
-		@param {Function} res Totem responder
-	*/				
+/**
+CRUDE (req,res) method to respond to a update||POST request
+@cfg {Function}	
+@param {Object} req Totem session request
+@param {Function} res Totem responder
+*/				
 	update: updateDS,
 	
-	/**
-		CRUDE (req,res) method to respond to a delete||DELETE request
-		@cfg {Function}	
-		@param {Object} req Totem session request
-		@param {Function} res Totem responder
-	*/				
+/**
+CRUDE (req,res) method to respond to a delete||DELETE request
+@cfg {Function}	
+@param {Object} req Totem session request
+@param {Function} res Totem responder
+*/				
 	delete: deleteDS,
 	
-	/**
-		CRUDE (req,res) method to respond to a insert||PUT request
-		@cfg {Function}
-		@param {Object} req Totem session request
-		@param {Function} res Totem responder
-	*/				
+/**
+CRUDE (req,res) method to respond to a insert||PUT request
+@cfg {Function}
+@param {Object} req Totem session request
+@param {Function} res Totem responder
+*/				
 	insert: insertDS,
 	
-	/**
-		CRUDE (req,res) method to respond to a Totem request
-		@cfg {Function}
-		@param {Object} req Totem session request
-		@param {Function} res Totem responder
-	*/				
+/**
+CRUDE (req,res) method to respond to a Totem request
+@cfg {Function}
+@param {Object} req Totem session request
+@param {Function} res Totem responder
+*/				
 	execute: executeDS,
 
 	//====================================== MISC
 		
-	/**
-		Enable/disable service fault protection guards
-		@cfg {Boolean} 
-	*/
+/**
+Enable/disable service fault protection guards
+@cfg {Boolean} 
+*/
 	guard: false,  //< enable to use all defined guards
 		
-	/**
-		Service guard modes
-		@cfg {Object} 
-	*/
+/**
+Service guard modes
+@cfg {Object} 
+*/
 	guards: {	// faults to trap 
 		SIGUSR1:1,
 		SIGTERM:1,
@@ -2038,10 +2034,10 @@ const
 		SIGSTOP:1 
 	},	
 	
-	/**
-		Client admission rules
-		@cfg {Object} 
-	*/
+/**
+Client admission rules
+@cfg {Object} 
+*/
 	admitRules: {  // empty or null to disable rules
 		// CN: "james brian d jamesbd",
 		// O: "u.s. government",
@@ -2049,24 +2045,24 @@ const
 		// C: "us"
 	},
 
-	/**
-		Number of antibot riddles to extend 
-		@cfg {Number} [riddles=0]
-	*/		
+/**
+Number of antibot riddles to extend 
+@cfg {Number} [riddles=0]
+*/		
 	riddles: 0,
 	
-	/**
-		Antibot riddle store to protect site 
-		@cfg {Array} 
-		@private
-	*/		
+/**
+Antibot riddle store to protect site 
+@cfg {Array} 
+@private
+*/		
 	riddle: [],  //< reserved for riddles
 		
-	/**
-		Riddle digit-to-jpeg map (null to disable riddles)
-		@cfg {Object} 
-		@private
-	*/				
+/**
+Riddle digit-to-jpeg map (null to disable riddles)
+@cfg {Object} 
+@private
+*/				
 	riddleMap: { 					
 		0: ["10","210"],
 		1: ["30","60"],
@@ -2086,10 +2082,10 @@ const
 		"https://sslproxies.org"
 	], */
 
-	/**
-		Default paths to service files
-		@cfg {Object} 
-	*/		
+/**
+Default paths to service files
+@cfg {Object} 
+*/		
 	paths: { 			
 		//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 		//default: "/gohome",
@@ -2142,30 +2138,28 @@ const
 		pocs: "SELECT lower(Access) AS Role, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Clients FROM openv.acl GROUP BY Access"
 	},
 
-	/**
-		Get a file and make it if it does not exist
-		@method 
-		@cfg {Function}
-	*/
+/**
+Get a file and make it if it does not exist
+@cfg {Function}
+*/
 	getBrick: getBrick,
 
-	/**
-		File uploader 
-		@cfg {Function}
-		@method uploadFile
-	*/			
+/**
+File uploader 
+@cfg {Function}
+*/			
 	uploadFile: uploadFile,
 
-	/**
-		Server toobusy check period in seconds
-		@cfg {Number}
-	*/		
+/**
+Server toobusy check period in seconds
+@cfg {Number}
+*/		
 	busyTime: 5000,  //< site too-busy check interval [ms] (0 disables)
 
-	/**
-		Sets the site context parameters.
-		@cfg {Function}
-	*/		
+/**
+Sets the site context parameters.
+@cfg {Function}
+*/		
 	setContext: function (sql,cb) { 
 		Log(`CONTEXTING ${TOTEM.name}`);
 	
@@ -2251,10 +2245,10 @@ const
 
 	certs: {}, 		// server and client cert cache (pfx, crt, and key)
 
-	/**
-		File cache
-		@cfg {Object} 
-	*/		
+/**
+File cache
+@cfg {Object} 
+*/		
 	cache: { 				//< file cacheing options
 		never: {	//< files to never cache - useful while debugging client side stuff
 			uis: 1,
@@ -2265,12 +2259,7 @@ const
 };
 
 /**
-	@class TOTEM.Utilities.Configuration_and_Startup
-*/
-
-/**
-	Stop the server.
-	@memberof Server_Utilities
+Stop the server.
 */
 		
 function stopService() {
@@ -2283,13 +2272,12 @@ function stopService() {
 }
 
 /**
-	Create a cert for the desired owner with the desired passphrase then 
-	callback cb() when complete.
+Create a cert for the desired owner with the desired passphrase then 
+callback cb() when complete.
 
-	@memberof PKI_Utilities
-	@param {String} owner userID to own this cert
-	@param {String} password for this cert
-	@param {Function} cb callback when completed
+@param {String} owner userID to own this cert
+@param {String} password for this cert
+@param {Function} cb callback when completed
 */
 function createCert(owner,pass,cb) { 
 
@@ -2345,13 +2333,12 @@ function createCert(owner,pass,cb) {
 }
 
 /**
-	Validate a client's session by attaching a log, profile, group, client, 
-	cert and joined info to this req request then callback res(error) with 
-	null error if session was validated.  
+Validate a client's session by attaching a log, profile, group, client, 
+cert and joined info to this req request then callback res(error) with 
+null error if session was validated.  
 
-	@memberof PKI_Utilities
-	@param {Object} req totem request
-	@param {Function} res totem response
+@param {Object} req totem request
+@param {Function} res totem response
 */
 function resolveClient(req,res) {  
 	
@@ -2461,12 +2448,11 @@ function resolveClient(req,res) {
 }
 
 /**
-	Get (or create if needed) a file with callback cb(fileID, sql) if no errors
+Get (or create if needed) a file with callback cb(fileID, sql) if no errors
 
-	@memberof File_Utilities
-	@param {String} client owner of file
-	@param {String} name of file to get/make
-	@param {Function} cb callback(file, sql) if no errors
+@param {String} client owner of file
+@param {String} name of file to get/make
+@param {Function} cb callback(file, sql) if no errors
 */
 function getBrick(client, name, cb) {  
 
@@ -2504,15 +2490,14 @@ function getBrick(client, name, cb) {
 }
 
 /**
-	Uploads a source stream srcStream to a target file sinkPath owned by a 
-	specified client.  Optional tags are logged with the upload.
+Uploads a source stream srcStream to a target file sinkPath owned by a 
+specified client.  Optional tags are logged with the upload.
 
-	@memberof File_Management
-	@param {String} client file owner
-	@param {Stream} source stream
-	@param {String} sinkPath path to target file
-	@param {Object} tags hach of tags to add to file
-	@param {Function} cb callback(file) if upload sucessful
+@param {String} client file owner
+@param {Stream} source stream
+@param {String} sinkPath path to target file
+@param {Object} tags hach of tags to add to file
+@param {Function} cb callback(file) if upload sucessful
 */
 function uploadFile( client, srcStream, sinkPath, tags, cb ) { 
 	var
@@ -2666,19 +2651,9 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 */
 
 /**
-	@class TOTEM.Utilities.Antibot_Protection
-	Data theft protection
-*/
-
-/**
- @class TOTEM.End_Points.CRUDE_Interface
- Create / insert / post, Read / select / get, Update / put, Delete and Execute methods.
-*/
-
-/**
-	CRUD select endpoint.
-	@param {Object} req Totem's request
-	@param {Function} res Totem's response callback
+CRUD select endpoint.
+@param {Object} req Totem's request
+@param {Function} res Totem's response callback
 */
 function selectDS(req, res) {
 	const 
@@ -2708,9 +2683,9 @@ function selectDS(req, res) {
 }
 
 /**
-	CRUD insert endpoint.
-	@param {Object} req Totem's request
-	@param {Function} res Totem's response callback
+CRUD insert endpoint.
+@param {Object} req Totem's request
+@param {Function} res Totem's response callback
 */
 function insertDS(req, res) {
 	const 
@@ -2732,9 +2707,9 @@ function insertDS(req, res) {
 }
 
 /**
-	CRUD delete endpoint.
-	@param {Object} req Totem's request
-	@param {Function} res Totem's response callback
+CRUD delete endpoint.
+@param {Object} req Totem's request
+@param {Function} res Totem's response callback
 */	
 function deleteDS(req, res) {
 	const 
@@ -2760,9 +2735,9 @@ function deleteDS(req, res) {
 }
 
 /**
-	CRUD update endpoint.
-	@param {Object} req Totem's request
-	@param {Function} res Totem's response callback
+CRUD update endpoint.
+@param {Object} req Totem's request
+@param {Function} res Totem's response callback
 */	
 function updateDS(req, res) {
 	const 
@@ -2808,18 +2783,13 @@ function updateDS(req, res) {
 }
 
 /**
-	CRUD execute endpoint.
-	@param {Object} req Totem's request
-	@param {Function} res Totem's response callback
+CRUD execute endpoint.
+@param {Object} req Totem's request
+@param {Function} res Totem's response callback
 */
 function executeDS(req,res) {
 	res( errors.notAllowed );
 }
-
-/**
- @class TOTEM.End_Points.Users_Interface
- Create user maint end points
-*/
 
 function isAdmin(client) {
 	return site.pocs.admin.indexOf(client) >= 0;
@@ -2847,9 +2817,11 @@ function simThread(sock) {
 } */
 
 /**
-@class TOTEM.End_Points.System_Probes
-*/
+Endpoint to test connectivity.
 
+@param {Object} req Totem request
+@param {Function} res Totem response
+*/
 function sysPing(req,res) {
 	const 
 		{ client } = req,
@@ -2859,10 +2831,10 @@ function sysPing(req,res) {
 }
 
 /**
-	Endpoint to shard a task to the compute nodes.
+Endpoint to shard a task to the compute nodes.
 
-	@param {Object} req Totem request
-	@param {Function} res Totem response
+@param {Object} req Totem request
+@param {Function} res Totem response
 */
 function sysTask (req,res) {  //< task sharding
 	const {query,body,sql,type,table,url} = req;
@@ -2916,10 +2888,10 @@ Shard specified task to the compute nodes given task post parameters.
 }
 
 /**
-	Validate clients response to an antibot challenge.
+Endpoint to validate clients response to an antibot challenge.
 
-	@param {Object} req Totem session request
-	@param {Function} res Totem response callback
+@param {Object} req Totem session request
+@param {Function} res Totem response callback
 */
 function sysChallenge (req,res) {
 	const 
@@ -3021,10 +2993,6 @@ login||reset||temp||make with the specified account=NAME and password=TEXT.
 	}
 	*/
 ].Extend(Array);
-
-/**
-@class TOTEM.Unit_Tests_Use_Cases
-*/
 
 //Log(">>>>fetch oauth", Config.oauthHosts);
 
