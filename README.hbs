@@ -100,14 +100,14 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 
 	Trace({
 		msg: "Im simply a Totem interface so Im not even running as a service", 
-		default_fetcher_endpts: **TOTEM**.byTable,
-		default_protect_mode: **TOTEM**.faultless,
-		default_cores_used: **TOTEM**.cores
+		default_fetcher_endpts: TOTEM.byTable,
+		default_protect_mode: TOTEM.faultless,
+		default_cores_used: TOTEM.cores
 	});
 	
 ### T2 - A do-little service
 
-	**TOTEM**.config({
+	TOTEM.config({
 		name: "iamwhoiam",
 		faultless: true,
 		cores: 2
@@ -121,7 +121,7 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 
 ### T3 - Add a database
 
-	**TOTEM**.config({
+	TOTEM.config({
 		name: "Totem",
 
 		mysql: {
@@ -140,7 +140,7 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 		
 ### T4 - Add custom endpoints
 	
-	**TOTEM**.config({
+	TOTEM.config({
 		mysql: {
 			host: ENV.MYSQL_HOST,
 			user: ENV.MYSQL_USER,
@@ -177,13 +177,13 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 				aka core), Im running unprotected, and have a mysql database.  
 				[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
 				associated public NICK.crt and private NICK.key certs it creates.`,
-			my_endpoints: **TOTEM**.byTable
+			my_endpoints: TOTEM.byTable
 		});
 	});
 		
 ### T5 - Add antibot protection
 	
-	**TOTEM**.config({
+	TOTEM.config({
 		mysql: {
 			host: ENV.MYSQL_HOST,
 			user: ENV.MYSQL_USER,
@@ -198,12 +198,12 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 			msg:
 				`I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield.  
 				Anti-bot shields require an Encrypted service, and a user interface (eg DEBE) to be of use.`, 
-			mysql_derived_parms: **TOTEM**.site
+			mysql_derived_parms: TOTEM.site
 		});
 	});
 ### T6 - Add tasking endpoints
 
-	**TOTEM**.config({  // configure the service for tasking
+	TOTEM.config({  // configure the service for tasking
 		name: "Totem1",  // default parms from openv.apps nick=Totem1
 		faultless: false,	// ex override default 
 		cores: 3,		// ex override default
@@ -218,7 +218,7 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 				if (CLUSTER.isMaster)  // setup tasking examples on on master
 					switch (req.query.opt || 1) {  // test example tasker
 						case 1: 
-							**TOTEM**.tasker({  // setup tasking for loops over these keys
+							TOTEM.tasker({  // setup tasking for loops over these keys
 								keys: "i,j",
 								i: [1,2,3],
 								j: [4,5]
@@ -232,7 +232,7 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 							break;
 
 						case 2:
-							**TOTEM**.tasker({
+							TOTEM.tasker({
 								qos: 1,
 								keys: "i,j",
 								i: [1,2,3],
