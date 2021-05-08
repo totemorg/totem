@@ -266,188 +266,73 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
 
 [MIT](LICENSE)
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_"></a>
+<a name="module_TOTEM"></a>
 
 ## TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.
 **Requires**: <code>module:http</code>, <code>module:https</code>, <code>module:fs</code>, <code>module:constants</code>, <code>module:cluster</code>, <code>module:child\_process</code>, <code>module:os</code>, <code>module:stream</code>, <code>module:vm</code>, <code>module:crypto</code>, <code>module:enums</code>, <code>module:jsdb</code>, <code>module:securelink</code>, <code>module:socketio</code>, <code>module:mime</code>, <code>module:mysql</code>, <code>module:xml2js</code>, <code>module:toobusy</code>, <code>module:json2csv</code>, <code>module:js2xmlparser</code>, <code>module:toobusy-js</code>, <code>module:cheerio</code>  
 
-* [TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)
+* [TOTEM](#module_TOTEM)
     * _static_
-        * [.errors](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.errors)
-        * [.tasking](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.tasking)
-        * [.dogs](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.dogs)
-        * [.sqlThread](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.sqlThread)
-        * [.neoThread](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.neoThread)
-        * [.crudIF](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.crudIF)
-        * [.reqFlags](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.reqFlags)
-        * [.secureLink](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.secureLink)
-        * [.cores](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.cores)
-        * [.onFile](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.onFile)
-        * [.modTimes](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.modTimes)
-        * [.behindProxy](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.behindProxy)
-        * [.name](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.name)
-        * [.passEncrypted](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.passEncrypted)
-        * [.$master](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.$master)
-        * [.site](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.site)
-        * [.filterRecords](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.filterRecords)
-        * [.byTable](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.byTable)
-        * [.byAction](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.byAction)
-        * [.byType](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.byType)
-        * [.byArea](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.byArea)
-        * [.trustStore](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.trustStore)
-        * [.server](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.server)
-        * [.select](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.select)
-        * [.update](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.update)
-        * [.delete](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.delete)
-        * [.insert](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.insert)
-        * [.execute](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.execute)
-        * [.guard](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.guard)
-        * [.guards](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.guards)
-        * [.admitRules](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.admitRules)
-        * [.riddles](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.riddles)
-        * [.paths](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.paths)
-        * [.busyTime](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.busyTime)
-        * [.cache](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.cache)
-        * [.Fetch(path, method)](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.Fetch)
-        * [.routeRequest(req, res)](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.routeRequest)
-        * [.config(opts, cb)](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.config)
-        * [.runTask(opts, task, cb)](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.runTask)
-        * [.watchFile(path, callback)](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.watchFile)
-        * [.getBrick()](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.getBrick)
-        * [.setContext()](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.setContext)
+        * [.errors](#module_TOTEM.errors)
+        * [.tasking](#module_TOTEM.tasking)
+        * [.dogs](#module_TOTEM.dogs)
+        * [.sqlThread](#module_TOTEM.sqlThread)
+        * [.neoThread](#module_TOTEM.neoThread)
+        * [.crudIF](#module_TOTEM.crudIF)
+        * [.reqFlags](#module_TOTEM.reqFlags)
+        * [.secureLink](#module_TOTEM.secureLink)
+        * [.cores](#module_TOTEM.cores)
+        * [.onFile](#module_TOTEM.onFile)
+        * [.modTimes](#module_TOTEM.modTimes)
+        * [.behindProxy](#module_TOTEM.behindProxy)
+        * [.name](#module_TOTEM.name)
+        * [.passEncrypted](#module_TOTEM.passEncrypted)
+        * [.$master](#module_TOTEM.$master)
+        * [.site](#module_TOTEM.site)
+        * [.filterRecords](#module_TOTEM.filterRecords)
+        * [.byTable](#module_TOTEM.byTable)
+        * [.byAction](#module_TOTEM.byAction)
+        * [.byType](#module_TOTEM.byType)
+        * [.byArea](#module_TOTEM.byArea)
+        * [.trustStore](#module_TOTEM.trustStore)
+        * [.server](#module_TOTEM.server)
+        * [.select](#module_TOTEM.select)
+        * [.update](#module_TOTEM.update)
+        * [.delete](#module_TOTEM.delete)
+        * [.insert](#module_TOTEM.insert)
+        * [.execute](#module_TOTEM.execute)
+        * [.guard](#module_TOTEM.guard)
+        * [.guards](#module_TOTEM.guards)
+        * [.admitRules](#module_TOTEM.admitRules)
+        * [.riddles](#module_TOTEM.riddles)
+        * [.paths](#module_TOTEM.paths)
+        * [.busyTime](#module_TOTEM.busyTime)
+        * [.cache](#module_TOTEM.cache)
+        * [.Fetch(path, method)](#module_TOTEM.Fetch)
+        * [.routeRequest(req, res)](#module_TOTEM.routeRequest)
+        * [.config(opts, cb)](#module_TOTEM.config)
+            * [~configService(agent)](#module_TOTEM.config..configService)
+        * [.runTask(opts, task, cb)](#module_TOTEM.runTask)
+        * [.watchFile(path, callback)](#module_TOTEM.watchFile)
+        * [.getBrick()](#module_TOTEM.getBrick)
+        * [.setContext()](#module_TOTEM.setContext)
     * _inner_
-        * [~isAdmin](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..isAdmin)
-        * [~stop()](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..stop)
-        * [~uploadFile()](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..uploadFile)
-        * [~selectDS(req, res)](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..selectDS)
-        * [~insertDS(req, res)](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..insertDS)
-        * [~deleteDS(req, res)](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..deleteDS)
-        * [~updateDS(req, res)](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..updateDS)
-        * [~executeDS(req, res)](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..executeDS)
-        * [~sysTask(req, res)](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..sysTask)
-        * [~sysChallenge(req, res)](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..sysChallenge)
+        * [~isAdmin](#module_TOTEM..isAdmin)
+        * [~stop()](#module_TOTEM..stop)
+        * [~uploadFile()](#module_TOTEM..uploadFile)
+        * [~selectDS(req, res)](#module_TOTEM..selectDS)
+        * [~insertDS(req, res)](#module_TOTEM..insertDS)
+        * [~deleteDS(req, res)](#module_TOTEM..deleteDS)
+        * [~updateDS(req, res)](#module_TOTEM..updateDS)
+        * [~executeDS(req, res)](#module_TOTEM..executeDS)
+        * [~sysTask(req, res)](#module_TOTEM..sysTask)
+        * [~sysChallenge(req, res)](#module_TOTEM..sysChallenge)
         * [~T1
-	Create simple service but dont start it.()](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..T1
+	Create simple service but dont start it.()](#module_TOTEM..T1
 	Create simple service but dont start it.)
         * [~T2
 	Totem service running in fault protection mode, no database, no UI; but I am running
-	with 2 workers and the default endpoint routes.()](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..T2
+	with 2 workers and the default endpoint routes.()](#module_TOTEM..T2
 	Totem service running in fault protection mode, no database, no UI; but I am running
 	with 2 workers and the default endpoint routes.)
         * [~T3
@@ -455,9 +340,7 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
 	ice with no workers. I do, however, have a mysql database from which Ive derived 
 	my startup options (see the openv.apps table for the Nick=Totem1).  
 	No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit /files/ to index 
-	these files.()](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..T3
+	these files.()](#module_TOTEM..T3
 	Im a Totem serv
 	ice with no workers. I do, however, have a mysql database from which Ive derived 
 	my startup options (see the openv.apps table for the Nick=Totem1).  
@@ -468,9 +351,7 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
 	and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
 	aka core), Im running unprotected, and have a mysql database.  
 	[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
-	associated public NICK.crt and private NICK.key certs it creates.()](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..T4
+	associated public NICK.crt and private NICK.key certs it creates.()](#module_TOTEM..T4
 	As always, if the openv.apps Encrypt is set for the Nick=Totem app, this service is now **encrypted** [*]
 	and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
 	aka core), Im running unprotected, and have a mysql database.  
@@ -478,221 +359,115 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
 	associated public NICK.crt and private NICK.key certs it creates.)
         * [~T5
 	I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
-	shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.()](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..T5
+	shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.()](#module_TOTEM..T5
 	I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
 	shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.)
         * [~T6
-	Testing tasker with database and 3 cores at /test endpoint.()](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..T6
+	Testing tasker with database and 3 cores at /test endpoint.()](#module_TOTEM..T6
 	Testing tasker with database and 3 cores at /test endpoint.)
-        * [~T7()](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..T7)
+        * [~T7()](#module_TOTEM..T7)
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.errors"></a>
+<a name="module_TOTEM.errors"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..errors
+### TOTEM.errors
 Error messages
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.tasking"></a>
+<a name="module_TOTEM.tasking"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..tasking
+### TOTEM.tasking
 Common methods for task sharding
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.dogs"></a>
+<a name="module_TOTEM.dogs"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..dogs
+### TOTEM.dogs
 Watchdogs {name: dog(sql, lims), ... } run at intervals dog.cycle seconds usings its
 		dog.trace, dog.parms, sql connector and threshold parameters.
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.sqlThread"></a>
+<a name="module_TOTEM.sqlThread"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..sqlThread
+### TOTEM.sqlThread
 Thread a new sql connection to a callback.
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | cb | <code>function</code> | callback(sql connector) |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.neoThread"></a>
+<a name="module_TOTEM.neoThread"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..neoThread
+### TOTEM.neoThread
 Thread a new neo4j connection to a callback.
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | cb | <code>function</code> | callback(sql connector) |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.crudIF"></a>
+<a name="module_TOTEM.crudIF"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..crudIF
+### TOTEM.crudIF
 REST-to-CRUD translations
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.reqFlags"></a>
+<a name="module_TOTEM.reqFlags"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..reqFlags
+### TOTEM.reqFlags
 Options to parse request flags
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.secureLink"></a>
+<a name="module_TOTEM.secureLink"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..secureLink
+### TOTEM.secureLink
 Enabled to support web sockets
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Boolean</code> [sockets=false]  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.cores"></a>
+<a name="module_TOTEM.cores"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..cores
+### TOTEM.cores
 Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
 		become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
 		encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
 		workers via the masterport.
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Number</code> [cores=0]  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.onFile"></a>
+<a name="module_TOTEM.onFile"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..onFile
+### TOTEM.onFile
 Folder watching callbacks cb(path)
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.modTimes"></a>
+<a name="module_TOTEM.modTimes"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..modTimes
+### TOTEM.modTimes
 File mod-times tracked as OS will trigger multiple events when file changed
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.behindProxy"></a>
+<a name="module_TOTEM.behindProxy"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..behindProxy
+### TOTEM.behindProxy
 Enable if https server being proxied
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Boolean</code> [behindProxy=false]  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.name"></a>
+<a name="module_TOTEM.name"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..name
+### TOTEM.name
 Service name used to
 			1) derive site parms from mysql openv.apps by Nick=name
 			2) set mysql name.table for guest clients,
@@ -701,176 +476,84 @@ Service name used to
 		If the Nick=name is not located in openv.apps, the supplied	config() options 
 		are not overridden.
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.passEncrypted"></a>
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
+<a name="module_TOTEM.passEncrypted"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..passEncrypted
+### TOTEM.passEncrypted
 Enabled when master/workers on encrypted service
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Boolean</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.$master"></a>
+<a name="module_TOTEM.$master"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..$master
+### TOTEM.$master
 Host information: https encryption passphrase,
 		domain name of workers, domain name of master.
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>String</code> [name="Totem"]  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.site"></a>
+<a name="module_TOTEM.site"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..site
+### TOTEM.site
 Site context extended by the mysql derived query when service starts
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.filterRecords"></a>
+<a name="module_TOTEM.filterRecords"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..filterRecords
+### TOTEM.filterRecords
 Endpoint filterRecords cb(data data as string || error)
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.byTable"></a>
+<a name="module_TOTEM.byTable"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..byTable
+### TOTEM.byTable
 By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.byAction"></a>
+<a name="module_TOTEM.byAction"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..byAction
+### TOTEM.byAction
 By-action endpoint routers for accessing engines
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.byType"></a>
+<a name="module_TOTEM.byType"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..byType
+### TOTEM.byType
 By-type endpoint routers  {type: method(req,res), ... } for accessing dataset readers
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.byArea"></a>
+<a name="module_TOTEM.byArea"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..byArea
+### TOTEM.byArea
 By-area endpoint routers {area: method(req,res), ... } for sending/cacheing files
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.trustStore"></a>
+<a name="module_TOTEM.trustStore"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..trustStore
+### TOTEM.trustStore
 Trust store extened with certs in the certs.truststore folder when the service starts in encrypted mode
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.server"></a>
+<a name="module_TOTEM.server"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..server
+### TOTEM.server
 CRUDE (req,res) method to respond to Totem request
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.select"></a>
+<a name="module_TOTEM.select"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..select
+### TOTEM.select
 CRUDE (req,res) method to respond to a select||GET request
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
 
 | Param | Type | Description |
@@ -878,20 +561,12 @@ CRUDE (req,res) method to respond to a select||GET request
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem responder |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.update"></a>
+<a name="module_TOTEM.update"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..update
+### TOTEM.update
 CRUDE (req,res) method to respond to a update||POST request
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
 
 | Param | Type | Description |
@@ -899,20 +574,12 @@ CRUDE (req,res) method to respond to a update||POST request
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem responder |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.delete"></a>
+<a name="module_TOTEM.delete"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..delete
+### TOTEM.delete
 CRUDE (req,res) method to respond to a delete||DELETE request
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
 
 | Param | Type | Description |
@@ -920,20 +587,12 @@ CRUDE (req,res) method to respond to a delete||DELETE request
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem responder |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.insert"></a>
+<a name="module_TOTEM.insert"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..insert
+### TOTEM.insert
 CRUDE (req,res) method to respond to a insert||PUT request
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
 
 | Param | Type | Description |
@@ -941,20 +600,12 @@ CRUDE (req,res) method to respond to a insert||PUT request
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem responder |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.execute"></a>
+<a name="module_TOTEM.execute"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..execute
+### TOTEM.execute
 CRUDE (req,res) method to respond to a Totem request
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
 
 | Param | Type | Description |
@@ -962,118 +613,58 @@ CRUDE (req,res) method to respond to a Totem request
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem responder |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.guard"></a>
+<a name="module_TOTEM.guard"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..guard
+### TOTEM.guard
 Enable/disable service fault protection guards
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Boolean</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.guards"></a>
+<a name="module_TOTEM.guards"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..guards
+### TOTEM.guards
 Service guard modes
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.admitRules"></a>
+<a name="module_TOTEM.admitRules"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..admitRules
+### TOTEM.admitRules
 Client admission rules
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.riddles"></a>
+<a name="module_TOTEM.riddles"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..riddles
+### TOTEM.riddles
 Number of antibot riddles to extend
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Number</code> [riddles=0]  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.paths"></a>
+<a name="module_TOTEM.paths"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..paths
+### TOTEM.paths
 Default paths to service files
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.busyTime"></a>
+<a name="module_TOTEM.busyTime"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..busyTime
+### TOTEM.busyTime
 Server toobusy check period in seconds
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Number</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.cache"></a>
+<a name="module_TOTEM.cache"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..cache
+### TOTEM.cache
 File cache
 
-**Kind**: static property of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.Fetch"></a>
+<a name="module_TOTEM.Fetch"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..Fetch(path, method)
+### TOTEM.Fetch(path, method)
 Fetches data from a 
 		
 			path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
@@ -1093,11 +684,7 @@ Fetches data from a
 		If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
 		regulate the file stream.
 
-**Kind**: static method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
 
 | Param | Type | Description |
@@ -1105,13 +692,9 @@ Fetches data from a
 | path | <code>String</code> | protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path |
 | method | <code>Object</code> | induces probe method |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.routeRequest"></a>
+<a name="module_TOTEM.routeRequest"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..routeRequest(req, res)
+### TOTEM.routeRequest(req, res)
 Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
 		byActionTable then byAction routers.	
 
@@ -1119,32 +702,20 @@ Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable
 		a file-cache function and terminates the session's sql connection.  The client is 
 		validated and their session logged.
 
-**Kind**: static method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | session request |
 | res | <code>Object</code> | session response |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.config"></a>
+<a name="module_TOTEM.config"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..config(opts, cb)
+### TOTEM.config(opts, cb)
 Configure and start the service with options and optional callback when started.
 		Configure database, define site context, then protect, connect, start and initialize this server.
 
-**Kind**: static method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
 
 | Param | Type | Description |
@@ -1152,20 +723,63 @@ Configure and start the service with options and optional callback when started.
 | opts | <code>Object</code> | configuration options following the Copy() conventions. |
 | cb | <code>function</code> | callback(err) after service configured |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.runTask"></a>
+<a name="module_TOTEM.config..configService"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..runTask(opts, task, cb)
+#### config~configService(agent)
+Setup (connect, start then initialize) a service that will handle its request-response sessions
+			with the provided agent(req,res).
+
+			The session request is constructed in the following phases:
+
+				// phase1 startRequest
+				host: "proto://domain:port"	// requested host 
+				cookie: "...."		// client cookie string
+				agent: "..."		// client browser info
+				ipAddress: "..."	// client ip address
+				referer: "proto://domain:port/query"	//  url during a cross-site request
+				method: "GET|PUT|..." 			// http request method
+				action: "select|update| ..."	// corresponding crude name
+				started: date		// date stamp when requested started
+				encrypted: bool		// true if request on encrypted server
+				post: "..."			// raw body text
+				url	: "/query"		// requested url path
+				reqSocket: socket	// socket to retrieve client cert 
+				resSocket: socket	// socket to accept response
+				sql: connector 		// sql database connector 
+
+				// phase2 startResponse
+				log: {...}			// info to trap socket stats
+				client: "..."		// name of client from cert or "guest"
+				cert: {...} 		// full client cert
+
+				// phase3 routeRequest 
+				files: [...]		// list of files being uploaded
+				canvas: {...}		// canvas being uploaded
+				query: {...} 		// raw keys from url
+				where: {...} 		// sql-ized query keys from url
+				body: {...}			// body keys from request 
+				flags: {...} 		// flag keys from url
+				index: {...}		// sql-ized index keys from url
+				files: [...] 		// files uploaded
+				path: "/[area/...]name.type"			// requested resource
+				area: "name"		// file area being requested
+				table: "name"		// name of sql table being requested
+				ds:	"db.name"		// fully qualified sql table
+				body: {...}			// json parsed post
+				type: "type" 		// type part
+
+**Kind**: inner method of [<code>config</code>](#module_TOTEM.config)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| agent | <code>function</code> | callback(req,res) to handle session request-response |
+
+<a name="module_TOTEM.runTask"></a>
+
+### TOTEM.runTask(opts, task, cb)
 Shard one or more tasks to workers residing in a compute node cloud.
 
-**Kind**: static method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
 
 | Param | Type | Description |
@@ -1195,20 +809,12 @@ runTask({  		// example
 
 		
 ```
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.watchFile"></a>
+<a name="module_TOTEM.watchFile"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..watchFile(path, callback)
+### TOTEM.watchFile(path, callback)
 Establish smart file watcher when file at area/name has changed.
 
-**Kind**: static method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
 
 | Param | Type | Description |
@@ -1216,337 +822,185 @@ Establish smart file watcher when file at area/name has changed.
 | path | <code>String</code> | to file being watched |
 | callback | <code>function</code> | cb(sql, name, path) when file at path has changed |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.getBrick"></a>
+<a name="module_TOTEM.getBrick"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..getBrick()
+### TOTEM.getBrick()
 Get a file and make it if it does not exist
 
-**Kind**: static method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_.setContext"></a>
+<a name="module_TOTEM.setContext"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service..setContext()
+### TOTEM.setContext()
 Sets the site context parameters.
 
-**Kind**: static method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..isAdmin"></a>
+<a name="module_TOTEM..isAdmin"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~isAdmin
+### TOTEM~isAdmin
 TOTEM.End_Points.Users_Interface
  Create user maint end points
 
-**Kind**: inner class of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..stop"></a>
+**Kind**: inner class of [<code>TOTEM</code>](#module_TOTEM)  
+<a name="module_TOTEM..stop"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~stop()
+### TOTEM~stop()
 Stop the server.
 
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..uploadFile"></a>
+<a name="module_TOTEM..uploadFile"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~uploadFile()
+### TOTEM~uploadFile()
 File uploader
 
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..selectDS"></a>
+<a name="module_TOTEM..selectDS"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~selectDS(req, res)
+### TOTEM~selectDS(req, res)
 CRUD select endpoint.
 
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem's request |
 | res | <code>function</code> | Totem's response callback |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..insertDS"></a>
+<a name="module_TOTEM..insertDS"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~insertDS(req, res)
+### TOTEM~insertDS(req, res)
 CRUD insert endpoint.
 
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem's request |
 | res | <code>function</code> | Totem's response callback |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..deleteDS"></a>
+<a name="module_TOTEM..deleteDS"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~deleteDS(req, res)
+### TOTEM~deleteDS(req, res)
 CRUD delete endpoint.
 
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem's request |
 | res | <code>function</code> | Totem's response callback |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..updateDS"></a>
+<a name="module_TOTEM..updateDS"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~updateDS(req, res)
+### TOTEM~updateDS(req, res)
 CRUD update endpoint.
 
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem's request |
 | res | <code>function</code> | Totem's response callback |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..executeDS"></a>
+<a name="module_TOTEM..executeDS"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~executeDS(req, res)
+### TOTEM~executeDS(req, res)
 CRUD execute endpoint.
 
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem's request |
 | res | <code>function</code> | Totem's response callback |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..sysTask"></a>
+<a name="module_TOTEM..sysTask"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~sysTask(req, res)
+### TOTEM~sysTask(req, res)
 Endpoint to shard a task to the compute nodes.
 
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem request |
 | res | <code>function</code> | Totem response |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..sysChallenge"></a>
+<a name="module_TOTEM..sysChallenge"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~sysChallenge(req, res)
+### TOTEM~sysChallenge(req, res)
 Validate clients response to an antibot challenge.
 
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem response callback |
 
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..T1
+<a name="module_TOTEM..T1
 	Create simple service but dont start it."></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~T1
+### TOTEM~T1
 	Create simple service but dont start it.()
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..T2
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+<a name="module_TOTEM..T2
 	Totem service running in fault protection mode, no database, no UI; but I am running
 	with 2 workers and the default endpoint routes."></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~T2
+### TOTEM~T2
 	Totem service running in fault protection mode, no database, no UI; but I am running
 	with 2 workers and the default endpoint routes.()
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..T3
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+<a name="module_TOTEM..T3
 	Im a Totem serv
 	ice with no workers. I do, however, have a mysql database from which Ive derived 
 	my startup options (see the openv.apps table for the Nick=Totem1).  
 	No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit /files/ to index 
 	these files."></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~T3
+### TOTEM~T3
 	Im a Totem serv
 	ice with no workers. I do, however, have a mysql database from which Ive derived 
 	my startup options (see the openv.apps table for the Nick=Totem1).  
 	No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit /files/ to index 
 	these files.()
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..T4
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+<a name="module_TOTEM..T4
 	As always, if the openv.apps Encrypt is set for the Nick=Totem app, this service is now **encrypted** [*]
 	and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
 	aka core), Im running unprotected, and have a mysql database.  
 	[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
 	associated public NICK.crt and private NICK.key certs it creates."></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~T4
+### TOTEM~T4
 	As always, if the openv.apps Encrypt is set for the Nick=Totem app, this service is now \*\*encrypted\*\* [\*]
 	and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
 	aka core), Im running unprotected, and have a mysql database.  
 	[\*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
 	associated public NICK.crt and private NICK.key certs it creates.()
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..T5
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+<a name="module_TOTEM..T5
 	I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
 	shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use."></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~T5
+### TOTEM~T5
 	I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
 	shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.()
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..T6
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+<a name="module_TOTEM..T6
 	Testing tasker with database and 3 cores at /test endpoint."></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~T6
+### TOTEM~T6
 	Testing tasker with database and 3 cores at /test endpoint.()
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
-<a name="TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_..T7"></a>
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+<a name="module_TOTEM..T7"></a>
 
-### TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.~T7()
-**Kind**: inner method of [<code>TOTEM
-	
-	[TOTEM](https://github.com/totemstan/totem.git) provides a barebones web service.</code>](#TOTEM
-	
-	[TOTEM](https_//github.com/totemstan/totem.git) provides a barebones web service.module_)  
+### TOTEM~T7()
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 
 * * *
 
