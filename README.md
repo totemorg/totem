@@ -1,5 +1,3 @@
-[![view on npm](http://img.shields.io/npm/v/example.svg)](https://www.npmjs.org/package/example)
-
 # TOTEM
 
 **TOTEM** provides a basic http/https web service with the following customizable features:
@@ -676,7 +674,7 @@ Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable
 
 ### TOTEM.config(opts, cb)
 Configure and start the service with options and optional callback when started.
-		Configure database, define site context, then protect, connect, start and initialize this server.
+	Configure database, define site context, then protect, connect, start and initialize this server.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
@@ -696,46 +694,46 @@ Configure and start the service with options and optional callback when started.
 
 #### config~configService(agent)
 Setup (connect, start then initialize) a service that will handle its request-response sessions
-			with the provided agent(req,res).
+		with the provided agent(req,res).
 
-			The session request is constructed in the following phases:
+		The session request is constructed in the following phases:
 
-				// phase1 startRequest
-				host: "proto://domain:port"	// requested host 
-				cookie: "...."		// client cookie string
-				agent: "..."		// client browser info
-				ipAddress: "..."	// client ip address
-				referer: "proto://domain:port/query"	//  url during a cross-site request
-				method: "GET|PUT|..." 			// http request method
-				action: "select|update| ..."	// corresponding crude name
-				started: date		// date stamp when requested started
-				encrypted: bool		// true if request on encrypted server
-				post: "..."			// raw body text
-				url	: "/query"		// requested url path
-				reqSocket: socket	// socket to retrieve client cert 
-				resSocket: socket	// socket to accept response
-				sql: connector 		// sql database connector 
+			// phase1 startRequest
+			host: "proto://domain:port"	// requested host 
+			cookie: "...."		// client cookie string
+			agent: "..."		// client browser info
+			ipAddress: "..."	// client ip address
+			referer: "proto://domain:port/query"	//  url during a cross-site request
+			method: "GET|PUT|..." 			// http request method
+			action: "select|update| ..."	// corresponding crude name
+			started: date		// date stamp when requested started
+			encrypted: bool		// true if request on encrypted server
+			post: "..."			// raw body text
+			url	: "/query"		// requested url path
+			reqSocket: socket	// socket to retrieve client cert 
+			resSocket: socket	// socket to accept response
+			sql: connector 		// sql database connector 
 
-				// phase2 startResponse
-				log: {...}			// info to trap socket stats
-				client: "..."		// name of client from cert or "guest"
-				cert: {...} 		// full client cert
+			// phase2 startResponse
+			log: {...}			// info to trap socket stats
+			client: "..."		// name of client from cert or "guest"
+			cert: {...} 		// full client cert
 
-				// phase3 routeRequest 
-				files: [...]		// list of files being uploaded
-				canvas: {...}		// canvas being uploaded
-				query: {...} 		// raw keys from url
-				where: {...} 		// sql-ized query keys from url
-				body: {...}			// body keys from request 
-				flags: {...} 		// flag keys from url
-				index: {...}		// sql-ized index keys from url
-				files: [...] 		// files uploaded
-				path: "/[area/...]name.type"			// requested resource
-				area: "name"		// file area being requested
-				table: "name"		// name of sql table being requested
-				ds:	"db.name"		// fully qualified sql table
-				body: {...}			// json parsed post
-				type: "type" 		// type part
+			// phase3 routeRequest 
+			files: [...]		// list of files being uploaded
+			canvas: {...}		// canvas being uploaded
+			query: {...} 		// raw keys from url
+			where: {...} 		// sql-ized query keys from url
+			body: {...}			// body keys from request 
+			flags: {...} 		// flag keys from url
+			index: {...}		// sql-ized index keys from url
+			files: [...] 		// files uploaded
+			path: "/[area/...]name.type"			// requested resource
+			area: "name"		// file area being requested
+			table: "name"		// name of sql table being requested
+			ds:	"db.name"		// fully qualified sql table
+			body: {...}			// json parsed post
+			type: "type" 		// type part
 
 **Kind**: inner method of [<code>config</code>](#module_TOTEM.config)  
 
