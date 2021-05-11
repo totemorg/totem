@@ -1,8 +1,9 @@
 # TOTEM
 
-**TOTEM** provides a basic http/https web service with the following customizable features:
+**TOTEM** provides a basic web service with the following customizable features:
 
 	+ endpoint routing
+	+ http/https service
 	+ denial-of-service protection
 	+ secure link providing encrypted inter-client communications with antibot guard
 	+ client profiles 
@@ -12,21 +13,21 @@
 	+ crud interface
 	+ mysql/neo4j database agnosticator
 	+ task queuing and regulation
-	+ poll files and services
+	+ file polling and services
 	+ automattic server cert generation
 	+ task sharding
 	+ file stream and ingest
 	+ data fetching, rotating proxies, oauth access
 	+ smartcard reader
   
-**TOTEM** defines endpoints:
+**TOTEM** defines a CRUD interface:
 
 	POST / NODE 
 	GET / NODE 
 	PUT / NODE 
 	DELETE / NODE 
 
-to access dataset, file or command NODEs:
+providing endpoint NODES to access datasets, files or service commands:
 
 	DATASET.TYPE ? QUERY
 	AREA/PATH/FILE.TYPE ? QUERY
@@ -71,19 +72,22 @@ Clone [**TOTEM** base web service](https://github.com/totemstan/totem) || [COE](
 
 ## Requires
 
-[ENUM standard enumerators](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum), [JSDB database agnosticator](https://github.com/totemstan/jsdb) || [COE](https://sc.appdev.proj.coe/acmesds/jsdb) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb).
+[ENUM standard enumerators](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.gs.mil/totemstan/enum), 
+[JSDB database agnosticator](https://github.com/totemstan/jsdb) || [COE](https://sc.appdev.proj.coe/acmesds/jsdb) || [SBU](https://gitlab.gs.mil/totemstan/jsdb),
+[SECURELINK secure login/messaging link](https://github.com/totemstan/securelink) || [COE](https://sc.appdev.proj.coe/acmesds/securelink) || [SBU](https://gitlab.gs.mil/totemstan/securelink), 
+[SOCKETIO web sockets](https://github.com/totemstan/socketio) || [COE](https://sc.appdev.proj.coe/acmesds/socketio) || [SBU](https://gitlab.gs.mil/totemstan/socketio).
 
 ## Manage 
 
-	npm test [ ? || T1 || T2 || ...]	# Start or unit test
-	npm run [ prmprep || prmload ]		# Update Program Ref Manual
-	npm run [ edit || start ]			# Configure environment
+	npm test [ ? || T1 || T2 || ...]	# Unit test
+	npm run [ redoc ]		# Update documentation
+	npm run [ confg ]		# Configure environment
 
 ## Usage
 
 Require, configure and start **TOTEM**:
 	
-	var **TOTEM** = require("totem")({
+	var TOTEM = require("totem")({
 		key: value, 						// set key
 		"key.key": value, 					// indexed set
 		"key.key.": value					// indexed append
@@ -96,7 +100,7 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 
 ### T1 - A do-nothing service
 		
-	var **TOTEM** = require("totem");
+	var TOTEM = require("totem");
 
 	Trace({
 		msg: "Im simply a Totem interface so Im not even running as a service", 
