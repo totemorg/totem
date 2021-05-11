@@ -20,14 +20,7 @@
 	+ data fetching, rotating proxies, oauth access
 	+ smartcard reader
   
-**TOTEM** defines a CRUD interface:
-
-	POST / NODE 
-	GET / NODE 
-	PUT / NODE 
-	DELETE / NODE 
-
-providing endpoint NODES to access datasets, files or service commands:
+**TOTEM** defines a CRUD (HTTP POST, GET, PUT, DELETE) to endpoint NODES for accessing datasets, files or services:
 
 	DATASET.TYPE ? QUERY
 	AREA/PATH/FILE.TYPE ? QUERY
