@@ -156,7 +156,7 @@ these files. `
 **Example**  
 ```js
 // npm test T4
-	// Only requested only 1 worker, unprotected, and a mysql database.  
+	// Only 1 worker, unprotected, a mysql database, and two endpoints.
 
 	TOTEM.config({
 		byTable: {
@@ -217,7 +217,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 **Example**  
 ```js
 // npm test T6
-	// Testing tasker with database and 3 cores at /test endpoint.
+	// Testing tasker with database, 3 cores and an additional /test endpoint.
 
 	TOTEM.config({
 		guard: false,	// ex override default 
