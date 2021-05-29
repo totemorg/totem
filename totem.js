@@ -360,7 +360,6 @@ const
 /**
 Parse XML string into json and callback cb(json) 
 
-@memberof String
 @param {Function} cb callback( json || null if error )
 */
 function parseXML(cb) {
@@ -771,13 +770,15 @@ function fetchFile(data, cb) {	//< data fetching
 	}
 }	
 
-/**
-@class String
-*/
+String.prototype.parseXML = parseXML;
+String.prototype.fetchFile = fetchFile;
+
+/*
 [ //< String prototypes
 	parseXML,
 	fetchFile
 ].Extend(String);
+*/
 
 // totem i/f
 
