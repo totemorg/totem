@@ -360,7 +360,7 @@ const
 /**
 Parse XML string into json and callback cb(json) 
 
-@memberof String
+@class String
 @param {Function} cb callback( json || null if error )
 */
 function parseXML(cb) {

@@ -467,6 +467,8 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
         * [.watchFile(path, callback)](#module_TOTEM.watchFile)
         * [.setContext()](#module_TOTEM.setContext)
     * _inner_
+        * [~String](#module_TOTEM..String)
+            * [new String(cb)](#new_module_TOTEM..String_new)
         * [~fetchFile(path, data, cb)](#module_TOTEM..fetchFile)
         * [~stopService()](#module_TOTEM..stopService)
         * [~createCert(owner, password, cb)](#module_TOTEM..createCert)
@@ -1010,6 +1012,20 @@ Sets the site context parameters.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
+<a name="module_TOTEM..String"></a>
+
+### TOTEM~String
+**Kind**: inner class of [<code>TOTEM</code>](#module_TOTEM)  
+<a name="new_module_TOTEM..String_new"></a>
+
+#### new String(cb)
+Parse XML string into json and callback cb(json)
+
+
+| Param | Type | Description |
+| --- | --- | --- |
+| cb | <code>function</code> | callback( json || null if error ) |
+
 <a name="module_TOTEM..fetchFile"></a>
 
 ### TOTEM~fetchFile(path, data, cb)
