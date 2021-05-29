@@ -360,6 +360,7 @@ const
 /**
 Parse XML string into json and callback cb(json) 
 
+@extends String
 @param {Function} cb callback( json || null if error )
 */
 function parseXML(cb) {
@@ -388,6 +389,7 @@ and where
 If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
 regulate the file stream.
 
+@extends String
 @param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
 @param {Object} data type induces method = get || post || put || delete
 @param {Function} cb callback when data provided

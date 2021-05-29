@@ -467,8 +467,8 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
         * [.watchFile(path, callback)](#module_TOTEM.watchFile)
         * [.setContext()](#module_TOTEM.setContext)
     * _inner_
-        * [~parseXML(cb)](#module_TOTEM..parseXML)
-        * [~fetchFile(path, data, cb)](#module_TOTEM..fetchFile)
+        * [~parseXML(cb)](#module_TOTEM..parseXML) ⇐ <code>String</code>
+        * [~fetchFile(path, data, cb)](#module_TOTEM..fetchFile) ⇐ <code>String</code>
         * [~stopService()](#module_TOTEM..stopService)
         * [~createCert(owner, password, cb)](#module_TOTEM..createCert)
         * [~resolveClient(req, res)](#module_TOTEM..resolveClient)
@@ -1013,10 +1013,11 @@ Sets the site context parameters.
 **Cfg**: <code>Function</code>  
 <a name="module_TOTEM..parseXML"></a>
 
-### TOTEM~parseXML(cb)
+### TOTEM~parseXML(cb) ⇐ <code>String</code>
 Parse XML string into json and callback cb(json)
 
 **Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+**Extends**: <code>String</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1024,7 +1025,7 @@ Parse XML string into json and callback cb(json)
 
 <a name="module_TOTEM..fetchFile"></a>
 
-### TOTEM~fetchFile(path, data, cb)
+### TOTEM~fetchFile(path, data, cb) ⇐ <code>String</code>
 Fetches data from a 
 
 	path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
@@ -1045,6 +1046,7 @@ If FILE is terminated by a "/", then a file index is returned.  Optional batch,l
 regulate the file stream.
 
 **Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+**Extends**: <code>String</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
