@@ -32,7 +32,7 @@
 	
 	// npm test T1
 	// Create simple service but dont start it.
-	Log("", {
+	Log({
 		msg: "Im simply a Totem interface so Im not even running as a service", 
 		default_fetcher_endpts: TOTEM.byTable,
 		default_protect_mode: TOTEM.guard,
@@ -772,15 +772,10 @@ function fetchFile(data, cb) {	//< data fetching
 	}
 }	
 
-String.prototype.parseXML = parseXML;
-String.prototype.fetchFile = fetchFile;
-
-/*
 [ //< String prototypes
 	parseXML,
 	fetchFile
 ].Extend(String);
-*/
 
 // totem i/f
 
@@ -3331,11 +3326,7 @@ switch (process.argv[2]) { //< unit tests
 		break;
 
 	case "T1": 
-	/**
-	T1 
-	Create simple service but dont start it.
-	*/
-		Log("", {
+		Log({
 			msg: "Im simply a Totem interface so Im not even running as a service", 
 			default_fetcher_endpts: TOTEM.byTable,
 			default_protect_mode: TOTEM.guard,
@@ -3344,11 +3335,6 @@ switch (process.argv[2]) { //< unit tests
 		break;
 
 	case "T2": 
-	/**
-	T2
-	Totem service running in fault protection mode, no database, no UI; but I am running
-	with 2 workers and the default endpoint routes.
-	*/
 		TOTEM.config({
 			mysql: null,
 			guard: true,
@@ -3363,14 +3349,6 @@ with 2 workers and the default endpoint routes` );
 		break;
 
 	case "T3": 
-	/**
-	T3
-	I'm a Totem serv
-	ice with no workers. I do, however, have a mysql database from which I've derived 
-	my startup options (see the openv.apps table for the Nick="Totem1").  
-	No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
-	these files. 
-	*/
 
 		TOTEM.config({
 		}, sql => {
@@ -3384,15 +3362,6 @@ these files. `
 		break;
 
 	case "T4": 
-	/**
-	T4
-	As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
-	and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
-	aka core), Im running unprotected, and have a mysql database.  
-	[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
-	associated public NICK.crt and private NICK.key certs it creates.
-	*/
-		
 		TOTEM.config({
 			byTable: {
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
@@ -3431,12 +3400,6 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 		break;
 
 	case "T5": 
-	/**
-	T5
-	I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
-	shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.
-	*/
-		
 		TOTEM.config({
 			riddles: 20
 		}, sql => {
@@ -3450,11 +3413,6 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 		break;
 
 	case "T6":
-	/**
-	T6
-	Testing tasker with database and 3 cores at /test endpoint.
-	*/
-		
 		TOTEM.config({
 			guard: false,	// ex override default 
 			cores: 3,		// ex override default
@@ -3503,10 +3461,6 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 		break;
 		
 	case "T7":
-	/**
-	T7
-	*/
-		
 		TOTEM.config({
 		}, sql => {				
 			Log( "db maintenance" );

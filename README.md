@@ -107,7 +107,7 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
 ```js
 // npm test T1
 	// Create simple service but dont start it.
-	Log("", {
+	Log({
 		msg: "Im simply a Totem interface so Im not even running as a service", 
 		default_fetcher_endpts: TOTEM.byTable,
 		default_protect_mode: TOTEM.guard,
