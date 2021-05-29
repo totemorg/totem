@@ -30,33 +30,32 @@
 	
 	@example
 	
-		// npm test T1
-		// Create simple service but dont start it.
-		Log("", {
-			msg: "Im simply a Totem interface so Im not even running as a service", 
-			default_fetcher_endpts: TOTEM.byTable,
-			default_protect_mode: TOTEM.guard,
-			default_cores_used: TOTEM.cores
-		});
+	// npm test T1
+	// Create simple service but dont start it.
+	Log("", {
+		msg: "Im simply a Totem interface so Im not even running as a service", 
+		default_fetcher_endpts: TOTEM.byTable,
+		default_protect_mode: TOTEM.guard,
+		default_cores_used: TOTEM.cores
+	});
 
 	@example
 	
-		// npm test T2
-		// Totem service running in fault protection mode, no database, no UI; but I am running
-		// with 2 workers and the default endpoint routes.
+	// npm test T2
+	// Totem service running in fault protection mode, no database, no UI; but I am running
+	// with 2 workers and the default endpoint routes.
 
-		TOTEM.config({
-			mysql: null,
-			guard: true,
-			cores: 2
-		}, sql => {
+	TOTEM.config({
+		mysql: null,
+		guard: true,
+		cores: 2
+	}, sql => {
 
-			Log( 
+		Log( 
 `I'm a Totem service running in fault protection mode, no database, no UI; but I am running
 with 2 workers and the default endpoint routes` );
 
-		});
-		break;
+	});
 
 	@example
 	
@@ -772,7 +771,10 @@ function fetchFile(data, cb) {	//< data fetching
 				res( "" );
 	}
 }	
-	
+
+/**
+@class String
+*/
 [ //< String prototypes
 	parseXML,
 	fetchFile

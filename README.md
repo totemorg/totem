@@ -106,34 +106,33 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
 **Example**  
 ```js
 // npm test T1
-		// Create simple service but dont start it.
-		Log("", {
-			msg: "Im simply a Totem interface so Im not even running as a service", 
-			default_fetcher_endpts: TOTEM.byTable,
-			default_protect_mode: TOTEM.guard,
-			default_cores_used: TOTEM.cores
-		});
+	// Create simple service but dont start it.
+	Log("", {
+		msg: "Im simply a Totem interface so Im not even running as a service", 
+		default_fetcher_endpts: TOTEM.byTable,
+		default_protect_mode: TOTEM.guard,
+		default_cores_used: TOTEM.cores
+	});
 
 	
 ```
 **Example**  
 ```js
 // npm test T2
-		// Totem service running in fault protection mode, no database, no UI; but I am running
-		// with 2 workers and the default endpoint routes.
+	// Totem service running in fault protection mode, no database, no UI; but I am running
+	// with 2 workers and the default endpoint routes.
 
-		TOTEM.config({
-			mysql: null,
-			guard: true,
-			cores: 2
-		}, sql => {
+	TOTEM.config({
+		mysql: null,
+		guard: true,
+		cores: 2
+	}, sql => {
 
-			Log( 
+		Log( 
 `I'm a Totem service running in fault protection mode, no database, no UI; but I am running
 with 2 workers and the default endpoint routes` );
 
-		});
-		break;
+	});
 
 	
 ```
@@ -469,6 +468,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
         * [.watchFile(path, callback)](#module_TOTEM.watchFile)
         * [.setContext()](#module_TOTEM.setContext)
     * _inner_
+        * [~String](#module_TOTEM..String)
         * [~fetchFile(path, data, cb)](#module_TOTEM..fetchFile)
         * [~stopService()](#module_TOTEM..stopService)
         * [~createCert(owner, password, cb)](#module_TOTEM..createCert)
@@ -1012,6 +1012,10 @@ Sets the site context parameters.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
+<a name="module_TOTEM..String"></a>
+
+### TOTEM~String
+**Kind**: inner class of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM..fetchFile"></a>
 
 ### TOTEM~fetchFile(path, data, cb)
