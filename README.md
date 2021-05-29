@@ -53,14 +53,15 @@ where the path = "PROTOCOL://HOST/FILE" and where the PROTOCOL can be
 	file fetches data from the file system, 
 	book selects a notebook record. 
 			
-If the path is terminated by a "/", then a file index is returned; if terminated by "?batch=N&limit=N&rekey=from:to,...&comma=X&newline=X, 
+If the path is terminated by a "/", then a file index is returned; if terminated by "?batch=N&limit=N&rekey=from:to,...&comma=X&newline=X", 
 specified options are used to ingest the requested FILE stream.
 
 ## Installation
 
 Clone [**TOTEM** base web service](https://github.com/totemstan/totem) || [COE](https://sc.appdev.proj.coe/acmesds/totem) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/totem) into your PROJECT/totem folder.
 Also requires
-[ENUMS](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum), [JSDB database agnosticator](https://github.com/totemstan/jsdb) || [COE](https://sc.appdev.proj.coe/acmesds/jsdb) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb).
+[ENUMS](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum), and
+[JSDB](https://github.com/totemstan/jsdb) || [COE](https://sc.appdev.proj.coe/acmesds/jsdb) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb).
 
 ## Manage 
 
@@ -75,7 +76,9 @@ Also requires
 
 Require, configure and start **TOTEM**:
 	
-	var TOTEM = require("totem")({
+	const TOTEM = require("totem");
+
+	TOTEM.config({
 		key: value, 						// set key
 		"key.key": value, 					// indexed set
 		"key.key.": value					// indexed append
@@ -85,166 +88,6 @@ Require, configure and start **TOTEM**:
 
 where [its configuration keys](http://totem.hopto.org/shares/prm/totem/index.html) || [COE](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) || [SBU](https://totem.nga.mil/shares/prm/totem/index.html)
 follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum).
-
-### T1 - A do-nothing service
-		
-	var TOTEM = require("totem");
-
-	Trace({
-		msg: "Im simply a Totem interface so Im not even running as a service", 
-		default_fetcher_endpts: TOTEM.byTable,
-		default_protect_mode: TOTEM.faultless,
-		default_cores_used: TOTEM.cores
-	});
-	
-### T2 - A do-little service
-
-	TOTEM.config({
-		name: "iamwhoiam",
-		faultless: true,
-		cores: 2
-	}, err => {
-
-		Trace( err || 
-			`I'm a Totem service running in fault protection mode, no database, no UI; but I am running
-			with 2 cores and the default endpoint routes` );
-
-	});
-
-### T3 - Add a database
-
-	TOTEM.config({
-		name: "Totem",
-
-		mysql: {
-			host: ENV.MYSQL_HOST,
-			user: ENV.MYSQL_USER,
-			pass: ENV.MYSQL_PASS
-		}
-	},  err => {				
-		Trace( err ||
-			`I'm a Totem service with no cores. I do, however, now have a mysql database from which I've derived 
-			my startup options (see the openv.apps table for the Nick="Totem").  
-			No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
-			these files. `
-		);
-	});
-		
-### T4 - Add custom endpoints
-	
-	TOTEM.config({
-		mysql: {
-			host: ENV.MYSQL_HOST,
-			user: ENV.MYSQL_USER,
-			pass: ENV.MYSQL_PASS
-		},
-		byTable: {
-			dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
-				res( "123" );
-
-				Trace({
-					do_query: req.query
-				});
-			},
-
-			dothat: function dothat(req,res) {
-
-				if (req.query.x)
-					res( [{x:req.query.x+1,y:req.query.x+2}] );
-				else
-					res( new Error("We have a problem huston") );
-
-				Trace({
-					msg: `Like dothis, but needs an ?x=value query`, 
-					or_query: req.query,
-					or_user: [req.client,req.group]
-				});
-			}
-		}
-	}, err => {
-		Trace( err || {
-			msg:
-				`As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
-				and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
-				aka core), Im running unprotected, and have a mysql database.  
-				[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
-				associated public NICK.crt and private NICK.key certs it creates.`,
-			my_endpoints: TOTEM.byTable
-		});
-	});
-		
-### T5 - Add antibot protection
-	
-	TOTEM.config({
-		mysql: {
-			host: ENV.MYSQL_HOST,
-			user: ENV.MYSQL_USER,
-			pass: ENV.MYSQL_PASS
-		},
-
-		name: "allmine",
-
-		riddles: 20
-	}, err => {
-		Trace( err || {
-			msg:
-				`I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield.  
-				Anti-bot shields require an Encrypted service, and a user interface (eg DEBE) to be of use.`, 
-			mysql_derived_parms: TOTEM.site
-		});
-	});
-### T6 - Add tasking endpoints
-
-	TOTEM.config({  // configure the service for tasking
-		name: "Totem1",  // default parms from openv.apps nick=Totem1
-		faultless: false,	// ex override default 
-		cores: 3,		// ex override default
-		mysql: { 		// provide a database
-			host: ENV.MYSQL_HOST,
-			user: ENV.MYSQL_USER,
-			pass: ENV.MYSQL_PASS
-		},
-		"byTable.": {  // define endpoints
-			test: function (req,res) {
-				res(" here we go");  // endpoint must always repond to its client 
-				if (CLUSTER.isMaster)  // setup tasking examples on on master
-					switch (req.query.opt || 1) {  // test example tasker
-						case 1: 
-							TOTEM.tasker({  // setup tasking for loops over these keys
-								keys: "i,j",
-								i: [1,2,3],
-								j: [4,5]
-							}, 
-								// define the task which returns a message msg
-								($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
-
-								// define the message msg handler
-								(msg) => console.log(msg)
-							);
-							break;
-
-						case 2:
-							TOTEM.tasker({
-								qos: 1,
-								keys: "i,j",
-								i: [1,2,3],
-								j: [4,5]
-							}, 
-								($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
-								(msg) => console.log(msg)
-							);
-							break;
-
-						case 3:
-							break;
-					}
-
-			}
-		}
-
-	}, err => {
-		Trace( err || "Testing tasker with database and 3 cores at /test endpoint" );
-	});
 
 ## Contacting, Contributing, Following
 
@@ -260,6 +103,320 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
 
 ## TOTEM
 **Requires**: <code>module:http</code>, <code>module:https</code>, <code>module:fs</code>, <code>module:constants</code>, <code>module:cluster</code>, <code>module:child\_process</code>, <code>module:os</code>, <code>module:stream</code>, <code>module:vm</code>, <code>module:crypto</code>, <code>module:enums</code>, <code>module:jsdb</code>, <code>module:securelink</code>, <code>module:socketio</code>, <code>module:mime</code>, <code>module:mysql</code>, <code>module:xml2js</code>, <code>module:toobusy</code>, <code>module:json2csv</code>, <code>module:js2xmlparser</code>, <code>module:toobusy-js</code>, <code>module:cheerio</code>  
+**Example**  
+```js
+// npm test T1
+		// Create simple service but dont start it.
+		Log("", {
+			msg: "Im simply a Totem interface so Im not even running as a service", 
+			default_fetcher_endpts: TOTEM.byTable,
+			default_protect_mode: TOTEM.guard,
+			default_cores_used: TOTEM.cores
+		});
+
+	
+```
+**Example**  
+```js
+// npm test T2
+		// Totem service running in fault protection mode, no database, no UI; but I am running
+		// with 2 workers and the default endpoint routes.
+
+		TOTEM.config({
+			mysql: null,
+			guard: true,
+			cores: 2
+		}, sql => {
+
+			Log( 
+`I'm a Totem service running in fault protection mode, no database, no UI; but I am running
+with 2 workers and the default endpoint routes` );
+
+		});
+		break;
+
+	
+```
+**Example**  
+```js
+// npm test T3
+		// A Totem service with no workers.
+
+		TOTEM.config({
+		}, sql => {
+			Log( 
+`I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
+my startup options (see the openv.apps table for the Nick="Totem1").  
+No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
+these files. `
+			);
+		});
+
+	
+```
+**Example**  
+```js
+// npm test T4
+		// Only requested only 1 worker, unprotected, and a mysql database.  
+		
+		TOTEM.config({
+			byTable: {
+				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
+					res( "123" );
+
+					Log("", {
+						do_query: req.query
+					});
+				},
+
+				dothat: function dothat(req,res) {
+
+					if (req.query.x)
+						res( [{x:req.query.x+1,y:req.query.x+2}] );
+					else
+						res( new Error("We have a problem huston") );
+
+					Log("", {
+						msg: `Like dothis, but needs an ?x=value query`, 
+						or_query: req.query,
+						or_user: req.client
+					});
+				}
+			}
+		}, sql => {
+			Log("", {
+				msg:
+`As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
+and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
+aka core), Im running unprotected, and have a mysql database.  
+[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
+associated public NICK.crt and private NICK.key certs it creates.`,
+				my_endpoints: T.byTable
+			});
+		});
+		break;
+
+	
+```
+**Example**  
+```js
+// npm test T5
+		// no cores but a mysql database and an anti-bot shield
+		
+		TOTEM.config({
+			riddles: 20
+		}, sql => {
+			Log("", {
+				msg:
+`I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
+shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.`, 
+				mysql_derived_parms: T.site
+			});
+		});
+
+	
+```
+**Example**  
+```js
+// npm test T6
+		// Testing tasker with database and 3 cores at /test endpoint.
+		
+		TOTEM.config({
+			guard: false,	// ex override default 
+			cores: 3,		// ex override default
+
+			"byTable.": {  // define endpoints
+				test: function (req,res) {
+					res(" here we go");  // endpoint must always repond to its client 
+					if (CLUSTER.isMaster)  // setup tasking examples on on master
+						switch (req.query.opt || 1) {  // test example runTask
+							case 1: 
+								T.runTask({  // setup tasking for loops over these keys
+									keys: "i,j",
+									i: [1,2,3],
+									j: [4,5]
+								}, 
+									// define the task which returns a message msg
+									($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
+
+									// define the message msg handler
+									(msg) => console.log(msg)
+								);
+								break;
+
+							case 2:
+								T.runTask({
+									qos: 1,
+									keys: "i,j",
+									i: [1,2,3],
+									j: [4,5]
+								}, 
+									($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
+									(msg) => console.log(msg)
+								);
+								break;
+
+							case 3:
+								break;
+						}
+
+				}
+			}
+
+		}, sql => {
+			Log( "Testing runTask with database and 3 cores at /test endpoint" );
+		});
+		
+	
+```
+**Example**  
+```js
+// npm test T7
+		// Conduct db maintenance
+		
+		TOTEM.config({
+		}, sql => {				
+			Log( "db maintenance" );
+
+			if (CLUSTER.isMaster)
+				switch (process.argv[3]) {
+					case 1: 
+						sql.query( "select voxels.id as voxelID, chips.id as chipID from openv.voxels left join openv.chips on voxels.Ring = chips.Ring", function (err,recs) {
+							recs.forEach( rec => {
+								sql.query("update openv.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
+									Log(err);
+								});
+							});
+						});
+						break;
+
+					case 2:
+						sql.query("select ID, Ring from openv.voxels", function (err, recs) {
+							recs.forEach( rec => {
+								sql.query(
+									"update openv.voxels set Point=geomFromText(?) where ?", 
+									[ `POINT(${rec.Ring[0][0].x} ${rec.Ring[0][0].y})` , {ID: rec.ID} ], 
+									err => {
+										Log(err);
+								});
+							});
+						});
+						break;
+
+					case 3:
+						sql.query( "select voxels.id as voxelID, cache.id as chipID from openv.voxels left join openv.cache on voxels.Ring = cache.geo1", function (err,recs) {
+							Log(err);
+							recs.forEach( rec => {
+								sql.query("update openv.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
+									Log(err);
+								});
+							});
+						});
+						break;
+
+					case 4:
+						sql.query("select ID, geo1 from openv.cache where bank='chip'", function (err, recs) {
+							recs.forEach( rec => {
+								if (rec.geo1)
+									sql.query(
+										"update openv.cache set x1=?, x2=? where ?", 
+										[ rec.geo1[0][0].x, rec.geo1[0][0].y, {ID: rec.ID} ], 
+										err => {
+											Log(err);
+									});
+							});
+						});
+						break;
+
+					case 5: 
+						var parms = {
+ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on the earth's surface",
+"chip length": "[m] length of chip across an edge",
+"chip samples": "[pixels] number of pixels across edge of chip"
+						};
+						//get all tables and revise field comments with info data here -  archive parms - /parms in flex will
+						//use getfileds to get comments and return into
+
+					case 6:
+						var 
+							RAN = require("../randpr"),
+							ran = new RAN({
+								models: ["sinc"],
+								Mmax: 150,  // max coherence intervals
+								Mstep: 5 	// step intervals
+							});
+
+						ran.config( function (pc) {
+							var 
+								vals = pc.values,
+								vecs = pc.vectors,
+								N = vals.length, 
+								ref = vals[N-1];
+
+							vals.forEach( (val, idx) => {
+								var
+									save = {
+										correlation_model: pc.model,
+										coherence_intervals: pc.intervals,
+										eigen_value: val,
+										eigen_index: idx,
+										ref_value: ref,
+										max_intervals: ran.Mmax,
+										eigen_vector: JSON.stringify( vecs[idx] )
+									};
+
+								sql.query("INSERT INTO openv.pcs SET ? ON DUPLICATE KEY UPDATE ?", [save,save] );	
+							});
+						});
+						break;	
+				}
+		});		
+		
+	
+```
+**Example**  
+```js
+// npm test T8
+		// Conduct neo4j database maintenance
+		
+		const $ = require("../man/man.js");
+		TOTEM.config();
+		neoThread( neo => {
+			neo.cypher( "MATCH (n:gtd) RETURN n", {}, (err,nodes) => {
+				Log("nodes",err,nodes.length,nodes[0]);
+				var map = {};
+				nodes.forEach( (node,idx) => map[node.n.name] = idx );
+				//Log(">map",map);
+				
+				neo.cypher( "MATCH (a:gtd)-[r]->(b:gtd) RETURN r", {}, (err,edges) => {
+					Log("edges",err,edges.length,edges[0]);
+					var 
+						N = nodes.length,	
+						cap = $([N,N], (u,v,C) => C[u][v] = 0 ),
+						lambda = $([N,N], (u,v,L) => L[u][v] = 0),
+						lamlist = $(N, (n,L) => L[n] = [] );
+					
+					edges.forEach( edge => cap[map[edge.r.srcId]][map[edge.r.tarId]] = 1 );
+					
+					//Log(">cap",cap);
+					
+					for (var s=0; s<N; s++)
+						for (var t=s+1; t<N; t++) {
+							var 
+								{cutset} = $.MaxFlowMinCut(cap,s,t),
+								cut = lambda[s][t] = lambda[t][s] = cutset.length;
+							
+							lamlist[cut].push([s,t]);
+						}
+					
+					lamlist.forEach( (list,r) => {
+						if ( r && list.length ) Log(r,list);
+					});
+						
+				});
+			});
+		});	
+```
 
 * [TOTEM](#module_TOTEM)
     * _static_
@@ -312,6 +469,7 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
         * [.watchFile(path, callback)](#module_TOTEM.watchFile)
         * [.setContext()](#module_TOTEM.setContext)
     * _inner_
+        * [~fetchFile(path, data, cb)](#module_TOTEM..fetchFile)
         * [~stopService()](#module_TOTEM..stopService)
         * [~createCert(owner, password, cb)](#module_TOTEM..createCert)
         * [~resolveClient(req, res)](#module_TOTEM..resolveClient)
@@ -854,6 +1012,36 @@ Sets the site context parameters.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
+<a name="module_TOTEM..fetchFile"></a>
+
+### TOTEM~fetchFile(path, data, cb)
+Fetches data from a 
+
+	path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
+
+using the PUT || POST || DELETE || GET method given a data = Array || Object || null || Function spec where:
+
+	PROTOCOL = http || https, curl || curls, wget || wgets, mask || masks, lexis || etc, file, book
+
+and where 
+
+	curls/wgets presents the certs/fetch.pfx certificate to the endpoint, 
+	mask/masks routes the fetch through rotated proxies, 
+	lexis/etc uses the oauth authorization-authentication protocol, 
+	file fetches from the file system,
+	book selects a notebook record. 
+
+If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
+regulate the file stream.
+
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| path | <code>String</code> | protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path |
+| data | <code>Object</code> | type induces method = get || post || put || delete |
+| cb | <code>function</code> | callback when data provided |
+
 <a name="module_TOTEM..stopService"></a>
 
 ### TOTEM~stopService()

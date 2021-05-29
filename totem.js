@@ -27,6 +27,306 @@
 	@requires js2xmlparser
 	@requires toobusy-js
 	@requires cheerio
+	
+	@example
+	
+		// npm test T1
+		// Create simple service but dont start it.
+		Log("", {
+			msg: "Im simply a Totem interface so Im not even running as a service", 
+			default_fetcher_endpts: TOTEM.byTable,
+			default_protect_mode: TOTEM.guard,
+			default_cores_used: TOTEM.cores
+		});
+
+	@example
+	
+		// npm test T2
+		// Totem service running in fault protection mode, no database, no UI; but I am running
+		// with 2 workers and the default endpoint routes.
+
+		TOTEM.config({
+			mysql: null,
+			guard: true,
+			cores: 2
+		}, sql => {
+
+			Log( 
+`I'm a Totem service running in fault protection mode, no database, no UI; but I am running
+with 2 workers and the default endpoint routes` );
+
+		});
+		break;
+
+	@example
+	
+		// npm test T3
+		// A Totem service with no workers.
+
+		TOTEM.config({
+		}, sql => {
+			Log( 
+`I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
+my startup options (see the openv.apps table for the Nick="Totem1").  
+No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
+these files. `
+			);
+		});
+
+	@example
+	
+		// npm test T4
+		// Only requested only 1 worker, unprotected, and a mysql database.  
+		
+		TOTEM.config({
+			byTable: {
+				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
+					res( "123" );
+
+					Log("", {
+						do_query: req.query
+					});
+				},
+
+				dothat: function dothat(req,res) {
+
+					if (req.query.x)
+						res( [{x:req.query.x+1,y:req.query.x+2}] );
+					else
+						res( new Error("We have a problem huston") );
+
+					Log("", {
+						msg: `Like dothis, but needs an ?x=value query`, 
+						or_query: req.query,
+						or_user: req.client
+					});
+				}
+			}
+		}, sql => {
+			Log("", {
+				msg:
+`As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
+and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
+aka core), Im running unprotected, and have a mysql database.  
+[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
+associated public NICK.crt and private NICK.key certs it creates.`,
+				my_endpoints: T.byTable
+			});
+		});
+		break;
+
+	@example
+	
+		// npm test T5
+		// no cores but a mysql database and an anti-bot shield
+		
+		TOTEM.config({
+			riddles: 20
+		}, sql => {
+			Log("", {
+				msg:
+`I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
+shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.`, 
+				mysql_derived_parms: T.site
+			});
+		});
+
+	@example
+	
+		// npm test T6
+		// Testing tasker with database and 3 cores at /test endpoint.
+		
+		TOTEM.config({
+			guard: false,	// ex override default 
+			cores: 3,		// ex override default
+
+			"byTable.": {  // define endpoints
+				test: function (req,res) {
+					res(" here we go");  // endpoint must always repond to its client 
+					if (CLUSTER.isMaster)  // setup tasking examples on on master
+						switch (req.query.opt || 1) {  // test example runTask
+							case 1: 
+								T.runTask({  // setup tasking for loops over these keys
+									keys: "i,j",
+									i: [1,2,3],
+									j: [4,5]
+								}, 
+									// define the task which returns a message msg
+									($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
+
+									// define the message msg handler
+									(msg) => console.log(msg)
+								);
+								break;
+
+							case 2:
+								T.runTask({
+									qos: 1,
+									keys: "i,j",
+									i: [1,2,3],
+									j: [4,5]
+								}, 
+									($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
+									(msg) => console.log(msg)
+								);
+								break;
+
+							case 3:
+								break;
+						}
+
+				}
+			}
+
+		}, sql => {
+			Log( "Testing runTask with database and 3 cores at /test endpoint" );
+		});
+		
+	@example
+	
+		// npm test T7
+		// Conduct db maintenance
+		
+		TOTEM.config({
+		}, sql => {				
+			Log( "db maintenance" );
+
+			if (CLUSTER.isMaster)
+				switch (process.argv[3]) {
+					case 1: 
+						sql.query( "select voxels.id as voxelID, chips.id as chipID from openv.voxels left join openv.chips on voxels.Ring = chips.Ring", function (err,recs) {
+							recs.forEach( rec => {
+								sql.query("update openv.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
+									Log(err);
+								});
+							});
+						});
+						break;
+
+					case 2:
+						sql.query("select ID, Ring from openv.voxels", function (err, recs) {
+							recs.forEach( rec => {
+								sql.query(
+									"update openv.voxels set Point=geomFromText(?) where ?", 
+									[ `POINT(${rec.Ring[0][0].x} ${rec.Ring[0][0].y})` , {ID: rec.ID} ], 
+									err => {
+										Log(err);
+								});
+							});
+						});
+						break;
+
+					case 3:
+						sql.query( "select voxels.id as voxelID, cache.id as chipID from openv.voxels left join openv.cache on voxels.Ring = cache.geo1", function (err,recs) {
+							Log(err);
+							recs.forEach( rec => {
+								sql.query("update openv.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
+									Log(err);
+								});
+							});
+						});
+						break;
+
+					case 4:
+						sql.query("select ID, geo1 from openv.cache where bank='chip'", function (err, recs) {
+							recs.forEach( rec => {
+								if (rec.geo1)
+									sql.query(
+										"update openv.cache set x1=?, x2=? where ?", 
+										[ rec.geo1[0][0].x, rec.geo1[0][0].y, {ID: rec.ID} ], 
+										err => {
+											Log(err);
+									});
+							});
+						});
+						break;
+
+					case 5: 
+						var parms = {
+ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on the earth's surface",
+"chip length": "[m] length of chip across an edge",
+"chip samples": "[pixels] number of pixels across edge of chip"
+						};
+						//get all tables and revise field comments with info data here -  archive parms - /parms in flex will
+						//use getfileds to get comments and return into
+
+					case 6:
+						var 
+							RAN = require("../randpr"),
+							ran = new RAN({
+								models: ["sinc"],
+								Mmax: 150,  // max coherence intervals
+								Mstep: 5 	// step intervals
+							});
+
+						ran.config( function (pc) {
+							var 
+								vals = pc.values,
+								vecs = pc.vectors,
+								N = vals.length, 
+								ref = vals[N-1];
+
+							vals.forEach( (val, idx) => {
+								var
+									save = {
+										correlation_model: pc.model,
+										coherence_intervals: pc.intervals,
+										eigen_value: val,
+										eigen_index: idx,
+										ref_value: ref,
+										max_intervals: ran.Mmax,
+										eigen_vector: JSON.stringify( vecs[idx] )
+									};
+
+								sql.query("INSERT INTO openv.pcs SET ? ON DUPLICATE KEY UPDATE ?", [save,save] );	
+							});
+						});
+						break;	
+				}
+		});		
+		
+	@example
+		
+		// npm test T8
+		// Conduct neo4j database maintenance
+		
+		const $ = require("../man/man.js");
+		TOTEM.config();
+		neoThread( neo => {
+			neo.cypher( "MATCH (n:gtd) RETURN n", {}, (err,nodes) => {
+				Log("nodes",err,nodes.length,nodes[0]);
+				var map = {};
+				nodes.forEach( (node,idx) => map[node.n.name] = idx );
+				//Log(">map",map);
+				
+				neo.cypher( "MATCH (a:gtd)-[r]->(b:gtd) RETURN r", {}, (err,edges) => {
+					Log("edges",err,edges.length,edges[0]);
+					var 
+						N = nodes.length,	
+						cap = $([N,N], (u,v,C) => C[u][v] = 0 ),
+						lambda = $([N,N], (u,v,L) => L[u][v] = 0),
+						lamlist = $(N, (n,L) => L[n] = [] );
+					
+					edges.forEach( edge => cap[map[edge.r.srcId]][map[edge.r.tarId]] = 1 );
+					
+					//Log(">cap",cap);
+					
+					for (var s=0; s<N; s++)
+						for (var t=s+1; t<N; t++) {
+							var 
+								{cutset} = $.MaxFlowMinCut(cap,s,t),
+								cut = lambda[s][t] = lambda[t][s] = cutset.length;
+							
+							lamlist[cut].push([s,t]);
+						}
+					
+					lamlist.forEach( (list,r) => {
+						if ( r && list.length ) Log(r,list);
+					});
+						
+				});
+			});
+		});	
 */
 
 const	
@@ -59,18 +359,17 @@ const
 	{ sqlThread, neoThread } = JSDB = require("jsdb"),		// database agnosticator
 	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = require("enums");
 	  
-[ //< String prototypes
 /**
 Parse XML string into json and callback cb(json) 
 
 @memberof String
 @param {Function} cb callback( json || null if error )
 */
-	function parseXML(cb) {
-		XML2JS.parseString(this, function (err,json) {				
-			cb( err ? null : json );
-		});
-	},
+function parseXML(cb) {
+	XML2JS.parseString(this, function (err,json) {				
+		cb( err ? null : json );
+	});
+}
 	
 /**
 Fetches data from a 
@@ -92,389 +391,391 @@ and where
 If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
 regulate the file stream.
 
-@cfg {Function} 
 @param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
 @param {Object} data type induces method = get || post || put || delete
 @param {Function} cb callback when data provided
 */
-	function fetchFile(data, cb) {	//< data fetching
-	
-		function sha256(s) { // reserved for other functionality
-			return CRYPTO.createHash('sha256').update(s).digest('base64');
-		}
+function fetchFile(data, cb) {	//< data fetching
 
-		function request(proto, opts, data, cb) {
-			//Log(">>>req opts", opts);
-			
-			const Req = proto.request(opts, Res => { // get reponse body text
-				var body = "";
-				Res.on("data", chunk => body += chunk.toString() );
+	function sha256(s) { // reserved for other functionality
+		return CRYPTO.createHash('sha256').update(s).digest('base64');
+	}
 
-				Res.on("end", () => {
-					//Log('fetch statusCode:', Res.statusCode);
-					//Log('fetch headers:', Res.headers['public-key-pins']);	// Print the HPKP values
+	function request(proto, opts, data, cb) {
+		//Log(">>>req opts", opts);
 
-					if ( cb ) 
-						cb( body );
-					
-					else
-						data( body );
+		const Req = proto.request(opts, Res => { // get reponse body text
+			var body = "";
+			Res.on("data", chunk => body += chunk.toString() );
+
+			Res.on("end", () => {
+				//Log('fetch statusCode:', Res.statusCode);
+				//Log('fetch headers:', Res.headers['public-key-pins']);	// Print the HPKP values
+
+				if ( cb ) 
+					cb( body );
+
+				else
+					data( body );
+			});
+		});
+
+		Req.on('error', err => {
+			Log(">>>fetch req", err);
+			(cb||data)("");
+		});
+
+		switch (opts.method) {
+			case "DELETE":
+			case "GET": 
+				break;
+
+			case "POST":
+			case "PUT":
+				//Log(">>>post", data);
+				Req.write( data ); //JSON.stringify(data) );  // post parms
+				break;
+		}					
+
+		Req.end();
+	}
+
+	function agentRequest(proto, opts, sql, id, cb) {
+		var 
+			body = "",
+			req = proto.get( opts, res => {
+				var sink = new STREAM.Writable({
+					objectMode: true,
+					write: (buf,en,sinkcb) => {
+						body += buf;
+						sinkcb(null);  // signal no errors
+					}
 				});
+
+				sink
+				.on("finish", () => {
+					var stat = "s"+Math.trunc(res.statusCode/100)+"xx";
+					Log(">>>>fetch body", body.length, ">>stat",res.statusCode,">>>",stat);
+
+					sql.query("UPDATE openv.proxies SET hits=hits+1, ?? = ?? + 1 WHERE ?", [stat,stat,id] );
+
+					cb( (stat = "s2xx") ? body : "" );
+				})
+				.on("error", err => {
+					Log(">>>fetch get", err);
+					cb("");
+				});
+
+				res.pipe(sink);
 			});
 
-			Req.on('error', err => {
-				Log(">>>fetch req", err);
-				(cb||data)("");
+		req.on("socket", sock => {
+			sock.setTimeout(2e3, () => {
+				req.abort();
+				Log(">>>fetch timeout");
+				sql.query("UPDATE openv.proxies SET hits=hits+1, sTimeout = sTimeout+1 WHERE ?", id);
 			});
 
-			switch (opts.method) {
-				case "DELETE":
-				case "GET": 
-					break;
-
-				case "POST":
-				case "PUT":
-					//Log(">>>post", data);
-					Req.write( data ); //JSON.stringify(data) );  // post parms
-					break;
-			}					
-
-			Req.end();
-		}
-		
-		function agentRequest(proto, opts, sql, id, cb) {
-			var 
-				body = "",
-				req = proto.get( opts, res => {
-					var sink = new STREAM.Writable({
-						objectMode: true,
-						write: (buf,en,sinkcb) => {
-							body += buf;
-							sinkcb(null);  // signal no errors
-						}
-					});
-
-					sink
-					.on("finish", () => {
-						var stat = "s"+Math.trunc(res.statusCode/100)+"xx";
-						Log(">>>>fetch body", body.length, ">>stat",res.statusCode,">>>",stat);
-
-						sql.query("UPDATE openv.proxies SET hits=hits+1, ?? = ?? + 1 WHERE ?", [stat,stat,id] );
-
-						cb( (stat = "s2xx") ? body : "" );
-					})
-					.on("error", err => {
-						Log(">>>fetch get", err);
-						cb("");
-					});
-
-					res.pipe(sink);
-				});
-			
-			req.on("socket", sock => {
-				sock.setTimeout(2e3, () => {
-					req.abort();
-					Log(">>>fetch timeout");
-					sql.query("UPDATE openv.proxies SET hits=hits+1, sTimeout = sTimeout+1 WHERE ?", id);
-				});
-				
-				sock.on("error", err => {
-					req.abort();
-					Log(">>>fetch refused");
-					sql.query("UPDATE openv.proxies SET hits=hits+1, sRefused = sRefused+1 WHERE ?", id);
-				});
+			sock.on("error", err => {
+				req.abort();
+				Log(">>>fetch refused");
+				sql.query("UPDATE openv.proxies SET hits=hits+1, sRefused = sRefused+1 WHERE ?", id);
 			});
-			
-			req.on("error", err => {
-				Log(">>>fetch abort",err);
-				sql.query("UPDATE openv.proxies SET hits=hits+1, sAbort = sAbort+1 WHERE ?", id);
-			});
-		}
-		
-		function getFile(path, cb) {
-			const
-				src = "."+path;
-			
-			if ( path.endsWith("/") )  // index requested folder
-				try {
-					const 
-						{maxFiles} = fetchOptions,
-						files = [];
+		});
 
-					//Log(">>index", src;
-					FS.readdirSync( src).forEach( file => {
-						var
-							ignore = file.startsWith(".") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
+		req.on("error", err => {
+			Log(">>>fetch abort",err);
+			sql.query("UPDATE openv.proxies SET hits=hits+1, sAbort = sAbort+1 WHERE ?", id);
+		});
+	}
 
-						if ( !ignore && files.length < maxFiles ) 
-							files.push( (file.indexOf(".")>=0) ? file : file+"/" );
-					});
-					
-					cb( files );
-				}
-
-				catch (err) {
-					//Log(">>>fetch index error", err);
-					cb( [] );
-				}
-
-			else 	// requesting static file
-				try {		// these files are static so we never cache them
-					FS.readFile(src, (err,buf) => res( err ? "" : Buffer.from(buf) ) );
-				}
-
-				catch (err) {
-					Log(err);
-					cb( null );
-				};
-		}	
-		
+	function getFile(path, cb) {
 		const
-			url = this+"",
-			{defHost,certs,maxRetry,oauthHosts} = fetchOptions,
-			opts = url.parseURL({}, defHost), 
-			crud = {
-				"Function": "GET",
-				"Array": "PUT",
-				"Object": "POST",
-				"Null": "DELETE"
-			},
+			src = "."+path;
 
-			// for wget-curl
-			cert = certs.fetch,
-			wget = url.split("////"),
-			wurl = wget[0],
-			wout = wget[1] || "./temps/wget.jpg",
-			
-			// OAuth 2.0 host
-			oauth = oauthHosts[opts.protocol],
-			  
-			// response callback
-			res = cb || data || (res => {}),
-			method = crud[ data ? typeOf(data) : "Null" ] ;
-		
-		// opts.cipher = " ... "
-		// opts.headers = { ... }
-		// opts.Cookie = ["x=y", ...]
-		// opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
-		/*
-		if (opts.soap) {
-			opts.headers = {
-				"Content-Type": "application/soap+xml; charset=utf-8",
-				"Content-Length": opts.soap.length
+		if ( path.endsWith("/") )  // index requested folder
+			try {
+				const 
+					{maxFiles} = fetchOptions,
+					files = [];
+
+				//Log(">>index", src;
+				FS.readdirSync( src).forEach( file => {
+					var
+						ignore = file.startsWith(".") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
+
+					if ( !ignore && files.length < maxFiles ) 
+						files.push( (file.indexOf(".")>=0) ? file : file+"/" );
+				});
+
+				cb( files );
+			}
+
+			catch (err) {
+				//Log(">>>fetch index error", err);
+				cb( [] );
+			}
+
+		else 	// requesting static file
+			try {		// these files are static so we never cache them
+				FS.readFile(src, (err,buf) => res( err ? "" : Buffer.from(buf) ) );
+			}
+
+			catch (err) {
+				Log(err);
+				cb( null );
 			};
-			opts.method = "POST";
-		}*/
+	}	
 
-		//Log("FETCH",path);
-		
-		opts.method = method;
-		
-		switch ( opts.protocol ) {
-			case "curl:": 
-				CP.exec( `curl --retry ${maxRetry} ` + path.replace(opts.protocol, "http:"), (err,out) => {
-					res( err ? "" : out );
-				});
-				break;
+	const
+		url = this+"",
+		{defHost,certs,maxRetry,oauthHosts} = fetchOptions,
+		opts = url.parseURL({}, defHost), 
+		crud = {
+			"Function": "GET",
+			"Array": "PUT",
+			"Object": "POST",
+			"Null": "DELETE"
+		},
 
-			case "curls:":
-				CP.exec( `curl --retry ${maxRetry} -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"), (err,out) => {
-					res( err ? "" : out );
-				});	
-				break;
+		// for wget-curl
+		cert = certs.fetch,
+		wget = url.split("////"),
+		wurl = wget[0],
+		wout = wget[1] || "./temps/wget.jpg",
 
-			case "wget:":
-				CP.exec( `wget --tries=${maxRetry} -O ${wout} ` + path.replace(opts.protocol, "http:"), err => {
-					res( err ? "" : "ok" );
-				});
-				break;
+		// OAuth 2.0 host
+		oauth = oauthHosts[opts.protocol],
 
-			case "wgets:":
-				CP.exec( `wget --tries=${maxRetry} -O ${wout} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + wurl.replace(protocol, "https:"), err => {
-					res( err ? "" : "ok" );
-				});
-				break;
+		// response callback
+		res = cb || data || (res => {}),
+		method = crud[ data ? typeOf(data) : "Null" ] ;
 
-			case "https:":
-				/*
-				// experiment pinning tests
-				opts.checkServerIdentity = function(host, cert) {
-					// Make sure the certificate is issued to the host we are connected to
-					const err = TLS.checkServerIdentity(host, cert);
-					if (err) {
-						Log("tls error", err);
-						return err;
-					}
+	// opts.cipher = " ... "
+	// opts.headers = { ... }
+	// opts.Cookie = ["x=y", ...]
+	// opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
+	/*
+	if (opts.soap) {
+		opts.headers = {
+			"Content-Type": "application/soap+xml; charset=utf-8",
+			"Content-Length": opts.soap.length
+		};
+		opts.method = "POST";
+	}*/
 
-					// Pin the public key, similar to HPKP pin-sha25 pinning
-					const pubkey256 = 'pL1+qb9HTMRZJmuC/bB/ZI9d302BYrrqiVuRyW+DGrU=';
-					if (sha256(cert.pubkey) !== pubkey256) {
-						const msg = 'Certificate verification error: ' + `The public key of '${cert.subject.CN}' ` + 'does not match our pinned fingerprint';
-						return new Error(msg);
-					}
+	//Log("FETCH",path);
 
-					// Pin the exact certificate, rather then the pub key
-					const cert256 = '25:FE:39:32:D9:63:8C:8A:FC:A1:9A:29:87:' + 'D8:3E:4C:1D:98:JSDB:71:E4:1A:48:03:98:EA:22:6A:BD:8B:93:16';
-					if (cert.fingerprint256 !== cert256) {
-						const msg = 'Certificate verification error: ' +
-						`The certificate of '${cert.subject.CN}' ` +
-						'does not match our pinned fingerprint';
-						return new Error(msg);
-					}
+	opts.method = method;
 
-					// This loop is informational only.
-					// Print the certificate and public key fingerprints of all certs in the
-					// chain. Its common to pin the public key of the issuer on the public
-					// internet, while pinning the public key of the service in sensitive
-					// environments.
-					do {
-						console.log('Subject Common Name:', cert.subject.CN);
-						console.log('  Certificate SHA256 fingerprint:', cert.fingerprint256);
+	switch ( opts.protocol ) {
+		case "curl:": 
+			CP.exec( `curl --retry ${maxRetry} ` + path.replace(opts.protocol, "http:"), (err,out) => {
+				res( err ? "" : out );
+			});
+			break;
 
-						hash = crypto.createHash('sha256');
-						console.log('  Public key ping-sha256:', sha256(cert.pubkey));
+		case "curls:":
+			CP.exec( `curl --retry ${maxRetry} -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"), (err,out) => {
+				res( err ? "" : out );
+			});	
+			break;
 
-						lastprint256 = cert.fingerprint256;
-						cert = cert.issuerCertificate;
-					} while (cert.fingerprint256 !== lastprint256);
+		case "wget:":
+			CP.exec( `wget --tries=${maxRetry} -O ${wout} ` + path.replace(opts.protocol, "http:"), err => {
+				res( err ? "" : "ok" );
+			});
+			break;
 
-					};
+		case "wgets:":
+			CP.exec( `wget --tries=${maxRetry} -O ${wout} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + wurl.replace(protocol, "https:"), err => {
+				res( err ? "" : "ok" );
+			});
+			break;
+
+		case "https:":
+			/*
+			// experiment pinning tests
+			opts.checkServerIdentity = function(host, cert) {
+				// Make sure the certificate is issued to the host we are connected to
+				const err = TLS.checkServerIdentity(host, cert);
+				if (err) {
+					Log("tls error", err);
+					return err;
+				}
+
+				// Pin the public key, similar to HPKP pin-sha25 pinning
+				const pubkey256 = 'pL1+qb9HTMRZJmuC/bB/ZI9d302BYrrqiVuRyW+DGrU=';
+				if (sha256(cert.pubkey) !== pubkey256) {
+					const msg = 'Certificate verification error: ' + `The public key of '${cert.subject.CN}' ` + 'does not match our pinned fingerprint';
+					return new Error(msg);
+				}
+
+				// Pin the exact certificate, rather then the pub key
+				const cert256 = '25:FE:39:32:D9:63:8C:8A:FC:A1:9A:29:87:' + 'D8:3E:4C:1D:98:JSDB:71:E4:1A:48:03:98:EA:22:6A:BD:8B:93:16';
+				if (cert.fingerprint256 !== cert256) {
+					const msg = 'Certificate verification error: ' +
+					`The certificate of '${cert.subject.CN}' ` +
+					'does not match our pinned fingerprint';
+					return new Error(msg);
+				}
+
+				// This loop is informational only.
+				// Print the certificate and public key fingerprints of all certs in the
+				// chain. Its common to pin the public key of the issuer on the public
+				// internet, while pinning the public key of the service in sensitive
+				// environments.
+				do {
+					console.log('Subject Common Name:', cert.subject.CN);
+					console.log('  Certificate SHA256 fingerprint:', cert.fingerprint256);
+
+					hash = crypto.createHash('sha256');
+					console.log('  Public key ping-sha256:', sha256(cert.pubkey));
+
+					lastprint256 = cert.fingerprint256;
+					cert = cert.issuerCertificate;
+				} while (cert.fingerprint256 !== lastprint256);
+
+				};
+			*/
+			/*
+			opts.agent = new HTTPS.Agent( false 
+				? {
+						//pfx: cert.pfx,	// pfx or use cert-and-key
+						cert: cert.crt,
+						key: cert.key,
+						passphrase: cert._pass
+					} 
+				: {
+					} );
 				*/
-				/*
-				opts.agent = new HTTPS.Agent( false 
-					? {
-							//pfx: cert.pfx,	// pfx or use cert-and-key
-							cert: cert.crt,
-							key: cert.key,
-							passphrase: cert._pass
-						} 
-					: {
-						} );
-					*/
-				opts.rejectUnauthorized = false;
-				request(HTTPS, opts, data, cb);
-				break;
-				
-			case "http:":
-				//Log(opts);
+			opts.rejectUnauthorized = false;
+			request(HTTPS, opts, data, cb);
+			break;
 
-				request(HTTP, opts, data, cb);
-				break;
-				
-			case "mask:":
-			case "mttp:":	// request via rotating proxies
-				opts.protocol = "http:";
-				sqlThread( sql => {
-					sql.query(
-						"SELECT ID,ip,port FROM openv.proxies WHERE ? ORDER BY rand() LIMIT 1",
-						[{proto: "no"}], (err,recs) => {
+		case "http:":
+			//Log(opts);
 
-						if ( rec = recs[0] ) {
-							opts.agent = new AGENT( `http://${rec.ip}:${rec.port}` );
-							Log(">>>agent",rec);
-							agentRequest(HTTP, opts, sql, {ID:rec.ID}, res );
-						}
-					});
+			request(HTTP, opts, data, cb);
+			break;
+
+		case "mask:":
+		case "mttp:":	// request via rotating proxies
+			opts.protocol = "http:";
+			sqlThread( sql => {
+				sql.query(
+					"SELECT ID,ip,port FROM openv.proxies WHERE ? ORDER BY rand() LIMIT 1",
+					[{proto: "no"}], (err,recs) => {
+
+					if ( rec = recs[0] ) {
+						opts.agent = new AGENT( `http://${rec.ip}:${rec.port}` );
+						Log(">>>agent",rec);
+						agentRequest(HTTP, opts, sql, {ID:rec.ID}, res );
+					}
 				});
-				break;
-				
-			case "nb:":
-			case "book:":
-				const
-					book = opts.host,
-					name = opts.path.substr(1);
-				
-				sqlThread( sql => {
-					sql.query( name
-						? "SELECT * FROM app.? WHERE Name=?"
-						: "SELECT * FROM app.?", 
-							  
-						[ book, name ], 
-							  
-						(err,recs) => cb( err ? "" : JSON.stringify(recs) ) );
-				});
-				break;
-				
-			case "file:":	// requesting file or folder index
-				//Log("index file", [path], opts);
-				getFile( opts.path.substr(1) ? opts.path : "/home/" , res );  
-				break;
-				
-			default:	// check if using a secure protocol
-				if ( oauth ) 	// using oauth 
-					request(HTTPS, oauth.token, oauth.grant, token => {		// request access token
-						//Log("token", token);
-						try {
-							const 
-								Token = JSON.parse(token);
-							
-							opts.protocol = "https:";
-							opts.headers = {
-								Authorization: Token.token_type + " " + Token.access_token,
-								Accept: "application/json;odata.metadata=minimal",
-								Host: "services-api.lexisnexis.com",
-								Connection: "Keep-Alive",
-								"Content-Type": "application/json"
-							};
-							delete opts.auth;
-							
-							Log("token request", opts );
-							request(HTTPS, opts, search => {	// request a document search
-								if ( docopts = oauth.doc ) 	// get associated document
-									try {	
-										const
-											Search = JSON.parse(search),
-											rec = Search.value[0] || {},
-											doclink = rec['DocumentContent@odata.mediaReadLink'];
+			});
+			break;
 
-										//Log( Object.keys(Search) );
-										if ( doclink ) {
-											if (1)
-												Log("get doc", {
-													doclink: doclink , 
-													href: oauth.doc.href, 
-													reckeys: Object.keys(rec), 
-													ov: rec.Overview, 
-													d: rec.Date
-												});
+		case "nb:":
+		case "book:":
+			const
+				book = opts.host,
+				name = opts.path.substr(1);
 
-											if ( docopts.length ) // string so do fetch
-												Fetch( docopts + doclink, doc => {
-													res(doc);
-												});
-											
-											else {
-												docopts.path += doclink;
-												docopts.headers = opts.headers;
-												docopts.method = "GET";
-												Log("doc request", docopts);
-												request( HTTPS, docopts, doc => {
-													res(doc);
-												});
-											}
+			sqlThread( sql => {
+				sql.query( name
+					? "SELECT * FROM app.? WHERE Name=?"
+					: "SELECT * FROM app.?", 
+
+					[ book, name ], 
+
+					(err,recs) => cb( err ? "" : JSON.stringify(recs) ) );
+			});
+			break;
+
+		case "file:":	// requesting file or folder index
+			//Log("index file", [path], opts);
+			getFile( opts.path.substr(1) ? opts.path : "/home/" , res );  
+			break;
+
+		default:	// check if using a secure protocol
+			if ( oauth ) 	// using oauth 
+				request(HTTPS, oauth.token, oauth.grant, token => {		// request access token
+					//Log("token", token);
+					try {
+						const 
+							Token = JSON.parse(token);
+
+						opts.protocol = "https:";
+						opts.headers = {
+							Authorization: Token.token_type + " " + Token.access_token,
+							Accept: "application/json;odata.metadata=minimal",
+							Host: "services-api.lexisnexis.com",
+							Connection: "Keep-Alive",
+							"Content-Type": "application/json"
+						};
+						delete opts.auth;
+
+						Log("token request", opts );
+						request(HTTPS, opts, search => {	// request a document search
+							if ( docopts = oauth.doc ) 	// get associated document
+								try {	
+									const
+										Search = JSON.parse(search),
+										rec = Search.value[0] || {},
+										doclink = rec['DocumentContent@odata.mediaReadLink'];
+
+									//Log( Object.keys(Search) );
+									if ( doclink ) {
+										if (1)
+											Log("get doc", {
+												doclink: doclink , 
+												href: oauth.doc.href, 
+												reckeys: Object.keys(rec), 
+												ov: rec.Overview, 
+												d: rec.Date
+											});
+
+										if ( docopts.length ) // string so do fetch
+											Fetch( docopts + doclink, doc => {
+												res(doc);
+											});
+
+										else {
+											docopts.path += doclink;
+											docopts.headers = opts.headers;
+											docopts.method = "GET";
+											Log("doc request", docopts);
+											request( HTTPS, docopts, doc => {
+												res(doc);
+											});
 										}
 									}
-								
-									catch (err) {
-										Log(">>>fetch lexis bad search",err);
-									}
-								
-								else
-									res( search );
-							});
-						}
-						
-						catch (err) {
-							Log(">>>fetch lexis bad token", token);
-							res(null);
-						}
-					});
-				
-				else
-					res( "" );
-		}
-	}	
+								}
+
+								catch (err) {
+									Log(">>>fetch lexis bad search",err);
+								}
+
+							else
+								res( search );
+						});
+					}
+
+					catch (err) {
+						Log(">>>fetch lexis bad token", token);
+						res(null);
+					}
+				});
+
+			else
+				res( "" );
+	}
+}	
 	
+[ //< String prototypes
+	parseXML,
+	fetchFile
 ].Extend(String);
 
 // totem i/f
@@ -3019,10 +3320,6 @@ async function LexisNexisTest(N,endpt,R,cb) {
 			}
 		});
 }
-
-/**
-Unit tests
-*/
 
 switch (process.argv[2]) { //< unit tests
 	case "?":
