@@ -1,8 +1,9 @@
 # TOTEM
 
-**TOTEM** provides a basic http/https web service with the following customizable features:
+**TOTEM** provides a basic web service with the following customizable features:
 
 	+ endpoint routing
+	+ http/https service
 	+ denial-of-service protection
 	+ secure link providing encrypted inter-client communications with antibot guard
 	+ client profiles 
@@ -12,21 +13,14 @@
 	+ crud interface
 	+ mysql/neo4j database agnosticator
 	+ task queuing and regulation
-	+ poll files and services
+	+ file polling and services
 	+ automattic server cert generation
 	+ task sharding
 	+ file stream and ingest
 	+ data fetching, rotating proxies, oauth access
 	+ smartcard reader
   
-**TOTEM** defines endpoints:
-
-	POST / NODE 
-	GET / NODE 
-	PUT / NODE 
-	DELETE / NODE 
-
-to access dataset, file or command NODEs:
+**TOTEM** defines a CRUD (HTTP POST, GET, PUT, DELETE) to endpoint NODES for accessing datasets, files or services:
 
 	DATASET.TYPE ? QUERY
 	AREA/PATH/FILE.TYPE ? QUERY
