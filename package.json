@@ -5,7 +5,6 @@
   "main": "totem.js",
   "scripts": {
     "config": "vi ./config.sh ./pass.sh; source ./config.sh",
-    "start": "source ./config.sh && source ./pass.sh",
     "test": "node totem.js ",
 	"redoc": "jsdoc2md --template README.hbs --files totem.js >README.md; git commit -am 'redoc'; git  push agent master"
 

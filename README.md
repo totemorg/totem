@@ -64,26 +64,24 @@ specified options are used to ingest the requested FILE stream.
 
 ## Installation
 
-Clone [**TOTEM** base web service](https://github.com/totemstan/totem) || [COE](https://sc.appdev.proj.coe/acmesds/totem) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/totem) into your PROJECT/totem folder.   
-
-**TOTEM** passwords to sql databases etc are held in _pass.sh; revise as needed.
-**TOTEM** sql tables can be primed/reset using `maint mysql prime`.
-
-## Requires
-
-[ENUM standard enumerators](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum), [JSDB database agnosticator](https://github.com/totemstan/jsdb) || [COE](https://sc.appdev.proj.coe/acmesds/jsdb) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb).
+Clone [**TOTEM** base web service](https://github.com/totemstan/totem) || [COE](https://sc.appdev.proj.coe/acmesds/totem) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/totem) into your PROJECT/totem folder.
+Also requires
+[ENUMS](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum), [JSDB database agnosticator](https://github.com/totemstan/jsdb) || [COE](https://sc.appdev.proj.coe/acmesds/jsdb) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb).
 
 ## Manage 
 
 	npm test [ ? || T1 || T2 || ...]	# Start or unit test
-	npm run [ prmprep || prmload ]		# Update Program Ref Manual
-	npm run [ edit || start ]			# Configure environment
+	npm run redoc						# Update and distribute documentation
+	npm run config						# Configure environment
+	maint dbrecover						# Recover/reset the databases
+	maint dbstart						# Start the database servers
+	maint startup						# Start all required services then start debe
 
 ## Usage
 
 Require, configure and start **TOTEM**:
 	
-	var **TOTEM** = require("totem")({
+	var TOTEM = require("totem")({
 		key: value, 						// set key
 		"key.key": value, 					// indexed set
 		"key.key.": value					// indexed append
@@ -96,7 +94,7 @@ follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [C
 
 ### T1 - A do-nothing service
 		
-	var **TOTEM** = require("totem");
+	var TOTEM = require("totem");
 
 	Trace({
 		msg: "Im simply a Totem interface so Im not even running as a service", 

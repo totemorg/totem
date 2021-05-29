@@ -6,7 +6,7 @@
 #
 
 export HERE=`pwd`
-export MODULES=(totem atomic certs geohack flex enums reader debe pipe jsdb man randpr liegroup securelink socketio)
+export MODULES=(totem atomic certs blogger geohack flex enums reader debe pipe jsdb man randpr liegroup securelink socketio)
 export MODULE=`basename $HERE`
 
 case "$1." in
@@ -158,6 +158,15 @@ expand.)
 # DB maint
 #
 
+dbrecover.)
+	source maint.sh mysql prime
+	;;
+
+dbstart.)
+	source maint.sh mysql start
+	source maint.sh neo4j start
+	;;
+	
 neo4j.)
 
 	case "$2." in
