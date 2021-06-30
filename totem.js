@@ -2718,12 +2718,12 @@ function resolveClient(req,res) {
 		{ sql, cookie, encrypted, reqSocket, ipAddress } = req,
 		{ getProfile, addProfile } = sqls,
 		cookies = req.cookies = {},
-		guest = `email:guest${ipAddress}@totem.org`;
+		{ Login, host } = SECLINK,
+		guest = `email:guest${ipAddress}@${host}`;
 	
 	checkCert( cert => {
 		
 		const
-			{ Login } = SECLINK,
 			[x,account] = (cert.subjectaltname||guest).toLowerCase().split(",")[0].match(/email:(.*)/) || [];
 
 		if ( account ) {
