@@ -1058,8 +1058,8 @@ a null `error` if the session was sucessfully validated.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| req | <code>Object</code> | totem request |
-| res | <code>TSR</code> | callback |
+| req | <code>Object</code> | totem session request |
+| res | <code>TSR</code> | totem session responder |
 
 <a name="module_TOTEM..getBrick"></a>
 
@@ -1100,8 +1100,8 @@ CRUD select endpoint.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| req | <code>Object</code> | Totem request hash |
-| res | <code>TSR</code> | Totem's responder |
+| req | <code>Object</code> | Totem session request |
+| res | <code>TSR</code> | Totem session responder |
 
 <a name="module_TOTEM..insertDS"></a>
 
@@ -1112,7 +1112,7 @@ CRUD insert endpoint.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| req | <code>Object</code> | Totem request hash |
+| req | <code>Object</code> | Totem session request |
 | res | <code>TSR</code> | Totem response callback |
 
 <a name="module_TOTEM..deleteDS"></a>
@@ -1124,7 +1124,7 @@ CRUD delete endpoint.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| req | <code>Object</code> | Totem request hash |
+| req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem response callback |
 
 <a name="module_TOTEM..updateDS"></a>
@@ -1136,7 +1136,7 @@ CRUD update endpoint.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| req | <code>Object</code> | Totem request hash |
+| req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem response callback |
 
 <a name="module_TOTEM..executeDS"></a>
@@ -1148,7 +1148,7 @@ CRUD execute endpoint.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| req | <code>Object</code> | Totem request hash |
+| req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem response callback |
 
 <a name="module_TOTEM..sysPing"></a>
@@ -1196,7 +1196,7 @@ Totem response callback.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| text | <code>string</code> \| <code>error</code> | Response message |
+| text | <code>string</code> \| <code>error</code> | Response message or error |
 
 
 * * *

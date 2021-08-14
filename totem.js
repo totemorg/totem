@@ -375,7 +375,7 @@ function parseXML(cb) {
 /**
 Totem response callback.
 @callback TSR
-@param {string | error} text Response message
+@param {string | error} text Response message or error
 */
 
 /**
@@ -2651,8 +2651,8 @@ Validate a client's session by attaching a log, profile, group, client,
 cert and joined info to this `req` request then callback `res`(error) with 
 a null `error` if the session was sucessfully validated.  
 
-@param {Object} req totem request
-@param {TSR} res callback
+@param {Object} req totem session request
+@param {TSR} res totem session responder
 */
 function resolveClient(req,res) {  
 	
@@ -2967,8 +2967,8 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 
 /**
 CRUD select endpoint.
-@param {Object} req Totem request hash
-@param {TSR} res Totem's responder
+@param {Object} req Totem session request
+@param {TSR} res Totem session responder
 */
 function selectDS(req, res) {
 	const 
@@ -2999,7 +2999,7 @@ function selectDS(req, res) {
 
 /**
 CRUD insert endpoint.
-@param {Object} req Totem request hash
+@param {Object} req Totem session request
 @param {TSR} res Totem response callback
 */
 function insertDS(req, res) {
@@ -3023,7 +3023,7 @@ function insertDS(req, res) {
 
 /**
 CRUD delete endpoint.
-@param {Object} req Totem request hash
+@param {Object} req Totem session request
 @param {Function} res Totem response callback
 */	
 function deleteDS(req, res) {
@@ -3051,7 +3051,7 @@ function deleteDS(req, res) {
 
 /**
 CRUD update endpoint.
-@param {Object} req Totem request hash
+@param {Object} req Totem session request
 @param {Function} res Totem response callback
 */	
 function updateDS(req, res) {
@@ -3099,7 +3099,7 @@ function updateDS(req, res) {
 
 /**
 CRUD execute endpoint.
-@param {Object} req Totem request hash
+@param {Object} req Totem session request
 @param {Function} res Totem response callback
 */
 function executeDS(req,res) {
