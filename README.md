@@ -77,7 +77,7 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
 
 ## TOTEM
 Provides barebones web service.
-Documented in accordance with [jsdoc](https://jsdoc.app/)
+Documented in accordance with [jsdoc](https://jsdoc.app/).
 
 **Requires**: <code>module:http</code>, <code>module:https</code>, <code>module:fs</code>, <code>module:constants</code>, <code>module:cluster</code>, <code>module:child\_process</code>, <code>module:os</code>, <code>module:stream</code>, <code>module:vm</code>, <code>module:crypto</code>, <code>module:enums</code>, <code>module:jsdb</code>, <code>module:securelink</code>, <code>module:socketio</code>, <code>module:mime</code>, <code>module:mysql</code>, <code>module:xml2js</code>, <code>module:toobusy</code>, <code>module:json2csv</code>, <code>module:js2xmlparser</code>, <code>module:toobusy-js</code>, <code>module:cheerio</code>  
 **Example**  
@@ -779,7 +779,7 @@ File cache
 <a name="module_TOTEM.Fetch"></a>
 
 ### TOTEM.Fetch(path, opts, cb)
-Uses path.fetchFile(opts,cb) to fetch text from URL path given fetching options.
+Uses [path.fetchFile(opts,cb)](fetchFile) to fetch text from URL path given fetching options.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  

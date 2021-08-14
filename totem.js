@@ -2,7 +2,7 @@
 
 /**
 Provides barebones web service.
-Documented in accordance with [jsdoc]{@link https://jsdoc.app/}
+Documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 
 @module TOTEM
 
@@ -883,7 +883,7 @@ const
 	},
 
 /**
-Uses path.fetchFile(opts,cb) to fetch text from URL path given fetching options. 
+Uses [path.fetchFile(opts,cb)]{@link fetchFile} to fetch text from URL path given fetching options. 
 
 @cfg {Function} 
 @param {String} path source URL
