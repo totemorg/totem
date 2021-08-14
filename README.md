@@ -430,8 +430,9 @@ neoThread( neo => {
         * [.watchFile(path, callback)](#module_TOTEM.watchFile)
         * [.setContext()](#module_TOTEM.setContext)
     * _inner_
+        * [~fetchFile](#module_TOTEM..fetchFile) ⇐ <code>String</code>
+            * [new fetchFile(path, data, cb)](#new_module_TOTEM..fetchFile_new)
         * [~parseXML(cb)](#module_TOTEM..parseXML) ⇐ <code>String</code>
-        * [~fetchFile(path, data, cb)](#module_TOTEM..fetchFile) ⇐ <code>String</code>
         * [~stopService()](#module_TOTEM..stopService)
         * [~createCert(owner, password, cb)](#module_TOTEM..createCert)
         * [~resolveClient(req, res)](#module_TOTEM..resolveClient)
@@ -959,21 +960,14 @@ Sets the site context parameters.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
-<a name="module_TOTEM..parseXML"></a>
-
-### TOTEM~parseXML(cb) ⇐ <code>String</code>
-Parse XML string into json and callback cb(json)
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-**Extends**: <code>String</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| cb | <code>function</code> | callback( json || null if error ) |
-
 <a name="module_TOTEM..fetchFile"></a>
 
-### TOTEM~fetchFile(path, data, cb) ⇐ <code>String</code>
+### TOTEM~fetchFile ⇐ <code>String</code>
+**Kind**: inner class of [<code>TOTEM</code>](#module_TOTEM)  
+**Extends**: <code>String</code>  
+<a name="new_module_TOTEM..fetchFile_new"></a>
+
+#### new fetchFile(path, data, cb)
 Fetches text from a URL
 
 	path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
@@ -999,8 +993,6 @@ query parameters are used to regulate a (e.g. csv) file stream.
 
 See fetchOptions for fetching config parameters.
 
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-**Extends**: <code>String</code>  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1028,6 +1020,18 @@ URL.fetchFile( { ... }, stat => { 	// put request given data hash
 URL.fetchFile( null, stat => {		// delete request 
 })
 ```
+<a name="module_TOTEM..parseXML"></a>
+
+### TOTEM~parseXML(cb) ⇐ <code>String</code>
+Parse XML string into json and callback cb(json)
+
+**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+**Extends**: <code>String</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| cb | <code>function</code> | callback( json || null if error ) |
+
 <a name="module_TOTEM..stopService"></a>
 
 ### TOTEM~stopService()

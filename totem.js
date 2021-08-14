@@ -409,6 +409,7 @@ See fetchOptions for fetching config parameters.
 @param {*} data fetching data or callback 
 @param {fetchCallback} cb [callback] when specified data is not a Function
 
+@constructor
 @example
 URL.fetchFile( text => {			// get request
 })
