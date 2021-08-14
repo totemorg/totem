@@ -373,7 +373,13 @@ function parseXML(cb) {
 		cb( err ? null : json );
 	});
 }
-	
+
+/**
+Callback method for data fetching.
+@callback fetchCallback
+{string} response message
+*/
+
 /**
 Fetches text from a URL
 
@@ -402,8 +408,8 @@ See fetchOptions for Fetch config parameters.
 
 @extends String
 @param {String} path source URL
-@param {Array, Object, Function} data fetching data or callback 
-@param {Function} cb [callback] when specified data is not a Function
+@param {*} data fetching data or callback 
+@param {fetchCallback} cb [callback] when specified data is not a Function
 */
 function fetchFile(data, cb) {	//< data fetching
 
