@@ -406,7 +406,7 @@ See fetchOptions for fetching config parameters.
 
 @extends String
 @param {String} path source URL
-@param {*} data fetching data or callback 
+@param {string | array} data fetching data or callback 
 @param {fetchCallback} cb [callback] when specified data is not a Function
 
 @example

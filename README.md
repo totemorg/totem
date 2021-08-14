@@ -1007,7 +1007,7 @@ See fetchOptions for fetching config parameters.
 | Param | Type | Description |
 | --- | --- | --- |
 | path | <code>String</code> | source URL |
-| data | <code>\*</code> | fetching data or callback |
+| data | <code>string</code> \| <code>array</code> | fetching data or callback |
 | cb | <code>fetchCallback</code> | [callback] when specified data is not a Function |
 
 **Example**  
