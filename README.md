@@ -420,7 +420,7 @@ neoThread( neo => {
         * [.uploadFile](#module_TOTEM.uploadFile)
         * [.busyTime](#module_TOTEM.busyTime)
         * [.cache](#module_TOTEM.cache)
-        * [.Fetch(path, opts, cb)](#module_TOTEM.Fetch)
+        * [.Fetch(path, opts, [cb])](#module_TOTEM.Fetch)
         * [.routeRequest(req, res)](#module_TOTEM.routeRequest)
         * [.config(opts, cb)](#module_TOTEM.config)
             * [~configService(agent)](#module_TOTEM.config..configService)
@@ -431,7 +431,7 @@ neoThread( neo => {
         * [.setContext()](#module_TOTEM.setContext)
     * _inner_
         * [~parseXML(cb)](#module_TOTEM..parseXML) ⇐ <code>String</code>
-        * [~fetchFile(path, data, cb)](#module_TOTEM..fetchFile) ⇐ <code>String</code>
+        * [~fetchFile(path, data, [cb])](#module_TOTEM..fetchFile) ⇐ <code>String</code>
         * [~stopService()](#module_TOTEM..stopService)
         * [~createCert(owner, password, cb)](#module_TOTEM..createCert)
         * [~resolveClient(req, res)](#module_TOTEM..resolveClient)
@@ -778,7 +778,7 @@ File cache
 **Cfg**: <code>Object</code>  
 <a name="module_TOTEM.Fetch"></a>
 
-### TOTEM.Fetch(path, opts, cb)
+### TOTEM.Fetch(path, opts, [cb])
 Uses [path.fetchFile(opts,cb)](fetchFile) to fetch text from the given URL path
 using the specified fetching options.
 
@@ -788,8 +788,8 @@ using the specified fetching options.
 | Param | Type | Description |
 | --- | --- | --- |
 | path | <code>String</code> | source URL |
-| opts | <code>\*</code> | data handler or callback |
-| cb | <code>fetchCallback</code> | callback |
+| opts | <code>string</code> \| <code>array</code> \| <code>function</code> \| <code>null</code> | data handler or callback |
+| [cb] | <code>fetchCallback</code> | callback |
 
 <a name="module_TOTEM.routeRequest"></a>
 
@@ -975,10 +975,10 @@ Parse XML string into json and callback cb(json)
 
 <a name="module_TOTEM..fetchFile"></a>
 
-### TOTEM~fetchFile(path, data, cb) ⇐ <code>String</code>
-Fetches text from a URL
+### TOTEM~fetchFile(path, data, [cb]) ⇐ <code>String</code>
+Fetches text from a URL `path`
 
-	path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
+	PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
 
 using PUT || POST || DELETE || GET given the respective fetch option
 
@@ -1008,7 +1008,7 @@ See fetchOptions for fetching config parameters.
 | --- | --- | --- |
 | path | <code>String</code> | source URL |
 | data | <code>string</code> \| <code>array</code> \| <code>function</code> \| <code>null</code> | fetching data or callback |
-| cb | <code>fetchCallback</code> | [callback] when specified data is not a Function |
+| [cb] | <code>fetchCallback</code> | callback when specified data is not a Function |
 
 **Example**  
 ```js

@@ -379,9 +379,9 @@ Callback method for data fetching.
 */
 
 /**
-Fetches text from a URL
+Fetches text from a URL `path`
 
-	path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
+	PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
 
 using PUT || POST || DELETE || GET given the respective fetch option
 
@@ -407,7 +407,7 @@ See fetchOptions for fetching config parameters.
 @extends String
 @param {String} path source URL
 @param {string | array | function | null} data fetching data or callback 
-@param {fetchCallback} cb [callback] when specified data is not a Function
+@param {fetchCallback} [cb] callback when specified data is not a Function
 
 @example
 URL.fetchFile( text => {			// get request
@@ -888,8 +888,8 @@ using the specified fetching options.
 
 @cfg {Function} 
 @param {String} path source URL
-@param {*} opts data handler or callback
-@param {fetchCallback} cb callback
+@param {string | array | function | null} opts data handler or callback
+@param {fetchCallback} [cb] callback
 */
 	Fetch: (path, data, cb) => path.fetchFile(data,cb),
 	
