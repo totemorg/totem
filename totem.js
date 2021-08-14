@@ -409,7 +409,6 @@ See fetchOptions for fetching config parameters.
 @param {*} data fetching data or callback 
 @param {fetchCallback} cb [callback] when specified data is not a Function
 
-@constructor
 @example
 URL.fetchFile( text => {			// get request
 })
@@ -884,7 +883,7 @@ const
 	},
 
 /**
-Uses [path.fetchFile(opts,cb)]{@link fetchFile} to fetch text from URL path given fetching options. 
+Uses [path.fetchFile(opts,cb)]{@link TOTEM:fetchFile} to fetch text from URL path given fetching options. 
 
 @cfg {Function} 
 @param {String} path source URL
