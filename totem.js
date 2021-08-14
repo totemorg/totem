@@ -387,7 +387,7 @@ using PUT || POST || DELETE || GET given the respective fetch option
 
 	data = Array || Object || null || Function
 	
-Supported insecure || secure PROTOCOLs:
+Both insecure || secure PROTOCOLs are supported:
 
 	PROTOCOL		uses
 	==============================================
@@ -395,19 +395,33 @@ Supported insecure || secure PROTOCOLs:
 	curl || curls	curl. curls presents certs/fetch.pfx certificate to endpoint
 	wget || wgets	wget. wgets presents certs/fetch.pfx certificate to endpoint
 	mask || masks	rotated proxies
-	lexis || ... 	oauth authorization-authentication protocol
 	file			file system
 	book			selected notebook record
+	AASRV 			oauth authorization-authentication protocol (e.g. lexis)
 
 If FILE is terminated by a "/", then a file index is returned.  The optional batch,limit,... 
 query parameters are used to regulate a (e.g. csv) file stream.
 
-See fetchOptions for Fetch config parameters.
+See fetchOptions for fetching config parameters.
 
 @extends String
 @param {String} path source URL
 @param {*} data fetching data or callback 
 @param {fetchCallback} cb [callback] when specified data is not a Function
+
+@example
+	URL.fetchFile( text => {			// get request
+	})
+	
+	URL.fetchFile( [ ... ], stat => { 	// post request given hash list
+	})
+	
+	URL.fetchFile( { ... }, stat => { 	// put request given data hash
+	})
+	
+	URL.fetchFile( null, stat => {		// delete request 
+	})
+
 */
 function fetchFile(data, cb) {	//< data fetching
 

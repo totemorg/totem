@@ -1,6 +1,6 @@
 # TOTEM
 
-**TOTEM** provides a basic web service with the following customizable features:
+**TOTEM** provides a barebones web service with the following customizable features:
 
 	+ endpoint routing
 	+ http/https service
@@ -29,32 +29,6 @@
 By default, **TOTEM** provides `db | xml | csv | json` TYPEs for converting DATASETs, 
 `riddle | task | ping` COMMANDs for validating a session, sharding tasks,
 and the `stores | shares` file AREAs for sharing static files.
-
-**TOTEM** also provides a method to fetch data from a service or filesystem:
-
-	Fetch( path, text => {			// get-select request made
-	})
-	
-	Fetch( path, [ ... ], stat => { 	// post-insert request made
-	})
-	
-	Fetch( path, { ... }, stat => { 	// put-update request made
-	})
-	
-	Fetch( path, null, stat => {		// delete request made
-	})
-	
-where the path = "PROTOCOL://HOST/FILE" and where the PROTOCOL can be
-
-	http/https fetches data from the HOST
-	curls/wgets presents the certs/fetch.pfx certificate to the HOST, 
-	mask/masks routes the HOST fetch through rotated proxies, 
-	lexis/etc uses the oauth authorization-authentication protocol to read the HOST, 
-	file fetches data from the file system, 
-	book selects a notebook record. 
-			
-If the path is terminated by a "/", then a file index is returned; if terminated by "?batch=N&limit=N&rekey=from:to,...&comma=X&newline=X", 
-specified options are used to ingest the requested FILE stream.
 
 ## Installation
 

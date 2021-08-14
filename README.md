@@ -1,6 +1,6 @@
 # TOTEM
 
-**TOTEM** provides a basic web service with the following customizable features:
+**TOTEM** provides a barebones web service with the following customizable features:
 
 	+ endpoint routing
 	+ http/https service
@@ -29,32 +29,6 @@
 By default, **TOTEM** provides `db | xml | csv | json` TYPEs for converting DATASETs, 
 `riddle | task | ping` COMMANDs for validating a session, sharding tasks,
 and the `stores | shares` file AREAs for sharing static files.
-
-**TOTEM** also provides a method to fetch data from a service or filesystem:
-
-	Fetch( path, text => {			// get-select request made
-	})
-	
-	Fetch( path, [ ... ], stat => { 	// post-insert request made
-	})
-	
-	Fetch( path, { ... }, stat => { 	// put-update request made
-	})
-	
-	Fetch( path, null, stat => {		// delete request made
-	})
-	
-where the path = "PROTOCOL://HOST/FILE" and where the PROTOCOL can be
-
-	http/https fetches data from the HOST
-	curls/wgets presents the certs/fetch.pfx certificate to the HOST, 
-	mask/masks routes the HOST fetch through rotated proxies, 
-	lexis/etc uses the oauth authorization-authentication protocol to read the HOST, 
-	file fetches data from the file system, 
-	book selects a notebook record. 
-			
-If the path is terminated by a "/", then a file index is returned; if terminated by "?batch=N&limit=N&rekey=from:to,...&comma=X&newline=X", 
-specified options are used to ingest the requested FILE stream.
 
 ## Installation
 
@@ -1022,7 +996,7 @@ using PUT || POST || DELETE || GET given the respective fetch option
 
 	data = Array || Object || null || Function
 	
-Supported insecure || secure PROTOCOLs:
+Both insecure || secure PROTOCOLs are supported:
 
 	PROTOCOL		uses
 	==============================================
@@ -1030,14 +1004,14 @@ Supported insecure || secure PROTOCOLs:
 	curl || curls	curl. curls presents certs/fetch.pfx certificate to endpoint
 	wget || wgets	wget. wgets presents certs/fetch.pfx certificate to endpoint
 	mask || masks	rotated proxies
-	lexis || ... 	oauth authorization-authentication protocol
 	file			file system
 	book			selected notebook record
+	AASRV 			oauth authorization-authentication protocol (e.g. lexis)
 
 If FILE is terminated by a "/", then a file index is returned.  The optional batch,limit,... 
 query parameters are used to regulate a (e.g. csv) file stream.
 
-See fetchOptions for Fetch config parameters.
+See fetchOptions for fetching config parameters.
 
 **Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 **Extends**: <code>String</code>  
@@ -1048,6 +1022,20 @@ See fetchOptions for Fetch config parameters.
 | data | <code>\*</code> | fetching data or callback |
 | cb | <code>fetchCallback</code> | [callback] when specified data is not a Function |
 
+**Example**  
+```js
+URL.fetchFile( text => {			// get request
+	})
+	
+	URL.fetchFile( [ ... ], stat => { 	// post request given hash list
+	})
+	
+	URL.fetchFile( { ... }, stat => { 	// put request given data hash
+	})
+	
+	URL.fetchFile( null, stat => {		// delete request 
+	})
+```
 <a name="module_TOTEM..stopService"></a>
 
 ### TOTEM~stopService()
