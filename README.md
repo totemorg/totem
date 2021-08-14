@@ -1051,8 +1051,8 @@ callback cb() when complete.
 
 ### TOTEM~resolveClient(req, res)
 Validate a client's session by attaching a log, profile, group, client, 
-cert and joined info to this req request then callback res(error) with 
-null error if session was validated.
+cert and joined info to this `req` request then callback `res`(error) with 
+a null error if the session was validated.
 
 **Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 

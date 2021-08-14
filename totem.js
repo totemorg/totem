@@ -2648,8 +2648,8 @@ function createCert(owner,pass,cb) {
 
 /**
 Validate a client's session by attaching a log, profile, group, client, 
-cert and joined info to this req request then callback res(error) with 
-null error if session was validated.  
+cert and joined info to this `req` request then callback `res`(error) with 
+a null error if the session was validated.  
 
 @param {Object} req totem request
 @param {Function} res totem response
