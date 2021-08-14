@@ -868,12 +868,12 @@ const
 	},
 
 /**
-Calls path.fetchFile(opts,cb) to fetch text from URL path given fetching options. 
+Uses path.fetchFile(opts,cb) to fetch text from URL path given fetching options. 
 
 @cfg {Function} 
 @param {String} path source URL
-@param {Array,Object,Null,Function} opts data handler or callback
-@param {Function} cb callback
+@param {*} opts data handler or callback
+@param {fetchCallback} cb callback
 */
 	Fetch: (path, data, cb) => path.fetchFile(data,cb),
 	
