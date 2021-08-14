@@ -32,7 +32,7 @@ and the `stores | shares` file AREAs for sharing static files.
 
 ## Installation
 
-Clone the following into your PROJECT folder:
+Clone the following into your PROJECT folder
 
 	+ [TOTEM base web service](https://github.com/totemstan/totem) || [COE](https://sc.appdev.proj.coe/acmesds/totem) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/totem)  
 	+ [ENUMS enumerator](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)  
