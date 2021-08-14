@@ -903,7 +903,6 @@ using the specified fetching options.
 		pass: ENV.MYSQL_PASS
 	},
 					
-	// data ingest
 	sql: (query,args,cb) => sqlThread(sql => {
 		//Log(sql);
 		sql.query(query,args,(err,recs) => { 
@@ -920,6 +919,7 @@ The provided response method accepts a string, an objects, an array, an error, o
 a file-cache function and terminates the session's sql connection.  The client is 
 validated and their session logged.
 
+@cfg {Function}
 @param {Object} req session request
 @param {Object} res session response
 */
@@ -1891,22 +1891,22 @@ Common methods for task sharding
 Shard one or more tasks to workers residing in a compute node cloud.
 
 @example
-	runTask({  		// example
-		keys: "i,j,k",  	// e.g. array indecies
-		i: [0,1,2,3],  		// domain of index i
-		j: [4,8],				// domain of index j
-		k: [0],					// domain of index k
-		qos: 0,				// regulation time in ms if not zero
-		local: false, 		// enable to run task local, i.e. w/o workers and nodes
-		workers: 4, 		// limit number of workers (aka cores) per node
-		nodes: 3 			// limit number of nodes (ala locales) in the cluster
-	}, 
-		// here, a simple task that returns a message 
-		$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
+runTask({  		// example
+	keys: "i,j,k",  	// e.g. array indecies
+	i: [0,1,2,3],  		// domain of index i
+	j: [4,8],				// domain of index j
+	k: [0],					// domain of index k
+	qos: 0,				// regulation time in ms if not zero
+	local: false, 		// enable to run task local, i.e. w/o workers and nodes
+	workers: 4, 		// limit number of workers (aka cores) per node
+	nodes: 3 			// limit number of nodes (ala locales) in the cluster
+}, 
+	// here, a simple task that returns a message 
+	$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
 
-		// here, a simple callback that displays the task results
-		msg => console.log(msg) 
-	);
+	// here, a simple callback that displays the task results
+	msg => console.log(msg) 
+);
 
 @cfg {Function}
 @param {Object} opts tasking options (see example)
