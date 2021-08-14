@@ -980,11 +980,8 @@ Fetches text from a URL `path`
 
 	PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
 
-using PUT || POST || DELETE || GET given the respective fetch option
-
-	data = Array || Object || null || Function
-	
-with supported PROTOCOLs
+using a PUT || POST || DELETE || GET corresponding to the type of the fetch `data`  
+Array || Object || null || Function where
 
 	PROTOCOL		uses
 	==============================================
