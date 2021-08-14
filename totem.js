@@ -387,20 +387,20 @@ using PUT || POST || DELETE || GET given the respective fetch option
 
 	data = Array || Object || null || Function
 	
-Both insecure || secure PROTOCOLs are supported:
+with supported PROTOCOLs
 
 	PROTOCOL		uses
 	==============================================
-	http || https	http/s protocol
+	http(s) 		http (https) protocol
 	curl(s) 		curl (presents certs/fetch.pfx certificate to endpoint)
-	wget(s)	wget. secure presents certs/fetch.pfx certificate to endpoint
+	wget(s)			wget (presents certs/fetch.pfx certificate to endpoint)
 	mask 			rotated proxies
 	file			file system
 	book			selected notebook record
 	AASRV 			oauth authorization-authentication protocol (e.g. lexis)
 
-If FILE is terminated by a "/", then a file index is returned.  The optional batch,limit,... 
-query parameters are used to regulate a (e.g. csv) file stream.
+While the FILE spec is terminated by a "/", a folder index is returned.  The optional 
+batch,limit,... query parameters are used to regulate a (e.g. csv) file stream.
 
 See fetchOptions for fetching config parameters.
 
@@ -414,11 +414,11 @@ URL.fetchFile( text => {			// get request
 })
 
 @example
-URL.fetchFile( [ ... ], stat => { 	// post request given hash list
+URL.fetchFile( [ ... ], stat => { 	// post request with data hash list
 })
 
 @example
-URL.fetchFile( { ... }, stat => { 	// put request given data hash
+URL.fetchFile( { ... }, stat => { 	// put request with data hash
 })
 
 @example
