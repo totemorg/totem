@@ -2,6 +2,7 @@
 
 /**
 	Provides barebones web service.
+	Documented in accordance with [jsdoc]{@link https://jsdoc.app/}
 	
 	@module TOTEM
 
@@ -327,9 +328,6 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 			});
 		});
 	});	
-	
-	
-	Document in accordance with [jsdoc](https://jsdoc.app/)
 */
 
 const	

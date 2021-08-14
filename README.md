@@ -103,6 +103,7 @@ or [follow **TOTEM** milestones](http://totem.hopto.org/milestones.view) || [COE
 
 ## TOTEM
 Provides barebones web service.
+	Documented in accordance with [jsdoc](https://jsdoc.app/)
 
 **Requires**: <code>module:http</code>, <code>module:https</code>, <code>module:fs</code>, <code>module:constants</code>, <code>module:cluster</code>, <code>module:child\_process</code>, <code>module:os</code>, <code>module:stream</code>, <code>module:vm</code>, <code>module:crypto</code>, <code>module:enums</code>, <code>module:jsdb</code>, <code>module:securelink</code>, <code>module:socketio</code>, <code>module:mime</code>, <code>module:mysql</code>, <code>module:xml2js</code>, <code>module:toobusy</code>, <code>module:json2csv</code>, <code>module:js2xmlparser</code>, <code>module:toobusy-js</code>, <code>module:cheerio</code>  
 **Example**  
@@ -416,9 +417,6 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 			});
 		});
 	});	
-	
-	
-	Document in accordance with [jsdoc](https://jsdoc.app/)
 ```
 
 * [TOTEM](#module_TOTEM)
