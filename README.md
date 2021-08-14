@@ -779,7 +779,8 @@ File cache
 <a name="module_TOTEM.Fetch"></a>
 
 ### TOTEM.Fetch(path, opts, cb)
-Uses [path.fetchFile(opts,cb)](TOTEM:fetchFile) to fetch text from URL path given fetching options.
+Uses [path.fetchFile(opts,cb)](fetchFile) to fetch text from the given URL path
+using the specified fetching options.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
@@ -1193,6 +1194,11 @@ Endpoint to validate clients response to an antibot challenge.
 Callback method for data fetching.
 
 **Kind**: inner typedef of [<code>TOTEM</code>](#module_TOTEM)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| text | <code>string</code> | response message |
+
 
 * * *
 

@@ -375,7 +375,7 @@ function parseXML(cb) {
 /**
 Callback method for data fetching.
 @callback fetchCallback
-{string} response message
+@param {string} text response message
 */
 
 /**
@@ -883,7 +883,8 @@ const
 	},
 
 /**
-Uses [path.fetchFile(opts,cb)]{@link TOTEM:fetchFile} to fetch text from URL path given fetching options. 
+Uses [path.fetchFile(opts,cb)]{@link fetchFile} to fetch text from the given URL path
+using the specified fetching options. 
 
 @cfg {Function} 
 @param {String} path source URL
