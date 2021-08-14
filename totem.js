@@ -370,29 +370,35 @@ function parseXML(cb) {
 }
 	
 /**
-Fetches data from a 
+Fetches text from a URL
 
 	path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
 
-using the PUT || POST || DELETE || GET method given a data = Array || Object || null || Function spec where:
+using PUT || POST || DELETE || GET given the respective fetch option
 
-	PROTOCOL = http || https, curl || curls, wget || wgets, mask || masks, lexis || etc, file, book
+	data = Array || Object || null || Function
+	
+Supported insecure || secure PROTOCOLs:
 
-and where 
+	PROTOCOL		uses
+	==============================================
+	http || https	http/s protocol
+	curl || curls	curl. curls presents certs/fetch.pfx certificate to endpoint
+	wget || wgets	wget. wgets presents certs/fetch.pfx certificate to endpoint
+	mask || masks	rotated proxies
+	lexis || ... 	oauth authorization-authentication protocol
+	file			file system
+	book			selected notebook record
 
-	curls/wgets presents the certs/fetch.pfx certificate to the endpoint, 
-	mask/masks routes the fetch through rotated proxies, 
-	lexis/etc uses the oauth authorization-authentication protocol, 
-	file fetches from the file system,
-	book selects a notebook record. 
+If FILE is terminated by a "/", then a file index is returned.  The optional batch,limit,... 
+query parameters are used to regulate a (e.g. csv) file stream.
 
-If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
-regulate the file stream.
+See fetchOptions for Fetch config parameters.
 
 @extends String
-@param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
-@param {Object} data type induces method = get || post || put || delete
-@param {Function} cb callback when data provided
+@param {String} path source URL
+@param {Array,Object,Null,Function} data fetching data or callback 
+@param {Function} cb callback when specified data is not a Function
 */
 function fetchFile(data, cb) {	//< data fetching
 
@@ -793,11 +799,13 @@ const
 			
 	inspector: null,
 			
-	CORS: false,
+	CORS: false,	//< enable to support cross-origin-scripting
 		
 	isTrusted: account => account.endsWith(".mil") && !account.match(/\.ctr@.&\.mil/) ,
 
-	fetchOptions: {	// Fetch parms
+	defaultType: "run",
+
+	fetchOptions: {	//< Fetch config params
 		defHost: ENV.SERVICE_MASTER_URL,
 		maxFiles: 1000,						//< max files to index
 		maxRetry: 5,		// fetch wget/curl maxRetry	
@@ -848,31 +856,13 @@ const
 		}
 	},
 
-	defaultType: "run",
-
 /**
-Fetches data from a 
-
-	path = PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
-
-using the PUT || POST || DELETE || GET method given a data = Array || Object || null || Function spec where:
-
-	PROTOCOL = http || https, curl || curls, wget || wgets, mask || masks, lexis || etc, file, book
-
-and where 
-
-	curls/wgets presents the certs/fetch.pfx certificate to the endpoint, 
-	mask/masks routes the fetch through rotated proxies, 
-	lexis/etc uses the oauth authorization-authentication protocol, 
-	file fetches from the file system,
-	book selects a notebook record. 
-
-If FILE is terminated by a "/", then a file index is returned.  Optional batch,limit,... query parameters
-regulate the file stream.
+Calls path.fetchFile(opts,cb) to fetch text from URL path given fetching options. 
 
 @cfg {Function} 
-@param {String} path protocol prefixed by http: || https: || curl: || curls: || wget: || wgets: || mask: || masks: || /path 
-@param {Object} method induces probe method
+@param {String} path source URL
+@param {Array,Object,Null,Function} opts data handler or callback
+@param {Function} cb callback
 */
 	Fetch: (path, data, cb) => path.fetchFile(data,cb),
 	
