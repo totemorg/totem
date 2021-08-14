@@ -445,7 +445,7 @@ neoThread( neo => {
         * [~sysPing(req, res)](#module_TOTEM..sysPing)
         * [~sysTask(req, res)](#module_TOTEM..sysTask)
         * [~sysChallenge(req, res)](#module_TOTEM..sysChallenge)
-        * [~fetchCallback](#module_TOTEM..fetchCallback) : <code>function</code>
+        * [~TSR](#module_TOTEM..TSR) : <code>function</code>
 
 <a name="module_TOTEM.errors"></a>
 
@@ -659,7 +659,7 @@ CRUDE (req,res) method to respond to a select||GET request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem responder |
+| res | <code>TSR</code> | Totem session response |
 
 <a name="module_TOTEM.update"></a>
 
@@ -672,7 +672,7 @@ CRUDE (req,res) method to respond to a update||POST request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem responder |
+| res | <code>TSR</code> | Totem session response |
 
 <a name="module_TOTEM.delete"></a>
 
@@ -685,7 +685,7 @@ CRUDE (req,res) method to respond to a delete||DELETE request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem responder |
+| res | <code>TSR</code> | Totem session response |
 
 <a name="module_TOTEM.insert"></a>
 
@@ -698,7 +698,7 @@ CRUDE (req,res) method to respond to a insert||PUT request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem responder |
+| res | <code>TSR</code> | Totem session response |
 
 <a name="module_TOTEM.execute"></a>
 
@@ -711,7 +711,7 @@ CRUDE (req,res) method to respond to a Totem request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem responder |
+| res | <code>TSR</code> | Totem session response |
 
 <a name="module_TOTEM.guard"></a>
 
@@ -789,7 +789,7 @@ using the specified fetching options.
 | --- | --- | --- |
 | path | <code>String</code> | source URL |
 | opts | <code>string</code> \| <code>array</code> \| <code>function</code> \| <code>null</code> | data handler or callback |
-| [cb] | <code>fetchCallback</code> | callback |
+| [cb] | <code>TSR</code> | callback |
 
 <a name="module_TOTEM.routeRequest"></a>
 
@@ -1005,7 +1005,7 @@ See fetchOptions for fetching config parameters.
 | --- | --- | --- |
 | path | <code>String</code> | source URL |
 | data | <code>string</code> \| <code>array</code> \| <code>function</code> \| <code>null</code> | fetching data or callback |
-| [cb] | <code>fetchCallback</code> | callback when specified data is not a Function |
+| [cb] | <code>TSR</code> | callback when specified data is not a Function |
 
 **Example**  
 ```js
@@ -1052,14 +1052,14 @@ callback cb() when complete.
 ### TOTEM~resolveClient(req, res)
 Validate a client's session by attaching a log, profile, group, client, 
 cert and joined info to this `req` request then callback `res`(error) with 
-a null error if the session was validated.
+a null `error` if the session was sucessfully validated.
 
 **Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | totem request |
-| res | <code>function</code> | totem response |
+| res | <code>TSR</code> | callback |
 
 <a name="module_TOTEM..getBrick"></a>
 
@@ -1077,8 +1077,9 @@ Get (or create if needed) a file with callback cb(fileID, sql) if no errors
 <a name="module_TOTEM..uploadFile"></a>
 
 ### TOTEM~uploadFile(client, source, sinkPath, tags, cb)
-Uploads a source stream srcStream to a target file sinkPath owned by a 
-specified client.  Optional tags are logged with the upload.
+Uploads a source stream `srcStream` to a target file `sinkPath` owned by the 
+specified `client`; optional `tags` are tagged to the upload and the callback 
+`cb` is made if the upload was successful.
 
 **Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
 
@@ -1087,8 +1088,8 @@ specified client.  Optional tags are logged with the upload.
 | client | <code>String</code> | file owner |
 | source | <code>Stream</code> | stream |
 | sinkPath | <code>String</code> | path to target file |
-| tags | <code>Object</code> | hach of tags to add to file |
-| cb | <code>function</code> | callback(file) if upload sucessful |
+| tags | <code>Object</code> | hash of tags to add to file |
+| cb | <code>function</code> | callback(file) if upload successful |
 
 <a name="module_TOTEM..selectDS"></a>
 
@@ -1099,8 +1100,8 @@ CRUD select endpoint.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| req | <code>Object</code> | Totem's request |
-| res | <code>function</code> | Totem's response callback |
+| req | <code>Object</code> | Totem request hash |
+| res | <code>TSR</code> | Totem's responder |
 
 <a name="module_TOTEM..insertDS"></a>
 
@@ -1111,8 +1112,8 @@ CRUD insert endpoint.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| req | <code>Object</code> | Totem's request |
-| res | <code>function</code> | Totem's response callback |
+| req | <code>Object</code> | Totem request hash |
+| res | <code>TSR</code> | Totem response callback |
 
 <a name="module_TOTEM..deleteDS"></a>
 
@@ -1123,8 +1124,8 @@ CRUD delete endpoint.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| req | <code>Object</code> | Totem's request |
-| res | <code>function</code> | Totem's response callback |
+| req | <code>Object</code> | Totem request hash |
+| res | <code>function</code> | Totem response callback |
 
 <a name="module_TOTEM..updateDS"></a>
 
@@ -1135,8 +1136,8 @@ CRUD update endpoint.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| req | <code>Object</code> | Totem's request |
-| res | <code>function</code> | Totem's response callback |
+| req | <code>Object</code> | Totem request hash |
+| res | <code>function</code> | Totem response callback |
 
 <a name="module_TOTEM..executeDS"></a>
 
@@ -1147,8 +1148,8 @@ CRUD execute endpoint.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| req | <code>Object</code> | Totem's request |
-| res | <code>function</code> | Totem's response callback |
+| req | <code>Object</code> | Totem request hash |
+| res | <code>function</code> | Totem response callback |
 
 <a name="module_TOTEM..sysPing"></a>
 
@@ -1186,16 +1187,16 @@ Endpoint to validate clients response to an antibot challenge.
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem response callback |
 
-<a name="module_TOTEM..fetchCallback"></a>
+<a name="module_TOTEM..TSR"></a>
 
-### TOTEM~fetchCallback : <code>function</code>
-Callback method for data fetching.
+### TOTEM~TSR : <code>function</code>
+Totem response callback.
 
 **Kind**: inner typedef of [<code>TOTEM</code>](#module_TOTEM)  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| text | <code>string</code> | response message |
+| text | <code>string</code> \| <code>error</code> | Response message |
 
 
 * * *

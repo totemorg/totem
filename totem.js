@@ -373,9 +373,9 @@ function parseXML(cb) {
 }
 
 /**
-Callback method for data fetching.
-@callback fetchCallback
-@param {string} text response message
+Totem response callback.
+@callback TSR
+@param {string | error} text Response message
 */
 
 /**
@@ -404,7 +404,7 @@ See fetchOptions for fetching config parameters.
 @extends String
 @param {String} path source URL
 @param {string | array | function | null} data fetching data or callback 
-@param {fetchCallback} [cb] callback when specified data is not a Function
+@param {TSR} [cb] callback when specified data is not a Function
 
 @example
 URL.fetchFile( text => {			// get request
@@ -886,7 +886,7 @@ using the specified fetching options.
 @cfg {Function} 
 @param {String} path source URL
 @param {string | array | function | null} opts data handler or callback
-@param {fetchCallback} [cb] callback
+@param {TSR} [cb] callback
 */
 	Fetch: (path, data, cb) => path.fetchFile(data,cb),
 	
@@ -2288,7 +2288,7 @@ CRUDE (req,res) method to respond to Totem request
 CRUDE (req,res) method to respond to a select||GET request
 @cfg {Function}
 @param {Object} req Totem session request
-@param {Function} res Totem responder
+@param {TSR} res Totem session response
 */				
 	select: selectDS,	
 	
@@ -2296,7 +2296,7 @@ CRUDE (req,res) method to respond to a select||GET request
 CRUDE (req,res) method to respond to a update||POST request
 @cfg {Function}	
 @param {Object} req Totem session request
-@param {Function} res Totem responder
+@param {TSR} res Totem session response
 */				
 	update: updateDS,
 	
@@ -2304,7 +2304,7 @@ CRUDE (req,res) method to respond to a update||POST request
 CRUDE (req,res) method to respond to a delete||DELETE request
 @cfg {Function}	
 @param {Object} req Totem session request
-@param {Function} res Totem responder
+@param {TSR} res Totem session response
 */				
 	delete: deleteDS,
 	
@@ -2312,7 +2312,7 @@ CRUDE (req,res) method to respond to a delete||DELETE request
 CRUDE (req,res) method to respond to a insert||PUT request
 @cfg {Function}
 @param {Object} req Totem session request
-@param {Function} res Totem responder
+@param {TSR} res Totem session response
 */				
 	insert: insertDS,
 	
@@ -2320,7 +2320,7 @@ CRUDE (req,res) method to respond to a insert||PUT request
 CRUDE (req,res) method to respond to a Totem request
 @cfg {Function}
 @param {Object} req Totem session request
-@param {Function} res Totem responder
+@param {TSR} res Totem session response
 */				
 	execute: executeDS,
 
@@ -2649,10 +2649,10 @@ function createCert(owner,pass,cb) {
 /**
 Validate a client's session by attaching a log, profile, group, client, 
 cert and joined info to this `req` request then callback `res`(error) with 
-a null error if the session was validated.  
+a null `error` if the session was sucessfully validated.  
 
 @param {Object} req totem request
-@param {Function} res totem response
+@param {TSR} res callback
 */
 function resolveClient(req,res) {  
 	
@@ -2804,14 +2804,15 @@ function getBrick(client, name, cb) {
 }
 
 /**
-Uploads a source stream srcStream to a target file sinkPath owned by a 
-specified client.  Optional tags are logged with the upload.
+Uploads a source stream `srcStream` to a target file `sinkPath` owned by the 
+specified `client`; optional `tags` are tagged to the upload and the callback 
+`cb` is made if the upload was successful.
 
 @param {String} client file owner
 @param {Stream} source stream
 @param {String} sinkPath path to target file
-@param {Object} tags hach of tags to add to file
-@param {Function} cb callback(file) if upload sucessful
+@param {Object} tags hash of tags to add to file
+@param {Function} cb callback(file) if upload successful
 */
 function uploadFile( client, srcStream, sinkPath, tags, cb ) { 
 	var
@@ -2966,8 +2967,8 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 
 /**
 CRUD select endpoint.
-@param {Object} req Totem's request
-@param {Function} res Totem's response callback
+@param {Object} req Totem request hash
+@param {TSR} res Totem's responder
 */
 function selectDS(req, res) {
 	const 
@@ -2998,8 +2999,8 @@ function selectDS(req, res) {
 
 /**
 CRUD insert endpoint.
-@param {Object} req Totem's request
-@param {Function} res Totem's response callback
+@param {Object} req Totem request hash
+@param {TSR} res Totem response callback
 */
 function insertDS(req, res) {
 	const 
@@ -3022,8 +3023,8 @@ function insertDS(req, res) {
 
 /**
 CRUD delete endpoint.
-@param {Object} req Totem's request
-@param {Function} res Totem's response callback
+@param {Object} req Totem request hash
+@param {Function} res Totem response callback
 */	
 function deleteDS(req, res) {
 	const 
@@ -3050,8 +3051,8 @@ function deleteDS(req, res) {
 
 /**
 CRUD update endpoint.
-@param {Object} req Totem's request
-@param {Function} res Totem's response callback
+@param {Object} req Totem request hash
+@param {Function} res Totem response callback
 */	
 function updateDS(req, res) {
 	const 
@@ -3098,8 +3099,8 @@ function updateDS(req, res) {
 
 /**
 CRUD execute endpoint.
-@param {Object} req Totem's request
-@param {Function} res Totem's response callback
+@param {Object} req Totem request hash
+@param {Function} res Totem response callback
 */
 function executeDS(req,res) {
 	res( errors.notAllowed );
