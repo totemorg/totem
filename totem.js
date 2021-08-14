@@ -1,6 +1,8 @@
 // UNCLASSIFIED   
 
 /**
+	Provides barebones web service.
+	
 	@module TOTEM
 
 	@requires http
@@ -325,6 +327,9 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 			});
 		});
 	});	
+	
+	
+	Document in accordance with [jsdoc](https://jsdoc.app/)
 */
 
 const	
@@ -397,8 +402,8 @@ See fetchOptions for Fetch config parameters.
 
 @extends String
 @param {String} path source URL
-@param {Array,Object,Null,Function} data fetching data or callback 
-@param {Function} cb callback when specified data is not a Function
+@param {Array, Object, Function} data fetching data or callback 
+@param {Function} cb [callback] when specified data is not a Function
 */
 function fetchFile(data, cb) {	//< data fetching
 
