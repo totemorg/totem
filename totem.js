@@ -1,6 +1,7 @@
 // UNCLASSIFIED   
 
 /**
+
 Provides barebones web service.
 Documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 
