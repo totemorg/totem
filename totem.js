@@ -2670,7 +2670,7 @@ function resolveClient(req,res) {
 					subjectaltname: ""
 				};		
 
-			//Log("getcert>>>", cert);
+			// Log("getcert>>>>>>>>", cert, cert.subjectaltname);
 			if (behindProxy) {  // update cert with originating cert info that was placed in header
 				var 
 					NA = Req.headers.ssl_client_notafter,
@@ -2742,9 +2742,10 @@ function resolveClient(req,res) {
 			[x,account] = (cert.subjectaltname||guest).toLowerCase().split(",")[0].match(/email:(.*)/) || [];
 
 		if ( account ) {
+			// Log("CHECKCERT>>>>>>>>>>>>>>>", account, cookie, cookies);
 			req.client = account;
 			
-			if ( cookie ) 						//  client providing cookie to speed profile setup
+			if ( cookie ) 						//  client providing cookie to hold their profile
 				cookie.split("; ").forEach( cook => {
 					const [key,val] = cook.split("=");
 					cookies[key] = val;
