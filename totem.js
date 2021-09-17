@@ -2490,20 +2490,28 @@ Sets the site context parameters.
 		site.Lookups = Lookups;
 		
 		sql.query("SELECT Ref AS `Key`,group_concat(DISTINCT Path SEPARATOR '|') AS `Select` FROM openv.lookups GROUP BY Ref", [], (err,recs) => {
-			recs.forEach( rec => {
-				lookups[rec.Key] = rec.Select;
-			});
+			if (recs)
+				recs.forEach( rec => {
+					lookups[rec.Key] = rec.Select;
+				});
+			
+			else
+				throw new Error("Check if mysql service is running");
 			//Log(">>>lookups", lookups);
 		});
 		
 		sql.query("SELECT Ref,Path,Name FROM openv.lookups", [], (err,recs) => {
-			recs.forEach( rec => {
-				const 
-					{Ref,Path,Name} = rec,
-					Lookup = Lookups[Ref] || (Lookups[Ref] = {});
+			if (recs)
+				recs.forEach( rec => {
+					const 
+						{Ref,Path,Name} = rec,
+						Lookup = Lookups[Ref] || (Lookups[Ref] = {});
 
-				Lookup[Name] = Path;
-			});
+					Lookup[Name] = Path;
+				});
+			
+			else
+				throw new Error("Check if mysql service is running");
 			//Log(">>>Lookups", Lookups);
 		});
 		
