@@ -1,0 +1,1680 @@
+############################
+# Static IP for no-ip.com port forwarding
+############################
+# see https://www.unixmen.com/configure-static-ip-centos-7/
+# https://www.itzgeek.com/how-tos/linux/centos-how-tos/how-to-configure-static-ip-address-in-centos-7-rhel-7-fedora-26.html
+
+# make backups
+cp /etc/resolv.conf /etc/_backup_resolv.conf
+cp /etc/sysconfig/network-scripts/ifcfg-enp0s8 /etc/sysconfig/network-scripts/_backup_ifcfg-enp0s8
+
+# gather net info.  ether->hwaddr inet->ipaddr netmask->netmask broadcast.255->gateway.1, DNS1
+ifconfig -a   # on lattitude 6330 ===>
+
+enp0s8: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 172.16.0.17  netmask 255.255.255.0  broadcast 172.16.0.255
+        inet6 fe80::8d97:4e88:e0:f82d  prefixlen 64  scopeid 0x20<link>
+        ether 08:00:27:bc:b7:54  txqueuelen 1000  (Ethernet)
+        RX packets 22407  bytes 14487580 (13.8 MiB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 19735  bytes 3789403 (3.6 MiB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+		
+
+# update ifcfg-enp0s8 ...
+
+# Static ip spec
+HWADDR=8:00:27:55:d1:6b
+IPADDR=192.168.1.100
+NETMASK=255.255.255.0
+GATEWAY=192.168.1.1
+#DNS1=10.0.0.1
+#DNS2=8.8.8.8
+# general
+TYPE=Ethernet
+PROXY_METHOD=none
+BROWSER_ONLY=no
+DEFROUTE=yes
+# IPV4 enabled
+IPV4_FAILURE_FATAL=no
+# IPV6 disabled
+IPV6INIT=no
+IPV6_AUTOCONF=yes
+IPV6_DEFROUTE=yes
+IPV6_FAILURE_FATAL=no
+IPV6_ADDR_GEN_MODE=stable-privacy
+NAME=enp0s8
+# optional
+# UUID=d0c22600-eebd-4900-bae6-252e29f734ce
+# general
+DEVICE=enp0s8
+ONBOOT=yes
+
+
+# restart net (tho seldom workds)
+systemctl restart network
+
+############################
+# pcsc smart card reader
+# http://ludovic.rousseau.free.fr/softwares/pcsc-tools/
+# https://www.cac.mil/Common-Access-Card/CAC-Security/
+# https://cardwerk.com/smart-card-standard-iso7816-4-section-6-basic-interindustry-commands/
+# https://neapay.com/post/read-smart-card-chip-data-with-apdu-commands-iso-7816_76.html
+# https://stackoverflow.com/questions/40663460/use-apdu-commands-to-get-some-information-for-a-card
+# https://marcioreis.pt/how-to-communicate-with-a-smartcard-reader-using-node-js/
+# https://www.npmjs.com/package/smartcard
+# https://www.npmjs.com/package/pcsclite
+# https://superuser.com/questions/1386130/linux-how-can-i-display-and-import-the-certificates-delivered-by-smart-card-re
+# https://tldp.org/HOWTO/pdf/Smart-Card-HOWTO.pdf
+# https://militarycac.com/linux.htm
+# https://github.com/OpenSC/OpenSC/wiki
+# https://github.com/OpenSC/OpenSC/wiki/US-PIV
+# https://www.beyondtrust.com/docs/ad-bridge/how-to/integration/smart-card-setup.htm
+# https://en.wikipedia.org/wiki/Common_Access_Card
+# https://csrc.nist.gov/projects/piv
+# https://www.mankier.com/1/pkcs11-tool#Examples
+# https://docs.equinix.com/en-us/Content/Edge-Services/SmartKey/kb/SK-open-ssl.htm
+# https://manpages.debian.org/testing/opensc/pkcs11-tool.1.en.html
+############################
+
+# enable SCM MicrosoftSystems USB from vmbox
+
+yum install pcsc-lite pcsc-lite-devel pcsc-tools
+npm install pcsclite smartcard --save   # install nodejs i/f from service/totem
+pcscd  # start the daemon
+systemctl enable pcscd	# autorun it on boot
+
+# install opensc tools (pkcs11, opensc, etc) on laptop per https://github.com/OpenSC/OpenSC/wiki
+	tar xfvz opensc-*.tar.gz
+	cd opensc-*
+	./bootstrap
+	./configure --prefix=/local --sysconfdir=/local/config_opensc
+	make
+	sudo make install
+
+# Examples 
+
+pkcs11-tool -O   # shows certs on PIV cac
+pkcs11-tool --type cert --id 01 --read-object --output-file cert.der  # dump auth cert at id=01 to cert.der
+openssl x509 -inform der -in cert.der -outform pem -out cert.pem
+
+#To sign some data stored in file data using the private key with ID ID and using the RSA-PKCS mechanism:
+pkcs11-tool --sign --id ID --mechanism RSA-PKCS --input-file data --output-file data.sig
+
+############################
+# Google CSE API key
+############################
+
+key: AIzaSyAIP4VvzppRtiz0MvZ1WxTLG8s_Zw5T2ms
+account: nowhere stan / nowhere1234 / mepila7915@lege4h.com
+https://customsearch.googleapis.com/customsearch/v1?key=AIzaSyBp56CJJA0FE5enebW5_4mTssTGaYzGqz8&cx= 017944666033550212559:xrgqwdccet4&q=walmart
+
+############################
+# PKI MGT
+############################
+
+# cert types vs file types
+#
+# fmt			content				typical file types
+# =========================================
+# der			binary				.der .crt .cer 
+# pem			ascii/base64	.pem .crt .cer 
+# pkcs12 	binary				.pfx .p12
+# pkcs7		ascii/base64	.p7b
+
+# openssl usecases
+#
+# view cert:
+# 	view pem	openssl x509 -in CERT.X-text 
+# 	view der	openssl x509 -in CERT.X-text -inform der 
+#
+# translate cert:
+# 	pem->der	openssl x509 -in cert.crt -outform der -out cert.der	
+# 	der->pem	openssl x509 -in cert.crt -inform der -outform pem -out cert.pem	
+#	pem->p12	openssl pkcs12 -export -inkey certprivatekey.pem -in certprivatekey.pem -out cert.p12
+#	p12->pem	openssl pkcs12 -in cert_key.p12 -out cert_key.pem -nodes
+
+# combine	certs:
+#	In some cases it is advantageous to combine multiple pieces of the 
+# 	X.509 infrastructure into a single file.  One common example would be 
+# 	to combine both the private key and public key into the same certificate.
+# 	The easiest way to combine certs keys and chains is to convert each to
+# 	a PEM encoded certificate then simple copy the contents of each file into 
+# 	a new file.   This is suitable for combining files to use in applications 
+# 	like Apache.
+#
+# extract cert:
+# 	Some certs will come in a combined form (eg p7b, p12).  Where one file 
+# 	can contain any one of: Certificate, Private Key, Public Key, Signed 
+# 	Certificate, Certificate Authority (CA), and/or Authority Chain.
+#  	Examples: 
+#			openssl pkcs12 -in $2.p12 -out ca.pem -cacerts -nokeys
+#			openssl pkcs12 -in $2.p12 -out public.pem -clcerts -nokeys
+#			openssl pkcs12 -in $2.p12 -out private.pem -nocerts
+#
+# x509 = cert
+# rsa = key
+# pkcs12 = passphrase protected
+
+# NGA cert creation process:
+#
+# 1. On the machine that will run the service, create a private key:
+#		openssl req-new -newkey rsa:2048 -nodes -keyout totem.nga.mil.key totem.-out totem.nga.mil.csr
+# 
+# Retain passphrase for step4.
+#
+# 2. Submit the csr to the disa pki team at https://npe-portal.csd.disa.mil
+# They say that their site is cac accessibile with your email cert, but it will
+# only work for those having admin priv.  At this site, make a request
+# for a "TLS Server" type cert.  DISA will respond with 3 certs at their site:
+#
+#			a public cert:	totem.nga.mil.cer
+#			a min ca chain:		ca_certificate_chain.p7b
+#			a private key:	totem.nga.mil.key
+#
+# 3. prep ca chain cert for service by converting/extracting all
+# certs within the supplied ca chain to a standalone pem:
+#
+#		openssl pkcs7 -print_certs -in ca_Certificate_Chain.p7b -out ca_Certificate_Chain.crt
+#
+#		The output file will contain several certs and should be used as-is
+#		in the totem truststore.
+#
+# 4. combine public and private key into a standalone pfx file for the service:
+#
+#		openssl pkcs12 -export -out totem.nga.mil.pfx -inkey totem.nga.mil.key -in totem.nga.mil.crt
+#
+#		use same csr passphrase at both password prompts.  Can also use the
+#		-password pass:PSWD option to supply the password.
+
+############################
+# CENTOS 7.7
+############################
+
+#### bring OS uptodate
+yum install -y epel-release
+yum -y update
+
+#### git
+yum install git	
+
+#### install neo4j
+# download latest at https://neo4j.com/download-center/
+#Extract the contents of the archive, using tar -xf <filename>
+#Refer to the top-level extracted directory as: NEO4J_HOME
+#Change directory to: $NEO4J_HOME, then run
+./bin/neo4j console  # hit from browser on 7474
+# default neo4j/neo4j account/password => neo4j/NGA
+# to create root:  CALL dbms.security.createUser('root', 'NGA');
+# default is neo4j/neo4j
+
+# Use need the neo4j-driver nodejs connector (dont use the node-neo4j connector).
+# Note neo4j 3.x needs java SE 8 installed, whereas neo4j 4.x needs SE 11.
+# to update 8 to 11 see https://sysadminxpert.com/steps-to-upgrade-java-8-to-java-11-on-centos-7/
+# or get standalone 11 from https://www.oracle.com/java/technologies/javase-jdk11-downloads.html
+
+
+var neo4j = require('neo4j-driver');
+
+var driver = neo4j.driver(
+  'bolt://localhost',
+  neo4j.auth.basic('neo4j', 'NGA')
+);
+
+var session = driver.session();
+
+session
+  .run('MERGE (alice:Person {name : $nameParam}) RETURN alice.name AS name', {
+    nameParam: 'Alice'
+  })
+  .subscribe({
+    onKeys: keys => {
+      console.log(keys)
+    },
+    onNext: record => {
+      console.log(record.get('name'))
+    },
+    onCompleted: () => {
+      session.close() // returns a Promise
+    },
+    onError: error => {
+      console.log(error)
+    }
+  });
+
+await driver.close();
+
+#########################
+# install notepadqq (as root)
+#########################
+
+# https://www.javatpoint.com/how-to-install-notepadqq-on-centos
+
+wget -O /etc/yum.repos.d/sea-devel.repo http://sea.fedorapeople.org/sea-devel.repo
+yum install notepadqq  
+
+
+####################
+# install mysql cluster
+####################
+
+# https://dev.mysql.com/downloads/cluster/
+# https://dev.mysql.com/doc/refman/5.7/en/data-directory-initialization.html
+
+tar xvf MYSQL # cluster (7.3.6, 7.4.8, 7.5.5) from generic linux install package (not the .el versions)
+ln -s MYSQL  mysql
+
+# add missing english errmsg.sys
+cd mysql
+mkdir bin/share
+cp share/english/errmsg.sys bin/share
+cp share/english/errmsg.sys share/
+
+
+# revise my.cnf as follows
+cd mysql
+vi my.cnf  # add following
+[mysqld_safe]
+datadir=/local/sqldb
+basedir=/local/mysql
+socket=/tmp/mysql.sock
+symbolic-links=0
+log-error=/local/sqldb/mysqld.log
+pid-file=/local/sqldb/mysqld.pid
+sql-mode= 
+max_allowed_packet=64000000
+
+# create / initialize the sqldb 
+cd mysql
+./bin/mysqld --initialize-insecure --user=mysql  --basedir=/local/mysql --datadir=/local/service/sqldb
+./bin/mysqld_safe --defaults-file=my.cnf &
+./bin/mysql -u root --skip-password
+alter user "root"@"localhost" identified by "ROOTPASS"; # instead of using mysqladmin
+set global sql_mode = "";  # if preferred over mysql_safe startup 
+
+# start the mysql
+./bin/mysqld_safe --defaults-file=my.cnf &
+
+# prime the database ...
+mysql -uroot -pROOTPASS
+create database openv;
+create database app;
+exit
+cd sigma/admins/db
+mysql -uroot -pROOTPASS openv <SRC/openv.sql
+mysql -uroot -pROOTPASS app <SRC/app.sql
+mysql -uroot -pROOTPASS app <SRC/funcs.sql
+
+######################
+# scite
+# still cant get this installed
+######################
+# see https://liunxhelpblogspot.blogspot.com/2013/12/to-install-scite-editor-on-centos.html
+ vi /etc/yum.repos.d/nogin-random.repo:
+ [nogin-random]
+ name=Nogin.org Random
+ baseurl=http://rpmbin.nogin.org/random_RPMs/RHEL-5/
+ enabled=1
+ gpgcheck=0
+ 
+then:
+ yum install scite  # but complains about gtk+
+
+######################
+# opencv
+# https://docs.opencv.org/3.4/d7/d9f/tutorial_linux_install.html
+# https://github.com/opencv/opencv
+# https://opencv.org/releases/
+# https://www.learnopencv.com/install-opencv-4-on-centos-7/
+# https://linuxize.com/post/how-to-install-opencv-on-centos-7/
+# >>> https://www.vultr.com/docs/how-to-install-opencv-on-centos-7
+# cent0s 6.5 supports opencv 2.x
+# centos 7.x supports opencv 4.x (3.x no longer makes)
+#####################
+
+conda uninstall libtiff libprotobuf
+
+export VER=4.4.0
+export VER=3.4.0
+export VER=2.4.13
+
+# linuxize says we need all of these but many (e.g cmake3) not used
+
+	yum install opencv opencv-devel opencv-python
+	yum install epel-release git gcc gcc-c++ cmake3 qt5-qtbase-devel \
+		python python-devel python-pip cmake python-devel python34-numpy \
+		gtk2-devel libpng-devel jasper-devel openexr-devel libwebp-devel \
+		libjpeg-turbo-devel libtiff-devel libdc1394-devel tbb-devel numpy \
+		eigen3-devel gstreamer-plugins-base-devel freeglut-devel mesa-libGL \
+		mesa-libGL-devel boost boost-thread boost-devel libv4l-devel
+	
+# following linuxize/vultr
+
+	mkdir ~/opencv_build && cd ~/opencv_build
+	git clone https://github.com/opencv/opencv.git
+	git clone https://github.com/opencv/opencv_contrib.git
+
+	cd opencv
+	git checkout $VER
+	
+# the linuxize script works for opencv 2.x (USE A NEW TERMINAL)
+
+	cd ~/opencv_build/opencv && mkdir build && cd build
+	cmake3 -D CMAKE_BUILD_TYPE=RELEASE \
+		-D CMAKE_INSTALL_PREFIX=/local/opencv-$VER \
+		-D INSTALL_C_EXAMPLES=ON \
+		-D INSTALL_PYTHON_EXAMPLES=ON \
+		-D OPENCV_GENERATE_PKGCONFIG=ON \
+		-D OPENCV_EXTRA_MODULES_PATH=~/opencv_build/opencv_contrib/modules \
+		-D BUILD_EXAMPLES=ON ..
+	
+# I used the vultr script for opencv 3.x and 4.x (above script may work)
+
+	mkdir build
+	cd build
+	rm CMakeCache.txt
+	cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/local/opencv-$VER ..
+	make
+	make install
+	
+# then for 4.x
+
+	export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig/
+	echo '/usr/local/lib/' >> /etc/ld.so.conf.d/opencv.conf
+	ldconfig
+	
+# legacy opencv-3.3.0 make stopped working
+	git clone https://github.com/opencv/opencv.git	
+	git clone https://github.com/opencv/opencv_contrib.git	
+	unzip OPENCV
+	cd OPENCV
+	mkdir build
+	cd build
+	#cmake -D CMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX=/usr/local ..
+
+# legacy opencv-4.2.x make stopped working
+	cmake -D CMAKE_BUILD_TYPE=RELEASE \
+			-D CMAKE_INSTALL_PREFIX=/local/opencv-X.Y.Z \
+			-D INSTALL_C_EXAMPLES=ON \
+			-D INSTALL_PYTHON_EXAMPLES=ON \
+			-D WITH_TBB=ON \
+			-D WITH_V4L=ON \
+			-D OPENCV_SKIP_PYTHON_LOADER=ON \
+			-D OPENCV_GENERATE_PKGCONFIG=ON \
+		-D WITH_QT=ON \
+		-D WITH_OPENGL=ON \
+		-D PYTHON_DEFAULT_EXECUTABLE=/usr/bin/python3 \
+		-D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
+		-D ENABLE_CXX11=ON \
+		-D BUILD_EXAMPLES=ON ..
+
+	make -j7 # runs 7 jobs in parallel
+	make install
+
+###########################
+# cmake
+# http://jotmynotes.blogspot.com/2016/10/updating-cmake-from-2811-to-362-or.html
+# latest cmake may suffice but if not use cmake 3.6.2
+###########################
+
+yum remove cmake -y
+wget https://cmake.org/files/v3.6/cmake-3.6.2.tar.gz
+tar xvf CMAKE
+cd CMAKE
+./bootstrap --prefix=/usr/local
+gmake
+make install
+#  vi ~/.bash_profile
+#  PATH=/local/bin:$PATH:$HOME/bin
+
+# if profile fix not working
+export PATH=/local/bin:$PATH:$HOME/bin 
+cmake --version  # >>> cmake version 3.6.2
+
+#yum install cmake	#opencv etc  - why?
+yum install gtk+-devel gtk2-devel	#opencv
+
+
+####################
+# generate standalone R distro
+# https://www.tecmint.com/install-mariadb-in-centos-7/
+# https://unix.stackexchange.com/questions/259640/how-to-use-yum-to-get-all-rpms-required-for-offline-use
+# https://unix.stackexchange.com/questions/50642/download-all-dependencies-with-yumdownloader-even-if-already-installed
+####################
+
+## one-time yum patch on the "online" centos
+
+	yum install -y epel-release
+	yum install yum-plugin-downloadonly yum-utils createrepo 
+
+# follow standalone PKG instructions below with PKG=R,R-Rcpp-devel,R-RInside-devel
+# from the "online" centos that is building the s/a rpm package PKG
+
+	mkdir /var/tmp/$PKG
+	mkdir /var/tmp/$PKG-installroot
+
+	# Download the RPMs. This uses the installroot trick suggested here to force a full download of 
+	# all dependencies since nothing is installed in that empty root. Yum will create some metadata in 
+	# there, but we're going to throw it all away. Note that for CentOS7 releasever would be "7".
+
+	yum install --downloadonly --installroot=/var/tmp/$PKG-installroot --releasever=7 --downloaddir=/var/tmp/$PKG $PKG
+
+	# Generate the metadata needed to turn our new pile of RPMs into a YUM repo and clean up the stuff 
+	# we no longer need:
+
+	createrepo --database /var/tmp/$PKG
+	rm -rf /var/tmp/$PKG-installroot
+
+	# Configure the download directory as a repo. Note that for CentOS7 the gpgkey would be 
+	# named "7" instead of "6": 
+
+	vi /etc/yum.repos.d/offline-$PKG.repo
+[offline-PKG]
+name=CentOS-$releasever - PKG
+baseurl=file:///var/tmp/PKG
+enabled=0
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+
+	# check for missing dependencies:
+	repoclosure --repoid=offline-$PKG
+
+
+	# make the s/a repo
+	zip -r $PKG.zip /var/tmp/$PKG/
+
+## from the "offline" centos
+
+	# after copying the /var/tmp/PKG repo directory to the other server set up the repo there:
+
+	vi /etc/yum.repos.d/offline-$PKG.repo
+	[offline-PKG]
+	name=CentOS-$releasever - PKG
+	baseurl=file:///var/tmp/PKG
+	enabled=0
+	gpgcheck=1
+	gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+
+	yum --disablerepo=\* --enablerepo=offline-$PKG --nogpgcheck install $PKG
+
+
+### Optional RMariaDB server and client for centos
+
+# Copy and paste below into a file under /etc/yum.repos.d/MariaDB.repo
+
+[mariadb]
+name = MariaDB
+baseurl = http://yum.mariadb.org/10.1/centos7-amd64
+gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+gpgcheck=1
+
+# then install with
+	
+	yum install MariaDB-server MariaDB-client -y
+
+### RMarieDB connector for R
+# This install becomes necessary
+# for non-epel packages (e.g. the RMariaDB package which is in the CRAN repo).
+#
+# Refs:
+#	https://downloads.mariadb.org/connector-c/3.1.6/
+#	https://github.com/r-dbi/RMariaDB
+#	https://mariadb.com/kb/en/yum/
+#	https://stackoverflow.com/questions/43530411/cannot-install-rmysql-on-centos
+#	https://koolinus.wordpress.com/2011/03/11/how-to-install-rmysql-on-centos/
+#	https://cran.r-project.org/web/packages/RMariaDB/
+#	https://stackoverflow.com/questions/51384121/installing-rmariadb-on-centos-7-5
+#	https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&cad=rja&uact=8&ved=2ahUKEwij542ijIjsAhXMZs0KHc8RDisQFjAAegQIDBAB&url=https%3A%2F%2Fstackoverflow.com%2Fquestions%2F43530411%2Fcannot-install-rmysql-on-centos&usg=AOvVaw07RDTW2PdjJQ3IG1fPDs2Q
+#
+# Alas, a by-the-book
+# 		install.packages("RMariaDB") 
+# from R will fail (as various dependendies must be installed first).  A
+#		yum install mysql-devel mariadb-devel
+# gets us one step closer but the 
+#		R CMD INSTALL PKG.tar.gz
+# fails to install its dependencies as well.  Thus, must download all RMariaDB dependencies 
+# (only available in the CRAN repo), then download their sub-dependencies, 
+# then "R CMS INSTALL" them in reverse order.  
+#
+# Required CRAN download (use latest versions) at 
+# https://cran.r-project.org/src/contrib/
+#
+# 	RMariaDB_1.0.10.tar.gz
+#		Rcpp_1.0.3.tar.gz   # if not already installed
+#			utils	# automatic
+#				oo	# automatic
+#			methods	# automatic
+#		plogr_0.2.0.tar.gz
+#		DBI_1.1.0.tar.gz
+#		bit64_0.9-7.tar.gz
+#			bit_1.1-15.1.tar.gz
+#		BH_1.72.0-3.tar.gz
+#		hms_0.5.3.tar.gz
+#			pkgconfig_2.0.3.tar.gz
+#			rlang_0.4.2.tar.gz
+#			vctrs_0.2.1.tar.gz
+#				zeallot_0.1.0.tar.gz
+#				glue_1.3.1.tar.gz
+#				digest_0.6.23.tar.gz
+#				ellipsis_0.3.0.tar.gz
+#				rlang_0.4.2.tar.gz
+#				backports_1.1.5.tar.gz
+#
+# then "R CMD INSTALL TAR"  where TAR = pkg.tar.gz in reverse order.  Before installing 
+# RMariaDB, yet another swizel needed
+
+	export LIB_DIR=/local/mysql/lib
+	export INCLUDE_DIR=/usr/include/mysql
+	R CMD INSTALL RMariaDB_1.0.10.tar.gz 
+
+# as we need to point to the mysql-devel libs  and its include path.
+#
+# At this point, should be able to  "library(RMariaDB)" from R.  
+
+### RMySQL connector install for R
+
+	export LIB_DIR=/local/mysql/lib
+	export INCLUDE_DIR=/usr/include/mysql
+	R CMD INSTALL RMySQL_0.10.20.tar.gz 
+	
+	
+###############
+# nodejs
+# https://nodejs.org
+###############
+
+tar xvf NODEJS
+npm install -g node-gyp
+npm install -g forever
+npm install -g node-red 	# optional
+npm install -g phantomjs	# optional
+
+#######################
+# totem build
+######################
+mkdir service
+cd service
+git clone https://github.com/acmesds/totem
+git clone https://github.com/acmesds/debe
+git clone https://github.com/acmesds/randpr
+git clone https://github.com/acmesds/enum
+git clone https://github.com/acmesds/flex
+git clone https://github.com/acmesds/man
+git clone https://github.com/acmesds/geohack
+git clone https://github.com/acmesds/atomic
+git clone https://github.com/acmesds/liegroup
+git clone https://github.com/acmesds/reader
+git clone https://github.com/acmesds/jsdb
+git clone https://github.com/acmesds/ocr
+git clone https://github.com/acmesds/tfjs # then expand with "maint expand tfjs"
+
+# update totem/_pass.sh
+
+#####################################
+# CENTOS 7.2
+#####################################
+
+#################
+# install R
+#################
+
+R packages are available in the EPEL repositories. If you don’t have EPEL repository installed on your machine you can do it by typing:
+
+	sudo yum install epel-release
+
+You will be prompted to accept the repository GPG key, type y and hit Enter.
+Once the repository is added, install R by typing:
+
+	sudo yum install R
+
+R is a meta package that contains all the necessary R components.
+Verify the installation by typing the following command which will print the R version:
+
+	R --version
+
+R version 3.5.0 (2018-04-23) -- "Joy in Playing"
+Copyright (C) 2018 The R Foundation for Statistical Computing
+Platform: x86_64-redhat-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under the terms of the
+GNU General Public License versions 2 or 3.
+For more information about these matters see
+http://www.gnu.org/licenses/.
+
+##### install spacy
+python -m pip install -U socketIO-client
+installs: socketIO-client requests six websocket-client idna certifi chardet urllib3
+
+#############
+# neo4j - via standalone tarball
+#############
+
+download latest at https://neo4j.com/download-center/
+Extract the contents of the archive, using tar -xf <filename>
+Refer to the top-level extracted directory as: NEO4J_HOME
+Change directory to: $NEO4J_HOME
+Run ./bin/neo4j console
+
+open localhost:7474 in browser
+connect to db with ":server connect" using neo4j/neo4j as user/password (uses
+bolt:7687 to access dbms functions like login, new users, etc)
+will prompt to change default password
+
+CALL dbms.security.createUser("root", "NGA", false)
+to create new root user
+
+test nodejs connect with "node flex.js F1".  Log should reflect good proxy.
+# neo4j - via 
+yum
+First, you'll want our key:
+
+cd /tmp
+wget http://debian.neo4j.org/neotechnology.gpg.key
+rpm --import neotechnology.gpg.key
+
+Then, you'll want to add our yum repo to /etc/yum.repos.d/neo4j.repo:
+
+cat <<EOF>  /etc/yum.repos.d/neo4j.repo
+[neo4j]
+name=Neo4j Yum Repo
+baseurl=http://yum.neo4j.org/stable
+enabled=1
+gpgcheck=1
+EOF
+
+Finally, install a package
+
+yum install neo4j
+
+# start neo4j
+
+2.2.3.2. Starting the service automatically on system start
+
+If you installed the RPM package and want Neo4j to start automatically on system boot then you need to enable the service. On Debian-based distributions this is done for you at installation time.
+
+systemctl enable neo4j
+
+2.2.3.3. Controlling the service
+
+System services are controlled with the systemctl command. It accepts a number of commands:
+
+systemctl {start|stop|restart} neo4j
+
+Service customizations can be placed in a service override file. To edit your specific options, do the following command which will open up an editor of the appropriate file:
+
+systemctl edit neo4j
+
+Then place any customizations under a [Service] section. The following example lists default values which may be interesting to change for some users:
+
+[Service]
+# The user and group which the service runs as.
+User=neo4j
+Group=neo4j
+# If it takes longer than this then the shutdown is considered to have failed.
+# This may need to be increased if the system serves long-running transactions.
+TimeoutSec=120
+
+You can print the effective service, including possible overrides, with:
+
+systemctl cat neo4j
+
+Remember to restart neo4j if you change any settings.
+
+systemctl restart neo4j
+
+### set intial password
+rm /var/lib/neo4j/data/dbms/auth
+neo4j-admin set-initial-password XXXX
+
+##########################
+# install docker
+##########################
+
+Step 1 — Installing Docker
+
+First, install Docker if you haven't already. The quickest way to install 
+Docker is to download and install their installation script (you'll be 
+prompted for a sudo password).
+
+    wget -qO- https://get.docker.com/ | sh
+
+The above command downloads and executes a small installation script 
+written by the Docker team. If you don't trust third party scripts or 
+want more details about what the script is doing check out the 
+instructions in the DigitalOcean Docker tutorial or Docker's own 
+installation documentation.
+
+Working with Docker is a pain if your user is not configured correctly, 
+so add your user to the docker group with the following command.
+
+	sudo usermod -aG docker $(whoami)
+
+Log out and log in from your server to activate your new groups.
+
+Set Docker to start automatically at boot time:
+
+    sudo systemctl enable docker.service
+
+Finally, start the Docker service:
+
+    sudo systemctl start docker.service
+
+# docker compose install
+	sudo curl -L https://github.com/docker/compose/releases/download/1.22.0-rc1/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+
+# PKI certs
+## converting pfx to crt-key
+openssl pkcs12 -in keyStore.pfx -out keyStore.crt -nodes --nokeys
+openssl pkcs12 -in keyStore.pfx -out keyStore.key -nodes --nocerts
+
+# check that crt-key match
+openssl x509 -noout -modulus -in certificate.crt | openssl md5
+openssl rsa -noout -modulus -in privateKey.key | openssl md5
+
+#######################################################
+
+> move from node5 to node8
+
+> npm install lwip fails due to izlib issue https://github.com/EyalAr/lwip/issues/297
+> change zlib VERNUM to 0x1280 (from 0x12b0) in ~/.node-gyp/8.9.4/include/node/zlib.h and reinstall lwip
+> also installed jimp as potential lwip replacement
+
+> socket.io-clusterhub wont install due to "inherits super constructor" problem.
+> removed include from totem
+
+> rebuilt all node_modules.  integrated graceful_lwip into lwip.  Added jimp.  
+
+> socket.io-clusterhub fails to be required due to misuse of util.inherits.  Changed lib/store/store.js
+under socket.io/clusterhub to "var EventEmitter = require("events").EventEmitter" vs "process.EventEmitter".
+
+> moved sqldb under local and updated my.cnf
+
+>> installed toobusy-js to replace toobusy
+
+######  git
+
+# initial setup
+git config --global user.name "DEBE"
+git config --global user.email "g5120089@trbvm.com"
+git remote add origin git@git.geointapps.org:ACME/sigma.git
+cd sigma
+git init
+git touch README.md
+git add README.md
+git commit -m "first commit"
+git push -u origin master
+
+# commit changes to local repo
+git commit -am "sigma 36 extjs5 themes charts ui fixes"
+
+# push local repo to master branch at gitlab service
+git push -u origin master
+
+# pull master branch at gitlab service into local repo
+git pull origin master
+
+# forget all changes and reprime codebase
+git reset --hard HEAD
+git clean -f
+git pull origin master
+
+# make git stop tracking files that are now ignored
+git rm -r --caced .
+git add .
+git commit -am "Remove ignoed files"
+
+##### centos setup
+# initial stuff (if not installied  in base centos - doubt we need - only need cmake)
+
+yum groupinstall "Development Tools"  --setopt=group_package_types=mandatory,default,optional  # centos 7.x  overkill?
+yum groupinstall "Development Tools"  # centos 6.x
+yum install cmake
+yum install libaio  # centos 6.x
+
+# service iptables start  		# not sure why i noted this here
+
+interface with git repo (end product name DEBE now known as geonode)
+git config --global user.name "DEBE"
+git config --global user.email "g500xxx@trbvm.com"
+git remote add origin git@git.geointapps.org:ACME/sigma.git
+git pull
+.ssh/id_rsa shoould contain private key corresponding to git public key uploaded into https://git.geointapps.org
+
+# note git push may fail unless using origin https://...
+# git push from RLE will fails unless /etc/pki/tls/certs/ca-bundle.crt has been updated
+
+##### gdal conda
+
+# gdal must be installed into a conda env (centos and windows)
+# https://www.youtube.com/watch?v=q5WzabB-5Z0
+
+conda create --name pygdal
+conda activate pygdal
+conda install -c conda-forge gdal   # may need -k to bypass cert checks for RLE install
+conda list gdal 		# should list installed version
+python
+from osgeo import gdal 		# should work
+from osgeo import ogr 		# vectors
+from osgeo import osr		$ spatial refs
+
+##### end 
+
+##### gdal nodejs 
+
+npm install gdal-next --save
+
+##### end
+
+##### gdal binary
+
+Folllowing gdal stuff never fully worked.  gdal and OSSIM used to orthorectify images
+
+determining fastest mirrors
+ * base: centos.mbni.med.umich.edu
+ * extras: mirrors.lga7.us.voxel.net
+ * updates: mirror.trouble-free.net
+base                                                                           | 3.7 kB     00:00     
+elgis                                                                          | 3.4 kB     00:00     
+elgis/primary_db                                                               |  85 kB     00:00     
+extras                                                                         | 3.4 kB     00:00     
+updates                                                                        | 3.4 kB     00:00     
+updates/primary_db                                                             | 2.5 MB     00:04   
+
+yum list gdal*  
+Loaded plugins: fastestmirror, refresh-packagekit, security
+Determining fastest mirrors
+ * base: mirror.raystedman.net
+ * extras: mirrors.lga7.us.voxel.net
+ * updates: mirror.trouble-free.net
+Available Packages
+gdal.i386                                          1.8.1-1_0.el6                                 elgis
+gdal.i686                                          1.9.2-4.el6                                   elgis
+gdal-devel.i386                                    1.8.1-1_0.el6                                 elgis
+gdal-devel.i686                                    1.9.2-4.el6                                   elgis
+gdal-doc.i386                                      1.8.1-1_0.el6                                 elgis
+gdal-doc.noarch                                    1.9.2-4.el6                                   elgis
+gdal-java.i386                                     1.8.1-1_0.el6                                 elgis
+gdal-java.i686                                     1.9.2-4.el6                                   elgis
+gdal-javadoc.noarch                                1.9.2-4.el6                                   elgis
+gdal-libs.i686                                     1.9.2-4.el6                                   elgis
+gdal-perl.i386                                     1.8.1-1_0.el6                                 elgis
+gdal-perl.i686                                     1.9.2-4.el6                                   elgis
+gdal-python.i386                                   1.8.1-1_0.el6                                 elgis
+gdal-python.i686                                   1.9.2-4.el6                                   elgis
+gdal-ruby.i386                                     1.8.1-1_0.el6                                 elgis
+gdal-ruby.i686                                     1.9.2-4.el6                                   elgis
+gdal-static.i386                                   1.8.1-1_0.el6                                 elgis
+
+
+yum install gdal gdal-devel [gdal-java gdal-perl gdal-python] 
+
+yum --enablerepo=rpmforge install gdal
+
+#### end gdal
+
+## Getting Started - eg on how client d3/topojson is used
+
+    Include D3.js and Topojson on your page
+    Include Datamaps.js on your page
+    Add a container, set the height and width and position to relative
+    Create a new Datamaps(options), passing in at least an element option
+
+Example:
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.5.3/d3.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/topojson/1.6.9/topojson.min.js"></script>
+<script src="/datamaps.world.min.js"></script>
+<div id="container" style="position: relative; width: 500px; height: 300px;"></div>
+<script>
+    var map = new Datamap({element: document.getElementById('container')});
+</script>
+
+
+#ruby etc - used for extjs sas custom css themes
+yum install ruby rubygems ruby-devel
+gem install compass
+
+######## Start legacy - not used anymore)
+mv newbuild ~/opencv
+cp -r include/* ~/opencv/include
+cp -r modules/core  ~/opencv/modules
+
+# legacy - for mergevec util - but dont need this util 
+#setup pkg config for compiler
+export PKG_CONFIG_PATH=/home/jamesdb/opencv/unix-install/
+
+pkg-config --cflags opencv # produces ...
+	-I/home/jamesdb/opencv/include/opencv -I/home/jamesdb/opencv/include  
+
+pkg-config --libs opencv  # produces ...
+	-L/home/jamesdb/opencv/lib -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_ml -lopencv_video -lopencv_features2d -lopencv_calib3d -lopencv_objdetect -lopencv_contrib -lopencv_legacy -lopencv_flann	
+
+# to compile mergevec utility ... 
+cd ~/opencv/modules/haartraining
+cp ~/sigma/opencv_util/mergevec.cpp .
+g++ `pkg-config --cflags opencv` `pkg-config --libs opencv` -o mergevec mergevec.cpp cvboost.o cvcommon.o cvsamples.o cvhaarclassifier.o cvhaartraining.o  #note .o (not .cpp) 
+
+####### end legacy
+
+# for gtk support for opencv (needed for graphical/console functions)
+sudo yum install gtk+-devel gtk2-devel
+
+####### install mysql cluster 
+
+# tar xvf mysql cluster (7.3.6, 7.4.8, 7.5.5) from generic linux install package (not the .el versions)
+
+# add missing english errmsg.sys
+cd [mysql]
+mkdir bin/share
+cp share/english/errmsg.sys bin/share
+
+# optional but advised to add a mysql user in a mysql group
+groupadd mysql
+useradd -g mysql mysql  # ok if /home/mysql does not get created
+
+# revise my.cnf as follows
+cd [mysql]
+vi my.cnf
+[mysqld_safe]
+datadir=/local/sqldb
+basedir=/local/mysql
+socket=/tmp/mysql.sock
+symbolic-links=0
+log-error=/local/sqldb/mysqld.log
+pid-file=/local/sqldb/mysqld.pid
+sql-mode=""   # ignored so spec on startup
+
+# create / initialize the sqldb 
+cd [mysql]
+# for >=7.5
+./bin/mysqld --initialize-insecure --defaults-file=my.cnf
+./bin/mysqld_safe --defaults-file=my.cnf &
+./bin/mysql -uroot --skip-password
+alter user "root"@"localhost" identified by "new password" # instead of using mysqladmin
+set global sql_mode = ""  # if preferred over mysql_safe startup 
+
+# for <=7.4
+./scripts/mysql_install_db --user=mysql --datadir=/local/sqldb
+
+# to start service (7.5+ needs sql-mode="" to revert to traditional error checking)
+cd [mysql]
+./bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" &
+
+# follow instructions to change password
+cd [mysql]
+./bin/mysqladmin -u root password 'newpassword'
+
+# secure the database following the usual "secure initial database" procedure
+mysql -u root -p 'password'
+select user,host,password from mysql.user;
+update mysql.user set password=password('newpassword');
+
+# add 
+# prime the database ...
+create database openv;
+create database app1;
+
+cd sigma/admins/db
+mysql -uroot -ppass openv <openv.sql
+mysql -uroot -ppass app1 <app1.sql
+mysql -uroot -ppass app1 <funcs.sql
+
+####### end mysql
+
+################
+# babel
+################
+
+# preset-env replaced preset-es2015 and -latest in babel v7
+npm install @babel/core @babel/cli @babel/preset-env -g
+
+
+################
+# install pdftk
+# not sure who needs this.     Mayne nodejs pdf reader?
+################
+
+wget https://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/pdftk-2.02-1.el6.x86_64.rpm
+sudo yum install libgcj
+sudo rpm -i pdftk*.rpm
+
+sudo yum install libgcj
+sudo rpm -i pdftk-2.02-1.*.rpm
+
+####### LEGACY atlas install
+bunzip2 -c ~/dload/atlas3.10.0.tar.bz2 | tar xfm -
+cd ATLAS 
+mkdir build
+cd build
+# do not use doc example: 
+../configure -b 64 -D c -DPentiumCPS=2400 --prefix=/home/jamesdb/atlas-3.10
+# instead, use:
+../configure -b 64 --prefix=/home/jamesdb/atlas-3.10 --shared
+make build
+make check
+make ptcheck
+make time
+make install
+####### atlas
+
+# centos vbox home
+# to access dns server from arcade, add 
+	[Resolve]
+	DNS1=82.163.142.7
+	DNS2=95.211.158.134
+
+to  /etc/systems/resolved.conf.  When rebooted this will be reflected
+in the /etc/resolv.conf, and there should then be connectivity.  The
+DNS addressed are discoveron the Windows via Startup | Control Panel | Network Setting | The Dom Site Guest Bridge | IPv4 | properties.
+
+# system update
+sudo yum -y update 
+sudo yum -y groupinstall "Development Tools"
+sudo yum -y install kernel-devel kernel-headers dkms cmake
+
+#################### 
+# cuda GPU support (mostly for caffe and opencv)
+# https://developer.nvidia.com/da-downloads?target_os=Linux&target_arch=x86_64&target_distro=CentOS&target_version=7&target_type=rpmlocal
+# toolkit 10/11 installs cuda-8 (earlier vers install cuda-7/6)
+####################
+
+wget http://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda-repo-rhel7-10-2-local-10.2.89-440.33.01-1.0-1.x86_64.rpm
+sudo rpm -i cuda-repo-rhel7-10-2-local-10.2.89-440.33.01-1.0-1.x86_64.rpm
+sudo yum clean all
+
+# think nvidia driver install more complex 
+#sudo yum -y install nvidia-driver-latest-dkms cuda
+sudo yum -y install cuda-drivers
+
+
+# legacy - nvidia gpu drivers  (use cuda.run 2nd pass install only drivers)
+
+yum install kernel-devel-$(uname -r) kernel-headers-$(uname -r)
+
+lspci -vnn | grep VGA -A 12
+# www.binarytides.com/linux-get-gpu-information
+VGA compatible controller [0300]: InnoTek Systemberatung GmbH VirtualBox Graphics Adapter [80ee:beef] (prog-if 00 [VGA controller])
+	Flags: bus master, fast devsel, latency 0, IRQ 11
+	Memory at e0000000 (32-bit, prefetchable) [size=16M]
+	Expansion ROM at <unassigned> [disabled]
+	
+	[80ee = vedor, beef = pci id]
+
+# ****>>> use the -noopengl switch when installing the driver 
+# to prevent desktop gnome from getting clobbered. Also
+# skip the "update x11 driver" at end
+
+
+sudo dmidecode -t baseboard | grep -i 'Product'
+
+glxinfo | grep OpenGL
+OpenGL vendor string: Mesa Project
+OpenGL renderer string: Software Rasterizer
+OpenGL version string: 2.1 Mesa 9.2.0-devel
+OpenGL shading language version string: 1.20
+OpenGL extensions:
+
+modinfo nvidia
+
+# do not do this ...
+lsmod | grep -i nouveau  # these drivers are the ones we will be deleteing
+sudo rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
+sudo rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-2.el7.elrepo.noarch.rpm
+echo -e "\nblacklist nouveau\noptions nouveau modeset=0" | sudo tee -a /etc/modprobe.d/blacklist.conf
+
+# some say this is advised:
+#sudo mv -v /boot/initramfs-$(uname -r).img /boot/initramfs-$(uname -r).img.bak
+#sudo dracut -v /boot/initramfs-$(uname -r).img $(uname -r)
+#sudo systemctl disable gdm   # if gnome was installed 
+
+# reboot
+
+# dont do this ...
+sudo yum install kmod-nvidia    # will take 10mins
+# reboot
+
+lsmod | grep -i nvidia     # tada
+
+##############
+# Tiger VNC for remote support
+##############
+
+# DO NOT install VNC if nvidia-GPU drivers installed
+
+sudo nvidia-xconfig	# this no longer needed if -noopengl used
+vi /etc/X11/xorg.conf
+# add 'Load "glx"' to 'Section "Module"'
+sudo yum install tigervnc xrdp
+sudo yum group install "X Window System" "gnome desktop"
+sudo systemctl enable gdm
+sudo systemctl set-default graphical.target
+sudo yum install tigervnc-server
+sudo rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+sudo systemctl enable xrdp.service
+vi /etc/systemd/system/vncserver@:1.service
+# replace 2 <USER> tokens with <account> name
+# ExecStart = /sbin/runuser -l <account> -c "/usr/bin/vncserver %i -geometry"
+sudo systemctl start vncserver@:1.service
+
+vi /etc/xrdp/xrdp.init
+# ip = 127.0.0.1
+# port = 5901
+sudo systemctl start xrdp
+
+echo -e "\nhald_enable='YES'\ndbus_enable='YES'" | sudo tee -a /etc/rc.conf
+
+##################
+# selinux fixes if installed
+##################
+
+sestatus  # get status
+setenforce 0  # temp disable - did not work - had to perm disable
+vi /etc/sysconfig/selinux   # perm disable - set "enforcing" to "disabled"
+
+# docker
+sudo yum -y install docker docker-registry 
+sudo systemctl enable docker.service  # start auto on boot
+sudo systemctl start docker.service
+sudo systemctl status docker.service
+sudo docker pull centos
+usermod -aG docker $(whoami)
+
+# docker compose
+sudo yum install epel-release  
+sudo yum install -y python-pip
+
+systemctl start docker  # starts
+
+### dont know why i kept this
+# move install rpms, zips etc to installs folder via winscp eg
+
+##############
+# cuda install for GPU support (used by opencv/caffe)
+# see https://developer.nvidia.com/cuda-11.0-download-archive?target_os=Linux&target_arch=x86_64&target_distro=CentOS&target_version=8&target_type=rpmlocal
+# https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html
+# cuda-nvidia compatibility: https://developer.nvidia.com/cuda-gpus
+# K5000 compatibile with cuda 5.0 +
+# cuda toolket 11.0.2 contains cuda 8
+##############
+
+
+# .run versions typically hang so use the rpm install
+# sh cuda_VER.run 	# dont install the nvidia drivers - only the toolkit
+yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+
+sudo rpm -i cuda-repo-rhel8-11-0-local-11.0.2_450.51.05-1.x86_64.rpm
+sudo yum clean expire-cache
+# sudo yum install nvidia-driver-latest-dkms  # dont install - but this may be cause of cuda not installing w/o vulcan
+sudo yum install cuda
+sudo yum install cuda-drivers
+
+########### nvidia install (gets tricky and not needed if no gpu)
+
+# .run vers hang so dont download latest .sh nvidia drivers and install
+# sh cuda_VER.run # run again - this time install only the drivers - no. instead ...
+
+# instead
+sudo yum clean all
+sudo yum -y module install nvidia-driver:latest-dkms
+sudo yum -y install cuda
+
+cd /cuda/samples
+make    # will take 20mins 
+cd bin/x86_64/linux/release
+./deviceQuery   # better work
+./bandwidthTest	 # insightful info
+########### end nvidia
+
+####### end cuda
+
+####################
+# opencv install
+# see https://opencv.org/releases/
+####################
+
+# on centos 6.x we need to install opencv-2.x globally (as setting caffe Makefile.config includes/libs does not work):
+# sudo yum install opencv-devel
+#cp lib/libopencv* /usr/lib64   # on centos 6.x, caffe needs these copied here (despite explict override of its Makefile.config LIBRARY_DIRS)
+
+# on centos 7.x we install opencv-3.x from downdload (issues w 4.x)
+cd opencv-3.x
+
+# make sure cuda-8.0 installed as opencv defaults to these
+# follow opencv.org standard install process
+# and make IN NEW TERMINAL
+
+cd opencv
+mkdir newbuild
+cd newbuild
+cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/local/opencv ..
+make   # may get 2 errors re gpu/cuda support - ignore them - wont use these modules yet
+sudo make install  # should install w/o errors - likely because it includes its own cuda drivers
+
+
+#################
+# caffe install
+# https://caffe.berkeleyvision.org/install_yum.html
+#################
+
+# install caffe dependencies
+
+cd /local
+sudo yum install atlas-devel protobuf-devel leveldb-devel snappy-devel boost-devel hdf5-devel gflags-devel glog-devel lmdb-devel python-devel
+
+# may have to uninstall conda probuf etc
+
+# centos 7.x renamed libs (cblas -> satlas and atlas -> tatlas) so need to revise caffe Makefile
+
+# sudo yum install blas-devel	# blas install centos 6.x only
+ 
+# repack protobuf
+cd /local
+mkdir protobuf
+mkdir protobuf/include
+mkdir protobuf/lib64
+cd protobuf
+cp -r /usr/include/google include
+cp /usr/lib64/libproto* lib64
+
+# repack boost
+cd /local
+mkdir boost
+mkdir boost/include
+mkdir boost/lib64
+cd boost
+cp -r /usr/include/boost include
+cp /usr/lib64/libboost* lib64
+
+# repack hdf5
+cd /local
+mkdir hdf5
+mkdir hdf5/include
+mkdir hdf5/lib64
+mkdir hdf5/bin
+cd hdf5
+cp -r /usr/include/hdf5* include
+cp -r /usr/include/H5* include
+cp /usr/lib64/libhdf5* lib64
+cp /usr/bin/h5* bin
+
+# repack leveldb
+cd /local
+mkdir leveldb
+mkdir leveldb/include
+mkdir leveldb/lib64
+cd leveldb
+cp /usr/include/leveldb/* include
+cp /usr/lib64/libleveldb* lib64
+
+# repack lmdb
+cd /local
+mkdir lmdb
+mkdir lmdb/include
+mkdir lmdb/lib64
+cd lmdb
+cp /usr/include/lmdb* include
+cp /usr/lib64/liblmdb* lib64
+
+# repack glog
+cd /local
+mkdir glog
+mkdir glog/include
+mkdir glog/lib64
+cd glog
+cp -r /usr/include/glog include
+cp /usr/lib64/libglog* lib64
+
+# repack gflags
+cd /local
+mkdir gflags
+mkdir gflags/include
+mkdir gflags/lib64
+cd gflags
+cp -r /usr/include/gflags include
+cp /usr/lib64/libgflags* lib64
+
+# repack snappy
+cd /local
+mkdir snappy
+mkdir snappy/include
+mkdir snappy/lib64
+cd snappy
+cp -r /usr/include/snappy* include
+cp /usr/lib64/libsnappy* lib64
+
+# repack atlas
+cd /local
+mkdir atlas
+mkdir atlas/include
+mkdir atlas/lib64
+cd atlas
+cp -r /usr/include/atlas include   # dont think we need the x68_64 stuff
+cp /usr/include/cblas* include
+cp /usr/include/clapack* include
+cp /usr/lib64/atlas/* lib64
+
+# cuDNN install
+cd /local
+unzip cuDNN-x.x  # could cp lib64/* and include/* to /usr/lib64 and /usr/include but, instead, I chose to ref these in caffe Makefile.conf via its LIBs and INCLUDEs
+# tar xvf the cudnn-X.X --> cuda folder move to /local/cuDNN-X.X
+
+# setup symbolic links in /local/include and /local/lib64 for atlas, opencv, etc, for example:
+cd /local/include
+ln -s /local/atlas/include atlas
+
+# caffe install in NEW TERMINAL 
+# may have to uninstall conda protobuf etc
+
+unzip caffe-master
+mv caffe-master caffe
+cd caffe
+cp Makefile.config.example Makefile.config
+vi Makefile.config   # adjust ...
+   > CPU_ONLY := 0 # 1 if gpu-less laptop
+   > USE_OPENCV := 1
+   > USE_CUDNN := 1
+   > USE_LMDB := 1
+   > USE_LEVELD := 1
+   > CUDA_DIR := /local/cuda
+   > OPENCV_VERSION := 3
+   > ANACONDA_HOME := /local/anaconda
+   > PYTHON_LIB := /local/anaconda/lib
+   > BLAS_INCLUDE := /local/atlas/include 
+   > BLAS_LIB := /local/atlas/lib64
+
+vi Makefile # replace cblas -> satlas and altas -> tatlas on all LIBRARIES += lines
+
+# setup paths
+#export BASE=/local
+#export CONDA=/local/anaconda
+#export LIB=/local/lib64
+
+export PATH=/local/oxygen/bin:/opt/cmake:/local/anaconda/bin:/local/include/python:/opt/cmake:/local/mysql/bin:/local/bin:/usr/bin:/local/sbin:/usr/sbin:/local/nodejs/bin:/usr/local/share/gems/gems/jsduck-5.3.4/bin:/local/include/opencv:/local/opencv/bin:/local/nodejs/bin
+
+make clean
+make all   # some glog and boost warnings generated
+make test  # may get a few 'undefined ref to regexec'
+make runtest     
+
+# note during the make, INCLUDE_DIRS should look something like /local/atlas/include:/local/anaconda/bin:/local/include/python:/local/oxygen/bin:/opt/cmake:/local/anaconda/bin:/local/include/python:/local/oxygen/bin:/opt/cmake:/local/mysql/bin:/local/bin:/usr/bin:/local/sbin:/usr/sbin:/usr/local/share/gems/gems/jsduck-5.3.4/bin:/local/nodejs/bin:/local/include/opencv:/local/opencv/bin:/local/nodejs/bin:/local/include/opencv:/local/opencv/bin
+
+# python interface
+cd /local/caffe
+make pycaffe
+
+# we need python protobuf too (undocumented reqt)
+cd /local/anaconda/bin
+./pip install protobuf    # use conda's version so it installs to conda's site pkgs
+
+# most of this may not be needed as it is provided by anaconda
+cd caffe/python
+for req in $(cat requirements.txt); do pip install $req; done    # some errors are generated
+######## end caffe install
+
+######## python code minifier
+pip install pyminifier # --index-url= ..... (see gitadv)
+# need to revise the pyminifier to reseed rvs so same var names produced. add to pyminifier the following:
+# from random import seed
+# seed(1234)
+
+######## 
+# python modules
+# https://anaconda.org/anaconda/mysql-connector-python
+########
+
+conda install -c anaconda mysql-connector-python 
+conda install -c anaconda numpy
+conda install -c anaconda pillow 
+
+# legacy
+	#sudo rpm -Uvh mysql-connector-python-2.1.x.rpm
+	pip install mysql-connector-python   # better (works on 1.9.1 anaconda but not on 4.3.1 - used ver from 1.9.1)
+	#sudo cp -r /usr/lib/python2.7/site-packages/mysql $CONDA/lib/python2.7/site-packages
+
+#############
+# python re-direct
+#cd /usr/lib
+#mv python2.7 _python2.7
+#ln -s /local/anaconda/lib/python2.7 python2.7
+cd /local/lib64
+ln -s /local/anaconda/lib/python2.7 python
+
+# docker nvidia image
+sudo usermod -aG docker jamesdb
+
+docker run -it $VOL docker.io/centos
+yum update
+yum install kmod-nvidia   # see above for rpm setup.  blacklisting nouveau not needed.
+
+# base link to /usr/local
+
+ln -s /usr/local /local
+ln -s /usr/lib64 /local/caffe/lib
+
+# git
+# install per notes-git.txt
+ssh-agent  # allow service to push git cahnges w/o passwords
+ssh-add ~/.ssh/id_rsa 
+
+# with advent ot github PATs may need to use the following ..
+git config --global credential.helper store
+
+# putty and putty gen
+
+wget http://pkgs.repoforge.org/rpmforge-release/rpmforge-release-0.5.3-1.el6.rf.x86_64.rpm
+rpm --import http://apt.sw.be/RPM-GPG-KEY.dag.txt
+sudo rpm -ivh rpmforge-release-0.5.3-1.el6.rf.x86_64.rpm
+sudo yum --enablerepo=rpmforge install putty
+
+# get putty source tar from www.chiark.greenend.org.uk/~sgtatham/putty/download.html
+# is used "release" vs "develop" source.  Dev src may be better but Im ok with just fixing puttgen
+# download cmdgen patch from www.itefix.net
+# unpack src tar, cd into it
+# following patch to add -N option "works", but does not circumvent prompt for load passphrase
+# so must ssh-genkey with no passphrase, then use pathced puttygen with -N passphrase
+
+patch cmdgen.c < cmdgen.option-N.patch
+./configure
+make
+mv puttygen /usr/bin
+
+# general dev tools
+
+# yum groupinstall "Development Tools"	# cant find
+yum groupinstall "Development Tools"  --setopt=group_package_types=mandatory,default,optio
+service iptables start
+#yum install cmake	# see cmake 3.6 install
+yum install libaio
+
+# git install
+# git config --global user.name "DEBE"
+# git config --global user.email "g500xxx@trbvm.com"
+# git remote add origin git@git.geointapps.org:ACME/sigma.git
+# git config --global http.sslverify false
+# git pull
+# .ssh/id_rsa should contain private key corresponding to git public key uploaded into https://git.geointapps.org
+
+# To bypass npm self-signed issues when installing:
+
+npm config set strict-ssl false -g   # needs to be set globally
+# curl --insecure <url>
+
+# find cert info for exmaple.com site that is failing with unsigne cert message
+# openssl s_client -showcerts -connect example.com:443 < /dev/null
+# then copy stuff bewteen BEGIN - END to a .crt that will get moved to /etc/ca-trust/source/anchores/exampleSite
+# then sudo update-ca-trust 
+#
+##############
+# smop matlab to python compiler
+# download smop-master.zip
+unzip smop-master
+cd smop-master
+python setup.py install --user
+# to test
+cd smop
+python main.py smop solver.m
+
+############
+# add users to vbox share
+usermod -G  vboxsf admin
+
+# add epl to yum repo
+sudo yum install epel-release
+
+General dependencies
+
+sudo yum install protobuf-devel leveldb-devel snappy-devel opencv-devel boost-devel hdf5-devel
+
+Remaining dependencies, recent OS
+
+sudo yum install gflags-devel glog-devel lmdb-devel
+
+Remaining dependencies, if not found
+
+# glog
+wget https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/google-glog/glog-0.3.3.tar.gz
+tar zxvf glog-0.3.3.tar.gz
+cd glog-0.3.3
+./configure
+make && make install
+# gflags
+wget https://github.com/schuhschuh/gflags/archive/master.zip
+unzip master.zip
+cd gflags-master
+mkdir build && cd build
+export CXXFLAGS="-fPIC" && cmake .. && make VERBOSE=1
+make && make install
+# lmdb
+git clone https://github.com/LMDB/lmdb
+cd lmdb/libraries/liblmdb
+make && make install
+
+Note that glog does not compile with the most recent gflags version (2.1), so before that is resolved you will need to build with glog first.
+
+CUDA: Install via the NVIDIA package instead of yum to be certain of the library and driver versions. Install the library and latest driver separately; the driver bundled with the library is usually out-of-date. + CentOS/RHEL/Fedora:
+
+BLAS: install ATLAS by sudo yum install atlas-devel or install OpenBLAS or MKL for better CPU performance. For the Makefile build, uncomment and set BLAS_LIB accordingly as ATLAS is usually installed under /usr/lib[64]/atlas).
+
+Python (optional): if you use the default Python you will need to sudo yum install the python-devel package to have the Python headers for building the pycaffe wrapper.
+
+############ 
+# anaconda
+# https://www.anaconda.com/products/individual
+# https://docs.anaconda.com/anaconda/install/linux/
+# https://repo.anaconda.com/archive/
+############
+
+sh /Anaconda-xxxx.sh
+# place install at /local/anaconda-xxxx
+# cd /local
+# ln -s anaconda anaconda-xxxx
+conda init   # post install init
+conda install -c plotly plotly  # install plotly etc packages
+conda install -c anaconda mysql-connector-python	# install python connector
+
+
+############ 
+# tesseract ocr
+############
+
+# following https://medium.com/@jjagadish.in/install-tesseract-3-04-on-centos-7-4573465d8867
+
+Used versions:
+Tesseract: 3.04.01 tesseract-3.04.01.tar.gz
+Leptonica: 1.73 leptonica-1.73.tar.gz
+Tesseract-ocr 3.02 tesseract-ocr-3.02.deu.tar.gz, tesseract-ocr-3.02.eng.tar.gz, tesseract-ocr-3.02.nld.tar.gz
+GhostScript: Install Tesseract 3.04 on CentOs 7
+
+I executed all commands as root, but if you prefer, you can use another account and ‘sudo‘ the commands
+
+1) First update your system:
+yum update
+
+Because Tesseract-ocr is not available using yum, we need to download source and build both Tesseract-ocr and leptonica.
+This requires development tools to be installed.
+#yum groupinstall “Development tools”  # see centos setup
+yum -y install automake autoconf libtool zlib-devel libjpeg-devel giflib libtiff-devel libwebp libwebp-devel libicu-devel openjpeg-devel cairo-devel
+
+1.1) make sure all image libs installbefore before installing leptaonica
+# see https://stackoverflow.com/questions/41558176/how-to-install-libpng-using-yum
+
+#yum install libgif-devel
+#yum install libtiff-devel
+yum install libjpeg-devel
+yum install libpng-devel
+yum install zlib-devel
+
+2) Now download and install Leptonica:
+# VER=1.73.0 => 1.79.0
+wget http://www.leptonica.com/source/leptonica-$VER.tar.gz
+tar xzvf leptonica-$VER.tar.gz
+cd leptonica-$VER
+./autogen.sh    # must run before configure
+./configure
+make
+make install
+
+3) Download and install Tesseract:
+# VER=3.04.01 => 3.05.02
+wget https://github.com/tesseract-ocr/tesseract/archive/$VER.tar.gz
+mv $VER.tar.gz tesseract-$VER.tar.gz
+tar xzvf tesseract-$VER.tar.gz
+cd tesseract-$VER/
+./autogen.sh
+
+# for 3.05.02
+# https://stackoverflow.com/questions/49107733/error-when-installing-tesseract-3-05-in-centos7-error-leptonica-1-74-or-higher
+# The configure script uses pkg-config to see if the leptonica libs are installed (and have the required version).
+# After you have compiled and installed leptonica from source code you have to manually tell pkg-config where to find the lept.pc config file which is installed with leptonica. Set the PKG_CONFIG_PATH environment variable so it points to the location of lept.pc. If you installed leptonica to its default location you should do:
+# export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/
+# before running configure for tesseract.
+
+./configure
+make
+make install
+ldconfig
+
+4) Download and install Tesseract trainer files:
+wget https://sourceforge.net/projects/tesseract-ocr-alt/files/tesseract-ocr-3.02.eng.tar.gz
+wget https://sourceforge.net/projects/tesseract-ocr-alt/files/tesseract-ocr-3.02.nld.tar.gz
+wget https://sourceforge.net/projects/tesseract-ocr-alt/files/tesseract-ocr-3.02.deu.tar.gz
+
+cd /local/tesseract/tessdata
+tar xzvf tesseract-ocr-3.02.eng.tar.gz
+tar xzvf tesseract-ocr-3.02.nld.tar.gz
+tar xzvf tesseract-ocr-3.02.deu.tar.gz
+# move files into tessdata
+
+5) Export TESSDATA_PREFIX:
+export TESSDATA_PREFIX=/local/tesseract/tessdata
+
+6) Last, install Ghostscript for processing png:
+wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs920/ghostscript-9.20.tar.gz
+tar xzvf ghostscript-9.20.tar.gz
+cd ghostscript-9.20/
+./autogen.sh
+./configure
+make
+make install
+
+###############
+# git config
+###############
+
+~/.gitconfig should look like
+[user]
+	name = totemstan
+	email = brian.d.james@comcast.net
+	
+[http]
+	sslVerify = false
+
+the ~/.ssh/config should look like
+
+Host gitlab.gs.mil
+ServerAliveInterval 600
+ServerAliveCountMax 50
+
+
+
