@@ -5,15 +5,16 @@ export BASE=/local
 export HERE=`pwd`
 
 # initialize dev/prod paths
-export MAP=/mnt/public/totem
 export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin
-export REPO=git@git.geointapps.org:acmesds
+export GITUSER=totemstan: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
+export REPO=https://$GITUSER@github.com/totemstan
 
 # NodeJS  
 export NODE=$BASE/nodejs
 export PATH=$PATH:$NODE/bin
 export NODELIB=$NODE/lib/node_modules
-export RED=$NODELIB/node-red
+export node_path=./node_modules
+export NPM_CONFIG_PREFIX=~/.npm-global
 
 # MYSQL
 export MYSQL=$BASE/mysql
