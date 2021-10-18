@@ -14,7 +14,6 @@ export NODE=$BASE/nodejs
 export PATH=$PATH:$NODE/bin
 export NODELIB=$NODE/lib/node_modules
 export node_path=./node_modules
-export NPM_CONFIG_PREFIX=~/.npm-global
 
 # MYSQL
 export MYSQL=$BASE/mysql
