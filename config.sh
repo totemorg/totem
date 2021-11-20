@@ -30,7 +30,7 @@ export ODBC_USER=ileuser
 #export SUPER="supervisor_tbd@nga.mil"
 			
 # NEO4J
-export NEO4J="bolt://localhost" # "http://root:NGA@localhost:7474"
+export NEO4J_HOST="bolt://localhost" # "http://root:NGA@localhost:7474"
 export NEO4J_USER="neo4j"
 
 # doc and dev tools

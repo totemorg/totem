@@ -242,23 +242,23 @@ mysql.)
 #
 
 snapdb.)
-	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >/mnt/archive/sqldbs/openv.sql
-	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app --ignore-table=app.gtd >/mnt/archive/sqldbs/app.sql
-	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -ndtR app >/mnt/archive/sqldbs/funcs.sql
+	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >/mnt/snapshots/sqldbs/openv.sql
+	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app --ignore-table=app.gtd >/mnt/snapshots/sqldbs/app.sql
+	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -ndtR app >/mnt/snapshots/sqldbs/funcs.sql
 	;;
 	
 snapsrv.)
 	cd /local/service
 	for mod in "${MODULES[@]}"; do
 		echo "snapping $map"
-		zip -ry /mnt/archive/snapshot.zip $mod -x $mod/node_modules/\* $mod/.git/\* $mod/_\* $mod/~\* $mod/math/\* $mod/mljs/\* $mod/prm/\*
+		zip -ry /mnt/snapshots/totem.zip $mod -x $mod/node_modules/\* $mod/.git/\* $mod/\*/.git/\* $mod/_\* $mod/~\* $mod/math/\* $mod/mljs/\* $mod/prm/\*
 	done
 	#zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* atomic/ifs/*.cpp atomic/ifs/*/*.cpp atomic/ifs/*/*.h
 	;;
 
 snapmap.) 
 	cd /local
-	zip /mnt/archive/local_map.zip include/* include/R/* lib64/* lib64/R/*
+	zip /mnt/snapshots/local_map.zip include/* include/R/* lib64/* lib64/R/*
 	;;
 	
 snap.)

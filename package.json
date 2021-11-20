@@ -6,19 +6,21 @@
   "scripts": {
     "config": "vi ./config.sh ./pass.sh; source ./config.sh",
     "test": "node totem.js ",
-	"redoc": "jsdoc2md --template README.hbs --files totem.js >README.md; git commit -am 'redoc'; git  push agent master"
-
+    "redoc": "jsdoc2md --template README.hbs --files totem.js >README.md; git commit -am 'redoc'; git  push agent master"
   },
   "author": "ACME SDS",
   "license": "ISC",
   "dependencies": {
     "cheerio": "^1.0.0-rc.3",
+    "enums": "file:../repo/enums-1.0.1.tgz",
     "http-proxy-agent": "^4.0.1",
     "js2xmlparser": "^3.0.0",
+    "jsdb": "file:../repo/jsdb-1.1.0.tgz",
     "json2csv": "^3.11.5",
     "mime": "^1.0.0",
     "mysql": "^2.17.1",
     "pcsclite": "^1.0.0",
+    "securelink": "file:../repo/securelink-1.0.0.tgz",
     "smartcard": "^1.0.37",
     "toobusy-js": "^0.5.1",
     "xml2js": "^0.4.23",
