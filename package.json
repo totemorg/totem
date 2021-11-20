@@ -20,7 +20,7 @@
     "mime": "^1.0.0",
     "mysql": "^2.17.1",
     "pcsclite": "^1.0.0",
-    "securelink": "file:../repo/securelink-1.0.0.tgz",
+    "securelink": "file:../repo/securelink-1.1.0.tgz",
     "smartcard": "^1.0.37",
     "toobusy-js": "^0.5.1",
     "xml2js": "^0.4.23",
