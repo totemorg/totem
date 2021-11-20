@@ -954,14 +954,15 @@ validated and their session logged.
 							bytes = sock.bytesWritten;
 
 						sqlThread( sql => {
-							sql.query(logMetrics, [{
-								Delay: secs,
-								Transfer: bytes,
-								Event: started,
-								Dataset: "",
-								Actions: 1,
-								Client: _log.Client,
-							}, bytes, secs] );
+							if (sql)
+								sql.query(logMetrics, [{
+									Delay: secs,
+									Transfer: bytes,
+									Event: started,
+									Dataset: "",
+									Actions: 1,
+									Client: _log.Client,
+								}, bytes, secs] );
 						});
 					});
 				}
@@ -1427,10 +1428,26 @@ Configure database, define site context, then protect, connect, start and initia
 						for (var core = 0; core < TOTEM.cores; core++) // create workers
 							worker = CLUSTER.fork();
 						
+						const { modTimes, onFile, watchFile } = TOTEM;
+
+						Each(onFile, (area, cb) => {  // callback cb(sql,name,area) when file changed
+							FS.readdir( area, (err, files) => {
+								if (err) 
+									Log(err);
+
+								else
+									files.forEach( file => {
+										if ( !file.startsWith(".") && !file.startsWith("_") )
+											watchFile( area+file, cb );
+									});
+							});	
+						});
+
 						sqlThread( sql => {	// get a sql connection
-							console.log( [ // splash
+							Log( [ // splash
 								"HOSTING " + site.nick,
 								"AT "+`(${site.master}, ${site.worker})`,
+								"DB " + (sql ? "connected" : "disconnected"),
 								"FROM " + process.cwd(),
 								"WITH " + (sockets?"":"NO")+" SOCKETS",
 								"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
@@ -1440,80 +1457,65 @@ Configure database, define site context, then protect, connect, start and initia
 								"POCS " + JSON.stringify(site.pocs)
 							].join("\n- ") );
 
-							// initialize file watcher
+							if (sql) {	// initialize file watcher
+								sql.query("UPDATE openv.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
 
-							sql.query("UPDATE openv.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
+								if ( dogs )		// start watch dogs
+									startDogs( sql, dogs );
 
-							var modTimes = TOTEM.modTimes;
+								if ( proxies ) 	{ 	// setup rotating proxies
+									sql.query(	// out with the old
+										"DELETE FROM openv.proxies WHERE hour(timediff(now(),created)) >= 2");
 
-							Each(TOTEM.onFile, (area, cb) => {  // callback cb(sql,name,area) when file changed
-								FS.readdir( area, (err, files) => {
-									if (err) 
-										Log(err);
+									proxies.forEach( (proxy,src) => {	// in with the new
+										Fetch( proxy, html => {
+											//Log(">>>proxy", proxy, html.length);
+											var 
+												$ = SCRAPE.load(html),
+												now = new Date(),
+												recs = [];
 
-									else
-										files.forEach( file => {
-											if ( !file.startsWith(".") && !file.startsWith("_") )
-												TOTEM.watchFile( area+file, cb );
-										});
-								});	
-							});
+											switch (proxy) {
+												case "https://free-proxy-list.net":
+												case "https://sslproxies.org":
+													var cols = {
+														ip: 1,
+														port: 2,
+														org: 3,
+														type: 5,
+														proto: 6
+													};
 
-							if ( dogs )		// start watch dogs
-								startDogs( sql, dogs );
-							
-							if ( proxies ) 	{ 	// setup rotating proxies
-								sql.query(	// out with the old
-									"DELETE FROM openv.proxies WHERE hour(timediff(now(),created)) >= 2");
+													$("table").each( (idx,tab) => {
+														//Log("table",idx); 
+														if ( idx==0 )
+															for ( var key in cols ) {
+																if ( col = cols[key] )
+																	$( `td:nth-child(${col})`, tab).each( (i,v) => {
+																		if ( col == 1 ) recs.push( Copy(cols, {
+																			source: src,
+																			created: now
+																		}) );
+																		var rec = recs[i];
+																		rec[ key ] = $(v).text();
+																	}); 
+															}
+													}); 
+													break;
 
-								proxies.forEach( (proxy,src) => {	// in with the new
-									Fetch( proxy, html => {
-										//Log(">>>proxy", proxy, html.length);
-										var 
-											$ = SCRAPE.load(html),
-											now = new Date(),
-											recs = [];
+												default:
+													Log("ignoring proxy", proxy);
+											}
 
-										switch (proxy) {
-											case "https://free-proxy-list.net":
-											case "https://sslproxies.org":
-												var cols = {
-													ip: 1,
-													port: 2,
-													org: 3,
-													type: 5,
-													proto: 6
-												};
-
-												$("table").each( (idx,tab) => {
-													//Log("table",idx); 
-													if ( idx==0 )
-														for ( var key in cols ) {
-															if ( col = cols[key] )
-																$( `td:nth-child(${col})`, tab).each( (i,v) => {
-																	if ( col == 1 ) recs.push( Copy(cols, {
-																		source: src,
-																		created: now
-																	}) );
-																	var rec = recs[i];
-																	rec[ key ] = $(v).text();
-																}); 
-														}
-												}); 
-												break;
-
-											default:
-												Log("ignoring proxy", proxy);
-										}
-
-										Log("SET PROXIES", recs);
-										recs.forEach( rec => {
-											sql.query(
-												"INSERT INTO openv.proxies SET ? ON DUPLICATE KEY UPDATE ?", 
-												[rec, {created: now, source:src}]);
+											Log("SET PROXIES", recs);
+											recs.forEach( rec => {
+												sql.query(
+													"INSERT INTO openv.proxies SET ? ON DUPLICATE KEY UPDATE ?", 
+													[rec, {created: now, source:src}]);
+											});
 										});
 									});
-								});
+								}
 							}
 						});
 					}
@@ -1857,12 +1859,16 @@ Configure database, define site context, then protect, connect, start and initia
 		});
 
 		sqlThread( sql => {
-			if (name)	// derive site context
-				setContext(sql, () => {
-					configService(routeRequest);
-					if (cb) cb(sql);
-				});
+			if (sql)
+				if (name)	// derive site context
+					setContext(sql, () => {
+						configService(routeRequest);
+						if (cb) cb(sql);
+					});
 
+				else
+				if (cb) cb( sql );
+			
 			else
 			if (cb) cb( sql );
 		});
@@ -2003,8 +2009,8 @@ Establish smart file watcher when file at area/name has changed.
 @param {Function} callback cb(sql, name, path) when file at path has changed
 */
 	watchFile: function (path, cb) { 
-		var 
-			modTimes = TOTEM.modTimes;
+		const 
+			{ modTimes } = TOTEM;
 		
 		Log("WATCHING", path);
 		
@@ -2781,35 +2787,36 @@ Get (or create if needed) a file with callback cb(fileID, sql) if no errors
 function getBrick(client, name, cb) {  
 
 	sqlThread( sql => {
-		sql.forFirst( 
-			"FILE", 
-			"SELECT ID FROM openv.files WHERE least(?,1) LIMIT 1", {
-				Name: name
-				//Client: client,
-				//Area: area
-			}, 
-			file => {
+		if (sql)
+			sql.forFirst( 
+				"FILE", 
+				"SELECT ID FROM openv.files WHERE least(?,1) LIMIT 1", {
+					Name: name
+					//Client: client,
+					//Area: area
+				}, 
+				file => {
 
-				if ( file )
-					cb( file );
+					if ( file )
+						cb( file );
 
-				else
-					sql.forAll( 
-						"FILE", 
-						"INSERT INTO openv.files SET _State_Added=now(), ?", {
-							Name: name,
-							Client: client
-							// Path: filepath,
-							// Area: area
-						}, 
-						info => {
-							cb({
-								ID: info.insertId, 
+					else
+						sql.forAll( 
+							"FILE", 
+							"INSERT INTO openv.files SET _State_Added=now(), ?", {
 								Name: name,
 								Client: client
+								// Path: filepath,
+								// Area: area
+							}, 
+							info => {
+								cb({
+									ID: info.insertId, 
+									Name: name,
+									Client: client
+								});
 							});
-						});
-			});	
+				});	
 	});
 }
 
