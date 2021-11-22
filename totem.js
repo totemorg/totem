@@ -1443,20 +1443,19 @@ Configure database, define site context, then protect, connect, start and initia
 							});	
 						});
 
-						sqlThread( sql => {	// get a sql connection
-							Log( [ // splash
-								"HOSTING " + site.nick,
-								"AT "+`(${site.master}, ${site.worker})`,
-								"DB " + (sql ? "connected" : "disconnected"),
-								"FROM " + process.cwd(),
-								"WITH " + (sockets?"":"NO")+" SOCKETS",
-								"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
-								"WITH "+ (riddle.length?"":"NO") + " ANTIBOT PROTECTION",
-								"WITH " + (site.sessions||"UNLIMITED") + " CONNECTIONS",
-								"WITH " + (cores ? cores + " WORKERS AT "+site.worker : "NO WORKERS"),
-								"POCS " + JSON.stringify(site.pocs)
-							].join("\n- ") );
+						Log( [ // splash
+							"HOSTING " + site.nick,
+							"AT " + `(${site.master}, ${site.worker})`,
+							"FROM " + process.cwd(),
+							"WITH " + (sockets?"":"NO")+" SOCKETS",
+							"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
+							"WITH "+ (riddle.length?"":"NO") + " ANTIBOT PROTECTION",
+							"WITH " + (site.sessions||"UNLIMITED") + " CONNECTIONS",
+							"WITH " + (cores ? cores + " WORKERS AT "+site.worker : "NO WORKERS"),
+							"POCS " + JSON.stringify(site.pocs)
+						].join("\n- ") );
 
+						sqlThread( sql => {	// get a sql connection
 							if (sql) {	// initialize file watcher
 								sql.query("UPDATE openv.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
 
@@ -1858,19 +1857,17 @@ Configure database, define site context, then protect, connect, start and initia
 				delete MIME.types[key];
 		});
 
-		sqlThread( sql => {
-			if (sql)
-				if (name)	// derive site context
-					setContext(sql, () => {
-						configService(routeRequest);
-						if (cb) cb(sql);
-					});
-
-				else
-				if (cb) cb( sql );
+		JSDB.config(null, sql => {
+			Log(">>>>>>>>jsdbconfig", sql);
+			if (cb) cb(sql);
 			
-			else
-			if (cb) cb( sql );
+			if ( sql ) 
+				setContext(sql, () => {
+					configService(routeRequest);
+				});
+			
+			else 
+				configService(routeRequest);				
 		});
 	},
 
@@ -2192,6 +2189,7 @@ Site context extended by the mysql derived query when service starts
 @cfg {Object} 
 */
 	site: {  	//< reserved for derived context vars
+		nick: "totem",
 		socketio: 
 			"/socketio/socketio-client.js",		// working
 			//  "/socket.io/socket.io-client.js",	// buggy
@@ -2992,26 +2990,30 @@ function selectDS(req, res) {
 		{ sql, flags, client, where, index, action, ds } = req,
 		{ trace, pivot, browse, sort, limit, offset } = flags;
 		  
-	sql.Index( ds, index, [], (index,jsons) => { 
-		sql.Query(
-			"SELECT SQL_CALC_FOUND_ROWS ${index} FROM ?? ${where} ${having} ${limit} ${offset}", 
-			[ ds ], {
-				trace: trace,
-				pivot: pivot,
-				browse: browse,		
-				sort: sort,
-				limit: limit || 0,
-				offset: offset || 0,
-				where: where,
-				index: index,
-				having: null,
-				jsons: jsons,
-				client: client
-			}, (err,recs) => {
+	if (sql)
+		sql.Index( ds, index, [], (index,jsons) => { 
+			sql.Query(
+				"SELECT SQL_CALC_FOUND_ROWS ${index} FROM ?? ${where} ${having} ${limit} ${offset}", 
+				[ ds ], {
+					trace: trace,
+					pivot: pivot,
+					browse: browse,		
+					sort: sort,
+					limit: limit || 0,
+					offset: offset || 0,
+					where: where,
+					index: index,
+					having: null,
+					jsons: jsons,
+					client: client
+				}, (err,recs) => {
 
-			res( err || recs );
+				res( err || recs );
+			});
 		});
-	});
+	
+	else
+		res( errors.noDB );
 }
 
 /**
@@ -3025,17 +3027,21 @@ function insertDS(req, res) {
 		{ trace } = flags;
 
 	//Log(ds,body);
-	sql.Query(
-		"INSERT INTO ?? ${set}", [ds,body], {
-			trace: trace,
-			set: body,
-			client: client,
-			sio: SECLINK.sio
-		}, (err,info) => {
+	if ( sql )
+		sql.Query(
+			"INSERT INTO ?? ${set}", [ds,body], {
+				trace: trace,
+				set: body,
+				client: client,
+				sio: SECLINK.sio
+			}, (err,info) => {
 
-			res( err || {ID: info.insertId} );
+				res( err || {ID: info.insertId} );
 
-		});
+			});
+	
+	else
+		res( errors.noDB );
 }
 
 /**
@@ -3052,6 +3058,7 @@ function deleteDS(req, res) {
 		res( errors.noID );
 		
 	else
+	if ( sql )
 		sql.Query(
 			"DELETE FROM ?? ${where}", [ds], {
 				trace: trace,			
@@ -3064,6 +3071,9 @@ function deleteDS(req, res) {
 				res( err || body );
 
 			});
+	
+	else
+		res( errors.noDB );
 }
 
 /**
@@ -3085,7 +3095,8 @@ function updateDS(req, res) {
 	if ( isEmpty( where ) )
 		res( errors.noID );
 	
-	else {
+	else 
+	if ( sql ) {
 		sql.query(
 			"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1", {
 				Dataset: table,
@@ -3111,6 +3122,9 @@ function updateDS(req, res) {
 
 			});
 	}
+	
+	else
+		res( errors.noDB );
 	
 }
 
@@ -3382,8 +3396,7 @@ with 2 workers and the default endpoint routes` );
 
 	case "T3": 
 
-		TOTEM.config({
-		}, sql => {
+		TOTEM.config(null, sql => {
 			Log( 
 `I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
 my startup options (see the openv.apps table for the Nick="Totem1").  
