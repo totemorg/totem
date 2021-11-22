@@ -78,8 +78,9 @@ or [follow **TOTEM** milestones](http://totem.zapto.org/milestones.view) || [COE
 <a name="module_TOTEM"></a>
 
 ## TOTEM
-Provides barebones web service.
-Documented in accordance with [jsdoc](https://jsdoc.app/).
+Provides barebones web service as documented in the [README.md](https://github.com/totemstan/totem).
+
+This module documented in accordance with [jsdoc](https://jsdoc.app/).
 
 **Requires**: <code>module:http</code>, <code>module:https</code>, <code>module:fs</code>, <code>module:constants</code>, <code>module:cluster</code>, <code>module:child\_process</code>, <code>module:os</code>, <code>module:stream</code>, <code>module:vm</code>, <code>module:crypto</code>, <code>module:enums</code>, <code>module:jsdb</code>, <code>module:securelink</code>, <code>module:socketio</code>, <code>module:mime</code>, <code>module:mysql</code>, <code>module:xml2js</code>, <code>module:toobusy</code>, <code>module:json2csv</code>, <code>module:js2xmlparser</code>, <code>module:toobusy-js</code>, <code>module:cheerio</code>  
 **Example**  
