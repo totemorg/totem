@@ -2,7 +2,7 @@
 
 /**
 
-Provides barebones web service as documented in the [README.md]{@link https://github.com/totemstan/totem}.
+Provides a [barebones web service]{@link https://github.com/totemstan/totem}.
 
 This module documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 

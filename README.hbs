@@ -32,21 +32,21 @@ and the `stores | shares` file AREAs for sharing static files.
 
 ## Installation
 
-Clone the following into your PROJECT folder
-+ [TOTEM base web service](https://github.com/totemstan/totem) || [COE](https://sc.appdev.proj.coe/acmesds/totem) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/totem)  
-+ [ENUMS enumerator](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)  
-+ [JSDB database agnosticator](https://github.com/totemstan/jsdb) || [COE](https://sc.appdev.proj.coe/acmesds/jsdb) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
-+ [SECLINK secure link](https://github.com/totemstan/securelink) || [COE](https://sc.appdev.proj.coe/acmesds/securelink) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
-+ [SOCKETIO web sockets](https://github.com/totemstan/socketio) || [COE](https://sc.appdev.proj.coe/acmesds/socketio) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
+Clone **TOTEM** from one of its repos:
+
+	git clone https://github.com/totemstan/totem
+	git clone https://sc.appdev.proj.coe/acmesds/totem
+	git clone https://gitlab.west.nga.ic.gov/acmesds/totem
+
+or download its [docker image](https://github.com/totemstan/) to 
+run **TOTEM** from a standalone dockerized container. 
 
 ## Manage 
 
-	npm test [ ? || T1 || T2 || ...]	# Start or unit test
+	npm test [ ? || T1 || T2 || ...]	# Run unit test
 	npm run redoc						# Update and distribute documentation
 	npm run config						# Configure environment
-	maint dbrecover						# Recover/reset the databases
-	maint dbstart						# Start the database servers
-	maint startup						# Start all required services then start debe
+	npm run startdb						# Start the database servers
 
 ## Usage
 
