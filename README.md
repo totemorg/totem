@@ -38,8 +38,8 @@ Clone **TOTEM** from one of its repos:
 	git clone https://sc.appdev.proj.coe/acmesds/totem
 	git clone https://gitlab.west.nga.ic.gov/acmesds/totem
 
-or download its [docker image](https://github.com/totemstan/) to 
-run **TOTEM** from a standalone dockerized container. 
+or use the [CENTOS docker script](https://github.com/totemstan/totem/raw/master/doc.sh) to 
+download and run **TOTEM** from a standalone dockerized container. 
 
 ## Manage 
 
