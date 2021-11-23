@@ -11,13 +11,13 @@
 	+ fault protected run states
 	+ indexing, uploading, downloading and cacheing static files
 	+ crud interface
-	+ mysql/neo4j database agnosticator
+	+ mysql- and neo4j-database agnosticator
 	+ task queuing and regulation
 	+ file polling and services
 	+ automattic server cert generation
 	+ task sharding
 	+ file stream and ingest
-	+ data fetching using various protocols
+	+ data fetching with various protocols
 	+ smartcard reader
   
 **TOTEM** defines a CRUD (HTTP POST, GET, PUT, DELETE) to endpoint NODES for accessing datasets, files or services:
@@ -38,8 +38,7 @@ Clone **TOTEM** from one of its repos:
 	git clone https://sc.appdev.proj.coe/acmesds/totem
 	git clone https://gitlab.west.nga.ic.gov/acmesds/totem
 
-or use the [CENTOS docker script](https://github.com/totemstan/totem/raw/master/doc.sh) to 
-download and run **TOTEM** from a standalone dockerized container. 
+or simply install and start its [federated docker image](https://github.com/totemstan/dockify). 
 
 ## Manage 
 
@@ -64,16 +63,6 @@ Require, configure and start **TOTEM**:
 
 where [its configuration keys](http://totem.zapto.org/shares/prm/totem/index.html) || [COE](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) || [SBU](https://totem.nga.mil/shares/prm/totem/index.html)
 follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum).
-
-## Contacting, Contributing, Following
-
-Feel free to [submit and status **TOTEM** issues](http://totem.zapto.org/issues.view) || [COE](https://totem.west.ile.nga.ic.gov/issues.view) || [SBU](https://totem.nga.mil/issues.view), [contribute **TOTEM** notebooks](http://totem.zapto.org/shares/notebooks/) || [COE](https://totem.west.ile.nga.ic.gov/shares/notebooks/) || [SBU](https://totem.nga.mil/shares/notebooks/),
-[inspect **TOTEM** requirements](http://totem.zapto.org/reqts.view) || [COE](https://totem.west.ile.nga.ic.gov/reqts.view) || [SBU](https://totem.nga.mil/reqts.view), [browse **TOTEM** holdings](http://totem.zapto.org/) || [COE](https://totem.west.ile.nga.ic.gov/) || [SBU](https://totem.nga.mil/), 
-or [follow **TOTEM** milestones](http://totem.zapto.org/milestones.view) || [COE](https://totem.west.ile.nga.ic.gov/milestones.view) || [SBU](https://totem.nga.mil/milestones.view).
-
-## License
-
-[MIT](LICENSE)
 
 <a name="module_TOTEM"></a>
 
@@ -423,7 +412,6 @@ neoThread( neo => {
         * [.uploadFile](#module_TOTEM.uploadFile)
         * [.busyTime](#module_TOTEM.busyTime)
         * [.cache](#module_TOTEM.cache)
-        * [.Fetch(path, opts, [cb])](#module_TOTEM.Fetch)
         * [.routeRequest(req, res)](#module_TOTEM.routeRequest)
         * [.config(opts, cb)](#module_TOTEM.config)
             * [~configService(agent)](#module_TOTEM.config..configService)
@@ -434,7 +422,6 @@ neoThread( neo => {
         * [.setContext()](#module_TOTEM.setContext)
     * _inner_
         * [~parseXML(cb)](#module_TOTEM..parseXML) ⇐ <code>String</code>
-        * [~fetchFile(path, data, [cb])](#module_TOTEM..fetchFile) ⇐ <code>String</code>
         * [~stopService()](#module_TOTEM..stopService)
         * [~createCert(owner, password, cb)](#module_TOTEM..createCert)
         * [~resolveClient(req, res)](#module_TOTEM..resolveClient)
@@ -445,9 +432,6 @@ neoThread( neo => {
         * [~deleteDS(req, res)](#module_TOTEM..deleteDS)
         * [~updateDS(req, res)](#module_TOTEM..updateDS)
         * [~executeDS(req, res)](#module_TOTEM..executeDS)
-        * [~sysPing(req, res)](#module_TOTEM..sysPing)
-        * [~sysTask(req, res)](#module_TOTEM..sysTask)
-        * [~sysChallenge(req, res)](#module_TOTEM..sysChallenge)
         * [~TSR](#module_TOTEM..TSR) : <code>function</code>
 
 <a name="module_TOTEM.errors"></a>
@@ -779,21 +763,6 @@ File cache
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="module_TOTEM.Fetch"></a>
-
-### TOTEM.Fetch(path, opts, [cb])
-Uses [path.fetchFile(opts,cb)](fetchFile) to fetch text from the given URL path
-using the specified fetching options.
-
-**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| path | <code>String</code> | source URL |
-| opts | <code>string</code> \| <code>array</code> \| <code>function</code> \| <code>null</code> | data handler or callback |
-| [cb] | <code>TSR</code> | callback |
-
 <a name="module_TOTEM.routeRequest"></a>
 
 ### TOTEM.routeRequest(req, res)
@@ -855,7 +824,8 @@ Setup (connect, start then initialize) a service that will handle its request-re
 			reqSocket: socket	// socket to retrieve client cert 
 			resSocket: socket	// socket to accept response
 			sql: connector 		// sql database connector 
-
+			site: {...}			// site info
+			
 			// phase2 startResponse
 			log: {...}			// info to trap socket stats
 			client: "..."		// name of client from cert or "guest"
@@ -976,60 +946,6 @@ Parse XML string into json and callback cb(json)
 | --- | --- | --- |
 | cb | <code>function</code> | callback( json || null if error ) |
 
-<a name="module_TOTEM..fetchFile"></a>
-
-### TOTEM~fetchFile(path, data, [cb]) ⇐ <code>String</code>
-Fetches text from a URL `path`
-
-	PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
-
-using a PUT || POST || DELETE || GET corresponding to the type of the fetch `data`  
-Array || Object || null || Function where
-
-	PROTOCOL		uses
-	==============================================
-	http(s) 		http (https) protocol
-	curl(s) 		curl (presents certs/fetch.pfx certificate to endpoint)
-	wget(s)			wget (presents certs/fetch.pfx certificate to endpoint)
-	mask 			rotated proxies
-	file			file system
-	book			selected notebook record
-	AASRV 			oauth authorization-authentication protocol (e.g. lexis)
-
-While the FILE spec is terminated by a "/", a folder index is returned.  The optional 
-batch,limit,... query parameters are used to regulate a (e.g. csv) file stream.
-
-See fetchOptions for fetching config parameters.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-**Extends**: <code>String</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| path | <code>String</code> | source URL |
-| data | <code>string</code> \| <code>array</code> \| <code>function</code> \| <code>null</code> | fetching data or callback |
-| [cb] | <code>TSR</code> | callback when specified data is not a Function |
-
-**Example**  
-```js
-URL.fetchFile( text => {			// get request
-})
-```
-**Example**  
-```js
-URL.fetchFile( [ ... ], stat => { 	// post request with data hash list
-})
-```
-**Example**  
-```js
-URL.fetchFile( { ... }, stat => { 	// put request with data hash
-})
-```
-**Example**  
-```js
-URL.fetchFile( null, stat => {		// delete request 
-})
-```
 <a name="module_TOTEM..stopService"></a>
 
 ### TOTEM~stopService()
@@ -1154,42 +1070,6 @@ CRUD execute endpoint.
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem response callback |
 
-<a name="module_TOTEM..sysPing"></a>
-
-### TOTEM~sysPing(req, res)
-Endpoint to test connectivity.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem request |
-| res | <code>function</code> | Totem response |
-
-<a name="module_TOTEM..sysTask"></a>
-
-### TOTEM~sysTask(req, res)
-Endpoint to shard a task to the compute nodes.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem request |
-| res | <code>function</code> | Totem response |
-
-<a name="module_TOTEM..sysChallenge"></a>
-
-### TOTEM~sysChallenge(req, res)
-Endpoint to validate clients response to an antibot challenge.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem response callback |
-
 <a name="module_TOTEM..TSR"></a>
 
 ### TOTEM~TSR : <code>function</code>
@@ -1201,6 +1081,35 @@ Totem response callback.
 | --- | --- | --- |
 | text | <code>string</code> \| <code>error</code> | Response message or error |
 
+
+## Contacting, Contributing, Following
+
+Feel free to 
+submit and status **TOTEM** issues (
+[WWW](http://totem.zapto.org/issues.view) 
+[COE](https://totem.west.ile.nga.ic.gov/issues.view) 
+[SBU](https://totem.nga.mil/issues.view)
+), contribute to **TOTEM** notebooks (
+[WWW](http://totem.zapto.org/shares/notebooks/) 
+[COE](https://totem.west.ile.nga.ic.gov/shares/notebooks/) 
+[SBU](https://totem.nga.mil/shares/notebooks/)
+), revise **TOTEM** requirements (
+[WWW](http://totem.zapto.org/reqts.view) 
+[COE](https://totem.west.ile.nga.ic.gov/reqts.view) 
+[SBU](https://totem.nga.mil/reqts.view), 
+), browse **TOTEM** holdings (
+[WWW](http://totem.zapto.org/) 
+[COE](https://totem.west.ile.nga.ic.gov/) 
+[SBU](https://totem.nga.mil/)
+), or follow **TOTEM** milestones (
+[WWW](http://totem.zapto.org/milestones.view) 
+[COE](https://totem.west.ile.nga.ic.gov/milestones.view) 
+[SBU](https://totem.nga.mil/milestones.view)
+).
+
+## License
+
+[MIT](LICENSE)
 
 * * *
 
