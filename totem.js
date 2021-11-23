@@ -360,7 +360,8 @@ const
 	JS2CSV = require('json2csv'),				// JSON to CSV parser	
 	SECLINK = require("securelink"),			// secure com and login
 	{ sqlThread, neoThread } = JSDB = require("jsdb"),		// database agnosticator
-	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject } = require("enums");
+	  
+	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("enums");
 	  
 /**
 Parse XML string into json and callback cb(json) 
@@ -380,432 +381,8 @@ Totem response callback.
 @param {string | error} text Response message or error
 */
 
-/**
-Fetches text from a URL `path`
-
-	PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
-
-using a PUT || POST || DELETE || GET corresponding to the type of the fetch `data`  
-Array || Object || null || Function where
-
-	PROTOCOL		uses
-	==============================================
-	http(s) 		http (https) protocol
-	curl(s) 		curl (presents certs/fetch.pfx certificate to endpoint)
-	wget(s)			wget (presents certs/fetch.pfx certificate to endpoint)
-	mask 			rotated proxies
-	file			file system
-	book			selected notebook record
-	AASRV 			oauth authorization-authentication protocol (e.g. lexis)
-
-While the FILE spec is terminated by a "/", a folder index is returned.  The optional 
-batch,limit,... query parameters are used to regulate a (e.g. csv) file stream.
-
-See fetchOptions for fetching config parameters.
-
-@extends String
-@param {String} path source URL
-@param {string | array | function | null} data fetching data or callback 
-@param {TSR} [cb] callback when specified data is not a Function
-
-@example
-URL.fetchFile( text => {			// get request
-})
-
-@example
-URL.fetchFile( [ ... ], stat => { 	// post request with data hash list
-})
-
-@example
-URL.fetchFile( { ... }, stat => { 	// put request with data hash
-})
-
-@example
-URL.fetchFile( null, stat => {		// delete request 
-})
-
-*/
-function fetchFile(data, cb) {	//< data fetching
-
-	function sha256(s) { // reserved for other functionality
-		return CRYPTO.createHash('sha256').update(s).digest('base64');
-	}
-
-	function request(proto, opts, data, cb) {
-		//Log(">>>req opts", opts);
-
-		const Req = proto.request(opts, Res => { // get reponse body text
-			var body = "";
-			Res.on("data", chunk => body += chunk.toString() );
-
-			Res.on("end", () => {
-				//Log('fetch statusCode:', Res.statusCode);
-				//Log('fetch headers:', Res.headers['public-key-pins']);	// Print the HPKP values
-
-				if ( cb ) 
-					cb( body );
-
-				else
-					data( body );
-			});
-		});
-
-		Req.on('error', err => {
-			Log(">>>fetch req", err);
-			(cb||data)("");
-		});
-
-		switch (opts.method) {
-			case "DELETE":
-			case "GET": 
-				break;
-
-			case "POST":
-			case "PUT":
-				//Log(">>>post", data);
-				Req.write( data ); //JSON.stringify(data) );  // post parms
-				break;
-		}					
-
-		Req.end();
-	}
-
-	function agentRequest(proto, opts, sql, id, cb) {
-		var 
-			body = "",
-			req = proto.get( opts, res => {
-				var sink = new STREAM.Writable({
-					objectMode: true,
-					write: (buf,en,sinkcb) => {
-						body += buf;
-						sinkcb(null);  // signal no errors
-					}
-				});
-
-				sink
-				.on("finish", () => {
-					var stat = "s"+Math.trunc(res.statusCode/100)+"xx";
-					Log(">>>>fetch body", body.length, ">>stat",res.statusCode,">>>",stat);
-
-					sql.query("UPDATE openv.proxies SET hits=hits+1, ?? = ?? + 1 WHERE ?", [stat,stat,id] );
-
-					cb( (stat = "s2xx") ? body : "" );
-				})
-				.on("error", err => {
-					Log(">>>fetch get", err);
-					cb("");
-				});
-
-				res.pipe(sink);
-			});
-
-		req.on("socket", sock => {
-			sock.setTimeout(2e3, () => {
-				req.abort();
-				Log(">>>fetch timeout");
-				sql.query("UPDATE openv.proxies SET hits=hits+1, sTimeout = sTimeout+1 WHERE ?", id);
-			});
-
-			sock.on("error", err => {
-				req.abort();
-				Log(">>>fetch refused");
-				sql.query("UPDATE openv.proxies SET hits=hits+1, sRefused = sRefused+1 WHERE ?", id);
-			});
-		});
-
-		req.on("error", err => {
-			Log(">>>fetch abort",err);
-			sql.query("UPDATE openv.proxies SET hits=hits+1, sAbort = sAbort+1 WHERE ?", id);
-		});
-	}
-
-	function getFile(path, cb) {
-		const
-			src = "."+path;
-
-		if ( path.endsWith("/") )  // index requested folder
-			try {
-				const 
-					{maxFiles} = fetchOptions,
-					files = [];
-
-				//Log(">>index", src;
-				FS.readdirSync( src).forEach( file => {
-					var
-						ignore = file.startsWith(".") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
-
-					if ( !ignore && files.length < maxFiles ) 
-						files.push( (file.indexOf(".")>=0) ? file : file+"/" );
-				});
-
-				cb( files );
-			}
-
-			catch (err) {
-				//Log(">>>fetch index error", err);
-				cb( [] );
-			}
-
-		else 	// requesting static file
-			try {		// these files are static so we never cache them
-				FS.readFile(src, (err,buf) => res( err ? "" : Buffer.from(buf) ) );
-			}
-
-			catch (err) {
-				Log(err);
-				cb( null );
-			};
-	}	
-
-	const
-		url = this+"",
-		{defHost,certs,maxRetry,oauthHosts} = fetchOptions,
-		opts = url.parseURL({}, defHost), 
-		crud = {
-			"Function": "GET",
-			"Array": "PUT",
-			"Object": "POST",
-			"Null": "DELETE"
-		},
-
-		// for wget-curl
-		cert = certs.fetch,
-		wget = url.split("////"),
-		wurl = wget[0],
-		wout = wget[1] || "./temps/wget.jpg",
-
-		// OAuth 2.0 host
-		oauth = oauthHosts[opts.protocol],
-
-		// response callback
-		res = cb || data || (res => {}),
-		method = crud[ data ? typeOf(data) : "Null" ] ;
-
-	// opts.cipher = " ... "
-	// opts.headers = { ... }
-	// opts.Cookie = ["x=y", ...]
-	// opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
-	/*
-	if (opts.soap) {
-		opts.headers = {
-			"Content-Type": "application/soap+xml; charset=utf-8",
-			"Content-Length": opts.soap.length
-		};
-		opts.method = "POST";
-	}*/
-
-	//Log("FETCH",path);
-
-	opts.method = method;
-
-	switch ( opts.protocol ) {
-		case "curl:": 
-			CP.exec( `curl --retry ${maxRetry} ` + path.replace(opts.protocol, "http:"), (err,out) => {
-				res( err ? "" : out );
-			});
-			break;
-
-		case "curls:":
-			CP.exec( `curl --retry ${maxRetry} -gk --cert ${cert._crt}:${cert._pass} --key ${cert._key} --cacert ${cert._ca}` + url.replace(protocol, "https:"), (err,out) => {
-				res( err ? "" : out );
-			});	
-			break;
-
-		case "wget:":
-			CP.exec( `wget --tries=${maxRetry} -O ${wout} ` + path.replace(opts.protocol, "http:"), err => {
-				res( err ? "" : "ok" );
-			});
-			break;
-
-		case "wgets:":
-			CP.exec( `wget --tries=${maxRetry} -O ${wout} --no-check-certificate --certificate ${cert._crt} --private-key ${cert._key} ` + wurl.replace(protocol, "https:"), err => {
-				res( err ? "" : "ok" );
-			});
-			break;
-
-		case "https:":
-			/*
-			// experiment pinning tests
-			opts.checkServerIdentity = function(host, cert) {
-				// Make sure the certificate is issued to the host we are connected to
-				const err = TLS.checkServerIdentity(host, cert);
-				if (err) {
-					Log("tls error", err);
-					return err;
-				}
-
-				// Pin the public key, similar to HPKP pin-sha25 pinning
-				const pubkey256 = 'pL1+qb9HTMRZJmuC/bB/ZI9d302BYrrqiVuRyW+DGrU=';
-				if (sha256(cert.pubkey) !== pubkey256) {
-					const msg = 'Certificate verification error: ' + `The public key of '${cert.subject.CN}' ` + 'does not match our pinned fingerprint';
-					return new Error(msg);
-				}
-
-				// Pin the exact certificate, rather then the pub key
-				const cert256 = '25:FE:39:32:D9:63:8C:8A:FC:A1:9A:29:87:' + 'D8:3E:4C:1D:98:JSDB:71:E4:1A:48:03:98:EA:22:6A:BD:8B:93:16';
-				if (cert.fingerprint256 !== cert256) {
-					const msg = 'Certificate verification error: ' +
-					`The certificate of '${cert.subject.CN}' ` +
-					'does not match our pinned fingerprint';
-					return new Error(msg);
-				}
-
-				// This loop is informational only.
-				// Print the certificate and public key fingerprints of all certs in the
-				// chain. Its common to pin the public key of the issuer on the public
-				// internet, while pinning the public key of the service in sensitive
-				// environments.
-				do {
-					console.log('Subject Common Name:', cert.subject.CN);
-					console.log('  Certificate SHA256 fingerprint:', cert.fingerprint256);
-
-					hash = crypto.createHash('sha256');
-					console.log('  Public key ping-sha256:', sha256(cert.pubkey));
-
-					lastprint256 = cert.fingerprint256;
-					cert = cert.issuerCertificate;
-				} while (cert.fingerprint256 !== lastprint256);
-
-				};
-			*/
-			/*
-			opts.agent = new HTTPS.Agent( false 
-				? {
-						//pfx: cert.pfx,	// pfx or use cert-and-key
-						cert: cert.crt,
-						key: cert.key,
-						passphrase: cert._pass
-					} 
-				: {
-					} );
-				*/
-			opts.rejectUnauthorized = false;
-			request(HTTPS, opts, data, cb);
-			break;
-
-		case "http:":
-			//Log(opts);
-
-			request(HTTP, opts, data, cb);
-			break;
-
-		case "mask:":
-		case "mttp:":	// request via rotating proxies
-			opts.protocol = "http:";
-			sqlThread( sql => {
-				sql.query(
-					"SELECT ID,ip,port FROM openv.proxies WHERE ? ORDER BY rand() LIMIT 1",
-					[{proto: "no"}], (err,recs) => {
-
-					if ( rec = recs[0] ) {
-						opts.agent = new AGENT( `http://${rec.ip}:${rec.port}` );
-						Log(">>>agent",rec);
-						agentRequest(HTTP, opts, sql, {ID:rec.ID}, res );
-					}
-				});
-			});
-			break;
-
-		case "nb:":
-		case "book:":
-			const
-				book = opts.host,
-				name = opts.path.substr(1);
-
-			sqlThread( sql => {
-				sql.query( name
-					? "SELECT * FROM app.? WHERE Name=?"
-					: "SELECT * FROM app.?", 
-
-					[ book, name ], 
-
-					(err,recs) => cb( err ? "" : JSON.stringify(recs) ) );
-			});
-			break;
-
-		case "file:":	// requesting file or folder index
-			//Log("index file", [path], opts);
-			getFile( opts.path.substr(1) ? opts.path : "/home/" , res );  
-			break;
-
-		default:	
-			if ( oauth ) 	// request made via oauth 
-				request(HTTPS, oauth.token, oauth.grant, token => {		// request access token
-					//Log("token", token);
-					try {
-						const 
-							Token = JSON.parse(token);
-
-						opts.protocol = "https:";
-						opts.headers = {
-							Authorization: Token.token_type + " " + Token.access_token,
-							Accept: "application/json;odata.metadata=minimal",
-							Host: "services-api.lexisnexis.com",
-							Connection: "Keep-Alive",
-							"Content-Type": "application/json"
-						};
-						delete opts.auth;
-
-						Log("token request", opts );
-						request(HTTPS, opts, search => {	// request a document search
-							if ( docopts = oauth.doc ) 	// get associated document
-								try {	
-									const
-										Search = JSON.parse(search),
-										rec = Search.value[0] || {},
-										doclink = rec['DocumentContent@odata.mediaReadLink'];
-
-									//Log( Object.keys(Search) );
-									if ( doclink ) {
-										if (1)
-											Log("get doc", {
-												doclink: doclink , 
-												href: oauth.doc.href, 
-												reckeys: Object.keys(rec), 
-												ov: rec.Overview, 
-												d: rec.Date
-											});
-
-										if ( docopts.length ) // string so do fetch
-											Fetch( docopts + doclink, doc => {
-												res(doc);
-											});
-
-										else {
-											docopts.path += doclink;
-											docopts.headers = opts.headers;
-											docopts.method = "GET";
-											Log("doc request", docopts);
-											request( HTTPS, docopts, doc => {
-												res(doc);
-											});
-										}
-									}
-								}
-
-								catch (err) {
-									Log(">>>fetch lexis bad search",err);
-								}
-
-							else
-								res( search );
-						});
-					}
-
-					catch (err) {
-						Log(">>>fetch lexis bad token", token);
-						res(null);
-					}
-				});
-
-			else
-				res( "" );
-	}
-}	
-
 [ //< String prototypes
-	parseXML,
-	fetchFile
+	parseXML
 ].Extend(String);
 
 // totem i/f
@@ -815,7 +392,7 @@ const
 		Log, Trace,
 		byArea, byType, byAction, byTable, CORS,
 		defaultType, isTrusted,
-		$master, $worker, Fetch, fetchOptions, 
+		$master, $worker, 
 		reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitRules,
 		filterRecords,routeDS, startDogs, cache } = TOTEM = module.exports = {
 	
@@ -830,68 +407,6 @@ const
 
 	defaultType: "run",
 
-	fetchOptions: {	//< Fetch config params
-		defHost: ENV.SERVICE_MASTER_URL,
-		maxFiles: 1000,						//< max files to index
-		maxRetry: 5,		// fetch wget/curl maxRetry	
-		certs: { 		// data fetching certs
-			pfx: FS.readFileSync(`./certs/fetch.pfx`),
-			key: FS.readFileSync(`./certs/fetch.key`),
-			crt: FS.readFileSync(`./certs/fetch.crt`),
-			ca: "", //FS.readFileSync(`./certs/fetch.ca`),			
-			_pfx: `./certs/fetch.pfx`,
-			_crt: `./certs/fetch.crt`,
-			_key: `./certs/fetch.key`,
-			_ca: `./certs/fetch.ca`,
-			_pass: ENV.FETCH_PASS
-		},
-		oauthHosts: {	// auth 2.0 hosts
-			"lex:": {		// lexis-nexis search
-				grant: "grant_type=client_credentials",  // &scope=http://auth.lexisnexis.com/all
-				token: "https://auth-api.lexisnexis.com/oauth/v2/token".parseURL({
-					//rejectUnauthorized: false,
-					method: "POST",
-					auth: ENV.LEXISNEXIS,
-					headers: {
-						"Content-Type": "application/x-www-form-urlencoded"
-					}
-				})
-			},
-			"lexis:": {		// lexis-nexis search and get doc
-				grant: "grant_type=client_credentials",  // &scope=http://auth.lexisnexis.com/all
-				token: "https://auth-api.lexisnexis.com/oauth/v2/token".parseURL({
-					//rejectUnauthorized: false,
-					method: "POST",
-					auth: ENV.LEXISNEXIS,
-					headers: {
-						"Content-Type": "application/x-www-form-urlencoded"
-					}
-				}),
-				doc: "https://services-api.lexisnexis.com/v1/".parseURL()
-				/*, {
-					//rejectUnauthorized: false,
-					method: "GET",
-					auth: ENV.LEXISNEXIS,
-					headers: {
-						"Content-Type": "application/x-www-form-urlencoded"
-					}
-				}) */
-					// "lex://services-api.lexisnexis.com/v1/"
-			}
-		}
-	},
-
-/**
-Uses [path.fetchFile(opts,cb)]{@link fetchFile} to fetch text from the given URL path
-using the specified fetching options. 
-
-@cfg {Function} 
-@param {String} path source URL
-@param {string | array | function | null} opts data handler or callback
-@param {TSR} [cb] callback
-*/
-	Fetch: (path, data, cb) => path.fetchFile(data,cb),
-	
 	routeDS: {	// setup default DataSet routes
 		default: req => "app."+req.table
 	},
@@ -1333,7 +848,8 @@ Configure database, define site context, then protect, connect, start and initia
 			reqSocket: socket	// socket to retrieve client cert 
 			resSocket: socket	// socket to accept response
 			sql: connector 		// sql database connector 
-
+			site: {...}			// site info
+			
 			// phase2 startResponse
 			log: {...}			// info to trap socket stats
 			client: "..."		// name of client from cert or "guest"
@@ -1608,7 +1124,8 @@ Configure database, define site context, then protect, connect, start and initia
 											reqSocket: Req.socket,   // use supplied request socket 
 											resSocket: getSocket,		// attach method to return a response socket
 											encrypted: isEncrypted(),	// on encrypted worker
-											url: unescape( Req.url || "/" )	// unescaped url
+											url: unescape( Req.url || "/" ),	// unescaped url
+											site: site			// site info
 											/*
 											There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
 											embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
@@ -1846,6 +1363,8 @@ Configure database, define site context, then protect, connect, start and initia
 
 		if (opts) Copy(opts, TOTEM, ".");
 
+		Copy( require("./public/endpts"), byTable );
+
 		const
 			{ name, setContext, routeRequest } = TOTEM;
 		
@@ -1859,7 +1378,6 @@ Configure database, define site context, then protect, connect, start and initia
 		});
 
 		JSDB.config(null, sql => {
-			Log(">>>>>>>>jsdbconfig", sql);
 			if (cb) cb(sql);
 			
 			if ( sql ) 
@@ -2238,9 +1756,6 @@ By-table endpoint routers {table: method(req,res), ... } for data fetchers, syst
 @cfg {Object} 
 */				
 	byTable: {			  //< by-table routers	
-		riddle: sysChallenge,
-		task: sysTask,
-		ping: sysPing
 	},
 		
 /**
@@ -3163,135 +2678,7 @@ function simThread(sock) {
 	});
 } */
 
-/**
-Endpoint to test connectivity.
 
-@param {Object} req Totem request
-@param {Function} res Totem response
-*/
-function sysPing(req,res) {
-	const 
-		{ client } = req,
-		{ nick } = site;
-	
-	res( `Welcome ${client} to ${nick}` );
-}
-
-/**
-Endpoint to shard a task to the compute nodes.
-
-@param {Object} req Totem request
-@param {Function} res Totem response
-*/
-function sysTask (req,res) {  //< task sharding
-	const {query,body,sql,type,table,url} = req;
-	const {task,domains,cb,client,credit,name,qos} = body;
-	
-	if ( type == "help" ) res(`
-Shard specified task to the compute nodes given task post parameters.
-`);
-	
-	else {
-		var 
-			$ = JSON.stringify({
-				worker: CLUSTER.isMaster ? 0 : CLUSTER.worker.id,
-				node: process.env.HOSTNAME
-			}),
-			engine = `(${cb})( (${task})(${$}) )`;
-
-		res( "ok" );
-
-		if ( task && cb ) 
-			doms.forEach( index => {
-
-				function runTask(idx) {
-					VM.runInContext( engine, VM.createContext( Copy( TOTEM.tasking || {}, idx) ));
-				}
-
-				if (qos) 
-					sql.queueTask( new Clock("totem", "second"), { // job descriptor 
-						index: Copy(index,{}),
-						//priority: 0,
-						Class: table,
-						Client: client,
-						Name: name,
-						Task: name,
-						Notes: [
-								table.tag("?",query).link( "/" + table + ".run" ), 
-								((credit>0) ? "funded" : "unfunded").link( url ),
-								"RTP".link( `/rtpsqd.view?task=${name}` ),
-								"PMR brief".link( `/briefs.view?options=${name}` )
-						].join(" || ")
-					}, (recs,job,res) => {
-						//Log("reg job" , job);
-						runTask( job.index );
-						res();
-					});
-
-				else
-					runTask( index );
-			});
-	}
-}
-
-/**
-Endpoint to validate clients response to an antibot challenge.
-
-@param {Object} req Totem session request
-@param {Function} res Totem response callback
-*/
-function sysChallenge (req,res) {
-	const 
-		{ query, sql, type, body, action } = req,
-		{ client , guess } = (action=="select") ? query : body;
-	
-	Log(client,guess);
-	
-	if ( type == "help" ) res(`
-Validate session id=client guess=value.
-`);
-	
-	else
-	if (client && guess)
-		SECLINK.testClient( client, guess, pass => res(pass) );
-
-	else
-		res( "no admission credentials provided" );
-}
-
-/*
-function sysLogin(req,res) {
-	const 
-		{ sql, query, type, profile, body, action, client } = req,
-		{ account, password, option } = (action == "select") ? query : body;
-	
-	if ( type == "help" )
-		return res( `
-Login, request password reset, make temp account, return online users, mane an account using option = 
-login||reset||temp||make with the specified account=NAME and password=TEXT.
-` );
-
-	Log(account,password,option);
-
-	switch ( option ) {
-		case "keys":
-			const 
-				keys = {};
-			
-			sql.query("SELECT Client,pubKey FROM openv.profiles WHERE Online")
-			.on("result", rec => keys[rec.Client] = rec.pubKey )
-			.on("end", () => res( keys ) );
-		
-			break;
-			
-		default:
-			res({
-				message: "bad account/password",
-			});
-	}
-
-}
-*/
 
 [  //< date prototypes
 ].Extend(Date);
@@ -3345,26 +2732,6 @@ login||reset||temp||make with the specified account=NAME and password=TEXT.
 
 async function prime(cb) {
 	cb();
-}
-
-async function LexisNexisTest(N,endpt,R,cb) {
-	const start = new Date(), {random,trunc} = Math;
-	var done = 0;
-	Log(start);
-	for ( var n=0; n<N; n++) 
-		Fetch(endpt + (R?trunc(random()*R):""), res => {
-			//Log(n,done,N);
-			if ( ++done == N ) {
-				var 
-					stop = new Date(),
-					mins = (stop-start)/1e3/60,
-					rate = N/mins;
-				
-				Log(stop, mins, "mins", rate, "searches/min");
-				
-				if (cb) cb(res);
-			}
-		});
 }
 
 switch (process.argv[2]) { //< unit tests
@@ -3649,7 +3016,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 	case "INGTD":
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
-				sql.ingestFile("./stores/_noarch/gtd.csv", {
+				sql.ingestFile("./public/stores/_noarch/gtd.csv", {
 					target: "gtd",
 					//limit: 10,
 					batch: 500,
@@ -3686,7 +3053,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 	case "INGTDSCITE":
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
-				sql.ingestFile("./stores/_noarch/gtdscite.csv", {
+				sql.ingestFile("./public/stores/_noarch/gtdscite.csv", {
 					target: "gtd",
 					//limit: 10,
 					batch: 500,
@@ -3702,7 +3069,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 	case "INMEX":
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
-				sql.ingestFile("./stores/_noarch/centam.csv", {
+				sql.ingestFile("./public/stores/_noarch/centam.csv", {
 					keys: "Criminal_group varchar(32),_Year int(11),Outlet_name varchar(32),Event varchar(32),Rival_group varchar(32),_Eventid varchar(8)",
 					batch: 500,
 					//limit: 1000
@@ -3820,56 +3187,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		});
 
 		break;
-			
-	
-	case "LN1":
-		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph');
-		break;
-		
-	case "LN2":
-		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph&$expand=Document');
-		break;
 
-	case "LN3":
-		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph');
-		break;
-			
-	case "LN4":
-		LexisNexisTest(1, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph', 0, res => {
-			//Log("res=>", res);
-			var r = JSON.parse(res);
-			//Log( Object.keys(r) );
-			if ( rec = r.value[0] ) 
-				Log( "fetch docendpt >>>>", rec['DocumentContent@odata.mediaReadLink'] , Object.keys(rec), rec.Overview, rec.Date );
-			
-			Fetch( 'lex://services-api.lexisnexis.com/v1/' + rec['DocumentContent@odata.mediaReadLink'] , doc => {
-				//    'lexis://services-api.lexisnexis.com/v1/MEDIALINK
-				Log( "doc=>", doc );
-			});
-			
-		});
-		break;
-
-	case "LN5":
-		Fetch( 'lexis://services-api.lexisnexis.com/v1/News?$search=rudolph', doc => {
-			Log( "doc=>", doc );
-		});
-		break;
-		
-	case "XX":
-		"testabc; testdef;".replaceSync(/test(.*?);/g, (args,cb) => {
-			//console.log(args);
-			
-			if ( cb ) 
-				Fetch( "http://localhost:8080/nets.txt?x:=Name", txt => {
-					//console.log("fetch", args, txt);
-					cb( "#"+args[1] );
-					//cb( "#"+txt );
-				});
-			
-			else
-				console.log("final", args); 
-		});
 }
 
 // UNCLASSIFIED
