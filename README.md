@@ -32,7 +32,7 @@ and the `stores | shares` file AREAs for sharing static files.
 
 ## Installation
 
-### Local Machine
+### Local Machine Install
 
 Clone **TOTEM** from one of its repos:
 
@@ -60,7 +60,7 @@ Dependent modules:
 + SOCKETIO [WWW](https://github.com/totemstan/socketio)  [COE](https://sc.appdev.proj.coe/acmesds/socketio)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
 + JSDB [WWW](https://github.com/totemstan/jsdb)  [COE](https://sc.appdev.proj.coe/acmesds/jsdb)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
 
-### Federated
+### Federated Install
 
 Simply install and start its [federated docker image](https://github.com/totemstan/dockify). 
 
