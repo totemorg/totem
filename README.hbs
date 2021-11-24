@@ -43,13 +43,23 @@ and define its env vars:
 	MYSQL_HOST = domain name
 	MYSQL_USER = user name
 	MYSQL_PASS = user password
+	
+	NEO4J_HOST = bolt://DOMAIN:PORT
+	NEO4J_USER = user name
+	NEO4J_PASS = user password
+
 	SERVICE_PASS = passphrase to server pki cert
+	
 	SERVICE_WORKER_URL = http(s)://DOMAIN:PORT
 	SERVICE_MASTER_URL = http(s)://DOMAIN:PORT
+	
 	SHARD0 = http(s)://DOMAIN:PORT
 	SHARD1 = http(s)://DOMAIN:PORT
 	SHARD2 = http(s)://DOMAIN:PORT
 	SHARD3 = http(s)://DOMAIN:PORT
+
+	GPUHOST = USER@DOMAIN
+	GUIHOST = USER@DOMAIN
 
 Dependent modules:
 
