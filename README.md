@@ -30,9 +30,7 @@ By default, **TOTEM** provides `db | xml | csv | json` TYPEs for converting DATA
 `riddle | task | ping` COMMANDs for validating a session, sharding tasks,
 and the `stores | shares` file AREAs for sharing static files.
 
-## Installation
-
-### Local Machine Install
+## Local Installation
 
 Clone **TOTEM** from one of its repos:
 
@@ -60,7 +58,7 @@ Dependent modules:
 + SOCKETIO [WWW](https://github.com/totemstan/socketio)  [COE](https://sc.appdev.proj.coe/acmesds/socketio)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
 + JSDB [WWW](https://github.com/totemstan/jsdb)  [COE](https://sc.appdev.proj.coe/acmesds/jsdb)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
 
-### Federated Install
+## Federated Installation
 
 Simply install and start its [federated docker image](https://github.com/totemstan/dockify). 
 
