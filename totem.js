@@ -2,9 +2,8 @@
 
 /**
 
-Provides a [barebones web service]{@link https://github.com/totemstan/totem}.
-
-This module documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
+Provides a [barebones web service]{@link https://github.com/totemstan/totem}.  This module documented 
+in accordance with [jsdoc]{@link https://jsdoc.app/}.
 
 @module TOTEM
 
