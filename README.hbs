@@ -70,7 +70,12 @@ Dependent modules:
 
 ## Federated Installation
 
-Simply install and start its [federated docker image](https://github.com/totemstan/dockify). 
+Simply install and start its federated docker image (
+[WWW](https://github.com/totemstan/dockify) 
+[COE](https://sc.appdev.proj.coe/acmesds/dockify)
+[SBU](https://gitlab.west.nga.ic.gov/acmesds/dockify)
+).
+
 
 ## Manage 
 
