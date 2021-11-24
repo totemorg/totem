@@ -11,6 +11,35 @@ export MODULE=`basename $HERE`
 
 case "$1." in
 
+build_conda.)
+	cd /local
+	bash installs/Anaconda3-2020.11-Linux-x86_64.sh -b -p /local/anaconda3-2020.11
+	ln -s anaconda3-2020.11 anaconda
+	;;
+
+build_caffe.)
+	cd /local
+	cp -r prime/boost boost
+	cp -r prime/cuda-7.0 cuda-7.0
+	cp -r prime/hdf5 hdf5
+	cp -r prime/snappy snappy
+	cp -r prime/lib lib
+	cp -r prime/lib64 lib64
+	cp -r prime/protobuf protobuf
+	cp -r prime/atlas atlas
+	cp -r prime/bin bin
+	cp -r prime/cuDNN cuDNN
+	cp -r prime/glog glog
+	cp -r prime/lmdb lmdb
+	cp -r prime/leveldb leveldb
+	cp -r prime/gflags gflags
+	cp -r prime/caffe caffe
+	;;
+
+build_cesium.)
+	cp -r prime/cesium cesium
+	;;
+	
 gnome.)
 	gsettings set org.gnome.desktop.session idle-delay 0
 	gsettings set org.gnome.desktop.lockdown disable-lock-screen 'true'

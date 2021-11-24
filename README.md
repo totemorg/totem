@@ -32,13 +32,13 @@ and the `stores | shares` file AREAs for sharing static files.
 
 ## Installation
 
-Clone **TOTEM** from one of its repos:
+Simply clone **TOTEM** from one of its repos:
 
 	git clone https://github.com/totemstan/totem
 	git clone https://sc.appdev.proj.coe/acmesds/totem
 	git clone https://gitlab.west.nga.ic.gov/acmesds/totem
 
-or simply install and start its [federated docker image](https://github.com/totemstan/dockify). 
+or install and start its [federated docker image](https://github.com/totemstan/dockify). 
 
 ## Manage 
 
@@ -1085,23 +1085,27 @@ Totem response callback.
 ## Contacting, Contributing, Following
 
 Feel free to 
-submit and status **TOTEM** issues (
+* submit and status **TOTEM** issues (
 [WWW](http://totem.zapto.org/issues.view) 
 [COE](https://totem.west.ile.nga.ic.gov/issues.view) 
 [SBU](https://totem.nga.mil/issues.view)
-), contribute to **TOTEM** notebooks (
+)  
+* contribute to **TOTEM** notebooks (
 [WWW](http://totem.zapto.org/shares/notebooks/) 
 [COE](https://totem.west.ile.nga.ic.gov/shares/notebooks/) 
 [SBU](https://totem.nga.mil/shares/notebooks/)
-), revise **TOTEM** requirements (
+)  
+* revise **TOTEM** requirements (
 [WWW](http://totem.zapto.org/reqts.view) 
 [COE](https://totem.west.ile.nga.ic.gov/reqts.view) 
 [SBU](https://totem.nga.mil/reqts.view), 
-), browse **TOTEM** holdings (
+)  
+* browse **TOTEM** holdings (
 [WWW](http://totem.zapto.org/) 
 [COE](https://totem.west.ile.nga.ic.gov/) 
 [SBU](https://totem.nga.mil/)
-), or follow **TOTEM** milestones (
+)  
+* or follow **TOTEM** milestones (
 [WWW](http://totem.zapto.org/milestones.view) 
 [COE](https://totem.west.ile.nga.ic.gov/milestones.view) 
 [SBU](https://totem.nga.mil/milestones.view)

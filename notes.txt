@@ -786,6 +786,8 @@ Finally, start the Docker service:
 # docker compose install
 	sudo curl -L https://github.com/docker/compose/releases/download/1.22.0-rc1/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
 
+# redirect docker /var/lib/docker image location https://blog.adriel.co.nz/2018/01/25/change-docker-data-directory-in-debian-jessie/
+
 # refs
 # https://docker-curriculum.com/
 # https://docs.docker.com/engine/reference/commandline/build/
@@ -1600,6 +1602,8 @@ Python (optional): if you use the default Python you will need to sudo yum insta
 # https://docs.anaconda.com/anaconda/install/linux/
 # https://repo.anaconda.com/archive/
 ############
+
+bash Anaconda3-2020.11-Linux-x86_64.sh -b -p /local/anaconda3-2020.11
 
 sh /Anaconda-xxxx.sh
 # place install at /local/anaconda-xxxx
