@@ -6,30 +6,157 @@
 #
 
 export HERE=`pwd`
-export MODULES=(totem atomic certs geohack flex enums reader debe pipe jsdb man randpr liegroup securelink socketio)
-export MODULE=`basename $HERE`
 
 case "$1." in
 
-env_config.)
-	# To run service
-
-	export SERVICE_MASTER_URL=http://localhost:8080
-	export SERVICE_WORKER_URL=https://localhost:8081
+debe_config.)
+	# specific geonode client
+	export PUBLIC=./public					# public path
+	export ADMIN=$HERE/admins 				# admin stuff, checkpoints
+	export TEMP=$HERE/tmp/					# temp files
+	export DB=$PUBLIC/dbs/					# training images
+	export DETS=$PUBLIC/dets/ 				# trained detectors
+	export PROOFS=$PUBLIC/cars/ver0/ 			# unmodulated/unrotated images for testing
+	#export SCRIPTS=$HERE/clients/extjs/packages/ext-locale/build/ext-locale-
+	export THEMES=$HERE/clients/themes
+	
 	export TXMAIL_HOST=smtp.comcast.net:587
 	export TXMAIL_USER=brian.d.james:COMCASTsnivel1
 	export RXMAIL_HOST=
 	export RXMAIL_USER=
 
+	export INDEX= #data/nlp.json  			# reader nlp indexing save path
+	export SCAN=$HERE/node_modules/reader/jquery-1.7.1.min.js 	# web site scanners
+
+	export XLATE=$HERE/node_modules/i18n-abide/examples/express3/i18n	# I18N translation folder
+	export PATH=$PATH:$NODE/bin
+
+	export REPO=http://github.com:stansds
+	export JIRA=http://jira.tbd
+	export RAS=http://ras.tbd
+	export BY=https://research.nga.ic.gov
+
+	;;
+	
+geohack_conifg.)
+	# IDOP conversion utilities
+	export IVA=$BASE/iva
+	export GDAL=$BASE/gdal
+	#export IVA=/rroc/data/giat/iva			# IDOP conversion utilities
+	;;
+	
+system_config.)
+	export BASE=/local
+	export MODULES=(totem atomic certs geohack flex enums reader debe pipe jsdb man randpr liegroup securelink socketio)
+	export MODULE=`basename $HERE`
+	
+	# initialize dev/prod paths
+	export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin
+	export GITUSER=totemstan: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
+	export REPO=https://$GITUSER@github.com/totemstan
+
+	# NodeJS  
+	export PATH=$PATH:$NODE/bin
+	export NODE=$BASE/nodejs
+	export NODELIB=$NODE/lib/node_modules
+	export node_path=./node_modules
+
+	# Python
+	export CONDA=$BASE/atomconda
+	export PYTHONHOME=$CONDA
+	export PYTHONPATH=$BASE/caffe/python:$PYTHON/:$PYTHON/site-packages:$BASE/service/atomic
+	
+	;;
+	
+jsdb_config.)
+	# MYSQL
+	export MYSQL=$BASE/mysql
+	export PATH=$MYSQL/bin:$PATH
+	export MYSQL_USER=root
+	export MYSQL_NAME=app
+	export MYSQL_HOST=localhost
+	export ODBC_NAME=totem-app
+	export ODBC_USER=ileuser
+
+	# NEO4J
+	export NEO4J_HOST="bolt://localhost" # "http://root:NGA@localhost:7474"
+	export NEO4J_USER="neo4j"
+	
+	;;
+
+totem_config.)
+	# POCs
+	#export ADMIN="admin_tbd@nga.mil"
+	#export OVERLORD="overlord_tbd@nga.mil"
+	#export SUPER="supervisor_tbd@nga.mil"
+
+	# doc and dev tools
+	export PATH=/opt/cmake:$PATH 			# latest cmake
+	#export PATH=$BASE/oxygen/bin:$PATH    	# doxygen code documenter if needed (jsduck used)
+	#export PATH=$PATH:/usr/local/share/gems/gems/jsduck-5.3.4/bin 	# for jsduck
+
+	# To run service
+
+	export SERVICE_MASTER_URL=http://localhost:8080
+	export SERVICE_WORKER_URL=https://localhost:8081
+
+	# docker
+	export GPU="--device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm"
+	export VOL="--volume /local:/base --volume /home/jamesdb/installs:/installs --volume /usr/lib64:/usr/lib64"
+	export NET="--net host"
+	export RUN="run -it $GPU $VOL $NET"
+	export RUND="$RUN -d"
+
+	# gpu support
+	case "$(hostname)." in
+	awshigh.)  # AWS
+		export USER=jamesdb
+		export GPUHOST=$USER@swag-gpu-01
+		export GUIHOST=$USER@swag-ws-02
+		;;
+
+	ilehigh.) 	# ILE high
+		export USER=jamesbd
+		export GPUHOST=giatstlgui01.innovision.local
+		export GUIHOST=giatstlgui01.innovision.local
+		;;
+
+	wsn3303.)  # ILE low
+		export USER=jamesbd
+		export GPUHOST=wsn3303
+		export GUIHOST=wsn3303
+		;;
+
+	acmesds.)  # dev
+		export USER=mystery
+		export GPUHOST=
+		export GUIHOST=
+
+	esac
+
+	# define server domains
+	#export SERVICE_NAME=Totem1
+	export SERVICE_MASTER_URL=http://localhost:8080
+	export SERVICE_WORKER_URL=https://localhost:8081
+
+	#export SERVICE_WORKER_URL=https://localhost:8443
+	#export SERVICE_WORKER_URL=http://localhost:8081  # in debug mode
+
+	# PRM doc interface
+	#export DUCK=/media/sf_vmshare/ducksrc
+
+	# define passwords
+	source ./_pass.sh
+
+	;;
+	
+atomic_config.)
 	# To link atomic with caffe, anaconda python, and opencv
 
 	export CONDA=$BASE/atomconda
 	export LIB=$BASE/lib64
 	
 	export PYLINK=$CONDA
-	export PYTHONHOME=$CONDA
-	export PYTHONPATH=$BASE/caffe/python:$PYTHON/:$PYTHON/site-packages:$BASE/service/atomic
-	
 	export PYTHON=$CONDA/bin/python2.7
 	export PYTHONINC=$CONDA/include/python2.7
 	export PYTHONLIB=$LIB/python/libpython2.7.so
@@ -67,6 +194,15 @@ env_config.)
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/protobuf
 	;;
 
+config.)
+	source ./maint.sh system_config
+	source ./maint.sh atomic_config
+	source ./maint.sh totem_config
+	source ./maint.sh jsdb_config
+	source ./maint.sh geohack_config
+	source ./maint.sh debe_config
+	;;
+	
 build_conda.)
 	cd /local
 	bash installs/Anaconda2-2019.10-Linux-x86_64.sh -g -p /local/anaconda2-2019.10

@@ -13,12 +13,12 @@ const
 	CLUSTER = require("cluster");
 
 module.exports = {
-/**
-Endpoint to test connectivity.
+	/**
+	Endpoint to test connectivity.
 
-@param {Object} req Totem request
-@param {Function} res Totem response
-*/
+	@param {Object} req Totem request
+	@param {Function} res Totem response
+	*/
 	ping: (req,res) => {
 		const 
 			{ client, site, type } = req,
@@ -30,12 +30,12 @@ Endpoint to test connectivity.
 		res( `Welcome ${client} to ${nick}` );
 	},
 
-/**
-Endpoint to shard a task to the compute nodes.
+	/**
+	Endpoint to shard a task to the compute nodes.
 
-@param {Object} req Totem request
-@param {Function} res Totem response
-*/
+	@param {Object} req Totem request
+	@param {Function} res Totem response
+	*/
 	task: (req,res) => {  //< task sharding
 		const {query,body,sql,type,table,url} = req;
 		const {task,domains,cb,client,credit,name,qos} = body;
@@ -84,12 +84,12 @@ Endpoint to shard a task to the compute nodes.
 			});
 	},
 
-/**
-Endpoint to validate clients response to an antibot challenge.
+	/**
+	Endpoint to validate clients response to an antibot challenge.
 
-@param {Object} req Totem session request
-@param {Function} res Totem response callback
-*/
+	@param {Object} req Totem session request
+	@param {Function} res Totem response callback
+	*/
 	riddle: (req,res) => {
 		const 
 			{ query, sql, type, body, action } = req,
