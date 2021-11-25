@@ -84,6 +84,6 @@ export SERVICE_WORKER_URL=https://localhost:8081
 #export DUCK=/media/sf_vmshare/ducksrc
 
 # define passwords
-source _pass.sh
+source ./_pass.sh
 
 # UNCLASSIFIED

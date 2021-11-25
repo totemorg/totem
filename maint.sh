@@ -11,10 +11,68 @@ export MODULE=`basename $HERE`
 
 case "$1." in
 
+env_config.)
+	# To run service
+
+	export SERVICE_MASTER_URL=http://localhost:8080
+	export SERVICE_WORKER_URL=https://localhost:8081
+	export TXMAIL_HOST=smtp.comcast.net:587
+	export TXMAIL_USER=brian.d.james:COMCASTsnivel1
+	export RXMAIL_HOST=
+	export RXMAIL_USER=
+
+	# To link atomic with caffe, anaconda python, and opencv
+
+	export CONDA=$BASE/atomconda
+	export LIB=$BASE/lib64
+	
+	export PYLINK=$CONDA
+	export PYTHONHOME=$CONDA
+	export PYTHONPATH=$BASE/caffe/python:$PYTHON/:$PYTHON/site-packages:$BASE/service/atomic
+	
+	export PYTHON=$CONDA/bin/python2.7
+	export PYTHONINC=$CONDA/include/python2.7
+	export PYTHONLIB=$LIB/python/libpython2.7.so
+	
+	#export PYTHON=$CONDA/bin/python3.8
+	#export PYTHONINC=$CONDA/include/python3.8
+	#export PYTHONLIB=$LIB/python/libpython3.8.so
+	
+	# Dev paths
+	export INC=$BASE/include
+	export INCLUDE=$INC
+	export PATH=$PATH:$INC/opencv:$BASE/opencv/bin
+	export CUDA=$BASE/cuda
+	export CAFFE=$BASE/caffe
+	export PATH=$CONDA/bin:$INC/python:$PATH
+
+	# others
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/opencv
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/python
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/jpeg
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/R/R
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/conda
+	
+	# caffe
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/boost
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/gflags
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/glog
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/lmdb
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/leveldb
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/hdf5
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/cuda
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/cuDNN
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/caffe
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/protobuf
+	;;
+
 build_conda.)
 	cd /local
-	bash installs/Anaconda3-2020.11-Linux-x86_64.sh -b -p /local/anaconda3-2020.11
-	ln -s anaconda3-2020.11 anaconda
+	bash installs/Anaconda2-2019.10-Linux-x86_64.sh -g -p /local/anaconda2-2019.10
+	ln -s anaconda2-2019.10 anaconda
+	#bash installs/Anaconda3-2020.11-Linux-x86_64.sh -b -p /local/anaconda3-2020.11
+	#ln -s anaconda3-2020.11 anaconda
 	;;
 
 build_caffe.)
@@ -103,7 +161,7 @@ all.)
 		cd /local/service/$mod
 			if test -f maint.sh; then
 				echo ">>>> $mod"
-				. maint.sh "$2" "$3" "$4"
+				source ./maint.sh "$2" "$3" "$4"
 			fi
 		cd ..
 
@@ -134,7 +192,7 @@ rebuild.)
 
 config.)
 	if test -f ./config.sh; then
-		. config.sh
+		source ./config.sh
 	fi
 	;;
 	
@@ -147,7 +205,7 @@ _configall.)
 			if test -f ../$mod/config.sh; then
 				echo "config $mod"
 				cd ../$mod
-					. config.sh
+					source ./config.sh
 				cd ../totem
 			fi
 
@@ -188,12 +246,12 @@ expand.)
 #
 
 dbrecover.)
-	source maint.sh mysql prime
+	source ./maint.sh mysql prime
 	;;
 
 dbstart.)
-	source maint.sh mysql start
-	source maint.sh neo4j start
+	source ./maint.sh mysql start
+	source ./maint.sh neo4j start
 	;;
 	
 neo4j.)
@@ -291,9 +349,9 @@ snapmap.)
 	;;
 	
 snap.)
-	source maint.sh snapdb
-	source maint.sh snapsrv
-	source maint.sh snapmap
+	source ./maint.sh snapdb
+	source ./maint.sh snapsrv
+	source ./maint.sh snapmap
 	;;
 	
 start_cesium.)
@@ -396,7 +454,7 @@ _prmget.)	# legacy jsduck host
 		
 _duckpush.)
 	# doxygen config.oxy
-	source maint.sh putduck totem
+	source ./maint.sh putduck totem
 	;;
 
 _duckpull.)
@@ -410,7 +468,7 @@ _docall.)
 	for mod in "${MODULES[@]}"; do
 
 		echo ">>>> $mod"
-		source maint.sh doc "$mod"1 "$mod"2
+		source ./maint.sh doc "$mod"1 "$mod"2
 
 	done
 	;;
