@@ -109,6 +109,18 @@ follow the ENUM deep copy conventions (
 [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
 ).
 
+## Modules
+
+<dl>
+<dt><a href="#module_TOTEM">TOTEM</a></dt>
+<dd><p>Provides a <a href="https://github.com/totemstan/totem">barebones web service</a>.  This module documented 
+in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
+</dd>
+<dt><a href="#module_ENDPTS">ENDPTS</a></dt>
+<dd><p>Provide TOTEM endpoints.</p>
+</dd>
+</dl>
+
 <a name="module_TOTEM"></a>
 
 ## TOTEM
@@ -1124,6 +1136,54 @@ Totem response callback.
 | Param | Type | Description |
 | --- | --- | --- |
 | text | <code>string</code> \| <code>error</code> | Response message or error |
+
+<a name="module_ENDPTS"></a>
+
+## ENDPTS
+Provide TOTEM endpoints.
+
+**Requires**: <code>module:securelink</code>, <code>module:enums</code>, <code>module:cluster</code>  
+
+* [ENDPTS](#module_ENDPTS)
+    * [.ping(req, res)](#module_ENDPTS.ping)
+    * [.task(req, res)](#module_ENDPTS.task)
+    * [.riddle(req, res)](#module_ENDPTS.riddle)
+
+<a name="module_ENDPTS.ping"></a>
+
+### ENDPTS.ping(req, res)
+Endpoint to test connectivity.
+
+**Kind**: static method of [<code>ENDPTS</code>](#module_ENDPTS)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem request |
+| res | <code>function</code> | Totem response |
+
+<a name="module_ENDPTS.task"></a>
+
+### ENDPTS.task(req, res)
+Endpoint to shard a task to the compute nodes.
+
+**Kind**: static method of [<code>ENDPTS</code>](#module_ENDPTS)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem request |
+| res | <code>function</code> | Totem response |
+
+<a name="module_ENDPTS.riddle"></a>
+
+### ENDPTS.riddle(req, res)
+Endpoint to validate clients response to an antibot challenge.
+
+**Kind**: static method of [<code>ENDPTS</code>](#module_ENDPTS)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem response callback |
 
 
 ## Contacting, Contributing, Following

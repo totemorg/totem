@@ -360,6 +360,7 @@ const
 	SECLINK = require("securelink"),			// secure com and login
 	{ sqlThread, neoThread } = JSDB = require("jsdb"),		// database agnosticator
 	  
+	ENDPTS = require("./endpts"),				// endpoints
 	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("enums");
 	  
 /**
@@ -826,6 +827,53 @@ Configure database, define site context, then protect, connect, start and initia
 @param {Function} cb callback(err) after service configured
 */
 	config: (opts,cb) => {
+		function addEndpoints(pts) {
+			
+			//const {host} = SECLINK;
+			const host = "http://localhost:8080";
+			
+			["create","select","update","delete","execute"].forEach( type => {
+				if ( endpts = pts[type] ) {
+					Log("add endpts", type);
+					Copy(endpts, byAction[type]);
+					delete pts[type];
+				}
+			});
+			
+			Copy(pts, byTable);
+			
+			if ( true ) // build endpoint docs					
+				Stream(byTable, {}, (val,skey,cb) => {	// system endpoints
+					Log("build doc", host, cb?"stream":"end", skey);
+					
+					if ( cb ) // streaming ... scan endpoint
+						if ( val.name == "sysNav" ) 
+							cb( "Navigator".replace(/\n/mg,"<br>") );
+
+						else
+							Fetch( `${host}/${skey}.help`, doc => {
+								Log(">>>>doc",skey,val.name, doc);
+								cb( `${skey}: ${doc}`.replace(/\n/mg,"<br>") );
+							});
+
+					else	// stream terminated ... scan notebooks
+					if ( false )
+						Fetch( `${host}/notebooks`, books => {	// notebook endpoints
+							JSON.parse(books).forEach( book => {
+								fkey.push( [
+									`${book.Name}:`, book.run, book.help, book.publish, book.get, book.brief
+								].join(" ") );
+							});
+
+							sql.query("UPDATE openv.apps SET ? WHERE ?", [{
+								Doc: skey.concat(fkey).join("<br>")
+							}, {
+								nick: site.nick
+							}]);
+						});
+				});
+		}
+		
 		/**
 		Setup (connect, start then initialize) a service that will handle its request-response sessions
 		with the provided agent(req,res).
@@ -1362,7 +1410,16 @@ Configure database, define site context, then protect, connect, start and initia
 
 		if (opts) Copy(opts, TOTEM, ".");
 
-		Copy( require("./public/endpts"), byTable );
+		//Copy( require("./public/endpts"), byTable );
+		addEndpoints(ENDPTS);
+		
+		try {
+			addEndpoints( require("./public/endpts") );
+		}
+		
+		catch (err) {
+			Log("No public endpoints defined");
+		}
 
 		const
 			{ name, setContext, routeRequest } = TOTEM;
@@ -1386,7 +1443,7 @@ Configure database, define site context, then protect, connect, start and initia
 			
 			else 
 				configService(routeRequest);				
-		});
+		});	
 	},
 
 	initialize: err => {
