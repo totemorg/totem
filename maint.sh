@@ -38,7 +38,7 @@ debe_config.)
 
 	;;
 	
-geohack_conifg.)
+geohack_config.)
 	# IDOP conversion utilities
 	export IVA=$BASE/iva
 	export GDAL=$BASE/gdal
@@ -146,7 +146,7 @@ totem_config.)
 	#export DUCK=/media/sf_vmshare/ducksrc
 
 	# define passwords
-	source ./_pass.sh
+	source totem/_pass.sh
 
 	;;
 	
