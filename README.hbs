@@ -20,8 +20,8 @@
 	+ data fetching with various protocols
 	+ smartcard reader
   
-**TOTEM** defines CRUD (POST, GET, PUT, DELETE) endpoint to access *DATASET*, 
-*FILE* or *COMMAND* endpoint *NODE*s:
+**TOTEM** defines CRUD (POST, GET, PUT, DELETE) endpoints (aka *NODE*s) to access *DATASET*s, 
+*FILE*s or *COMMAND*s:
 
 	DATASET.TYPE ? QUERY
 	AREA/PATH/FILE.TYPE ? QUERY
