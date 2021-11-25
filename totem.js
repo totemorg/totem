@@ -828,10 +828,6 @@ Configure database, define site context, then protect, connect, start and initia
 */
 	config: (opts,cb) => {
 		function addEndpoints(pts) {
-			
-			//const {host} = SECLINK;
-			const host = "http://localhost:8080";
-			
 			["create","select","update","delete","execute"].forEach( type => {
 				if ( endpts = pts[type] ) {
 					Log("add endpts", type);
@@ -841,10 +837,19 @@ Configure database, define site context, then protect, connect, start and initia
 			});
 			
 			Copy(pts, byTable);
+		}
+		
+		function docEndpoints(sql) {
 			
-			if ( true ) // build endpoint docs					
+			//const {host} = SECLINK;
+			const 
+				host = "http://localhost:8080",
+				docEditpoints = true,
+				docNotebooks = false;
+			
+			if ( docEditpoints ) // build endpoint docs			
 				Stream(byTable, {}, (val,skey,cb) => {	// system endpoints
-					Log("build doc", host, cb?"stream":"end", skey);
+					//Log("build doc", host, cb?"stream":"end", skey);
 					
 					if ( cb ) // streaming ... scan endpoint
 						if ( val.name == "sysNav" ) 
@@ -852,12 +857,12 @@ Configure database, define site context, then protect, connect, start and initia
 
 						else
 							Fetch( `${host}/${skey}.help`, doc => {
-								Log(">>>>doc",skey,val.name, doc);
+								//Log(">>>>doc",skey,"=>",doc);
 								cb( `${skey}: ${doc}`.replace(/\n/mg,"<br>") );
 							});
 
 					else	// stream terminated ... scan notebooks
-					if ( false )
+					if ( docNotebooks )
 						Fetch( `${host}/notebooks`, books => {	// notebook endpoints
 							JSON.parse(books).forEach( book => {
 								fkey.push( [
@@ -871,6 +876,13 @@ Configure database, define site context, then protect, connect, start and initia
 								nick: site.nick
 							}]);
 						});
+					
+					else
+						sql.query("UPDATE openv.apps SET ? WHERE ?", [{
+							Doc: skey.concat(skey).join("<br>")
+						}, {
+							nick: site.nick
+						}]);
 				});
 		}
 		
@@ -1079,6 +1091,8 @@ Configure database, define site context, then protect, connect, start and initia
 										});
 									});
 								}
+								
+								docEndpoints(sql);
 							}
 						});
 					}
