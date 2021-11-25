@@ -155,6 +155,7 @@ atomic_config.)
 
 	export CONDA=$BASE/atomconda
 	export LIB=$BASE/lib64
+	export NODE=$BASE/nodejs
 	
 	export PYLINK=$CONDA
 	export PYTHON=$CONDA/bin/python2.7
@@ -165,6 +166,15 @@ atomic_config.)
 	#export PYTHONINC=$CONDA/include/python3.8
 	#export PYTHONLIB=$LIB/python/libpython3.8.so
 	
+	# engine compile switches
+	if [ "`hostname`" == "$GPUHOST" ]; then
+		export HASGPU=1
+		export HASCAFFE=1
+	else
+		export HASGPU=0
+		export HASCAFFE=0
+	fi
+
 	# Dev paths
 	export INC=$BASE/include
 	export INCLUDE=$INC
@@ -172,6 +182,7 @@ atomic_config.)
 	export CUDA=$BASE/cuda
 	export CAFFE=$BASE/caffe
 	export PATH=$CONDA/bin:$INC/python:$PATH
+	export REBUILD="node-gyp rebuild --nodedir=$NODE"	# use "node-gyp $GYPTOPS" to override distro ref to inet
 
 	# others
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB
@@ -201,37 +212,6 @@ config.)
 	source ./maint.sh jsdb_config
 	source ./maint.sh geohack_config
 	source ./maint.sh debe_config
-	;;
-	
-build_conda.)
-	cd /local
-	bash installs/Anaconda2-2019.10-Linux-x86_64.sh -g -p /local/anaconda2-2019.10
-	ln -s anaconda2-2019.10 anaconda
-	#bash installs/Anaconda3-2020.11-Linux-x86_64.sh -b -p /local/anaconda3-2020.11
-	#ln -s anaconda3-2020.11 anaconda
-	;;
-
-build_caffe.)
-	cd /local
-	cp -r prime/boost boost
-	cp -r prime/cuda-7.0 cuda-7.0
-	cp -r prime/hdf5 hdf5
-	cp -r prime/snappy snappy
-	cp -r prime/lib lib
-	cp -r prime/lib64 lib64
-	cp -r prime/protobuf protobuf
-	cp -r prime/atlas atlas
-	cp -r prime/bin bin
-	cp -r prime/cuDNN cuDNN
-	cp -r prime/glog glog
-	cp -r prime/lmdb lmdb
-	cp -r prime/leveldb leveldb
-	cp -r prime/gflags gflags
-	cp -r prime/caffe caffe
-	;;
-
-build_cesium.)
-	cp -r prime/cesium cesium
 	;;
 	
 gnome.)

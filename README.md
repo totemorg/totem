@@ -20,15 +20,16 @@
 	+ data fetching with various protocols
 	+ smartcard reader
   
-**TOTEM** defines a CRUD (HTTP POST, GET, PUT, DELETE) to endpoint NODES for accessing datasets, files or services:
+**TOTEM** defines CRUD (POST, GET, PUT, DELETE) endpoint to access *DATASET*, 
+*FILE* or *COMMAND* endpoint *NODE*s:
 
 	DATASET.TYPE ? QUERY
 	AREA/PATH/FILE.TYPE ? QUERY
 	COMMAND.TYPE ? QUERY
 
-By default, **TOTEM** provides `db | xml | csv | json` TYPEs for converting DATASETs, 
-`riddle | task | ping` COMMANDs for validating a session, sharding tasks,
-and the `stores | shares` file AREAs for sharing static files.
+By default, **TOTEM** provides `db | xml | csv | json` *TYPE*s for converting *DATASET*s, 
+`riddle | task | ping` *COMMAND*s for validating a session, sharding tasks,
+and the `stores | shares` areas for sharing static *FILE*s.
 
 ## Local Installation
 
@@ -50,13 +51,13 @@ and define its env vars:
 
 	SERVICE_PASS = passphrase to server pki cert
 	
-	SERVICE_WORKER_URL = http(s)://DOMAIN:PORT
-	SERVICE_MASTER_URL = http(s)://DOMAIN:PORT
+	SERVICE_WORKER_URL = http://DOMAIN:PORT
+	SERVICE_MASTER_URL = http://DOMAIN:PORT
 	
-	SHARD0 = http(s)://DOMAIN:PORT
-	SHARD1 = http(s)://DOMAIN:PORT
-	SHARD2 = http(s)://DOMAIN:PORT
-	SHARD3 = http(s)://DOMAIN:PORT
+	SHARD0 = http://DOMAIN:PORT
+	SHARD1 = http://DOMAIN:PORT
+	SHARD2 = http://DOMAIN:PORT
+	SHARD3 = http://DOMAIN:PORT
 
 	GPUHOST = USER@DOMAIN
 	GUIHOST = USER@DOMAIN
