@@ -263,7 +263,7 @@ resync.)
 	for mod in ./*/; do
 		echo "syncing $mod"
 		cd $mod
-		git pull origin master
+		git pull $2 master
 		cd ..
 	done
 	;;
