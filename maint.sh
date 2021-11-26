@@ -263,6 +263,15 @@ pkg.)
 
 resync.)
 
+	for mod in ./*/; do
+		echo "syncing $mod"
+		cd $mod
+		git pull origin master
+		cd ..
+	done
+	;;
+	
+_resync.)
 	for mod in "${MODULES[@]}"; do
 
 		cd /local/service/$mod

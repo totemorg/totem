@@ -884,6 +884,9 @@ Configure database, define site context, then protect, connect, start and initia
 							nick: site.nick
 						}]);
 				});
+			
+			else
+				Log("Bypassing endpoint doc/scan");
 		}
 		
 		/**
