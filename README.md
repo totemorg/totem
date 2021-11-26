@@ -110,11 +110,9 @@ follow the ENUM deep copy conventions (
 ).
 
 <details>
-<h1>
 <summary>
-<i>Program Reference</i>
+<i><h1>Program Reference</i></h1>
 </summary>
-</h1>
 ## Modules
 
 <dl>
