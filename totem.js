@@ -393,6 +393,7 @@ const
 		byArea, byType, byAction, byTable, CORS,
 		defaultType, isTrusted,
 		$master, $worker, 
+		getBrick,
 		reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitRules,
 		filterRecords,routeDS, startDogs, cache } = TOTEM = module.exports = {
 	
@@ -470,15 +471,14 @@ validated and their session logged.
 							bytes = sock.bytesWritten;
 
 						sqlThread( sql => {
-							if (sql)
-								sql.query(logMetrics, [{
-									Delay: secs,
-									Transfer: bytes,
-									Event: started,
-									Dataset: "",
-									Actions: 1,
-									Client: _log.Client,
-								}, bytes, secs] );
+							sql.query(logMetrics, [{
+								Delay: secs,
+								Transfer: bytes,
+								Event: started,
+								Dataset: "",
+								Actions: 1,
+								Client: _log.Client,
+							}, bytes, secs] );
 						});
 					});
 				}
@@ -795,6 +795,7 @@ Error messages
 		badQuery: new Error("invalid query"),
 		badGroup: new Error("invalid group requested"),
 		lostConnection: new Error("client connection lost"),
+		badMethod: new Error("requesting invalid http method"),
 		noDB: new Error("database unavailable"),
 		noProfile: new Error("user profile could not be determined"),
 		failedUser: new Error("failed modification of user profile"),
@@ -813,7 +814,8 @@ Error messages
 		notAllowed: new Error("this endpoint is disabled"),
 		noID: new Error("missing record id"),
 		noSession: new Error("no such session started"),
-		noAccess: new Error("no access to master core at this endpoint")
+		noAccess: new Error("no access to master core at this endpoint"),
+		badLogin: new Error("invalid session credentials")
 	},
 
 	api: {
@@ -841,9 +843,8 @@ Configure database, define site context, then protect, connect, start and initia
 		
 		function docEndpoints(sql) {
 			
-			//const {host} = SECLINK;
 			const 
-				host = "http://localhost:8080",
+				host = ENV.SERVICE_MASTER_URL,
 				docEditpoints = false,
 				docNotebooks = false;
 			
@@ -886,7 +887,7 @@ Configure database, define site context, then protect, connect, start and initia
 				});
 			
 			else
-				Log("Bypassing endpoint doc/scan");
+				Trace("Bypassing endpoint doc/scan");
 		}
 		
 		/**
@@ -976,9 +977,11 @@ Configure database, define site context, then protect, connect, start and initia
 							}
 						});
 						
-					// The BUSY interface provides a means to limit client connections that would lock the 
-					// service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
-					// service attacks.  (Alas latest versions do not compile in latest NodeJS.)
+					/*
+					The BUSY interface provides a means to limit client connections that would lock the 
+					service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
+					service attacks.  (Alas latest versions do not compile in latest NodeJS.)
+					*/
 
 					if (BUSY && TOTEM.busyTime) BUSY.maxLag(TOTEM.busyTime);
 
@@ -1034,69 +1037,67 @@ Configure database, define site context, then protect, connect, start and initia
 							"POCS " + JSON.stringify(site.pocs)
 						].join("\n- ") );
 
-						sqlThread( sql => {	// get a sql connection
-							if (sql) {	// initialize file watcher
-								sql.query("UPDATE openv.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
+						sqlThread( sql => {	// initialize file watcher, proxies, watchdog and endpoints
+							sql.query("UPDATE openv.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
 
-								if ( dogs )		// start watch dogs
-									startDogs( sql, dogs );
+							if ( dogs )		// start watch dogs
+								startDogs( sql, dogs );
 
-								if ( proxies ) 	{ 	// setup rotating proxies
-									sql.query(	// out with the old
-										"DELETE FROM openv.proxies WHERE hour(timediff(now(),created)) >= 2");
+							if ( proxies ) 	{ 	// setup rotating proxies
+								sql.query(	// out with the old
+									"DELETE FROM openv.proxies WHERE hour(timediff(now(),created)) >= 2");
 
-									proxies.forEach( (proxy,src) => {	// in with the new
-										Fetch( proxy, html => {
-											//Log(">>>proxy", proxy, html.length);
-											var 
-												$ = SCRAPE.load(html),
-												now = new Date(),
-												recs = [];
+								proxies.forEach( (proxy,src) => {	// in with the new
+									Fetch( proxy, html => {
+										//Log(">>>proxy", proxy, html.length);
+										var 
+											$ = SCRAPE.load(html),
+											now = new Date(),
+											recs = [];
 
-											switch (proxy) {
-												case "https://free-proxy-list.net":
-												case "https://sslproxies.org":
-													var cols = {
-														ip: 1,
-														port: 2,
-														org: 3,
-														type: 5,
-														proto: 6
-													};
+										switch (proxy) {
+											case "https://free-proxy-list.net":
+											case "https://sslproxies.org":
+												var cols = {
+													ip: 1,
+													port: 2,
+													org: 3,
+													type: 5,
+													proto: 6
+												};
 
-													$("table").each( (idx,tab) => {
-														//Log("table",idx); 
-														if ( idx==0 )
-															for ( var key in cols ) {
-																if ( col = cols[key] )
-																	$( `td:nth-child(${col})`, tab).each( (i,v) => {
-																		if ( col == 1 ) recs.push( Copy(cols, {
-																			source: src,
-																			created: now
-																		}) );
-																		var rec = recs[i];
-																		rec[ key ] = $(v).text();
-																	}); 
-															}
-													}); 
-													break;
+												$("table").each( (idx,tab) => {
+													//Log("table",idx); 
+													if ( idx==0 )
+														for ( var key in cols ) {
+															if ( col = cols[key] )
+																$( `td:nth-child(${col})`, tab).each( (i,v) => {
+																	if ( col == 1 ) recs.push( Copy(cols, {
+																		source: src,
+																		created: now
+																	}) );
+																	var rec = recs[i];
+																	rec[ key ] = $(v).text();
+																}); 
+														}
+												}); 
+												break;
 
-												default:
-													Log("ignoring proxy", proxy);
-											}
+											default:
+												Log("ignoring proxy", proxy);
+										}
 
-											Log("SET PROXIES", recs);
-											recs.forEach( rec => {
-												sql.query(
-													"INSERT INTO openv.proxies SET ? ON DUPLICATE KEY UPDATE ?", 
-													[rec, {created: now, source:src}]);
-											});
+										Log("SET PROXIES", recs);
+										recs.forEach( rec => {
+											sql.query(
+												"INSERT INTO openv.proxies SET ? ON DUPLICATE KEY UPDATE ?", 
+												[rec, {created: now, source:src}]);
 										});
 									});
-								}
-								
-								docEndpoints(sql);
+								});
 							}
+
+							docEndpoints(sql);
 						});
 					}
 				}
@@ -1138,10 +1139,10 @@ Configure database, define site context, then protect, connect, start and initia
 
 				startServer( server, port, (Req,Res) => {		// start session
 					/**
-						Provide a request to the supplied session, or terminate the session if the service
-						is too busy.  Attaches a sql connection.
+					Provide a request to the supplied session, or terminate the session if the service
+					is too busy.  Attaches a sql connection.
 
-						@param {Function} ses session(req) callback accepting the provided request
+					@param {Function} ses session(req) callback accepting the provided request
 					*/
 					function startRequest( ses ) { 
 						function getSocket() {  //< returns suitable response socket depending on cross/same domain session
@@ -1171,32 +1172,36 @@ Configure database, define site context, then protect, connect, start and initia
 							case "DELETE":
 								getPost( post => {
 									//Log(">>>>post", post);
-									sqlThread( sql => {
-										//Log(Req.headers, Req.url);
-										
-										ses(null, {			// prime session request
-											cookie: Req.headers["cookie"] || "",
-											ipAddress: Req.connection.remoteAddress,
-											host: $master.protocol+"//"+Req.headers["host"],	// domain being requested
-											referer: Req.headers["referer"], 	// proto://domain used
-											agent: Req.headers["user-agent"] || "",	// requester info
-											sql: sql,	// sql connector
-											post: post, // raw post body
-											method: Req.method,		// get,put, etc
-											started: new Date(),  // Req.headers.Date,  // time client started request
-											action: crudIF[Req.method],	// crud action being requested
-											reqSocket: Req.socket,   // use supplied request socket 
-											resSocket: getSocket,		// attach method to return a response socket
-											encrypted: isEncrypted(),	// on encrypted worker
-											url: unescape( Req.url || "/" ),	// unescaped url
-											site: site			// site info
-											/*
-											There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
-											embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
-											unescapes to /\\"ABC\\".  This is ok but can be confusing.
-											*/
+									if ( sqlThread() )
+										sqlThread( sql => {
+											//Log(Req.headers, Req.url);
+
+											ses(null, {			// prime session request
+												cookie: Req.headers["cookie"] || "",
+												ipAddress: Req.connection.remoteAddress,
+												host: $master.protocol+"//"+Req.headers["host"],	// domain being requested
+												referer: Req.headers["referer"], 	// proto://domain used
+												agent: Req.headers["user-agent"] || "",	// requester info
+												sql: sql,	// sql connector
+												post: post, // raw post body
+												method: Req.method,		// get,put, etc
+												started: new Date(),  // Req.headers.Date,  // time client started request
+												action: crudIF[Req.method],	// crud action being requested
+												reqSocket: Req.socket,   // use supplied request socket 
+												resSocket: getSocket,		// attach method to return a response socket
+												encrypted: isEncrypted(),	// on encrypted worker
+												url: unescape( Req.url || "/" ),	// unescaped url
+												site: site			// site info
+												/*
+												There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
+												embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
+												unescapes to /\\"ABC\\".  This is ok but can be confusing.
+												*/
+											});
 										});
-									});
+									
+									else
+										ses( errors.noDB );
 								});
 								break;
 
@@ -1217,7 +1222,7 @@ Configure database, define site context, then protect, connect, start and initia
 								break;
 
 							default:
-								ses( new Error("invalid method") );
+								ses( errors.badMethod );
 						}
 					}
 
@@ -1226,10 +1231,10 @@ Configure database, define site context, then protect, connect, start and initia
 
 					startRequest( (err,req) => {  // start request if service not busy.
 						/**
-							Provide a response to a session after attaching cert, client, profile 
-							and session info to this request.  
+						Provide a response to a session after attaching cert, client, profile 
+						and session info to this request.  
 
-							@param {Function} cb connection accepting the provided response callback
+						@param {Function} cb connection accepting the provided response callback
 						*/
 						function startResponse( ses ) {  
 							if ( req.reqSocket )	// have a valid request socket so ....
@@ -2047,10 +2052,47 @@ Default paths to service files
 	},
 
 /**
-Get a file and make it if it does not exist
+Get (or create if needed) a file with callback cb(fileID, sql) if no errors
+
+@param {String} client owner of file
+@param {String} name of file to get/make
+@param {Function} cb callback(file, sql) if no errors
 @cfg {Function}
 */
-	getBrick: getBrick,
+		
+	getBrick: (client, name, cb) => {  
+		sqlThread( sql => {
+			sql.forFirst( 
+				"FILE", 
+				"SELECT ID FROM openv.files WHERE least(?,1) LIMIT 1", {
+					Name: name
+					//Client: client,
+					//Area: area
+				}, 
+				file => {
+
+					if ( file )
+						cb( file );
+
+					else
+						sql.forAll( 
+							"FILE", 
+							"INSERT INTO openv.files SET _State_Added=now(), ?", {
+								Name: name,
+								Client: client
+								// Path: filepath,
+								// Area: area
+							}, 
+							info => {
+								cb({
+									ID: info.insertId, 
+									Name: name,
+									Client: client
+								});
+							});
+				});	
+		});
+	},
 
 /**
 File uploader 
@@ -2180,11 +2222,10 @@ Stop the server.
 		
 function stopService() {
 	if (server = TOTEM.server)
-		server.close(function () {
-			Log("STOPPED");
-		});
+		server.close( () => Trace("SERVICE STOPPED") );
 	
-	sqlThread( sql => sql.end() );				  
+	else
+		Trace("SERVICE NEVER STARTED");
 }
 
 /**
@@ -2360,50 +2401,7 @@ function resolveClient(req,res) {
 		}
 		
 		else
-			res( new Error("must present an email cert") );
-	});
-}
-
-/**
-Get (or create if needed) a file with callback cb(fileID, sql) if no errors
-
-@param {String} client owner of file
-@param {String} name of file to get/make
-@param {Function} cb callback(file, sql) if no errors
-*/
-function getBrick(client, name, cb) {  
-
-	sqlThread( sql => {
-		if (sql)
-			sql.forFirst( 
-				"FILE", 
-				"SELECT ID FROM openv.files WHERE least(?,1) LIMIT 1", {
-					Name: name
-					//Client: client,
-					//Area: area
-				}, 
-				file => {
-
-					if ( file )
-						cb( file );
-
-					else
-						sql.forAll( 
-							"FILE", 
-							"INSERT INTO openv.files SET _State_Added=now(), ?", {
-								Name: name,
-								Client: client
-								// Path: filepath,
-								// Area: area
-							}, 
-							info => {
-								cb({
-									ID: info.insertId, 
-									Name: name,
-									Client: client
-								});
-							});
-				});	
+			res( errors.badLogin );
 	});
 }
 

@@ -87,6 +87,10 @@ jsdb_config.)
 	
 	;;
 
+seclink_config.)
+	export HOST_NAME=totem
+	;;
+	
 totem_config.)
 	# POCs
 	#export ADMIN="admin_tbd@nga.mil"
@@ -104,49 +108,41 @@ totem_config.)
 	export SERVICE_WORKER_URL=https://localhost:8081
 
 	# docker
-	export GPU="--device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm"
-	export VOL="--volume /local:/base --volume /home/jamesdb/installs:/installs --volume /usr/lib64:/usr/lib64"
-	export NET="--net host"
-	export RUN="run -it $GPU $VOL $NET"
-	export RUND="$RUN -d"
+	#export GPU="--device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm"
+	#export VOL="--volume /local:/base --volume /home/jamesdb/installs:/installs --volume /usr/lib64:/usr/lib64"
+	#export NET="--net host"
+	#export RUN="run -it $GPU $VOL $NET"
+	#export RUND="$RUN -d"
 
 	# gpu support
 	case "$(hostname)." in
-	awshigh.)  # AWS
-		export USER=jamesdb
-		export GPUHOST=$USER@swag-gpu-01
-		export GUIHOST=$USER@swag-ws-02
-		;;
+		awshigh.)  # AWS
+			export GPUHOST=jamesdb@swag-gpu-01
+			export GUIHOST=jamesdb@swag-ws-02
+			;;
 
-	ilehigh.) 	# ILE high
-		export USER=jamesbd
-		export GPUHOST=giatstlgui01.innovision.local
-		export GUIHOST=giatstlgui01.innovision.local
-		;;
+		ilehigh.) 	# ILE high
+			export GPUHOST=giatstlgui01.innovision.local
+			export GUIHOST=giatstlgui01.innovision.local
+			;;
 
-	wsn3303.)  # ILE low
-		export USER=jamesbd
-		export GPUHOST=wsn3303
-		export GUIHOST=wsn3303
-		;;
+		wsn3303.)  # ILE low
+			export GPUHOST=wsn3303
+			export GUIHOST=wsn3303
+			;;
 
-	acmesds.)  # dev
-		export USER=mystery
-		export GPUHOST=
-		export GUIHOST=
+		acmesds.)  # dev
+			export GPUHOST=
+			export GUIHOST=
 
 	esac
 
 	# define server domains
-	#export SERVICE_NAME=Totem1
 	export SERVICE_MASTER_URL=http://localhost:8080
 	export SERVICE_WORKER_URL=https://localhost:8081
 
 	#export SERVICE_WORKER_URL=https://localhost:8443
 	#export SERVICE_WORKER_URL=http://localhost:8081  # in debug mode
-
-	# PRM doc interface
-	#export DUCK=/media/sf_vmshare/ducksrc
 
 	# define passwords
 	source totem/_pass.sh
@@ -215,6 +211,7 @@ config.)
 	source ./maint.sh jsdb_config
 	source ./maint.sh geohack_config
 	source ./maint.sh debe_config
+	source ./maint.sh seclink_config
 	;;
 	
 gnome.)
