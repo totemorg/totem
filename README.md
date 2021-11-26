@@ -51,16 +51,15 @@ and define its env vars:
 
 	SERVICE_PASS = passphrase to server pki cert
 	
-	SERVICE_WORKER_URL = http://DOMAIN:PORT
-	SERVICE_MASTER_URL = http://DOMAIN:PORT
+	SERVICE_WORKER_URL = PROTO://DOMAIN:PORT
+	SERVICE_MASTER_URL = PROTO://DOMAIN:PORT
 	
-	SHARD0 = http://DOMAIN:PORT
-	SHARD1 = http://DOMAIN:PORT
-	SHARD2 = http://DOMAIN:PORT
-	SHARD3 = http://DOMAIN:PORT
+	SHARD0 = PROTO://DOMAIN:PORT
+	SHARD1 = PROTO://DOMAIN:PORT
+	SHARD2 = PROTO://DOMAIN:PORT
+	SHARD3 = PROTO://DOMAIN:PORT
 
-	GPUHOST = USER@DOMAIN
-	GUIHOST = USER@DOMAIN
+Passwords are defined in **TOTEM**'s `_pass.sh` script.
 
 Dependent modules:
 
@@ -77,13 +76,13 @@ Simply install and start its federated docker image (
 [SBU](https://gitlab.west.nga.ic.gov/acmesds/dockify)
 ).
 
-
 ## Manage 
 
 	npm test [ ? || T1 || T2 || ...]	# Run unit test
 	npm run redoc						# Update and distribute documentation
-	npm run config						# Configure environment
+	npm run config						# Configure passwords
 	npm run startdb						# Start the database servers
+	npm run start						# Start totem
 
 ## Usage
 
@@ -465,7 +464,6 @@ neoThread( neo => {
         * [.admitRules](#module_TOTEM.admitRules)
         * [.riddles](#module_TOTEM.riddles)
         * [.paths](#module_TOTEM.paths)
-        * [.getBrick](#module_TOTEM.getBrick)
         * [.uploadFile](#module_TOTEM.uploadFile)
         * [.busyTime](#module_TOTEM.busyTime)
         * [.cache](#module_TOTEM.cache)
@@ -476,13 +474,13 @@ neoThread( neo => {
                     * [~startServer(server, port, cb)](#module_TOTEM.config..configService..createServer..startServer)
         * [.runTask(opts, task, cb)](#module_TOTEM.runTask)
         * [.watchFile(path, callback)](#module_TOTEM.watchFile)
+        * [.getBrick(client, name, cb)](#module_TOTEM.getBrick)
         * [.setContext()](#module_TOTEM.setContext)
     * _inner_
         * [~parseXML(cb)](#module_TOTEM..parseXML) ⇐ <code>String</code>
         * [~stopService()](#module_TOTEM..stopService)
         * [~createCert(owner, password, cb)](#module_TOTEM..createCert)
         * [~resolveClient(req, res)](#module_TOTEM..resolveClient)
-        * [~getBrick(client, name, cb)](#module_TOTEM..getBrick)
         * [~uploadFile(client, source, sinkPath, tags, cb)](#module_TOTEM..uploadFile)
         * [~selectDS(req, res)](#module_TOTEM..selectDS)
         * [~insertDS(req, res)](#module_TOTEM..insertDS)
@@ -792,13 +790,6 @@ Default paths to service files
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="module_TOTEM.getBrick"></a>
-
-### TOTEM.getBrick
-Get a file and make it if it does not exist
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
 <a name="module_TOTEM.uploadFile"></a>
 
 ### TOTEM.uploadFile
@@ -984,6 +975,20 @@ Establish smart file watcher when file at area/name has changed.
 | path | <code>String</code> | to file being watched |
 | callback | <code>function</code> | cb(sql, name, path) when file at path has changed |
 
+<a name="module_TOTEM.getBrick"></a>
+
+### TOTEM.getBrick(client, name, cb)
+Get (or create if needed) a file with callback cb(fileID, sql) if no errors
+
+**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
+**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| client | <code>String</code> | owner of file |
+| name | <code>String</code> | of file to get/make |
+| cb | <code>function</code> | callback(file, sql) if no errors |
+
 <a name="module_TOTEM.setContext"></a>
 
 ### TOTEM.setContext()
@@ -1036,19 +1041,6 @@ a null `error` if the session was sucessfully validated.
 | --- | --- | --- |
 | req | <code>Object</code> | totem session request |
 | res | <code>TSR</code> | totem session responder |
-
-<a name="module_TOTEM..getBrick"></a>
-
-### TOTEM~getBrick(client, name, cb)
-Get (or create if needed) a file with callback cb(fileID, sql) if no errors
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>String</code> | owner of file |
-| name | <code>String</code> | of file to get/make |
-| cb | <code>function</code> | callback(file, sql) if no errors |
 
 <a name="module_TOTEM..uploadFile"></a>
 

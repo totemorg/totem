@@ -4,9 +4,9 @@
   "description": "bare essentials web service",
   "main": "totem.js",
   "scripts": {
-    "config": "vi ./config.sh ./pass.sh; source ./config.sh",
-    "test": "node totem.js ",
-    "startdb": "maint.sh mysql start",
+    "config": "vi ./_pass.sh; source ./_pass.sh",
+    "start": "node totem.js T3",
+    "startdb": "source ./maint.sh mysql start",
     "redoc": "jsdoc2md --template README.hbs --files totem.js endpts.js >README.md; git commit -am 'redoc'; git  push agent master"
   },
   "author": "ACME SDS",

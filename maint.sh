@@ -51,9 +51,14 @@ system_config.)
 	export MODULE=`basename $HERE`
 	
 	# initialize dev/prod paths
-	export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin
+	export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin:/local/cmake/bin
 	export GITUSER=totemstan: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
 	export REPO=https://$GITUSER@github.com/totemstan
+
+	# doc and dev tools
+	#export PATH=/opt/cmake:$PATH 			# latest cmake
+	#export PATH=$BASE/oxygen/bin:$PATH    	# doxygen code documenter if needed (jsduck used)
+	#export PATH=$PATH:/usr/local/share/gems/gems/jsduck-5.3.4/bin 	# for jsduck
 
 	# R
 	export R_libs=/usr/lib64/R/library/
@@ -88,7 +93,7 @@ jsdb_config.)
 	;;
 
 seclink_config.)
-	export HOST_NAME=totem
+	export DOMAIN_NAME=totem
 	;;
 	
 totem_config.)
@@ -97,16 +102,6 @@ totem_config.)
 	#export OVERLORD="overlord_tbd@nga.mil"
 	#export SUPER="supervisor_tbd@nga.mil"
 
-	# doc and dev tools
-	export PATH=/opt/cmake:$PATH 			# latest cmake
-	#export PATH=$BASE/oxygen/bin:$PATH    	# doxygen code documenter if needed (jsduck used)
-	#export PATH=$PATH:/usr/local/share/gems/gems/jsduck-5.3.4/bin 	# for jsduck
-
-	# To run service
-
-	export SERVICE_MASTER_URL=http://localhost:8080
-	export SERVICE_WORKER_URL=https://localhost:8081
-
 	# docker
 	#export GPU="--device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm"
 	#export VOL="--volume /local:/base --volume /home/jamesdb/installs:/installs --volume /usr/lib64:/usr/lib64"
@@ -114,30 +109,7 @@ totem_config.)
 	#export RUN="run -it $GPU $VOL $NET"
 	#export RUND="$RUN -d"
 
-	# gpu support
-	case "$(hostname)." in
-		awshigh.)  # AWS
-			export GPUHOST=jamesdb@swag-gpu-01
-			export GUIHOST=jamesdb@swag-ws-02
-			;;
-
-		ilehigh.) 	# ILE high
-			export GPUHOST=giatstlgui01.innovision.local
-			export GUIHOST=giatstlgui01.innovision.local
-			;;
-
-		wsn3303.)  # ILE low
-			export GPUHOST=wsn3303
-			export GUIHOST=wsn3303
-			;;
-
-		acmesds.)  # dev
-			export GPUHOST=
-			export GUIHOST=
-
-	esac
-
-	# define server domains
+	# define service url
 	export SERVICE_MASTER_URL=http://localhost:8080
 	export SERVICE_WORKER_URL=https://localhost:8081
 
@@ -165,15 +137,52 @@ atomic_config.)
 	#export PYTHONINC=$CONDA/include/python3.8
 	#export PYTHONLIB=$LIB/python/libpython3.8.so
 	
-	# engine compile switches
-	if [ "`hostname`" == "$GPUHOST" ]; then
-		export HASGPU=1
-		export HASCAFFE=1
-	else
-		export HASGPU=0
-		export HASCAFFE=0
-	fi
+	# engine GPU compile switches
+	case "$(hostname)." in
+		awshigh.)  # AWS
+			export GPUHOST=jamesdb@swag-gpu-01
+			export GUIHOST=jamesdb@swag-ws-02
+			export HASGPU=1
+			export HASCAFFE=1
+			;;
 
+		ilehigh.) 	# ILE high
+			export GPUHOST=giatstlgui01.innovision.local
+			export GUIHOST=giatstlgui01.innovision.local
+			export HASGPU=1
+			export HASCAFFE=1
+			;;
+
+		wsn3303.)  # ILE low
+			export GPUHOST=wsn3303
+			export GUIHOST=wsn3303
+			export HASGPU=1
+			export HASCAFFE=1
+			;;
+
+		acmesds.)  # dev machine
+			export GPUHOST=
+			export GUIHOST=
+			export HASGPU=0
+			export HASCAFFE=0
+			;;
+			
+		docker.)	# dockerized container
+			export GPUHOST=
+			export GUIHOST=
+			export HASGPU=0
+			export HASCAFFE=0
+			;;
+			
+		*)
+			export GPUHOST=
+			export GUIHOST=
+			export HASGPU=0
+			export HASCAFFE=0
+			;;
+		
+	esac
+	
 	# Dev paths
 	export INC=$BASE/include
 	export INCLUDE=$INC
@@ -779,67 +788,70 @@ help.)	# some help
 	echo "	restyle css styles using css compass complier"
 	;;
 
-upnet.)
+net_restart.)
 	sudo /etc/init.d/network restart
-	;;
-
-uptest.)
-	sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o up.log start debe.js D1
-	;;
-
-up.) 		# bring up production service 
-
-	export SERVICE_NAME=Totem1
-	export SERVICE_MASTER_URL=http://localhost:80
-	export SERVICE_WORKER_URL=https://localhost:443
-
-	sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o up.log start debe.js D1
 	;;
 
 *)  	# start totem
 
 	case "$(hostname)." in
-	acmesds.)
-		DOMAIN=totem.hopto.org
-		;;
+		wsn3303.)
+			DOMAIN=totem.nga.mil
+			;;
+
+		awshigh.)
+			DOMAIN=totem.west.ile.nga.ic.gov
+			;;
+
+		ilehigh.)
+			DOMAIN=totem.west.ile.nga.ic.gov
+			;;
+
+		acmesds.)
+			DOMAIN=totem.hopto.org
+			;;
 		
-	wsn3303.)
-		DOMAIN=totem.nga.mil
-		;;
+		docker.)
+			DOMAIN=totem.hopto.org
+			;;
 
-	awshigh.)
-		DOMAIN=totem.west.ile.nga.ic.gov
-		;;
-
-	ilehigh.)
-		DOMAIN=totem.west.ile.nga.ic.gov
-		;;
+		*)
+			DOMAIN=unknown
 	esac
 	
 	case "$1." in 
-	prod.)	# multi core production
-		PROTO=https
-		PORT1=8080
-		PORT2=443
-		;;
-	
-	oper.|protected.|https.)	# single core
-		PROTO=https
-		PORT1=8443
-		PORT2=8080
-		;;
-	
-	
-	.|debug.|http.)
-		DOMAIN=localhost
-		PROTO=http
-		PORT1=8080
-		PORT2=8081
+		prod.)	# multi core production
+			PROTO=https
+			PORT1=8080
+			PORT2=443
+			;;
+
+		up.|protected.|https.)	# single core
+			PROTO=https
+			PORT1=8443
+			PORT2=8080
+			;;
+
+		oper.)
+			DOMAIN=localhost
+			PROTO=https
+			PORT1=80
+			PORT2=443
+			;;
+		
+		.|debug.|http.)
+			DOMAIN=localhost
+			PROTO=http
+			PORT1=8080
+			PORT2=8081
+			;;
 	esac
 	
 	# define service url
 	export SERVICE_MASTER_URL=$PROTO://$DOMAIN:$PORT1
 	export SERVICE_WORKER_URL=$PROTO://$DOMAIN:$PORT2
+	
+	echo "Running $DOMAIN_NAME on $SERVICE_MASTER_URL and $SERVICE_WORKER_URL"
 	
 	# define task sharding nodes
 	export SHARD0=$PROTO://$DOMAIN/task
@@ -847,9 +859,15 @@ up.) 		# bring up production service
 	export SHARD2=$PROTO://$DOMAIN/task
 	export SHARD3=$PROTO://$DOMAIN/task
 
-	cd /local/service/debe
-	node debe.js D1 $2 $3 $4 $5 
-	;;
+	case "$1." in 
+		oper.)
+			sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o debe.log start debe.js D1 $2 $3 $4 $5
+			;;
+		
+		*)
+			node debe.js D1 $2 $3 $4 $5 
+			;;
+	esac
 
 esac
 

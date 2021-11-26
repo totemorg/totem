@@ -51,16 +51,15 @@ and define its env vars:
 
 	SERVICE_PASS = passphrase to server pki cert
 	
-	SERVICE_WORKER_URL = http://DOMAIN:PORT
-	SERVICE_MASTER_URL = http://DOMAIN:PORT
+	SERVICE_WORKER_URL = PROTO://DOMAIN:PORT
+	SERVICE_MASTER_URL = PROTO://DOMAIN:PORT
 	
-	SHARD0 = http://DOMAIN:PORT
-	SHARD1 = http://DOMAIN:PORT
-	SHARD2 = http://DOMAIN:PORT
-	SHARD3 = http://DOMAIN:PORT
+	SHARD0 = PROTO://DOMAIN:PORT
+	SHARD1 = PROTO://DOMAIN:PORT
+	SHARD2 = PROTO://DOMAIN:PORT
+	SHARD3 = PROTO://DOMAIN:PORT
 
-	GPUHOST = USER@DOMAIN
-	GUIHOST = USER@DOMAIN
+Passwords are defined in **TOTEM**'s `_pass.sh` script.
 
 Dependent modules:
 
@@ -77,13 +76,13 @@ Simply install and start its federated docker image (
 [SBU](https://gitlab.west.nga.ic.gov/acmesds/dockify)
 ).
 
-
 ## Manage 
 
 	npm test [ ? || T1 || T2 || ...]	# Run unit test
 	npm run redoc						# Update and distribute documentation
-	npm run config						# Configure environment
+	npm run config						# Configure passwords
 	npm run startdb						# Start the database servers
+	npm run start						# Start totem
 
 ## Usage
 
