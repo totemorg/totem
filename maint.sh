@@ -282,7 +282,7 @@ _resync.)
 	done
 	;;
 
-all.)
+_all.)
 
 	for mod in "${MODULES[@]}"; do
 
@@ -318,7 +318,7 @@ rebuild.)
 	npm install lwip
 	;;
 
-config.)
+_config.)
 	if test -f ./config.sh; then
 		source ./config.sh
 	fi
