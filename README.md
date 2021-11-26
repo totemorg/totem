@@ -111,7 +111,7 @@ follow the ENUM deep copy conventions (
 
 <details>
 <summary>
-<h1>Program Reference</h1>
+<i><h1>Program Reference</h1></i>
 </summary>
 ## Modules
 
