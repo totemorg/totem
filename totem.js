@@ -844,7 +844,7 @@ Configure database, define site context, then protect, connect, start and initia
 			//const {host} = SECLINK;
 			const 
 				host = "http://localhost:8080",
-				docEditpoints = true,
+				docEditpoints = false,
 				docNotebooks = false;
 			
 			if ( docEditpoints ) // build endpoint docs			

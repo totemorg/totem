@@ -55,6 +55,9 @@ system_config.)
 	export GITUSER=totemstan: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
 	export REPO=https://$GITUSER@github.com/totemstan
 
+	# R
+	export R_libs=/usr/lib64/R/library/
+
 	# NodeJS  
 	export PATH=$PATH:$NODE/bin
 	export NODE=$BASE/nodejs
