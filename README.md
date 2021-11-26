@@ -109,6 +109,14 @@ follow the ENUM deep copy conventions (
 [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
 ).
 
+<details>
+<summary>
+<i>Program Ref</i>
+<a href="http://www.ironspider.ca/format_text/fontstyles.htm">
+Useful Source</a>
+</summary>
+
+
 ## Modules
 
 <dl>
@@ -1178,6 +1186,7 @@ Endpoint to validate clients response to an antibot challenge.
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem response callback |
 
+</details>
 
 ## Contacting, Contributing, Following
 
