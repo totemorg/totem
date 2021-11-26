@@ -79,7 +79,7 @@ Simply install and start its federated docker image (
 ## Manage 
 
 	npm test [ ? || T1 || T2 || ...]	# Run unit test
-	npm run redoc						# Update and distribute documentation
+	npm run redoc						# Update repo
 	npm run config						# Configure passwords
 	npm run startdb						# Start the database servers
 	npm run start						# Start totem
