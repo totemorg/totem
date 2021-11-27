@@ -112,7 +112,7 @@ follow the ENUM deep copy conventions (
 ## Program Reference
 <details>
 <summary>
-<i>Expand</i>
+<i>Open/Close</i>
 </summary>
 ## Modules
 
