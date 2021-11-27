@@ -394,7 +394,7 @@ const
 		byArea, byType, byAction, byTable, CORS,
 		defaultType, isTrusted,
 		$master, $worker, 
-		getBrick,
+		getBrick, initialize, routeRequest, setContext,
 		reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitRules,
 		filterRecords,routeDS, startDogs, cache } = TOTEM = module.exports = {
 	
@@ -816,7 +816,8 @@ Error messages
 		noID: new Error("missing record id"),
 		noSession: new Error("no such session started"),
 		noAccess: new Error("no access to master core at this endpoint"),
-		badLogin: new Error("invalid session credentials")
+		badLogin: new Error("invalid session credentials"),
+		isBusy: "BUSY"
 	},
 
 	api: {
@@ -937,7 +938,7 @@ Configure database, define site context, then protect, connect, start and initia
 
 		@param {Function} agent callback(req,res) to handle session request-response 
 		*/
-		function configService(agent) {  	//< configure, create, then start the server
+		function configService(init) {  	//< configure, create, then start the server
 
 			/**
 			Create and start the HTTP/HTTPS server.  If starting a HTTPS server, the truststore
@@ -956,9 +957,9 @@ Configure database, define site context, then protect, connect, start and initia
 				@param {Function} cb callback listener cb(Req,Res)
 				*/
 				
-				function startServer(server, port, cb) {	//< attach listener callback cb(Req,Res) to the specified port
+				function startServer(server, port, agent) {	//< attach listener callback cb(Req,Res) to the specified port
 					const 
-						{ routeRequest, secureLink, name, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM;
+						{ secureLink, name, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM;
 					
 					Log(`STARTING ${name}`);
 
@@ -995,12 +996,20 @@ Configure database, define site context, then protect, connect, start and initia
 							process.on(signal, () => Log( "SIGNALED", signal) );
 					}
 
-					TOTEM.initialize(null);	
-					
-					server.on("request", cb);
+					server.on("request", agent);
 
 					server.listen( port, () => {  	// listen on specified port
 						Log("LISTENING ON", port);
+						
+						if (sqlThread() )
+							sqlThread( sql => {
+								initialize( sql, sql => {
+									if (init) init(sql);	
+								});
+							});
+						
+						else
+							Trace( errors.noDB );
 					});
 
 					if (CLUSTER.isMaster)	{ // setup listener on master port
@@ -1135,17 +1144,17 @@ Configure database, define site context, then protect, connect, start and initia
 							rejectUnauthorized: true,
 							secureProtocol: 'TLSv1_2_method',
 							//secureOptions: CONS.SSL_OP_NO_TLSv1_0
-						})	// have encrypted services so start https service			
-						: HTTP.createServer();		// unencrpted services so start http service
+						})	// using encrypted services so use https 			
+						: HTTP.createServer();		  // using unencrpted services so use http 
 
-				startServer( server, port, (Req,Res) => {		// start session
+				startServer( server, port, (Req,Res) => {		// start server with provided req-res agent
 					/**
 					Provide a request to the supplied session, or terminate the session if the service
 					is too busy.  Attaches a sql connection.
 
 					@param {Function} ses session(req) callback accepting the provided request
 					*/
-					function startRequest( ses ) { 
+					function startRequest( ses ) { 		// start request and callback session cb
 						function getSocket() {  //< returns suitable response socket depending on cross/same domain session
 							if ( Req.headers.origin ) {  // cross domain session is in progress from master (on http) to its workers (on https)
 								Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
@@ -1228,178 +1237,179 @@ Configure database, define site context, then protect, connect, start and initia
 					}
 
 					if ( BUSY ? BUSY() : false )	// trap DNS attacks
-						return Res.end( "BUSY" );
+						Res.end( errors.isBusy );
 
-					startRequest( (err,req) => {  // start request if service not busy.
-						/**
-						Provide a response to a session after attaching cert, client, profile 
-						and session info to this request.  
+					else
+						startRequest( (err,req) => {  // start request if service not busy
+							/**
+							Provide a response to a session after attaching cert, client, profile 
+							and session info to this request.  
 
-						@param {Function} cb connection accepting the provided response callback
-						*/
-						function startResponse( ses ) {  
-							if ( req.reqSocket )	// have a valid request socket so ....
-								resolveClient(req, (err,profile) => {	// admit good client
-									
-									//Log("resolve", err);
-									
-									if ( err ) 
-										ses( err );
+							@param {Function} cb connection accepting the provided response callback
+							*/
+							function startResponse( ses ) {  	// start response using this session callback
+								if ( req.reqSocket )	// have a valid request socket so ....
+									resolveClient(req, (err,profile) => {	// admit good client
 
-									else {			// client accepted so start session
-										req.client = profile.Client;
-										req.profile = Copy( profile, {});
-									
-										const 
-											{ sql, client } = req,
-											{ addConnect } = sqls;
+										//Log("resolve", err);
 
-										ses(null, data => {  // Provide session response callback
+										if ( err ) 
+											ses( err );
 
-											function sendString( data ) {  // Send string - terminate sql connection
-												Res.end( data );
-											}
+										else {			// client accepted so start session
+											req.client = profile.Client;
+											req.profile = Copy( profile, {});
 
-											function sendError(err) {  // Send pretty error message - terminate sql connection
-												switch ( req.type ) {
-													case "html":
-													case "db":
-														Res.end( errors.pretty(err) );
-														break;
+											const 
+												{ sql, client } = req,
+												{ addConnect } = sqls;
 
-													default:
-														Res.end( err+"" );
+											ses(null, data => {  // Provide session response callback
+
+												function sendString( data ) {  // Send string - terminate sql connection
+													Res.end( data );
 												}
-											}
 
-											function sendObject(obj) {
-												try {
-													sendString( JSON.stringify(obj) );
+												function sendError(err) {  // Send pretty error message - terminate sql connection
+													switch ( req.type ) {
+														case "html":
+														case "db":
+															Res.end( errors.pretty(err) );
+															break;
+
+														default:
+															Res.end( err+"" );
+													}
 												}
-												catch (err) {  // infinite cycle
-													sendError( errors.badReturn );
-												}		
-											}
 
-											function sendRecords(recs) { // Send records via converter
-												if ( route = filterRecords[req.type] )  // process record conversions
-													route(recs, req, recs => {
-														if (recs) 
-															switch ( typeOf(recs) ) {
-																case "Error":
-																	sendError( recs );
-																	break;
-
-																case "String":
-																	sendString( recs );
-																	break;
-
-																case "Array":
-																case "Object":
-																default:
-																	sendObject( recs );
-															} 
-
-														else
-															sendError( errors.badReturn );
-													});
-
-												else 
-													sendObject( recs );
-											}
-
-											const
-												{ req } = Req,
-												{ sql } = req,
-												mimes = MIME.types,
-												mime = mimes[ isError(data||0) ? "html" : req.type ] || mimes.html;
-
-											// set appropriate headers to prevent http-parse errors when using master-worker proxy
-
-											/*
-											if ( req.encrypted )
-												Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
-											*/
-
-											try {
-												Res.setHeader("Content-Type", mime);
-
-												if ( CORS ) {	// support CORS
-													Res.setHeader("Access-Control-Allow-Origin", "*");
-													Res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-													Res.setHeader("Access-Control-Allow-Headers", '*');
-													Res.setHeader("Status", "200 OK");
-													Res.setHeader("Vary", "Accept");
+												function sendObject(obj) {
+													try {
+														sendString( JSON.stringify(obj) );
+													}
+													catch (err) {  // infinite cycle
+														sendError( errors.badReturn );
+													}		
 												}
+
+												function sendRecords(recs) { // Send records via converter
+													if ( route = filterRecords[req.type] )  // process record conversions
+														route(recs, req, recs => {
+															if (recs) 
+																switch ( typeOf(recs) ) {
+																	case "Error":
+																		sendError( recs );
+																		break;
+
+																	case "String":
+																		sendString( recs );
+																		break;
+
+																	case "Array":
+																	case "Object":
+																	default:
+																		sendObject( recs );
+																} 
+
+															else
+																sendError( errors.badReturn );
+														});
+
+													else 
+														sendObject( recs );
+												}
+
+												const
+													{ req } = Req,
+													{ sql } = req,
+													mimes = MIME.types,
+													mime = mimes[ isError(data||0) ? "html" : req.type ] || mimes.html;
+
+												// set appropriate headers to prevent http-parse errors when using master-worker proxy
 
 												/*
-												Experimental:
-												self.send_header('Content-Type', 'application/octet-stream')
+												if ( req.encrypted )
+													Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
 												*/
 
-												Res.statusCode = 200;
+												try {
+													Res.setHeader("Content-Type", mime);
 
-												if (data != null)
-													switch ( typeOf(data) ) {  // send based on its type
-														case "Error": 			// send error message
-															sendError( data );
-															break;
-
-														case "Array": 			// send data records 
-															sendRecords(data);
-															break;
-
-														case "String":  			// send message
-														case "Buffer":
-															sendString(data);
-															break;
-
-														case "Object":
-														default: 					// send data record
-															sendObject(data);
-															break;
+													if ( CORS ) {	// support CORS
+														Res.setHeader("Access-Control-Allow-Origin", "*");
+														Res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+														Res.setHeader("Access-Control-Allow-Headers", '*');
+														Res.setHeader("Status", "200 OK");
+														Res.setHeader("Vary", "Accept");
 													}
 
-												else
-													sendError( errors.noData );
-											}
+													/*
+													Experimental:
+													self.send_header('Content-Type', 'application/octet-stream')
+													*/
 
-											catch (err) {
-												Res.end();
-											}	
-										});	
-										
-										if ( addConnect )	// optional logging of connections
-											sql.query(addConnect, {
-												Client: client,
-												Message: "joined", //JSON.stringify(cert),
-												Joined: new Date()
-											});
-									}
+													Res.statusCode = 200;
+
+													if (data != null)
+														switch ( typeOf(data) ) {  // send based on its type
+															case "Error": 			// send error message
+																sendError( data );
+																break;
+
+															case "Array": 			// send data records 
+																sendRecords(data);
+																break;
+
+															case "String":  			// send message
+															case "Buffer":
+																sendString(data);
+																break;
+
+															case "Object":
+															default: 					// send data record
+																sendObject(data);
+																break;
+														}
+
+													else
+														sendError( errors.noData );
+												}
+
+												catch (err) {
+													Res.end();
+												}	
+											});	
+
+											if ( addConnect )	// optional logging of connections
+												sql.query(addConnect, {
+													Client: client,
+													Message: "joined", //JSON.stringify(cert),
+													Joined: new Date()
+												});
+										}
+									});
+
+								else 	// lost request socket for some reason so ...
+									res( new Error("socket lost") );
+							}
+
+							//Log("startReq", err);
+
+							if (err)
+								Res.end( errors.pretty( err ) );
+
+							else {
+								Req.req = req;
+								startResponse( (err,res) => {	// route the request on the provided response callback
+									//Log("startRes", err);
+
+									if ( err ) 
+										Res.end( errors.pretty( err ) );
+
+									else
+										routeRequest(req,res); 
 								});
-
-							else 	// lost request socket for some reason so ...
-								res( new Error("socket lost") );
-						}
-
-						//Log("startReq", err);
-						
-						if (err)
-							Res.end( errors.pretty( err ) );
-						
-						else {
-							Req.req = req;
-							startResponse( (err,res) => {	// route the request on the provided response callback
-								//Log("startRes", err);
-								
-								if ( err ) 
-									Res.end( errors.pretty( err ) );
-								
-								else
-									routeRequest(req,res); 
-							});
-						}
-					});
+							}
+						});
 				});
 			}
 
@@ -1445,7 +1455,7 @@ Configure database, define site context, then protect, connect, start and initia
 		}
 
 		const
-			{ name, setContext, routeRequest } = TOTEM;
+			{ name } = TOTEM;
 		
 		Log(`CONFIGURING ${name}`); 
 
@@ -1457,21 +1467,17 @@ Configure database, define site context, then protect, connect, start and initia
 		});
 
 		JSDB.config(null, sql => {
-			if (cb) cb(sql);
-			
 			if ( sql ) 
 				setContext(sql, () => {
-					configService(routeRequest);
+					configService(cb);
 				});
 			
 			else 
-				configService(routeRequest);				
+				configService(cb);
 		});	
 	},
 
-	initialize: err => {
-		Log( `INITIALIZING ${TOTEM.name}` );
-	},
+	initialize: (sql,init) => init(sql),
 	
 	queues: JSDB.queues, 	// pass along
 		
