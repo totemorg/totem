@@ -32,10 +32,6 @@ in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @requires toobusy-js
 @requires cheerio
 
-<details>
-<summary>
-<i>Examples</i>
-</summary>
 @example
 
 // npm test T1
@@ -333,7 +329,7 @@ neoThread( neo => {
 		});
 	});
 });	
-</details>
+
 */
 
 const	

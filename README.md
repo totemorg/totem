@@ -430,7 +430,6 @@ neoThread( neo => {
 		});
 	});
 });	
-</details>
 ```
 
 * [TOTEM](#module_TOTEM)
