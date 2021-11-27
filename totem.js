@@ -1134,7 +1134,7 @@ Configure database, define site context, then protect, connect, start and initia
 				});
 
 				const
-					server = isEncrypted() 
+					server = TOTEM.server = isEncrypted() 
 						? HTTPS.createServer({
 							passphrase: TOTEM.passEncrypted,		// passphrase for pfx
 							pfx: certs.totem.pfx,			// pfx/p12 encoded crt and key 
