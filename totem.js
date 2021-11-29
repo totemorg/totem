@@ -2227,12 +2227,17 @@ File cache
 Stop the server.
 */
 		
-function stopService() {
+function stopService(cb) {
 	if (server = TOTEM.server)
-		server.close( () => Trace("SERVICE STOPPED") );
+		server.close( () => {
+			Trace("SERVICE STOPPED");
+			if (cb) cb();
+		});
 	
-	else
+	else {
 		Trace("SERVICE NEVER STARTED");
+		if (cb) cb();
+	}
 }
 
 /**
