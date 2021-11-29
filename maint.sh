@@ -812,7 +812,7 @@ net_restart.)
 			DOMAIN=totem.hopto.org
 			;;
 		
-		docker.)
+		dockerhost.)
 			DOMAIN=totem.hopto.org
 			;;
 
