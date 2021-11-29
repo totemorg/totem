@@ -117,7 +117,8 @@ totem_config.)
 	#export SERVICE_WORKER_URL=http://localhost:8081  # in debug mode
 
 	# define passwords
-	source totem/_pass.sh
+	source totem/config/_pass.sh
+	source totem/host/_pass.sh
 
 	;;
 	

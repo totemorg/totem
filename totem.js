@@ -361,29 +361,27 @@ const
 	SECLINK = require("securelink"),			// secure com and login
 	{ sqlThread, neoThread } = JSDB = require("jsdb"),		// database agnosticator
 	  
-	ENDPTS = require("./endpts"),				// endpoints
 	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("enums");
 	  
-/**
-Parse XML string into json and callback cb(json) 
-
-@extends String
-@param {Function} cb callback( json || null if error )
-*/
-function parseXML(cb) {
-	XML2JS.parseString(this, function (err,json) {				
-		cb( err ? null : json );
-	});
-}
-
-/**
-Totem response callback.
-@callback TSR
-@param {string | error} text Response message or error
-*/
-
 [ //< String prototypes
-	parseXML
+	/**
+	Parse XML string into json and callback cb(json) 
+
+	@extends String
+	@param {Function} cb callback( json || null if error )
+	*/
+	function parseXML(cb) {
+		XML2JS.parseString(this, function (err,json) {				
+			cb( err ? null : json );
+		});
+	},
+	
+	function pickExisting() {
+		this.forEach( file => {
+			if ( FS.existsSync(file) ) return file;
+		});
+		return null;
+	}		
 ].Extend(String);
 
 // totem i/f
@@ -434,6 +432,22 @@ byActionTable then byAction routers.
 The provided response method accepts a string, an objects, an array, an error, or 
 a file-cache function and terminates the session's sql connection.  The client is 
 validated and their session logged.
+
+In phase3 of the session setup, the following is added to the req:
+
+	files: [...]		// list of files being uploaded
+	//canvas: {...}		// canvas being uploaded
+	query: {...} 		// raw keys from url
+	where: {...} 		// sql-ized query keys from url
+	body: {...}			// body keys from request 
+	flags: {...} 		// flag keys from url
+	index: {...}		// sql-ized index keys from url
+	path: "/[area/...]name.type"			// requested resource
+	area: "name"		// file area being requested
+	table: "name"		// name of sql table being requested
+	ds:	"db.name"		// fully qualified sql table
+	body: {...}			// json parsed post
+	type: "type" 		// type part 
 
 @cfg {Function}
 @param {Object} req session request
@@ -832,9 +846,9 @@ Configure database, define site context, then protect, connect, start and initia
 */
 	config: (opts,cb) => {
 		function addEndpoints(pts) {
-			["create","select","update","delete","execute"].forEach( type => {
+			paths.crud.forEach( type => {
 				if ( endpts = pts[type] ) {
-					Log("add endpts", type);
+					Log("add action endpts", type);
 					Copy(endpts, byAction[type]);
 					delete pts[type];
 				}
@@ -893,48 +907,11 @@ Configure database, define site context, then protect, connect, start and initia
 		}
 		
 		/**
-		Setup (connect, start then initialize) a service that will handle its request-response sessions
-		with the provided agent(req,res).
+		Configure (create, start then initialize) a service that will handle its request-response 
+		sessions.
 
-		The session request is constructed in the following phases:
-
-			// phase1 startRequest
-			host: "proto://domain:port"	// requested host 
-			cookie: "...."		// client cookie string
-			agent: "..."		// client browser info
-			ipAddress: "..."	// client ip address
-			referer: "proto://domain:port/query"	//  url during a cross-site request
-			method: "GET|PUT|..." 			// http request method
-			action: "select|update| ..."	// corresponding crude name
-			started: date		// date stamp when requested started
-			encrypted: bool		// true if request on encrypted server
-			post: "..."			// raw body text
-			url	: "/query"		// requested url path
-			reqSocket: socket	// socket to retrieve client cert 
-			resSocket: socket	// socket to accept response
-			sql: connector 		// sql database connector 
-			site: {...}			// site info
-			
-			// phase2 startResponse
-			log: {...}			// info to trap socket stats
-			client: "..."		// name of client from cert or "guest"
-			cert: {...} 		// full client cert
-
-			// phase3 routeRequest 
-			files: [...]		// list of files being uploaded
-			canvas: {...}		// canvas being uploaded
-			query: {...} 		// raw keys from url
-			where: {...} 		// sql-ized query keys from url
-			body: {...}			// body keys from request 
-			flags: {...} 		// flag keys from url
-			index: {...}		// sql-ized index keys from url
-			files: [...] 		// files uploaded
-			path: "/[area/...]name.type"			// requested resource
-			area: "name"		// file area being requested
-			table: "name"		// name of sql table being requested
-			ds:	"db.name"		// fully qualified sql table
-			body: {...}			// json parsed post
-			type: "type" 		// type part 
+		The session request is constructed in 3 phases: startRequest, startResponse, then routeRequest.
+		As these phases are performed, the request hash req is extended.
 
 		@param {Function} agent callback(req,res) to handle session request-response 
 		*/
@@ -955,8 +932,7 @@ Configure database, define site context, then protect, connect, start and initia
 				@param {Object} server server being started
 				@param {Numeric} port port number to listen on
 				@param {Function} cb callback listener cb(Req,Res)
-				*/
-				
+				*/				
 				function startServer(server, port, agent) {	//< attach listener callback cb(Req,Res) to the specified port
 					const 
 						{ secureLink, name, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM;
@@ -1149,8 +1125,26 @@ Configure database, define site context, then protect, connect, start and initia
 
 				startServer( server, port, (Req,Res) => {		// start server with provided req-res agent
 					/**
-					Provide a request to the supplied session, or terminate the session if the service
-					is too busy.  Attaches a sql connection.
+					Provide a request hash req to the supplied session, or terminate the session 
+					if the service is too busy.
+
+					In phase1 of session setup, the following is added to this req:
+
+						host: "proto://domain:port"	// requested host 
+						cookie: "...."		// client cookie string
+						agent: "..."		// client browser info
+						ipAddress: "..."	// client ip address
+						referer: "proto://domain:port/query"	//  url during a cross-site request
+						method: "GET|PUT|..." 			// http request method
+						action: "select|update| ..."	// corresponding crude name
+						started: date		// date stamp when requested started
+						encrypted: bool		// true if request on encrypted server
+						post: "..."			// raw body text
+						url	: "/query"		// requested url path
+						reqSocket: socket	// socket to retrieve client cert 
+						resSocket: socket	// socket to accept response
+						sql: connector 		// sql database connector 
+						site: {...}			// site info
 
 					@param {Function} ses session(req) callback accepting the provided request
 					*/
@@ -1244,6 +1238,12 @@ Configure database, define site context, then protect, connect, start and initia
 							/**
 							Provide a response to a session after attaching cert, client, profile 
 							and session info to this request.  
+
+							In phase2 of the session setup, the following is added to this req:
+							
+								log: {...}			// info to trap socket stats
+								client: "..."		// name of client from cert or "guest"
+								cert: {...} 		// full client cert
 
 							@param {Function} cb connection accepting the provided response callback
 							*/
@@ -1443,20 +1443,17 @@ Configure database, define site context, then protect, connect, start and initia
 
 		if (opts) Copy(opts, TOTEM, ".");
 
-		//Copy( require("./public/endpts"), byTable );
-		addEndpoints(ENDPTS);
-		
-		try {
-			addEndpoints( require("./public/endpts") );
-		}
-		
-		catch (err) {
-			Log("No public endpoints defined");
-		}
-
 		const
 			{ name } = TOTEM;
 		
+		try {
+			addEndpoints( require(paths.endpts) );
+		}
+		
+		catch (err) {
+			Trace("No custom endpts");
+		}
+
 		Log(`CONFIGURING ${name}`); 
 
 		Each( paths.mimes, (key,val) => {	// extend or remove mime types
@@ -1840,8 +1837,7 @@ Endpoint filterRecords cb(data data as string || error)
 By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
 @cfg {Object} 
 */				
-	byTable: {			  //< by-table routers	
-	},
+	byTable: require("./endpts"), 			  //< by-table routers	
 		
 /**
 By-action endpoint routers for accessing engines
@@ -1894,7 +1890,7 @@ CRUDE (req,res) method to respond to Totem request
 CRUDE (req,res) method to respond to a select||GET request
 @cfg {Function}
 @param {Object} req Totem session request
-@param {TSR} res Totem session response
+@param {Function} res Totem session response
 */				
 	select: selectDS,	
 	
@@ -1902,7 +1898,7 @@ CRUDE (req,res) method to respond to a select||GET request
 CRUDE (req,res) method to respond to a update||POST request
 @cfg {Function}	
 @param {Object} req Totem session request
-@param {TSR} res Totem session response
+@param {Function} res Totem session response
 */				
 	update: updateDS,
 	
@@ -1910,7 +1906,7 @@ CRUDE (req,res) method to respond to a update||POST request
 CRUDE (req,res) method to respond to a delete||DELETE request
 @cfg {Function}	
 @param {Object} req Totem session request
-@param {TSR} res Totem session response
+@param {Function} res Totem session response
 */				
 	delete: deleteDS,
 	
@@ -1918,7 +1914,7 @@ CRUDE (req,res) method to respond to a delete||DELETE request
 CRUDE (req,res) method to respond to a insert||PUT request
 @cfg {Function}
 @param {Object} req Totem session request
-@param {TSR} res Totem session response
+@param {Function} res Totem session response
 */				
 	insert: insertDS,
 	
@@ -1926,7 +1922,7 @@ CRUDE (req,res) method to respond to a insert||PUT request
 CRUDE (req,res) method to respond to a Totem request
 @cfg {Function}
 @param {Object} req Totem session request
-@param {TSR} res Totem session response
+@param {Function} res Totem session response
 */				
 	execute: executeDS,
 
@@ -2016,8 +2012,12 @@ Default paths to service files
 		//http: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 		riddler: "/riddle.html",
 
-		certs: "./certs/", 
+		crud: ["create","select","update","delete","execute"],
+			
+		certs: "./config/certs/",
 
+		endpts: "./config/endpts",
+			
 		nodes: {  // available nodes for task sharding
 			0: ENV.SHARD0 || "http://localhost:8080/task",
 			1: ENV.SHARD1 || "http://localhost:8080/task",
@@ -2307,7 +2307,7 @@ cert and joined info to this `req` request then callback `res`(error) with
 a null `error` if the session was sucessfully validated.  
 
 @param {Object} req totem session request
-@param {TSR} res totem session responder
+@param {Function} res totem session responder
 */
 function resolveClient(req,res) {  
 	
@@ -2582,7 +2582,7 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 /**
 CRUD select endpoint.
 @param {Object} req Totem session request
-@param {TSR} res Totem session responder
+@param {Function} res Totem session responder
 */
 function selectDS(req, res) {
 	const 
@@ -2618,7 +2618,7 @@ function selectDS(req, res) {
 /**
 CRUD insert endpoint.
 @param {Object} req Totem session request
-@param {TSR} res Totem response callback
+@param {Function} res Totem response callback
 */
 function insertDS(req, res) {
 	const 
@@ -2767,6 +2767,7 @@ function simThread(sock) {
 ].Extend(Date);
 
 [ //< Array prototypes
+
 	/*
 	function parseJSON(ctx,def) {
 		this.forEach( key => {
@@ -3099,7 +3100,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 	case "INGTD":
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
-				sql.ingestFile("./public/stores/_noarch/gtd.csv", {
+				sql.ingestFile("./config/stores/_noarch/gtd.csv", {
 					target: "gtd",
 					//limit: 10,
 					batch: 500,
@@ -3136,7 +3137,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 	case "INGTDSCITE":
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
-				sql.ingestFile("./public/stores/_noarch/gtdscite.csv", {
+				sql.ingestFile("./config/stores/_noarch/gtdscite.csv", {
 					target: "gtd",
 					//limit: 10,
 					batch: 500,
@@ -3152,7 +3153,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 	case "INMEX":
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
-				sql.ingestFile("./public/stores/_noarch/centam.csv", {
+				sql.ingestFile("./config/stores/_noarch/centam.csv", {
 					keys: "Criminal_group varchar(32),_Year int(11),Outlet_name varchar(32),Event varchar(32),Rival_group varchar(32),_Eventid varchar(8)",
 					batch: 500,
 					//limit: 1000
