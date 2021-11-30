@@ -118,7 +118,6 @@ totem_config.)
 
 	# define passwords
 	source totem/config/_pass.sh
-	source totem/host/_pass.sh
 
 	;;
 	

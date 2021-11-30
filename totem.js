@@ -363,27 +363,6 @@ const
 	  
 	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("enums");
 	  
-[ //< String prototypes
-	/**
-	Parse XML string into json and callback cb(json) 
-
-	@extends String
-	@param {Function} cb callback( json || null if error )
-	*/
-	function parseXML(cb) {
-		XML2JS.parseString(this, function (err,json) {				
-			cb( err ? null : json );
-		});
-	},
-	
-	function pickExisting() {
-		this.forEach( file => {
-			if ( FS.existsSync(file) ) return file;
-		});
-		return null;
-	}		
-].Extend(String);
-
 // totem i/f
 
 const 
@@ -2761,8 +2740,6 @@ function simThread(sock) {
 	});
 } */
 
-
-
 [  //< date prototypes
 ].Extend(Date);
 
@@ -2811,6 +2788,20 @@ function simThread(sock) {
 	}
 	*/
 ].Extend(Array);
+
+[ //< String prototypes
+	/**
+	Parse XML string into json and callback cb(json) 
+
+	@extends String
+	@param {Function} cb callback( json || null if error )
+	*/
+	function parseXML(cb) {
+		XML2JS.parseString(this, function (err,json) {				
+			cb( err ? null : json );
+		});
+	},
+].Extend(String);
 
 //Log(">>>>fetch oauth", Config.oauthHosts);
 

@@ -482,7 +482,6 @@ neoThread( neo => {
         * [.getBrick(client, name, cb)](#module_TOTEM.getBrick)
         * [.setContext()](#module_TOTEM.setContext)
     * _inner_
-        * [~parseXML(cb)](#module_TOTEM..parseXML) ⇐ <code>String</code>
         * [~stopService()](#module_TOTEM..stopService)
         * [~createCert(owner, password, cb)](#module_TOTEM..createCert)
         * [~resolveClient(req, res)](#module_TOTEM..resolveClient)
@@ -492,7 +491,6 @@ neoThread( neo => {
         * [~deleteDS(req, res)](#module_TOTEM..deleteDS)
         * [~updateDS(req, res)](#module_TOTEM..updateDS)
         * [~executeDS(req, res)](#module_TOTEM..executeDS)
-        * [~TSR](#module_TOTEM..TSR) : <code>function</code>
 
 <a name="module_TOTEM.errors"></a>
 
@@ -706,7 +704,7 @@ CRUDE (req,res) method to respond to a select||GET request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>TSR</code> | Totem session response |
+| res | <code>function</code> | Totem session response |
 
 <a name="module_TOTEM.update"></a>
 
@@ -719,7 +717,7 @@ CRUDE (req,res) method to respond to a update||POST request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>TSR</code> | Totem session response |
+| res | <code>function</code> | Totem session response |
 
 <a name="module_TOTEM.delete"></a>
 
@@ -732,7 +730,7 @@ CRUDE (req,res) method to respond to a delete||DELETE request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>TSR</code> | Totem session response |
+| res | <code>function</code> | Totem session response |
 
 <a name="module_TOTEM.insert"></a>
 
@@ -745,7 +743,7 @@ CRUDE (req,res) method to respond to a insert||PUT request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>TSR</code> | Totem session response |
+| res | <code>function</code> | Totem session response |
 
 <a name="module_TOTEM.execute"></a>
 
@@ -758,7 +756,7 @@ CRUDE (req,res) method to respond to a Totem request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>TSR</code> | Totem session response |
+| res | <code>function</code> | Totem session response |
 
 <a name="module_TOTEM.guard"></a>
 
@@ -826,6 +824,22 @@ The provided response method accepts a string, an objects, an array, an error, o
 a file-cache function and terminates the session's sql connection.  The client is 
 validated and their session logged.
 
+In phase3 of the session setup, the following is added to the req:
+
+	files: [...]		// list of files being uploaded
+	//canvas: {...}		// canvas being uploaded
+	query: {...} 		// raw keys from url
+	where: {...} 		// sql-ized query keys from url
+	body: {...}			// body keys from request 
+	flags: {...} 		// flag keys from url
+	index: {...}		// sql-ized index keys from url
+	path: "/[area/...]name.type"			// requested resource
+	area: "name"		// file area being requested
+	table: "name"		// name of sql table being requested
+	ds:	"db.name"		// fully qualified sql table
+	body: {...}			// json parsed post
+	type: "type" 		// type part
+
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
 
@@ -857,48 +871,11 @@ Configure database, define site context, then protect, connect, start and initia
 <a name="module_TOTEM.config..configService"></a>
 
 #### config~configService(agent)
-Setup (connect, start then initialize) a service that will handle its request-response sessions
-		with the provided agent(req,res).
+Configure (create, start then initialize) a service that will handle its request-response 
+		sessions.
 
-		The session request is constructed in the following phases:
-
-			// phase1 startRequest
-			host: "proto://domain:port"	// requested host 
-			cookie: "...."		// client cookie string
-			agent: "..."		// client browser info
-			ipAddress: "..."	// client ip address
-			referer: "proto://domain:port/query"	//  url during a cross-site request
-			method: "GET|PUT|..." 			// http request method
-			action: "select|update| ..."	// corresponding crude name
-			started: date		// date stamp when requested started
-			encrypted: bool		// true if request on encrypted server
-			post: "..."			// raw body text
-			url	: "/query"		// requested url path
-			reqSocket: socket	// socket to retrieve client cert 
-			resSocket: socket	// socket to accept response
-			sql: connector 		// sql database connector 
-			site: {...}			// site info
-			
-			// phase2 startResponse
-			log: {...}			// info to trap socket stats
-			client: "..."		// name of client from cert or "guest"
-			cert: {...} 		// full client cert
-
-			// phase3 routeRequest 
-			files: [...]		// list of files being uploaded
-			canvas: {...}		// canvas being uploaded
-			query: {...} 		// raw keys from url
-			where: {...} 		// sql-ized query keys from url
-			body: {...}			// body keys from request 
-			flags: {...} 		// flag keys from url
-			index: {...}		// sql-ized index keys from url
-			files: [...] 		// files uploaded
-			path: "/[area/...]name.type"			// requested resource
-			area: "name"		// file area being requested
-			table: "name"		// name of sql table being requested
-			ds:	"db.name"		// fully qualified sql table
-			body: {...}			// json parsed post
-			type: "type" 		// type part
+		The session request is constructed in 3 phases: startRequest, startResponse, then routeRequest.
+		As these phases are performed, the request hash req is extended.
 
 **Kind**: inner method of [<code>config</code>](#module_TOTEM.config)  
 
@@ -1001,18 +978,6 @@ Sets the site context parameters.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
-<a name="module_TOTEM..parseXML"></a>
-
-### TOTEM~parseXML(cb) ⇐ <code>String</code>
-Parse XML string into json and callback cb(json)
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-**Extends**: <code>String</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| cb | <code>function</code> | callback( json || null if error ) |
-
 <a name="module_TOTEM..stopService"></a>
 
 ### TOTEM~stopService()
@@ -1045,7 +1010,7 @@ a null `error` if the session was sucessfully validated.
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | totem session request |
-| res | <code>TSR</code> | totem session responder |
+| res | <code>function</code> | totem session responder |
 
 <a name="module_TOTEM..uploadFile"></a>
 
@@ -1074,7 +1039,7 @@ CRUD select endpoint.
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>TSR</code> | Totem session responder |
+| res | <code>function</code> | Totem session responder |
 
 <a name="module_TOTEM..insertDS"></a>
 
@@ -1086,7 +1051,7 @@ CRUD insert endpoint.
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>TSR</code> | Totem response callback |
+| res | <code>function</code> | Totem response callback |
 
 <a name="module_TOTEM..deleteDS"></a>
 
@@ -1123,17 +1088,6 @@ CRUD execute endpoint.
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem response callback |
-
-<a name="module_TOTEM..TSR"></a>
-
-### TOTEM~TSR : <code>function</code>
-Totem response callback.
-
-**Kind**: inner typedef of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| text | <code>string</code> \| <code>error</code> | Response message or error |
 
 <a name="module_ENDPTS"></a>
 
