@@ -11,42 +11,78 @@
 	+ fault protected run states
 	+ indexing, uploading, downloading and cacheing static files
 	+ crud interface
-	+ mysql/neo4j database agnosticator
+	+ mysql- and neo4j-database agnosticator
 	+ task queuing and regulation
 	+ file polling and services
 	+ automattic server cert generation
 	+ task sharding
 	+ file stream and ingest
-	+ data fetching using various protocols
+	+ data fetching with various protocols
 	+ smartcard reader
   
-**TOTEM** defines a CRUD (HTTP POST, GET, PUT, DELETE) to endpoint NODES for accessing datasets, files or services:
+**TOTEM** defines CRUD (POST, GET, PUT, DELETE) endpoints (aka *NODE*s) to access *DATASET*s, 
+*FILE*s or *COMMAND*s:
 
 	DATASET.TYPE ? QUERY
 	AREA/PATH/FILE.TYPE ? QUERY
 	COMMAND.TYPE ? QUERY
 
-By default, **TOTEM** provides `db | xml | csv | json` TYPEs for converting DATASETs, 
-`riddle | task | ping` COMMANDs for validating a session, sharding tasks,
-and the `stores | shares` file AREAs for sharing static files.
+By default, **TOTEM** provides `db | xml | csv | json` *TYPE*s for converting *DATASET*s, 
+`riddle | task | ping` *COMMAND*s for validating a session, sharding tasks,
+and the `stores | shares` areas for sharing static *FILE*s.
 
-## Installation
+## Local Installation
 
-Clone the following into your PROJECT folder
-+ [TOTEM base web service](https://github.com/totemstan/totem) || [COE](https://sc.appdev.proj.coe/acmesds/totem) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/totem)  
-+ [ENUMS enumerator](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)  
-+ [JSDB database agnosticator](https://github.com/totemstan/jsdb) || [COE](https://sc.appdev.proj.coe/acmesds/jsdb) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
-+ [SECLINK secure link](https://github.com/totemstan/securelink) || [COE](https://sc.appdev.proj.coe/acmesds/securelink) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
-+ [SOCKETIO web sockets](https://github.com/totemstan/socketio) || [COE](https://sc.appdev.proj.coe/acmesds/socketio) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
+Clone **TOTEM** from one of its repos:
+
+	git clone https://github.com/totemstan/totem
+	git clone https://sc.appdev.proj.coe/acmesds/totem
+	git clone https://gitlab.west.nga.ic.gov/acmesds/totem
+
+and define its env vars:
+
+	MYSQL_HOST = domain name
+	MYSQL_USER = user name
+	MYSQL_PASS = user password
+	
+	NEO4J_HOST = bolt://DOMAIN:PORT
+	NEO4J_USER = user name
+	NEO4J_PASS = user password
+
+	SERVICE_PASS = passphrase to server pki cert
+	
+	SERVICE_WORKER_URL = PROTO://DOMAIN:PORT
+	SERVICE_MASTER_URL = PROTO://DOMAIN:PORT
+	
+	SHARD0 = PROTO://DOMAIN:PORT
+	SHARD1 = PROTO://DOMAIN:PORT
+	SHARD2 = PROTO://DOMAIN:PORT
+	SHARD3 = PROTO://DOMAIN:PORT
+
+Passwords are defined in **TOTEM**'s `_pass.sh` script.
+
+Dependent modules:
+
++ **ENUMS** [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
++ **SECLINK** [WWW](https://github.com/totemstan/securelink)  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
++ **SOCKETIO** [WWW](https://github.com/totemstan/socketio)  [COE](https://sc.appdev.proj.coe/acmesds/socketio)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
++ **JSDB** [WWW](https://github.com/totemstan/jsdb)  [COE](https://sc.appdev.proj.coe/acmesds/jsdb)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
+
+## Federated Installation
+
+Simply install and start its federated docker image (
+[WWW](https://github.com/totemstan/dockify) 
+[COE](https://sc.appdev.proj.coe/acmesds/dockify)
+[SBU](https://gitlab.west.nga.ic.gov/acmesds/dockify)
+).
 
 ## Manage 
 
-	npm test [ ? || T1 || T2 || ...]	# Start or unit test
-	npm run redoc						# Update and distribute documentation
-	npm run config						# Configure environment
-	maint dbrecover						# Recover/reset the databases
-	maint dbstart						# Start the database servers
-	maint startup						# Start all required services then start debe
+	npm test [ ? || T1 || T2 || ...]	# Run unit test
+	npm run redoc						# Update repo
+	npm run config						# Configure passwords
+	npm run startdb						# Start the database servers
+	npm run start						# Start totem
 
 ## Usage
 
@@ -62,20 +98,57 @@ Require, configure and start **TOTEM**:
 		console.log( err ? "something evil is lurking" : "look mom - Im running!");
 	});
 
-where [its configuration keys](http://totem.zapto.org/shares/prm/totem/index.html) || [COE](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) || [SBU](https://totem.nga.mil/shares/prm/totem/index.html)
-follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum).
+where its configuration keys (
+[WWW](http://totem.zapto.org/shares/prm/totem/index.html) 
+[COE](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) 
+[SBU](https://totem.nga.mil/shares/prm/totem/index.html)
+)
+follow the ENUM deep copy conventions (
+[WWW](https://github.com/totemstan/enum) 
+[COE](https://sc.appdev.proj.coe/acmesds/enum) 
+[SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
+).
+
+## Program Reference
+<details>
+<summary>
+<i>Open/Close</i>
+</summary>
+{{>main}}
+</details>
 
 ## Contacting, Contributing, Following
 
-Feel free to [submit and status **TOTEM** issues](http://totem.zapto.org/issues.view) || [COE](https://totem.west.ile.nga.ic.gov/issues.view) || [SBU](https://totem.nga.mil/issues.view), [contribute **TOTEM** notebooks](http://totem.zapto.org/shares/notebooks/) || [COE](https://totem.west.ile.nga.ic.gov/shares/notebooks/) || [SBU](https://totem.nga.mil/shares/notebooks/),
-[inspect **TOTEM** requirements](http://totem.zapto.org/reqts.view) || [COE](https://totem.west.ile.nga.ic.gov/reqts.view) || [SBU](https://totem.nga.mil/reqts.view), [browse **TOTEM** holdings](http://totem.zapto.org/) || [COE](https://totem.west.ile.nga.ic.gov/) || [SBU](https://totem.nga.mil/), 
-or [follow **TOTEM** milestones](http://totem.zapto.org/milestones.view) || [COE](https://totem.west.ile.nga.ic.gov/milestones.view) || [SBU](https://totem.nga.mil/milestones.view).
+Feel free to 
+* submit and status **TOTEM** issues (
+[WWW](http://totem.zapto.org/issues.view) 
+[COE](https://totem.west.ile.nga.ic.gov/issues.view) 
+[SBU](https://totem.nga.mil/issues.view)
+)  
+* contribute to **TOTEM** notebooks (
+[WWW](http://totem.zapto.org/shares/notebooks/) 
+[COE](https://totem.west.ile.nga.ic.gov/shares/notebooks/) 
+[SBU](https://totem.nga.mil/shares/notebooks/)
+)  
+* revise **TOTEM** requirements (
+[WWW](http://totem.zapto.org/reqts.view) 
+[COE](https://totem.west.ile.nga.ic.gov/reqts.view) 
+[SBU](https://totem.nga.mil/reqts.view), 
+)  
+* browse **TOTEM** holdings (
+[WWW](http://totem.zapto.org/) 
+[COE](https://totem.west.ile.nga.ic.gov/) 
+[SBU](https://totem.nga.mil/)
+)  
+* or follow **TOTEM** milestones (
+[WWW](http://totem.zapto.org/milestones.view) 
+[COE](https://totem.west.ile.nga.ic.gov/milestones.view) 
+[SBU](https://totem.nga.mil/milestones.view)
+).
 
 ## License
 
 [MIT](LICENSE)
-
-{{>main}}
 
 * * *
 

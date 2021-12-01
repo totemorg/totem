@@ -1,3 +1,5 @@
+_*
+*.tgz
 /_*
 !node_modules/*
 /doc/

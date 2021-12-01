@@ -1,4 +1,19 @@
 ############################
+# gnome desktop
+############################
+
+yum -y groups install "GNOME Desktop"
+startx
+
+############################
+# vscode editor
+############################
+# see https://code.visualstudio.com/docs/setup/linux
+sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+sudo sh -c 'echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/vscode.repo'
+sudo yum install code
+
+############################
 # Static IP for no-ip.com port forwarding
 ############################
 # see https://www.unixmen.com/configure-static-ip-centos-7/
@@ -198,6 +213,14 @@ yum -y update
 #### git
 yum install git	
 
+# wget https://neo4j.com/artifact.php?name=neo4j-community-3.0.3-unix.tar.gz
+# install instr:
+https://neo4j.com/docs/operations-manual/current/installation/linux/
+https://www.oracle.com/java/technologies/downloads/
+https://www.oracle.com/java/technologies/downloads/archive/
+https://neo4j.com/developer/docker-run-neo4j/
+
+
 #### install neo4j
 # download latest at https://neo4j.com/download-center/
 #Extract the contents of the archive, using tar -xf <filename>
@@ -286,7 +309,7 @@ max_allowed_packet=64000000
 
 # create / initialize the sqldb 
 cd mysql
-./bin/mysqld --initialize-insecure --user=mysql  --basedir=/local/mysql --datadir=/local/service/sqldb
+./bin/mysqld --initialize-insecure --user=mysql  --basedir=/local/mysql --datadir=/local/sqldb
 ./bin/mysqld_safe --defaults-file=my.cnf &
 ./bin/mysql -u root --skip-password
 alter user "root"@"localhost" identified by "ROOTPASS"; # instead of using mysqladmin
@@ -762,6 +785,21 @@ Finally, start the Docker service:
 
 # docker compose install
 	sudo curl -L https://github.com/docker/compose/releases/download/1.22.0-rc1/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+
+# redirect docker /var/lib/docker image location https://blog.adriel.co.nz/2018/01/25/change-docker-data-directory-in-debian-jessie/
+
+# refs
+# https://docker-curriculum.com/
+# https://docs.docker.com/engine/reference/commandline/build/
+# https://stackify.com/docker-build-a-beginners-guide-to-building-docker-images/
+# docker pull busybox
+# docker pull centos:7.8.2003
+# docker run -it ed6357ba5623 sh
+# python app example
+# https://docs.docker.com/compose/gettingstarted/
+# docker build -t acmesds/totem .
+# docker run -it ed6357ba5623 sh 
+
 
 # PKI certs
 ## converting pfx to crt-key
@@ -1564,6 +1602,8 @@ Python (optional): if you use the default Python you will need to sudo yum insta
 # https://docs.anaconda.com/anaconda/install/linux/
 # https://repo.anaconda.com/archive/
 ############
+
+bash Anaconda3-2020.11-Linux-x86_64.sh -b -p /local/anaconda3-2020.11
 
 sh /Anaconda-xxxx.sh
 # place install at /local/anaconda-xxxx

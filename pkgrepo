@@ -1,6 +1,0 @@
-[offline-PKG]
-name=CentOS-$releasever - PKG
-baseurl=file:///var/tmp/PKG
-enabled=0
-gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7

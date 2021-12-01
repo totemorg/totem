@@ -6,11 +6,223 @@
 #
 
 export HERE=`pwd`
-export MODULES=(totem atomic certs geohack flex enums reader debe pipe jsdb man randpr liegroup securelink socketio)
-export MODULE=`basename $HERE`
 
 case "$1." in
 
+debe_config.)
+	# specific geonode client
+	export PUBLIC=./public					# public path
+	export ADMIN=$HERE/admins 				# admin stuff, checkpoints
+	export TEMP=$HERE/tmp/					# temp files
+	export DB=$PUBLIC/dbs/					# training images
+	export DETS=$PUBLIC/dets/ 				# trained detectors
+	export PROOFS=$PUBLIC/cars/ver0/ 			# unmodulated/unrotated images for testing
+	#export SCRIPTS=$HERE/clients/extjs/packages/ext-locale/build/ext-locale-
+	export THEMES=$HERE/clients/themes
+	
+	export TXMAIL_HOST=smtp.comcast.net:587
+	export TXMAIL_USER=brian.d.james:COMCASTsnivel1
+	export RXMAIL_HOST=
+	export RXMAIL_USER=
+
+	export INDEX= #data/nlp.json  			# reader nlp indexing save path
+	export SCAN=$HERE/node_modules/reader/jquery-1.7.1.min.js 	# web site scanners
+
+	export XLATE=$HERE/node_modules/i18n-abide/examples/express3/i18n	# I18N translation folder
+	export PATH=$PATH:$NODE/bin
+
+	export REPO=http://github.com:stansds
+	export JIRA=http://jira.tbd
+	export RAS=http://ras.tbd
+	export BY=https://research.nga.ic.gov
+
+	;;
+	
+geohack_config.)
+	# IDOP conversion utilities
+	export IVA=$BASE/iva
+	export GDAL=$BASE/gdal
+	#export IVA=/rroc/data/giat/iva			# IDOP conversion utilities
+	;;
+	
+system_config.)
+	export BASE=/local
+	export MODULES=(totem atomic certs geohack flex enums reader debe pipe jsdb man randpr liegroup securelink socketio)
+	export MODULE=`basename $HERE`
+	
+	# initialize dev/prod paths
+	export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin:/local/cmake/bin
+	export GITUSER=totemstan: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
+	export REPO=https://$GITUSER@github.com/totemstan
+
+	# doc and dev tools
+	#export PATH=/opt/cmake:$PATH 			# latest cmake
+	#export PATH=$BASE/oxygen/bin:$PATH    	# doxygen code documenter if needed (jsduck used)
+	#export PATH=$PATH:/usr/local/share/gems/gems/jsduck-5.3.4/bin 	# for jsduck
+
+	# R
+	export R_libs=/usr/lib64/R/library/
+
+	# NodeJS  
+	export PATH=$PATH:$NODE/bin
+	export NODE=$BASE/nodejs
+	export NODELIB=$NODE/lib/node_modules
+	export node_path=./node_modules
+
+	# Python
+	export CONDA=$BASE/atomconda
+	export PYTHONHOME=$CONDA
+	export PYTHONPATH=$BASE/caffe/python:$PYTHON/:$PYTHON/site-packages:$BASE/service/atomic
+	
+	;;
+	
+jsdb_config.)
+	# MYSQL
+	export MYSQL=$BASE/mysql
+	export PATH=$MYSQL/bin:$PATH
+	export MYSQL_USER=root
+	export MYSQL_NAME=app
+	export MYSQL_HOST=localhost
+	export ODBC_NAME=totem-app
+	export ODBC_USER=ileuser
+
+	# NEO4J
+	export NEO4J_HOST="bolt://localhost" # "http://root:NGA@localhost:7474"
+	export NEO4J_USER="neo4j"
+	
+	;;
+
+seclink_config.)
+	export DOMAIN_NAME=totem
+	;;
+	
+totem_config.)
+	# POCs
+	#export ADMIN="admin_tbd@nga.mil"
+	#export OVERLORD="overlord_tbd@nga.mil"
+	#export SUPER="supervisor_tbd@nga.mil"
+
+	# docker
+	#export GPU="--device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm"
+	#export VOL="--volume /local:/base --volume /home/jamesdb/installs:/installs --volume /usr/lib64:/usr/lib64"
+	#export NET="--net host"
+	#export RUN="run -it $GPU $VOL $NET"
+	#export RUND="$RUN -d"
+
+	# define service url
+	export SERVICE_MASTER_URL=http://localhost:8080
+	export SERVICE_WORKER_URL=https://localhost:8081
+
+	#export SERVICE_WORKER_URL=https://localhost:8443
+	#export SERVICE_WORKER_URL=http://localhost:8081  # in debug mode
+
+	# define passwords
+	source totem/config/_pass.sh
+
+	;;
+	
+atomic_config.)
+	# To link atomic with caffe, anaconda python, and opencv
+
+	export CONDA=$BASE/atomconda
+	export LIB=$BASE/lib64
+	export NODE=$BASE/nodejs
+	
+	export PYLINK=$CONDA
+	export PYTHON=$CONDA/bin/python2.7
+	export PYTHONINC=$CONDA/include/python2.7
+	export PYTHONLIB=$LIB/python/libpython2.7.so
+	
+	#export PYTHON=$CONDA/bin/python3.8
+	#export PYTHONINC=$CONDA/include/python3.8
+	#export PYTHONLIB=$LIB/python/libpython3.8.so
+	
+	# engine GPU compile switches
+	case "$(hostname)." in
+		awshigh.)  # AWS
+			export GPUHOST=jamesdb@swag-gpu-01
+			export GUIHOST=jamesdb@swag-ws-02
+			export HASGPU=1
+			export HASCAFFE=1
+			;;
+
+		ilehigh.) 	# ILE high
+			export GPUHOST=giatstlgui01.innovision.local
+			export GUIHOST=giatstlgui01.innovision.local
+			export HASGPU=1
+			export HASCAFFE=1
+			;;
+
+		wsn3303.)  # ILE low
+			export GPUHOST=wsn3303
+			export GUIHOST=wsn3303
+			export HASGPU=1
+			export HASCAFFE=1
+			;;
+
+		acmesds.)  # dev machine
+			export GPUHOST=
+			export GUIHOST=
+			export HASGPU=0
+			export HASCAFFE=0
+			;;
+			
+		docker.)	# dockerized container
+			export GPUHOST=
+			export GUIHOST=
+			export HASGPU=0
+			export HASCAFFE=0
+			;;
+			
+		*)
+			export GPUHOST=
+			export GUIHOST=
+			export HASGPU=0
+			export HASCAFFE=0
+			;;
+		
+	esac
+	
+	# Dev paths
+	export INC=$BASE/include
+	export INCLUDE=$INC
+	export PATH=$PATH:$INC/opencv:$BASE/opencv/bin
+	export CUDA=$BASE/cuda
+	export CAFFE=$BASE/caffe
+	export PATH=$CONDA/bin:$INC/python:$PATH
+	export REBUILD="node-gyp rebuild --nodedir=$NODE"	# use "node-gyp $GYPTOPS" to override distro ref to inet
+
+	# others
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/opencv
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/python
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/jpeg
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/R/R
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/conda
+	
+	# caffe
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/boost
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/gflags
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/glog
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/lmdb
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/leveldb
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/hdf5
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/cuda
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/cuDNN
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/caffe
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/protobuf
+	;;
+
+config.)
+	source ./maint.sh system_config
+	source ./maint.sh atomic_config
+	source ./maint.sh totem_config
+	source ./maint.sh jsdb_config
+	source ./maint.sh geohack_config
+	source ./maint.sh debe_config
+	source ./maint.sh seclink_config
+	;;
+	
 gnome.)
 	gsettings set org.gnome.desktop.session idle-delay 0
 	gsettings set org.gnome.desktop.lockdown disable-lock-screen 'true'
@@ -57,6 +269,15 @@ pkg.)
 
 resync.)
 
+	for mod in ./*/; do
+		echo "syncing $mod"
+		cd $mod
+		git pull $2 master
+		cd ..
+	done
+	;;
+	
+_resync.)
 	for mod in "${MODULES[@]}"; do
 
 		cd /local/service/$mod
@@ -67,14 +288,14 @@ resync.)
 	done
 	;;
 
-all.)
+_all.)
 
 	for mod in "${MODULES[@]}"; do
 
 		cd /local/service/$mod
 			if test -f maint.sh; then
 				echo ">>>> $mod"
-				. maint.sh "$2" "$3" "$4"
+				source ./maint.sh "$2" "$3" "$4"
 			fi
 		cd ..
 
@@ -103,9 +324,9 @@ rebuild.)
 	npm install lwip
 	;;
 
-config.)
+_config.)
 	if test -f ./config.sh; then
-		. config.sh
+		source ./config.sh
 	fi
 	;;
 	
@@ -118,7 +339,7 @@ _configall.)
 			if test -f ../$mod/config.sh; then
 				echo "config $mod"
 				cd ../$mod
-					. config.sh
+					source ./config.sh
 				cd ../totem
 			fi
 
@@ -159,12 +380,12 @@ expand.)
 #
 
 dbrecover.)
-	source maint.sh mysql prime
+	source ./maint.sh mysql prime
 	;;
 
 dbstart.)
-	source maint.sh mysql start
-	source maint.sh neo4j start
+	source ./maint.sh mysql start
+	source ./maint.sh neo4j start
 	;;
 	
 neo4j.)
@@ -242,29 +463,29 @@ mysql.)
 #
 
 snapdb.)
-	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >/mnt/archive/sqldbs/openv.sql
-	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app --ignore-table=app.gtd >/mnt/archive/sqldbs/app.sql
-	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -ndtR app >/mnt/archive/sqldbs/funcs.sql
+	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >/mnt/snapshots/sqldbs/openv.sql
+	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app --ignore-table=app.gtd >/mnt/snapshots/sqldbs/app.sql
+	mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -ndtR app >/mnt/snapshots/sqldbs/funcs.sql
 	;;
 	
 snapsrv.)
 	cd /local/service
 	for mod in "${MODULES[@]}"; do
 		echo "snapping $map"
-		zip -ry /mnt/archive/snapshot.zip $mod -x $mod/node_modules/\* $mod/.git/\* $mod/_\* $mod/~\* $mod/math/\* $mod/mljs/\* $mod/prm/\*
+		zip -ry /mnt/snapshots/totem.zip $mod -x $mod/node_modules/\* $mod/.git/\* $mod/\*/.git/\* $mod/_\* $mod/~\* $mod/math/\* $mod/mljs/\* $mod/prm/\*
 	done
 	#zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* atomic/ifs/*.cpp atomic/ifs/*/*.cpp atomic/ifs/*/*.h
 	;;
 
 snapmap.) 
 	cd /local
-	zip /mnt/archive/local_map.zip include/* include/R/* lib64/* lib64/R/*
+	zip /mnt/snapshots/local_map.zip include/* include/R/* lib64/* lib64/R/*
 	;;
 	
 snap.)
-	source maint.sh snapdb
-	source maint.sh snapsrv
-	source maint.sh snapmap
+	source ./maint.sh snapdb
+	source ./maint.sh snapsrv
+	source ./maint.sh snapmap
 	;;
 	
 start_cesium.)
@@ -367,7 +588,7 @@ _prmget.)	# legacy jsduck host
 		
 _duckpush.)
 	# doxygen config.oxy
-	source maint.sh putduck totem
+	source ./maint.sh putduck totem
 	;;
 
 _duckpull.)
@@ -381,7 +602,7 @@ _docall.)
 	for mod in "${MODULES[@]}"; do
 
 		echo ">>>> $mod"
-		source maint.sh doc "$mod"1 "$mod"2
+		source ./maint.sh doc "$mod"1 "$mod"2
 
 	done
 	;;
@@ -567,67 +788,70 @@ help.)	# some help
 	echo "	restyle css styles using css compass complier"
 	;;
 
-upnet.)
+net_restart.)
 	sudo /etc/init.d/network restart
-	;;
-
-uptest.)
-	sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o up.log start debe.js D1
-	;;
-
-up.) 		# bring up production service 
-
-	export SERVICE_NAME=Totem1
-	export SERVICE_MASTER_URL=http://localhost:80
-	export SERVICE_WORKER_URL=https://localhost:443
-
-	sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o up.log start debe.js D1
 	;;
 
 *)  	# start totem
 
 	case "$(hostname)." in
-	acmesds.)
-		DOMAIN=totem.hopto.org
-		;;
+		wsn3303.)
+			DOMAIN=totem.nga.mil
+			;;
+
+		awshigh.)
+			DOMAIN=totem.west.ile.nga.ic.gov
+			;;
+
+		ilehigh.)
+			DOMAIN=totem.west.ile.nga.ic.gov
+			;;
+
+		acmesds.)
+			DOMAIN=totem.hopto.org
+			;;
 		
-	wsn3303.)
-		DOMAIN=totem.nga.mil
-		;;
+		dockerhost.)
+			DOMAIN=totem.hopto.org
+			;;
 
-	awshigh.)
-		DOMAIN=totem.west.ile.nga.ic.gov
-		;;
-
-	ilehigh.)
-		DOMAIN=totem.west.ile.nga.ic.gov
-		;;
+		*)
+			DOMAIN=unknown
 	esac
 	
 	case "$1." in 
-	prod.)	# multi core production
-		PROTO=https
-		PORT1=8080
-		PORT2=443
-		;;
-	
-	oper.|protected.|https.)	# single core
-		PROTO=https
-		PORT1=8443
-		PORT2=8080
-		;;
-	
-	
-	.|debug.|http.)
-		DOMAIN=localhost
-		PROTO=http
-		PORT1=8080
-		PORT2=8081
+		prod.)	# multi core production
+			PROTO=https
+			PORT1=8080
+			PORT2=443
+			;;
+
+		up.|protected.|https.)	# single core
+			PROTO=https
+			PORT1=8443
+			PORT2=8080
+			;;
+
+		oper.)
+			DOMAIN=localhost
+			PROTO=https
+			PORT1=80
+			PORT2=443
+			;;
+		
+		.|debug.|http.)
+			DOMAIN=localhost
+			PROTO=http
+			PORT1=8080
+			PORT2=8081
+			;;
 	esac
 	
 	# define service url
 	export SERVICE_MASTER_URL=$PROTO://$DOMAIN:$PORT1
 	export SERVICE_WORKER_URL=$PROTO://$DOMAIN:$PORT2
+	
+	echo "Running $DOMAIN_NAME on $SERVICE_MASTER_URL and $SERVICE_WORKER_URL"
 	
 	# define task sharding nodes
 	export SHARD0=$PROTO://$DOMAIN/task
@@ -635,9 +859,15 @@ up.) 		# bring up production service
 	export SHARD2=$PROTO://$DOMAIN/task
 	export SHARD3=$PROTO://$DOMAIN/task
 
-	cd /local/service/debe
-	node debe.js D1 $2 $3 $4 $5 
-	;;
+	case "$1." in 
+		oper.)
+			sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o debe.log start debe.js D1 $2 $3 $4 $5
+			;;
+		
+		*)
+			node debe.js D1 $2 $3 $4 $5 
+			;;
+	esac
 
 esac
 

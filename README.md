@@ -11,42 +11,78 @@
 	+ fault protected run states
 	+ indexing, uploading, downloading and cacheing static files
 	+ crud interface
-	+ mysql/neo4j database agnosticator
+	+ mysql- and neo4j-database agnosticator
 	+ task queuing and regulation
 	+ file polling and services
 	+ automattic server cert generation
 	+ task sharding
 	+ file stream and ingest
-	+ data fetching using various protocols
+	+ data fetching with various protocols
 	+ smartcard reader
   
-**TOTEM** defines a CRUD (HTTP POST, GET, PUT, DELETE) to endpoint NODES for accessing datasets, files or services:
+**TOTEM** defines CRUD (POST, GET, PUT, DELETE) endpoints (aka *NODE*s) to access *DATASET*s, 
+*FILE*s or *COMMAND*s:
 
 	DATASET.TYPE ? QUERY
 	AREA/PATH/FILE.TYPE ? QUERY
 	COMMAND.TYPE ? QUERY
 
-By default, **TOTEM** provides `db | xml | csv | json` TYPEs for converting DATASETs, 
-`riddle | task | ping` COMMANDs for validating a session, sharding tasks,
-and the `stores | shares` file AREAs for sharing static files.
+By default, **TOTEM** provides `db | xml | csv | json` *TYPE*s for converting *DATASET*s, 
+`riddle | task | ping` *COMMAND*s for validating a session, sharding tasks,
+and the `stores | shares` areas for sharing static *FILE*s.
 
-## Installation
+## Local Installation
 
-Clone the following into your PROJECT folder
-+ [TOTEM base web service](https://github.com/totemstan/totem) || [COE](https://sc.appdev.proj.coe/acmesds/totem) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/totem)  
-+ [ENUMS enumerator](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)  
-+ [JSDB database agnosticator](https://github.com/totemstan/jsdb) || [COE](https://sc.appdev.proj.coe/acmesds/jsdb) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
-+ [SECLINK secure link](https://github.com/totemstan/securelink) || [COE](https://sc.appdev.proj.coe/acmesds/securelink) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
-+ [SOCKETIO web sockets](https://github.com/totemstan/socketio) || [COE](https://sc.appdev.proj.coe/acmesds/socketio) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
+Clone **TOTEM** from one of its repos:
+
+	git clone https://github.com/totemstan/totem
+	git clone https://sc.appdev.proj.coe/acmesds/totem
+	git clone https://gitlab.west.nga.ic.gov/acmesds/totem
+
+and define its env vars:
+
+	MYSQL_HOST = domain name
+	MYSQL_USER = user name
+	MYSQL_PASS = user password
+	
+	NEO4J_HOST = bolt://DOMAIN:PORT
+	NEO4J_USER = user name
+	NEO4J_PASS = user password
+
+	SERVICE_PASS = passphrase to server pki cert
+	
+	SERVICE_WORKER_URL = PROTO://DOMAIN:PORT
+	SERVICE_MASTER_URL = PROTO://DOMAIN:PORT
+	
+	SHARD0 = PROTO://DOMAIN:PORT
+	SHARD1 = PROTO://DOMAIN:PORT
+	SHARD2 = PROTO://DOMAIN:PORT
+	SHARD3 = PROTO://DOMAIN:PORT
+
+Passwords are defined in **TOTEM**'s `_pass.sh` script.
+
+Dependent modules:
+
++ **ENUMS** [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
++ **SECLINK** [WWW](https://github.com/totemstan/securelink)  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
++ **SOCKETIO** [WWW](https://github.com/totemstan/socketio)  [COE](https://sc.appdev.proj.coe/acmesds/socketio)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
++ **JSDB** [WWW](https://github.com/totemstan/jsdb)  [COE](https://sc.appdev.proj.coe/acmesds/jsdb)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
+
+## Federated Installation
+
+Simply install and start its federated docker image (
+[WWW](https://github.com/totemstan/dockify) 
+[COE](https://sc.appdev.proj.coe/acmesds/dockify)
+[SBU](https://gitlab.west.nga.ic.gov/acmesds/dockify)
+).
 
 ## Manage 
 
-	npm test [ ? || T1 || T2 || ...]	# Start or unit test
-	npm run redoc						# Update and distribute documentation
-	npm run config						# Configure environment
-	maint dbrecover						# Recover/reset the databases
-	maint dbstart						# Start the database servers
-	maint startup						# Start all required services then start debe
+	npm test [ ? || T1 || T2 || ...]	# Run unit test
+	npm run redoc						# Update repo
+	npm run config						# Configure passwords
+	npm run startdb						# Start the database servers
+	npm run start						# Start totem
 
 ## Usage
 
@@ -62,24 +98,39 @@ Require, configure and start **TOTEM**:
 		console.log( err ? "something evil is lurking" : "look mom - Im running!");
 	});
 
-where [its configuration keys](http://totem.zapto.org/shares/prm/totem/index.html) || [COE](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) || [SBU](https://totem.nga.mil/shares/prm/totem/index.html)
-follow the [ENUM deep copy conventions](https://github.com/totemstan/enum) || [COE](https://sc.appdev.proj.coe/acmesds/enum) || [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum).
+where its configuration keys (
+[WWW](http://totem.zapto.org/shares/prm/totem/index.html) 
+[COE](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) 
+[SBU](https://totem.nga.mil/shares/prm/totem/index.html)
+)
+follow the ENUM deep copy conventions (
+[WWW](https://github.com/totemstan/enum) 
+[COE](https://sc.appdev.proj.coe/acmesds/enum) 
+[SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
+).
 
-## Contacting, Contributing, Following
+## Program Reference
+<details>
+<summary>
+<i>Open/Close</i>
+</summary>
+## Modules
 
-Feel free to [submit and status **TOTEM** issues](http://totem.zapto.org/issues.view) || [COE](https://totem.west.ile.nga.ic.gov/issues.view) || [SBU](https://totem.nga.mil/issues.view), [contribute **TOTEM** notebooks](http://totem.zapto.org/shares/notebooks/) || [COE](https://totem.west.ile.nga.ic.gov/shares/notebooks/) || [SBU](https://totem.nga.mil/shares/notebooks/),
-[inspect **TOTEM** requirements](http://totem.zapto.org/reqts.view) || [COE](https://totem.west.ile.nga.ic.gov/reqts.view) || [SBU](https://totem.nga.mil/reqts.view), [browse **TOTEM** holdings](http://totem.zapto.org/) || [COE](https://totem.west.ile.nga.ic.gov/) || [SBU](https://totem.nga.mil/), 
-or [follow **TOTEM** milestones](http://totem.zapto.org/milestones.view) || [COE](https://totem.west.ile.nga.ic.gov/milestones.view) || [SBU](https://totem.nga.mil/milestones.view).
-
-## License
-
-[MIT](LICENSE)
+<dl>
+<dt><a href="#module_TOTEM">TOTEM</a></dt>
+<dd><p>Provides a <a href="https://github.com/totemstan/totem">barebones web service</a>.  This module documented 
+in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
+</dd>
+<dt><a href="#module_ENDPTS">ENDPTS</a></dt>
+<dd><p>Provide TOTEM endpoints.</p>
+</dd>
+</dl>
 
 <a name="module_TOTEM"></a>
 
 ## TOTEM
-Provides barebones web service.
-Documented in accordance with [jsdoc](https://jsdoc.app/).
+Provides a [barebones web service](https://github.com/totemstan/totem).  This module documented 
+in accordance with [jsdoc](https://jsdoc.app/).
 
 **Requires**: <code>module:http</code>, <code>module:https</code>, <code>module:fs</code>, <code>module:constants</code>, <code>module:cluster</code>, <code>module:child\_process</code>, <code>module:os</code>, <code>module:stream</code>, <code>module:vm</code>, <code>module:crypto</code>, <code>module:enums</code>, <code>module:jsdb</code>, <code>module:securelink</code>, <code>module:socketio</code>, <code>module:mime</code>, <code>module:mysql</code>, <code>module:xml2js</code>, <code>module:toobusy</code>, <code>module:json2csv</code>, <code>module:js2xmlparser</code>, <code>module:toobusy-js</code>, <code>module:cheerio</code>  
 **Example**  
@@ -418,11 +469,9 @@ neoThread( neo => {
         * [.admitRules](#module_TOTEM.admitRules)
         * [.riddles](#module_TOTEM.riddles)
         * [.paths](#module_TOTEM.paths)
-        * [.getBrick](#module_TOTEM.getBrick)
         * [.uploadFile](#module_TOTEM.uploadFile)
         * [.busyTime](#module_TOTEM.busyTime)
         * [.cache](#module_TOTEM.cache)
-        * [.Fetch(path, opts, [cb])](#module_TOTEM.Fetch)
         * [.routeRequest(req, res)](#module_TOTEM.routeRequest)
         * [.config(opts, cb)](#module_TOTEM.config)
             * [~configService(agent)](#module_TOTEM.config..configService)
@@ -430,24 +479,18 @@ neoThread( neo => {
                     * [~startServer(server, port, cb)](#module_TOTEM.config..configService..createServer..startServer)
         * [.runTask(opts, task, cb)](#module_TOTEM.runTask)
         * [.watchFile(path, callback)](#module_TOTEM.watchFile)
+        * [.getBrick(client, name, cb)](#module_TOTEM.getBrick)
         * [.setContext()](#module_TOTEM.setContext)
     * _inner_
-        * [~parseXML(cb)](#module_TOTEM..parseXML) ⇐ <code>String</code>
-        * [~fetchFile(path, data, [cb])](#module_TOTEM..fetchFile) ⇐ <code>String</code>
         * [~stopService()](#module_TOTEM..stopService)
         * [~createCert(owner, password, cb)](#module_TOTEM..createCert)
         * [~resolveClient(req, res)](#module_TOTEM..resolveClient)
-        * [~getBrick(client, name, cb)](#module_TOTEM..getBrick)
         * [~uploadFile(client, source, sinkPath, tags, cb)](#module_TOTEM..uploadFile)
         * [~selectDS(req, res)](#module_TOTEM..selectDS)
         * [~insertDS(req, res)](#module_TOTEM..insertDS)
         * [~deleteDS(req, res)](#module_TOTEM..deleteDS)
         * [~updateDS(req, res)](#module_TOTEM..updateDS)
         * [~executeDS(req, res)](#module_TOTEM..executeDS)
-        * [~sysPing(req, res)](#module_TOTEM..sysPing)
-        * [~sysTask(req, res)](#module_TOTEM..sysTask)
-        * [~sysChallenge(req, res)](#module_TOTEM..sysChallenge)
-        * [~TSR](#module_TOTEM..TSR) : <code>function</code>
 
 <a name="module_TOTEM.errors"></a>
 
@@ -661,7 +704,7 @@ CRUDE (req,res) method to respond to a select||GET request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>TSR</code> | Totem session response |
+| res | <code>function</code> | Totem session response |
 
 <a name="module_TOTEM.update"></a>
 
@@ -674,7 +717,7 @@ CRUDE (req,res) method to respond to a update||POST request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>TSR</code> | Totem session response |
+| res | <code>function</code> | Totem session response |
 
 <a name="module_TOTEM.delete"></a>
 
@@ -687,7 +730,7 @@ CRUDE (req,res) method to respond to a delete||DELETE request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>TSR</code> | Totem session response |
+| res | <code>function</code> | Totem session response |
 
 <a name="module_TOTEM.insert"></a>
 
@@ -700,7 +743,7 @@ CRUDE (req,res) method to respond to a insert||PUT request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>TSR</code> | Totem session response |
+| res | <code>function</code> | Totem session response |
 
 <a name="module_TOTEM.execute"></a>
 
@@ -713,7 +756,7 @@ CRUDE (req,res) method to respond to a Totem request
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>TSR</code> | Totem session response |
+| res | <code>function</code> | Totem session response |
 
 <a name="module_TOTEM.guard"></a>
 
@@ -750,13 +793,6 @@ Default paths to service files
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="module_TOTEM.getBrick"></a>
-
-### TOTEM.getBrick
-Get a file and make it if it does not exist
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
 <a name="module_TOTEM.uploadFile"></a>
 
 ### TOTEM.uploadFile
@@ -778,21 +814,6 @@ File cache
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="module_TOTEM.Fetch"></a>
-
-### TOTEM.Fetch(path, opts, [cb])
-Uses [path.fetchFile(opts,cb)](fetchFile) to fetch text from the given URL path
-using the specified fetching options.
-
-**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| path | <code>String</code> | source URL |
-| opts | <code>string</code> \| <code>array</code> \| <code>function</code> \| <code>null</code> | data handler or callback |
-| [cb] | <code>TSR</code> | callback |
-
 <a name="module_TOTEM.routeRequest"></a>
 
 ### TOTEM.routeRequest(req, res)
@@ -802,6 +823,22 @@ byActionTable then byAction routers.
 The provided response method accepts a string, an objects, an array, an error, or 
 a file-cache function and terminates the session's sql connection.  The client is 
 validated and their session logged.
+
+In phase3 of the session setup, the following is added to the req:
+
+	files: [...]		// list of files being uploaded
+	//canvas: {...}		// canvas being uploaded
+	query: {...} 		// raw keys from url
+	where: {...} 		// sql-ized query keys from url
+	body: {...}			// body keys from request 
+	flags: {...} 		// flag keys from url
+	index: {...}		// sql-ized index keys from url
+	path: "/[area/...]name.type"			// requested resource
+	area: "name"		// file area being requested
+	table: "name"		// name of sql table being requested
+	ds:	"db.name"		// fully qualified sql table
+	body: {...}			// json parsed post
+	type: "type" 		// type part
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
@@ -834,47 +871,11 @@ Configure database, define site context, then protect, connect, start and initia
 <a name="module_TOTEM.config..configService"></a>
 
 #### config~configService(agent)
-Setup (connect, start then initialize) a service that will handle its request-response sessions
-		with the provided agent(req,res).
+Configure (create, start then initialize) a service that will handle its request-response 
+		sessions.
 
-		The session request is constructed in the following phases:
-
-			// phase1 startRequest
-			host: "proto://domain:port"	// requested host 
-			cookie: "...."		// client cookie string
-			agent: "..."		// client browser info
-			ipAddress: "..."	// client ip address
-			referer: "proto://domain:port/query"	//  url during a cross-site request
-			method: "GET|PUT|..." 			// http request method
-			action: "select|update| ..."	// corresponding crude name
-			started: date		// date stamp when requested started
-			encrypted: bool		// true if request on encrypted server
-			post: "..."			// raw body text
-			url	: "/query"		// requested url path
-			reqSocket: socket	// socket to retrieve client cert 
-			resSocket: socket	// socket to accept response
-			sql: connector 		// sql database connector 
-
-			// phase2 startResponse
-			log: {...}			// info to trap socket stats
-			client: "..."		// name of client from cert or "guest"
-			cert: {...} 		// full client cert
-
-			// phase3 routeRequest 
-			files: [...]		// list of files being uploaded
-			canvas: {...}		// canvas being uploaded
-			query: {...} 		// raw keys from url
-			where: {...} 		// sql-ized query keys from url
-			body: {...}			// body keys from request 
-			flags: {...} 		// flag keys from url
-			index: {...}		// sql-ized index keys from url
-			files: [...] 		// files uploaded
-			path: "/[area/...]name.type"			// requested resource
-			area: "name"		// file area being requested
-			table: "name"		// name of sql table being requested
-			ds:	"db.name"		// fully qualified sql table
-			body: {...}			// json parsed post
-			type: "type" 		// type part
+		The session request is constructed in 3 phases: startRequest, startResponse, then routeRequest.
+		As these phases are performed, the request hash req is extended.
 
 **Kind**: inner method of [<code>config</code>](#module_TOTEM.config)  
 
@@ -956,6 +957,20 @@ Establish smart file watcher when file at area/name has changed.
 | path | <code>String</code> | to file being watched |
 | callback | <code>function</code> | cb(sql, name, path) when file at path has changed |
 
+<a name="module_TOTEM.getBrick"></a>
+
+### TOTEM.getBrick(client, name, cb)
+Get (or create if needed) a file with callback cb(fileID, sql) if no errors
+
+**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
+**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| client | <code>String</code> | owner of file |
+| name | <code>String</code> | of file to get/make |
+| cb | <code>function</code> | callback(file, sql) if no errors |
+
 <a name="module_TOTEM.setContext"></a>
 
 ### TOTEM.setContext()
@@ -963,72 +978,6 @@ Sets the site context parameters.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
-<a name="module_TOTEM..parseXML"></a>
-
-### TOTEM~parseXML(cb) ⇐ <code>String</code>
-Parse XML string into json and callback cb(json)
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-**Extends**: <code>String</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| cb | <code>function</code> | callback( json || null if error ) |
-
-<a name="module_TOTEM..fetchFile"></a>
-
-### TOTEM~fetchFile(path, data, [cb]) ⇐ <code>String</code>
-Fetches text from a URL `path`
-
-	PROTOCOL://HOST/FILE ? batch=N & limit=N & rekey=from:to,... & comma=X & newline=X 
-
-using a PUT || POST || DELETE || GET corresponding to the type of the fetch `data`  
-Array || Object || null || Function where
-
-	PROTOCOL		uses
-	==============================================
-	http(s) 		http (https) protocol
-	curl(s) 		curl (presents certs/fetch.pfx certificate to endpoint)
-	wget(s)			wget (presents certs/fetch.pfx certificate to endpoint)
-	mask 			rotated proxies
-	file			file system
-	book			selected notebook record
-	AASRV 			oauth authorization-authentication protocol (e.g. lexis)
-
-While the FILE spec is terminated by a "/", a folder index is returned.  The optional 
-batch,limit,... query parameters are used to regulate a (e.g. csv) file stream.
-
-See fetchOptions for fetching config parameters.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-**Extends**: <code>String</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| path | <code>String</code> | source URL |
-| data | <code>string</code> \| <code>array</code> \| <code>function</code> \| <code>null</code> | fetching data or callback |
-| [cb] | <code>TSR</code> | callback when specified data is not a Function |
-
-**Example**  
-```js
-URL.fetchFile( text => {			// get request
-})
-```
-**Example**  
-```js
-URL.fetchFile( [ ... ], stat => { 	// post request with data hash list
-})
-```
-**Example**  
-```js
-URL.fetchFile( { ... }, stat => { 	// put request with data hash
-})
-```
-**Example**  
-```js
-URL.fetchFile( null, stat => {		// delete request 
-})
-```
 <a name="module_TOTEM..stopService"></a>
 
 ### TOTEM~stopService()
@@ -1061,20 +1010,7 @@ a null `error` if the session was sucessfully validated.
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | totem session request |
-| res | <code>TSR</code> | totem session responder |
-
-<a name="module_TOTEM..getBrick"></a>
-
-### TOTEM~getBrick(client, name, cb)
-Get (or create if needed) a file with callback cb(fileID, sql) if no errors
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| client | <code>String</code> | owner of file |
-| name | <code>String</code> | of file to get/make |
-| cb | <code>function</code> | callback(file, sql) if no errors |
+| res | <code>function</code> | totem session responder |
 
 <a name="module_TOTEM..uploadFile"></a>
 
@@ -1103,7 +1039,7 @@ CRUD select endpoint.
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>TSR</code> | Totem session responder |
+| res | <code>function</code> | Totem session responder |
 
 <a name="module_TOTEM..insertDS"></a>
 
@@ -1115,7 +1051,7 @@ CRUD insert endpoint.
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
-| res | <code>TSR</code> | Totem response callback |
+| res | <code>function</code> | Totem response callback |
 
 <a name="module_TOTEM..deleteDS"></a>
 
@@ -1153,53 +1089,88 @@ CRUD execute endpoint.
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem response callback |
 
-<a name="module_TOTEM..sysPing"></a>
+<a name="module_ENDPTS"></a>
 
-### TOTEM~sysPing(req, res)
+## ENDPTS
+Provide TOTEM endpoints.
+
+**Requires**: <code>module:securelink</code>, <code>module:enums</code>, <code>module:cluster</code>  
+
+* [ENDPTS](#module_ENDPTS)
+    * [.ping(req, res)](#module_ENDPTS.ping)
+    * [.task(req, res)](#module_ENDPTS.task)
+    * [.riddle(req, res)](#module_ENDPTS.riddle)
+
+<a name="module_ENDPTS.ping"></a>
+
+### ENDPTS.ping(req, res)
 Endpoint to test connectivity.
 
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+**Kind**: static method of [<code>ENDPTS</code>](#module_ENDPTS)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem request |
 | res | <code>function</code> | Totem response |
 
-<a name="module_TOTEM..sysTask"></a>
+<a name="module_ENDPTS.task"></a>
 
-### TOTEM~sysTask(req, res)
+### ENDPTS.task(req, res)
 Endpoint to shard a task to the compute nodes.
 
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+**Kind**: static method of [<code>ENDPTS</code>](#module_ENDPTS)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem request |
 | res | <code>function</code> | Totem response |
 
-<a name="module_TOTEM..sysChallenge"></a>
+<a name="module_ENDPTS.riddle"></a>
 
-### TOTEM~sysChallenge(req, res)
+### ENDPTS.riddle(req, res)
 Endpoint to validate clients response to an antibot challenge.
 
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
+**Kind**: static method of [<code>ENDPTS</code>](#module_ENDPTS)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem response callback |
 
-<a name="module_TOTEM..TSR"></a>
+</details>
 
-### TOTEM~TSR : <code>function</code>
-Totem response callback.
+## Contacting, Contributing, Following
 
-**Kind**: inner typedef of [<code>TOTEM</code>](#module_TOTEM)  
+Feel free to 
+* submit and status **TOTEM** issues (
+[WWW](http://totem.zapto.org/issues.view) 
+[COE](https://totem.west.ile.nga.ic.gov/issues.view) 
+[SBU](https://totem.nga.mil/issues.view)
+)  
+* contribute to **TOTEM** notebooks (
+[WWW](http://totem.zapto.org/shares/notebooks/) 
+[COE](https://totem.west.ile.nga.ic.gov/shares/notebooks/) 
+[SBU](https://totem.nga.mil/shares/notebooks/)
+)  
+* revise **TOTEM** requirements (
+[WWW](http://totem.zapto.org/reqts.view) 
+[COE](https://totem.west.ile.nga.ic.gov/reqts.view) 
+[SBU](https://totem.nga.mil/reqts.view), 
+)  
+* browse **TOTEM** holdings (
+[WWW](http://totem.zapto.org/) 
+[COE](https://totem.west.ile.nga.ic.gov/) 
+[SBU](https://totem.nga.mil/)
+)  
+* or follow **TOTEM** milestones (
+[WWW](http://totem.zapto.org/milestones.view) 
+[COE](https://totem.west.ile.nga.ic.gov/milestones.view) 
+[SBU](https://totem.nga.mil/milestones.view)
+).
 
-| Param | Type | Description |
-| --- | --- | --- |
-| text | <code>string</code> \| <code>error</code> | Response message or error |
+## License
 
+[MIT](LICENSE)
 
 * * *
 
