@@ -371,9 +371,9 @@ const
 		byArea, byType, byAction, byTable, CORS,
 		defaultType, isTrusted,
 		$master, $worker, 
-		getBrick, initialize, routeRequest, setContext,
+		getBrick, routeRequest, setContext,
 		reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitRules,
-		filterRecords,routeDS, startDogs, cache } = TOTEM = module.exports = {
+		filterRecords,tableRoutes, routeTable, startDogs, cache } = TOTEM = module.exports = {
 	
 	Log: (...args) => console.log(">>>totem", args),
 	Trace: (msg,args,req) => "totem".trace(msg, req, msg => console.log(msg,args) ),	
@@ -386,8 +386,16 @@ const
 
 	defaultType: "run",
 
-	routeDS: {	// setup default DataSet routes
-		default: req => "app."+req.table
+	routeTable: req => {
+		const {table} =  req;
+		if ( route = tableRoutes[table] )
+			return route(req);
+		
+		else
+			return "app."+req.table;
+	},
+
+	tableRoutes: {	// setup default DataSet routes
 	},
 
 	mysql: { 		// database connection or null to disable
@@ -588,7 +596,7 @@ In phase3 of the session setup, the following is added to the req:
 			req.type = type || defaultType;
 
 			const
-				ds = req.ds = (routeDS[table] || routeDS.default)(req);
+				ds = req.ds = routeTable(req);
 			
 			//Log(ds,action,path,area,table,type);
 			//Log({n:node, f: flags, q:query, b:body, i:index, w:where});
@@ -914,7 +922,7 @@ Configure database, define site context, then protect, connect, start and initia
 				*/				
 				function startServer(server, port, agent) {	//< attach listener callback cb(Req,Res) to the specified port
 					const 
-						{ secureLink, name, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM;
+						{ initialize, secureLink, name, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM;
 					
 					Log(`STARTING ${name}`);
 
@@ -2010,8 +2018,8 @@ Default paths to service files
 		}
 	},
 
-	lookups: {},
-	Lookups: {},
+	//lookups: {},
+	//Lookups: {},
 		
 	sqls: {	// sql queries
 		getAccount:	"SELECT Trusted, validEmail, Banned, aes_decrypt(unhex(Password),?) AS Password, SecureCom FROM openv.profiles WHERE Client=? AND !Online", 
@@ -2104,6 +2112,7 @@ Sets the site context parameters.
 
 		site.warning = "";
 
+		/*
 		const 
 			{lookups,Lookups} = TOTEM;
 
@@ -2135,6 +2144,7 @@ Sets the site context parameters.
 				throw new Error("Check if mysql service is running");
 			//Log(">>>Lookups", Lookups);
 		});
+		*/
 		
 		if (users) 
 			sql.query(users)
