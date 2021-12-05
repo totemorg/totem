@@ -1,8 +1,5 @@
 /**
-Provide TOTEM endpoints.  The preferred way to add functionality to TOTEM is to 
-create [TOTEM Notebooks](http://totem.gopto.org/api.view).  However, this 
-module can be used to provide additional TOTEM endpoints having unprotected 
-access to the MySQL service.  Revise/rename/remove the examples herein as needed.
+Provide TOTEM endpoints.
 
 @module ENDPTS
 @requires securelink
@@ -16,13 +13,30 @@ const
 	CLUSTER = require("cluster");
 
 module.exports = {
+	/*
+	byAction: {
+		select: { ... },
+		create: { ... },
+		delete: { ... },
+		update: { ... },
+		execute: { ... }
+	},
+	*/
+	
+	/*
+	byType: {
+		csv: { ... },
+		...
+	},
+	*/
+	
 	/**
 	Endpoint to test connectivity.
 
 	@param {Object} req Totem request
 	@param {Function} res Totem response
 	*/
-	EX1: (req,res) => {
+	U1: (req,res) => {
 		const 
 			{ client, site, type } = req,
 			{ nick } = site;
@@ -39,7 +53,7 @@ module.exports = {
 	@param {Object} req Totem request
 	@param {Function} res Totem response
 	*/
-	EX2: (req,res) => {  //< task sharding
+	U2: (req,res) => {  //< task sharding
 		const {query,body,sql,type,table,url} = req;
 		const {task,domains,cb,client,credit,name,qos} = body;
 
@@ -93,7 +107,7 @@ module.exports = {
 	@param {Object} req Totem session request
 	@param {Function} res Totem response callback
 	*/
-	EX3: (req,res) => {
+	U3: (req,res) => {
 		const 
 			{ query, sql, type, body, action } = req,
 			{ client , guess } = (action=="select") ? query : body;
@@ -110,4 +124,37 @@ module.exports = {
 			res( "no admission credentials provided" );
 	}
 
+/*
+function sysLogin(req,res) {
+	const 
+		{ sql, query, type, profile, body, action, client } = req,
+		{ account, password, option } = (action == "select") ? query : body;
+	
+	if ( type == "help" )
+		return res( `
+Login, request password reset, make temp account, return online users, mane an account using option = 
+login||reset||temp||make with the specified account=NAME and password=TEXT.
+` );
+
+	Log(account,password,option);
+
+	switch ( option ) {
+		case "keys":
+			const 
+				keys = {};
+			
+			sql.query("SELECT Client,pubKey FROM openv.profiles WHERE Online")
+			.on("result", rec => keys[rec.Client] = rec.pubKey )
+			.on("end", () => res( keys ) );
+		
+			break;
+			
+		default:
+			res({
+				message: "bad account/password",
+			});
+	}
+
+}
+*/
 };

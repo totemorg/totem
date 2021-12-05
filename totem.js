@@ -377,7 +377,7 @@ const
 	
 	Log: (...args) => console.log(">>>totem", args),
 	Trace: (msg,args,req) => "totem".trace(msg, req, msg => console.log(msg,args) ),	
-			
+		
 	inspector: null,
 			
 	CORS: false,	//< enable to support cross-origin-scripting
@@ -833,17 +833,22 @@ Configure database, define site context, then protect, connect, start and initia
 */
 	config: (opts,cb) => {
 		function addEndpoints(pts) {
-			paths.crud.forEach( type => {
-				if ( endpts = pts[type] ) {
-					Log("add action endpts", type);
-					Copy(endpts, byAction[type]);
-					delete pts[type];
-				}
-			});
-			
+			const
+				{ byAction, byType } = pts;
+
+			if ( byAction ) {
+				Copy(byAction, DEBE.byAction);
+				delete pts.byAction;
+			}
+
+			if ( byType ) {
+				Copy(byType, DEBE.byType);
+				delete pts.byType;
+			}
+
 			Copy(pts, byTable);
 		}
-		
+
 		function docEndpoints(sql) {
 			
 			const 
@@ -1428,21 +1433,21 @@ Configure database, define site context, then protect, connect, start and initia
 				createServer();
 		}
 
-		if (opts) Copy(opts, TOTEM, ".");
-
 		const
 			{ name } = TOTEM;
 		
+		Log(`CONFIGURING ${name}`); 
+
+		if (opts) Copy(opts, TOTEM, ".");
+
 		try {
-			addEndpoints( require(paths.endpts) );
+			addEndpoints( require(paths.userEndpts) );
 		}
 		
 		catch (err) {
-			Trace("No custom endpts");
+			Trace("Bad endpts");
 		}
-
-		Log(`CONFIGURING ${name}`); 
-
+		
 		Each( paths.mimes, (key,val) => {	// extend or remove mime types
 			if ( val ) 
 				MIME.types[key] = val;
@@ -1461,7 +1466,9 @@ Configure database, define site context, then protect, connect, start and initia
 		});	
 	},
 
-	initialize: (sql,init) => init(sql),
+	initialize: (sql,init) => {
+		init(sql);
+	},
 	
 	queues: JSDB.queues, 	// pass along
 		
@@ -1823,8 +1830,102 @@ Endpoint filterRecords cb(data data as string || error)
 /**
 By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
 @cfg {Object} 
-*/				
-	byTable: require("./endpts"), 			  //< by-table routers	
+*/	
+	byTable: { 			  //< by-table routers	
+		/**
+		Endpoint to test connectivity.
+
+		@param {Object} req Totem request
+		@param {Function} res Totem response
+		*/
+		ping: (req,res) => {
+			const 
+				{ client, site, type } = req,
+				{ nick } = site;
+
+			if (type == "help")
+			return res("Send connection status");
+
+			res( `Welcome ${client} to ${nick}` );
+		},
+
+		/**
+		Endpoint to shard a task to the compute nodes.
+
+		@param {Object} req Totem request
+		@param {Function} res Totem response
+		*/
+		task: (req,res) => {  //< task sharding
+			const {query,body,sql,type,table,url} = req;
+			const {task,domains,cb,client,credit,name,qos} = body;
+
+			if ( type == "help" ) 
+			return res("Shard specified task to the compute nodes given task post parameters");
+
+			var 
+				$ = JSON.stringify({
+					worker: CLUSTER.isMaster ? 0 : CLUSTER.worker.id,
+					node: process.env.HOSTNAME
+				}),
+				engine = `(${cb})( (${task})(${$}) )`;
+
+			res( "ok" );
+
+			if ( task && cb ) 
+				doms.forEach( index => {
+
+					function runTask(idx) {
+						VM.runInContext( engine, VM.createContext( Copy( TOTEM.tasking || {}, idx) ));
+					}
+
+					if (qos) 
+						sql.queueTask( new Clock("totem", "second"), { // job descriptor 
+							index: Copy(index,{}),
+							//priority: 0,
+							Class: table,
+							Client: client,
+							Name: name,
+							Task: name,
+							Notes: [
+									table.tag("?",query).link( "/" + table + ".run" ), 
+									((credit>0) ? "funded" : "unfunded").link( url ),
+									"RTP".link( `/rtpsqd.view?task=${name}` ),
+									"PMR brief".link( `/briefs.view?options=${name}` )
+							].join(" || ")
+						}, (recs,job,res) => {
+							//Log("reg job" , job);
+							runTask( job.index );
+							res();
+						});
+
+					else
+						runTask( index );
+				});
+		},
+
+		/**
+		Endpoint to validate clients response to an antibot challenge.
+
+		@param {Object} req Totem session request
+		@param {Function} res Totem response callback
+		*/
+		riddle: (req,res) => {
+			const 
+				{ query, sql, type, body, action } = req,
+				{ client , guess } = (action=="select") ? query : body;
+
+			if ( type == "help" ) 
+			return res("Validate session id=client guess=value.");
+
+			Log(client,guess);
+
+			if (client && guess)
+				testClient( client, guess, pass => res(pass) );
+
+			else
+				res( "no admission credentials provided" );
+		}	
+	},
 		
 /**
 By-action endpoint routers for accessing engines
@@ -1948,6 +2049,9 @@ Client admission rules
 		// C: "us"
 	},
 
+	sendMail: msg => { throw new Error("sendMail never configured"); },
+	inspector: msg => { throw new Error("inspector never configured"); },
+		
 /**
 Number of antibot riddles to extend 
 @cfg {Number} [riddles=0]
@@ -2003,7 +2107,8 @@ Default paths to service files
 			
 		certs: "./config/certs/",
 
-		endpts: "./config/endpts",
+		//serviceEndpts: "./endpts",
+		userEndpts: "./config/endpts",
 			
 		nodes: {  // available nodes for task sharding
 			0: ENV.SHARD0 || "http://localhost:8080/task",
