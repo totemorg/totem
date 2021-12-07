@@ -6,6 +6,7 @@ Provides a [barebones web service]{@link https://github.com/totemstan/totem}.  T
 in accordance with [jsdoc]{@link https://jsdoc.app/}.
 
 @module TOTEM
+@author [ACMESDS](https://totemstan.github.io)
 
 @requires http
 @requires https
@@ -362,12 +363,28 @@ const
 	{ sqlThread, neoThread } = JSDB = require("jsdb"),		// database agnosticator
 	  
 	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("enums");
-	  
+
+/**
+@module TOTEM.String
+*/
+Copy({ //< String prototypes
+	/**
+	Parse XML string into json and callback cb(json) 
+
+	@extends String
+	@param {Function} cb callback( json || null if error )
+	*/
+	parseXML: function (cb) {
+		XML2JS.parseString(this, function (err,json) {				
+			cb( err ? null : json );
+		});
+	},
+}, String.prototype);
+
 // totem i/f
 
 const 
-	{ 
-		Log, Trace,
+	{ 	Log, Trace,
 		byArea, byType, byAction, byTable, CORS,
 		defaultType, isTrusted,
 		$master, $worker, 
@@ -2320,7 +2337,6 @@ File cache
 /**
 Stop the server.
 */
-		
 function stopService(cb) {
 	if (server = TOTEM.server)
 		server.close( () => {
@@ -2854,69 +2870,6 @@ function simThread(sock) {
 		startServer(Req,Res);
 	});
 } */
-
-[  //< date prototypes
-].Extend(Date);
-
-[ //< Array prototypes
-
-	/*
-	function parseJSON(ctx,def) {
-		this.forEach( key => {
-			try {
-				ctx[key] = (ctx[key] || "").parseJSON( (val) => def || null );
-			}
-			catch (err) {
-				//Log(err,key,rec[key]);
-				ctx[key] = def || null;
-			}
-		});
-		return ctx;
-	}, */
-	/*
-	function unpack( cb ) {
-		var 
-			recs = this;
-		
-		recs.forEach( (rec,n) => {
-			if ( rec ) 
-				if ( typeOf(rec) == "RowDataPacket" ) {
-					var Rec = recs[n] = Copy( rec, {} );
-		
-					Each(Rec, (key,val) => {
-						try {
-							Rec[key] = JSON.parse( val );
-						}
-						catch (err) {
-							if ( cb ) Rec[key] = cb( val );
-						}
-					});
-				}
-		});
-		
-		return recs;
-	} 
-	function hashify(key,hash) {
-		var rtn = hash || {};
-		this.forEach( rec => rtn[rec[key]] = rec );
-		return rtn;
-	}
-	*/
-].Extend(Array);
-
-[ //< String prototypes
-	/**
-	Parse XML string into json and callback cb(json) 
-
-	@extends String
-	@param {Function} cb callback( json || null if error )
-	*/
-	function parseXML(cb) {
-		XML2JS.parseString(this, function (err,json) {				
-			cb( err ? null : json );
-		});
-	},
-].Extend(String);
 
 //Log(">>>>fetch oauth", Config.oauthHosts);
 
