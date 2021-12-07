@@ -1,7 +1,54 @@
 // UNCLASSIFIED   
 
-/**
+const	
+	// NodeJS modules
+				  
+	ENV = process.env,
+	STREAM = require("stream"), 				// pipe-able streams
+	HTTP = require("http"),						// http interface
+	HTTPS = require("https"),					// https interface
+	CP = require("child_process"),				// spawn OS shell commands
+	FS = require("fs"),							// access file system
+	CONS = require("constants"),				// constants for setting tcp sessions
+	CLUSTER = require("cluster"),				// multicore  processing
+	CRYPTO = require("crypto"),					// crypto for SecureLink
+	//NET = require("net"), 						// network interface
+	VM = require("vm"), 						// virtual machines for tasking
+	OS = require('os'),							// OS utilitites
 
+	// 3rd party modules
+	  
+	//AGENT = require("http-proxy-agent"),		// agent to access proxies
+	SCRAPE = require("cheerio"), 				// scraper to load proxies
+	MIME = require("mime"), 					// file mime types
+	{ escape, escapeId } = SQLDB = require("mysql"),	//< mysql conector
+	XML2JS = require("xml2js"),					// xml to json parser (*)
+	BUSY = require('toobusy-js'),  				// denial-of-service protector (cant install on NodeJS 5.x+)
+	JS2XML = require('js2xmlparser'), 			// JSON to XML parser
+	JS2CSV = require('json2csv'),				// JSON to CSV parser	
+	SECLINK = require("securelink"),			// secure com and login
+	{ sqlThread, neoThread } = JSDB = require("jsdb"),		// database agnosticator
+	  
+	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("enums");
+
+/**
+@module TOTEM.String
+*/
+Copy({ //< String prototypes
+	/**
+	Parse XML string into json and callback cb(json) 
+
+	@extends String
+	@param {Function} cb callback( json || null if error )
+	*/
+	parseXML: function (cb) {
+		XML2JS.parseString(this, function (err,json) {				
+			cb( err ? null : json );
+		});
+	},
+}, String.prototype);
+
+/**
 Provides a [barebones web service]{@link https://github.com/totemstan/totem}.  This module documented 
 in accordance with [jsdoc]{@link https://jsdoc.app/}.
 
@@ -330,58 +377,7 @@ neoThread( neo => {
 		});
 	});
 });	
-
 */
-
-const	
-	// NodeJS modules
-				  
-	ENV = process.env,
-	STREAM = require("stream"), 				// pipe-able streams
-	HTTP = require("http"),						// http interface
-	HTTPS = require("https"),					// https interface
-	CP = require("child_process"),				// spawn OS shell commands
-	FS = require("fs"),							// access file system
-	CONS = require("constants"),				// constants for setting tcp sessions
-	CLUSTER = require("cluster"),				// multicore  processing
-	CRYPTO = require("crypto"),					// crypto for SecureLink
-	//NET = require("net"), 						// network interface
-	VM = require("vm"), 						// virtual machines for tasking
-	OS = require('os'),							// OS utilitites
-
-	// 3rd party modules
-	  
-	//AGENT = require("http-proxy-agent"),		// agent to access proxies
-	SCRAPE = require("cheerio"), 				// scraper to load proxies
-	MIME = require("mime"), 					// file mime types
-	{ escape, escapeId } = SQLDB = require("mysql"),	//< mysql conector
-	XML2JS = require("xml2js"),					// xml to json parser (*)
-	BUSY = require('toobusy-js'),  				// denial-of-service protector (cant install on NodeJS 5.x+)
-	JS2XML = require('js2xmlparser'), 			// JSON to XML parser
-	JS2CSV = require('json2csv'),				// JSON to CSV parser	
-	SECLINK = require("securelink"),			// secure com and login
-	{ sqlThread, neoThread } = JSDB = require("jsdb"),		// database agnosticator
-	  
-	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("enums");
-
-/**
-@module TOTEM.String
-*/
-Copy({ //< String prototypes
-	/**
-	Parse XML string into json and callback cb(json) 
-
-	@extends String
-	@param {Function} cb callback( json || null if error )
-	*/
-	parseXML: function (cb) {
-		XML2JS.parseString(this, function (err,json) {				
-			cb( err ? null : json );
-		});
-	},
-}, String.prototype);
-
-// totem i/f
 
 const 
 	{ 	Log, Trace,
