@@ -792,7 +792,7 @@ net_restart.)
 	sudo /etc/init.d/network restart
 	;;
 
-*)  	# start totem
+oper.|prod.|prot.|debug.|lab.)  	# start totem
 
 	case "$(hostname)." in
 		wsn3303.)
@@ -826,7 +826,7 @@ net_restart.)
 			PORT2=443
 			;;
 
-		up.|protected.|https.)	# single core
+		prot.)	# single core
 			PROTO=https
 			PORT1=8443
 			PORT2=8080
@@ -839,7 +839,7 @@ net_restart.)
 			PORT2=443
 			;;
 		
-		.|debug.|http.)
+		*)
 			DOMAIN=localhost
 			PROTO=http
 			PORT1=8080
@@ -861,11 +861,11 @@ net_restart.)
 
 	case "$1." in 
 		oper.)
-			sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o debe.log start debe.js D1 $2 $3 $4 $5
+			sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o debe.log start debe.js $1 $2 $3 $4 $5
 			;;
 		
 		*)
-			node debe.js D1 $2 $3 $4 $5 
+			node debe.js $1 $2 $3 $4 $5 
 			;;
 	esac
 
