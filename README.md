@@ -117,14 +117,28 @@ follow the ENUM deep copy conventions (
 ## Modules
 
 <dl>
+<dt><a href="#TOTEM.module_String">String</a></dt>
+<dd></dd>
 <dt><a href="#module_TOTEM">TOTEM</a></dt>
 <dd><p>Provides a <a href="https://github.com/totemstan/totem">barebones web service</a>.  This module documented 
 in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
 </dd>
-<dt><a href="#module_ENDPTS">ENDPTS</a></dt>
-<dd><p>Provide TOTEM endpoints.</p>
-</dd>
 </dl>
+
+<a name="TOTEM.module_String"></a>
+
+## String
+<a name="TOTEM.module_String..parseXML"></a>
+
+### String~parseXML(cb) ⇐ <code>String</code>
+Parse XML string into json and callback cb(json)
+
+**Kind**: inner method of [<code>String</code>](#TOTEM.module_String)  
+**Extends**: <code>String</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| cb | <code>function</code> | callback( json || null if error ) |
 
 <a name="module_TOTEM"></a>
 
@@ -133,6 +147,7 @@ Provides a [barebones web service](https://github.com/totemstan/totem).  This mo
 in accordance with [jsdoc](https://jsdoc.app/).
 
 **Requires**: <code>module:http</code>, <code>module:https</code>, <code>module:fs</code>, <code>module:constants</code>, <code>module:cluster</code>, <code>module:child\_process</code>, <code>module:os</code>, <code>module:stream</code>, <code>module:vm</code>, <code>module:crypto</code>, <code>module:enums</code>, <code>module:jsdb</code>, <code>module:securelink</code>, <code>module:socketio</code>, <code>module:mime</code>, <code>module:mysql</code>, <code>module:xml2js</code>, <code>module:toobusy</code>, <code>module:json2csv</code>, <code>module:js2xmlparser</code>, <code>module:toobusy-js</code>, <code>module:cheerio</code>  
+**Author**: [ACMESDS](https://totemstan.github.io)  
 **Example**  
 ```js
 // npm test T1
@@ -454,6 +469,9 @@ neoThread( neo => {
         * [.site](#module_TOTEM.site)
         * [.filterRecords](#module_TOTEM.filterRecords)
         * [.byTable](#module_TOTEM.byTable)
+            * [.ping(req, res)](#module_TOTEM.byTable.ping)
+            * [.task(req, res)](#module_TOTEM.byTable.task)
+            * [.riddle(req, res)](#module_TOTEM.byTable.riddle)
         * [.byAction](#module_TOTEM.byAction)
         * [.byType](#module_TOTEM.byType)
         * [.byArea](#module_TOTEM.byArea)
@@ -658,6 +676,48 @@ By-table endpoint routers {table: method(req,res), ... } for data fetchers, syst
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
+
+* [.byTable](#module_TOTEM.byTable)
+    * [.ping(req, res)](#module_TOTEM.byTable.ping)
+    * [.task(req, res)](#module_TOTEM.byTable.task)
+    * [.riddle(req, res)](#module_TOTEM.byTable.riddle)
+
+<a name="module_TOTEM.byTable.ping"></a>
+
+#### byTable.ping(req, res)
+Endpoint to test connectivity.
+
+**Kind**: static method of [<code>byTable</code>](#module_TOTEM.byTable)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem request |
+| res | <code>function</code> | Totem response |
+
+<a name="module_TOTEM.byTable.task"></a>
+
+#### byTable.task(req, res)
+Endpoint to shard a task to the compute nodes.
+
+**Kind**: static method of [<code>byTable</code>](#module_TOTEM.byTable)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem request |
+| res | <code>function</code> | Totem response |
+
+<a name="module_TOTEM.byTable.riddle"></a>
+
+#### byTable.riddle(req, res)
+Endpoint to validate clients response to an antibot challenge.
+
+**Kind**: static method of [<code>byTable</code>](#module_TOTEM.byTable)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem response callback |
+
 <a name="module_TOTEM.byAction"></a>
 
 ### TOTEM.byAction
@@ -1083,54 +1143,6 @@ CRUD update endpoint.
 CRUD execute endpoint.
 
 **Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem response callback |
-
-<a name="module_ENDPTS"></a>
-
-## ENDPTS
-Provide TOTEM endpoints.
-
-**Requires**: <code>module:securelink</code>, <code>module:enums</code>, <code>module:cluster</code>  
-
-* [ENDPTS](#module_ENDPTS)
-    * [.ping(req, res)](#module_ENDPTS.ping)
-    * [.task(req, res)](#module_ENDPTS.task)
-    * [.riddle(req, res)](#module_ENDPTS.riddle)
-
-<a name="module_ENDPTS.ping"></a>
-
-### ENDPTS.ping(req, res)
-Endpoint to test connectivity.
-
-**Kind**: static method of [<code>ENDPTS</code>](#module_ENDPTS)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem request |
-| res | <code>function</code> | Totem response |
-
-<a name="module_ENDPTS.task"></a>
-
-### ENDPTS.task(req, res)
-Endpoint to shard a task to the compute nodes.
-
-**Kind**: static method of [<code>ENDPTS</code>](#module_ENDPTS)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem request |
-| res | <code>function</code> | Totem response |
-
-<a name="module_ENDPTS.riddle"></a>
-
-### ENDPTS.riddle(req, res)
-Endpoint to validate clients response to an antibot challenge.
-
-**Kind**: static method of [<code>ENDPTS</code>](#module_ENDPTS)  
 
 | Param | Type | Description |
 | --- | --- | --- |

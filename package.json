@@ -7,7 +7,7 @@
     "config": "vi ./_pass.sh; source ./_pass.sh",
     "start": "node totem.js T3",
     "startdb": "source ./maint.sh mysql start",
-    "redoc": "jsdoc2md --template README.hbs --files totem.js endpts.js >README.md; git commit -am 'redoc'; git  push agent master"
+    "redoc": "jsdoc2md --template README.hbs --files totem.js >README.md; git commit -am 'redoc'; git  push agent master"
   },
   "author": "ACME SDS",
   "license": "ISC",
