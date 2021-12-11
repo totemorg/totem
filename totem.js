@@ -2694,9 +2694,14 @@ function selectDS(req, res) {
 	const 
 		{ sql, flags, client, where, index, action, ds } = req,
 		{ trace, pivot, browse, sort, limit, offset } = flags;
-		  
+
+	//Log("selDS", ds, index);
+	
 	if (sql)
-		sql.Index( ds, index, [], (index,jsons) => { 
+		sql.Index( ds, index, (selects,types,gets) => { 
+			
+			const {json} = types;
+			
 			sql.Query(
 				"SELECT SQL_CALC_FOUND_ROWS ${index} FROM ?? ${where} ${having} ${limit} ${offset}", 
 				[ ds ], {
@@ -2707,14 +2712,31 @@ function selectDS(req, res) {
 					limit: limit || 0,
 					offset: offset || 0,
 					where: where,
-					index: index,
+					index: selects,
 					having: null,
-					jsons: jsons,
 					client: client
 				}, (err,recs) => {
 
-				res( err || recs );
-			});
+					if ( err )
+						res(err);
+
+					else {
+						if ( json ) 
+							json.forEach( key => {
+								recs.forEach( rec => {
+									try {
+										rec[key] = JSON.parse(rec[key]);
+									}
+
+									catch (err) {
+										rec[key] = null;
+									}
+								});
+							});					
+
+						res( gets ? recs.get(gets) : recs );
+					}
+				});
 		});
 	
 	else
