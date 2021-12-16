@@ -12,7 +12,7 @@ const
 	CONS = require("constants"),				// constants for setting tcp sessions
 	CLUSTER = require("cluster"),				// multicore  processing
 	CRYPTO = require("crypto"),					// crypto for SecureLink
-	//NET = require("net"), 						// network interface
+	//NET = require("net"), 					// network interface
 	VM = require("vm"), 						// virtual machines for tasking
 	OS = require('os'),							// OS utilitites
 
@@ -385,8 +385,8 @@ const
 		defaultType, isTrusted,
 		$master, $worker, 
 		getBrick, routeRequest, setContext,
-		reqFlags, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitRules,
-		filterRecords,tableRoutes, routeTable, startDogs, cache } = TOTEM = module.exports = {
+		filterFlag, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitRules,
+		filterType,tableRoutes, routeTable, startDogs, cache } = TOTEM = module.exports = {
 	
 	Log: (...args) => console.log(">>>totem", args),
 	Trace: (msg,args,req) => "totem".trace(msg, req, msg => console.log(msg,args) ),	
@@ -526,7 +526,7 @@ In phase3 of the session setup, the following is added to the req:
 							var call = null;
 							for ( var key in flags ) if ( !call ) {	// perform single data modifier
 								if ( key.startsWith("$") ) key = "$";
-								if ( call = reqFlags[key] ) {
+								if ( call = filterFlag[key] ) {
 									call( recs, req, recs => res(req, recs) );
 									break;
 								}
@@ -535,7 +535,7 @@ In phase3 of the session setup, the following is added to the req:
 							if ( !call ) res(recs);  */
 							
 							var mod;
-							for ( var key in flags ) mod = reqFlags[key];
+							for ( var key in flags ) mod = filterFlag[key];
 							
 							if ( mod ) 
 								mod( recs, req, recs => res(recs) );
@@ -593,7 +593,7 @@ In phase3 of the session setup, the following is added to the req:
 			}
 
 			const 
-				{ strips, prefix, traps, id } = reqFlags,
+				{ strips, prefix, traps, id } = filterFlag,
 				{ action, body, sql, client } = req;
 			
 			const
@@ -1297,7 +1297,7 @@ Configure database, define site context, then protect, connect, start and initia
 												}
 
 												function sendRecords(recs) { // Send records via converter
-													if ( route = filterRecords[req.type] )  // process record conversions
+													if ( route = filterType[req.type] )  // process record conversions
 														route(recs, req, recs => {
 															if (recs) 
 																switch ( typeOf(recs) ) {
@@ -1702,7 +1702,7 @@ REST-to-CRUD translations
 Options to parse request flags
 @cfg {Object} 
 */
-	reqFlags: {				//< Properties for request flags
+	filterFlag: {				//< Properties for request flags
 		traps: { //< cb(query) traps to reorganize query
 			filters: req => {
 				var 
@@ -1815,10 +1815,10 @@ Site context extended by the mysql derived query when service starts
 	},
 
 /**
-Endpoint filterRecords cb(data data as string || error)
+Endpoint filterType cb(data data as string || error)
 @cfg {Object} 
 */
-	filterRecords: {  //< record data convertors
+	filterType: {  //< record data convertors
 		csv: (recs, req, res) => {
 			JS2CSV({ 
 				recs: recs, 
@@ -2698,9 +2698,9 @@ function selectDS(req, res) {
 	//Log("selDS", ds, index);
 	
 	if (sql)
-		sql.Index( ds, index, (selects,types,gets) => { 
+		sql.Index( ds, index, (selects,jsons) => { 
 			
-			const {json} = types;
+			// const {json} = types;
 			
 			sql.Query(
 				"SELECT SQL_CALC_FOUND_ROWS ${index} FROM ?? ${where} ${having} ${limit} ${offset}", 
@@ -2721,20 +2721,19 @@ function selectDS(req, res) {
 						res(err);
 
 					else {
-						if ( json ) 
-							json.forEach( key => {
-								recs.forEach( rec => {
-									try {
-										rec[key] = JSON.parse(rec[key]);
-									}
+						jsons.forEach( key => {
+							recs.forEach( rec => {
+								try {
+									rec[key] = JSON.parse(rec[key]);
+								}
+								
+								catch (err) {
+									Log(key,err,rec);
+								}
+							});
+						});			
 
-									catch (err) {
-										rec[key] = null;
-									}
-								});
-							});					
-
-						res( gets ? recs.get(gets) : recs );
+						res( recs );
 					}
 				});
 		});
