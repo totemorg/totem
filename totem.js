@@ -2728,10 +2728,10 @@ function selectDS(req, res) {
 								}
 								
 								catch (err) {
-									Log(key,err,rec);
+									Log(key,err);
 								}
 							});
-						});			
+						});
 
 						res( recs );
 					}
