@@ -521,7 +521,7 @@ In phase3 of the session setup, the following is added to the req:
 
 					route(req, recs => {	// route request and capture records
 						if ( recs ) {
-							Log("route flags", flags);
+							// Log("route flags", flags);
 							/*
 							var call = null;
 							for ( var key in flags ) if ( !call ) {	// perform single data modifier
