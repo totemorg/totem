@@ -2698,6 +2698,11 @@ function selectDS(req, res) {
 	//Log("selDS", ds, index);
 	
 	if (sql)
+		sql.Select( ds, index, where, flags, (err,recs) => {
+			res( err || recs );
+		});
+					   
+		/*
 		sql.Index( ds, index, (selects,jsons) => { 
 			
 			// const {json} = types;
@@ -2737,6 +2742,7 @@ function selectDS(req, res) {
 					}
 				});
 		});
+		*/
 	
 	else
 		res( errors.noDB );
@@ -2749,10 +2755,22 @@ CRUD insert endpoint.
 */
 function insertDS(req, res) {
 	const 
-		{ sql, flags, body, client, action, ds } = req,
-		{ trace } = flags;
+		{ sql, flags, body, client, action, ds,table } = req,
+		{ trace } = flags,
+		{ sio } = SECLINK;
 
-	//Log(ds,body);
+	sql.Insert(ds,body,(err,info) => {
+		res( err || {ID: info.insertId} );
+		
+		if ( sio && !err ) // Notify other clients of change
+			sio.emit( "insert", {
+				ds: table, 
+				change: body, 
+				recID: info.insertId,
+				by: client
+			});			
+	});
+	/*
 	if ( sql )
 		sql.Query(
 			"INSERT INTO ?? ${set}", [ds,body], {
@@ -2768,6 +2786,8 @@ function insertDS(req, res) {
 	
 	else
 		res( errors.noDB );
+	*/
+	
 }
 
 /**
@@ -2777,14 +2797,30 @@ CRUD delete endpoint.
 */	
 function deleteDS(req, res) {
 	const 
-		{ sql, flags, where, query, body, client, action, ds } = req,
-		{ trace } = flags;
+		{ sql, flags, where, query, body, client, action, ds, table } = req,
+		{ trace } = flags,
+		{ sio } = SECLINK;
 
-	if ( isEmpty(where) )
+	if ( !query.ID )
 		res( errors.noID );
-		
+
 	else
-	if ( sql )
+		sql.Delete(ds, where, (err,info) => {
+			body.ID = query.ID;
+			res( err || body );
+			
+			if ( sio && !err ) // Notify other clients of change
+				sio.emit( "delete", {
+					ds: table, 
+					change: {}, 
+					recID: query.ID || -1, 
+					by: client
+				});	
+	
+		});
+
+		/*
+		if ( sql )
 		sql.Query(
 			"DELETE FROM ?? ${where}", [ds], {
 				trace: trace,			
@@ -2797,9 +2833,7 @@ function deleteDS(req, res) {
 				res( err || body );
 
 			});
-	
-	else
-		res( errors.noDB );
+		*/
 }
 
 /**
@@ -2809,8 +2843,9 @@ CRUD update endpoint.
 */	
 function updateDS(req, res) {
 	const 
-		{ sql, flags, body, where, query, client, action, ds,table } = req,
-		{ trace } = flags;
+		{ sql, flags, body, where, query, client, action, ds, table } = req,
+		{ trace } = flags,
+		{ sio } = SECLINK;
 	
 	//Log({w:where, q:query, b:body, t:table, ds: ds});
 	
@@ -2818,10 +2853,32 @@ function updateDS(req, res) {
 		res( errors.noBody );
 	
 	else
-	if ( isEmpty( where ) )
+	if ( !query.ID )
 		res( errors.noID );
 	
-	else 
+	else {
+		sql.query(	// update db logs if it exits
+			"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1", {
+				Dataset: table,
+				Client: client
+			});
+		
+		sql.Update(ds, where, body, (err,info) => {
+			
+			body.ID = query.ID;
+			res( err || body );
+			
+			if ( sio && !err ) // Notify other clients of change
+				sio.emit( "update", {
+					ds: table, 
+					change: {}, 
+					recID: query.ID || -1, 
+					by: client
+				});				
+		});
+	}
+	
+	/*
 	if ( sql ) {
 		sql.query(
 			"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1", {
@@ -2851,7 +2908,7 @@ function updateDS(req, res) {
 	
 	else
 		res( errors.noDB );
-	
+	*/
 }
 
 /**
