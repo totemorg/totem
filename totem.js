@@ -421,7 +421,7 @@ const
 		//Log(sql);
 		sql.query(query,args,(err,recs) => { 
 			if (!err && cb) cb(recs); 
-			Log(err || "ok");
+			Log(err || errors.ok);
 		});
 	}),
 					
@@ -521,7 +521,7 @@ In phase3 of the session setup, the following is added to the req:
 
 					route(req, recs => {	// route request and capture records
 						if ( recs ) {
-							Log("route flags", flags);
+							// Log("route flags", flags);
 							/*
 							var call = null;
 							for ( var key in flags ) if ( !call ) {	// perform single data modifier
@@ -803,35 +803,35 @@ Error messages
 @cfg {Object} 
 */		
 	errors: {
+		ok: "ok",
 		pretty: err => (err+"").replace("Error:",""),
+		noBody: new Error("no body keys"),
 		badMethod: new Error("unsupported request method"),
-		noProtocol: new Error("no fetch protocol specified"),
 		noRoute: new Error("no route found"),
-		badQuery: new Error("invalid query"),
-		badGroup: new Error("invalid group requested"),
-		lostConnection: new Error("client connection lost"),
-		badMethod: new Error("requesting invalid http method"),
 		noDB: new Error("database unavailable"),
-		noProfile: new Error("user profile could not be determined"),
-		failedUser: new Error("failed modification of user profile"),
-		missingPass: new Error("missing initial user password"),
-		expiredCert: new Error("cert expired"),
-		rejectedClient: new Error("client rejected - bad cert, profile or session"),
-		tooBusy: new Error("too busy - try again later"),
-		noFile: new Error("file not found"),
-		noIndex: new Error("cannot index files here"),
-		badType: new Error("no such dataset type"),
 		badReturn: new Error("no data returned"),
-		noSockets: new Error("socket.io failed"),
-		noService: new Error("no service  to start"),
-		noData: new Error("invalid dataset or query"),
-		retry: new Error("fetch retries exceeded"),
-		notAllowed: new Error("this endpoint is disabled"),
+		noEndpoint: new Error("this endpoint disabled"),
 		noID: new Error("missing record id"),
-		noSession: new Error("no such session started"),
-		noAccess: new Error("no access to master core at this endpoint"),
 		badLogin: new Error("invalid session credentials"),
-		isBusy: "BUSY"
+		isBusy: "Too busy"
+		//noProtocol: new Error("no fetch protocol specified"),
+		//badQuery: new Error("invalid query"),
+		//badGroup: new Error("invalid group requested"),
+		//lostConnection: new Error("client connection lost"),
+		//noProfile: new Error("user profile could not be determined"),
+		//failedUser: new Error("failed modification of user profile"),
+		//missingPass: new Error("missing initial user password"),
+		//expiredCert: new Error("cert expired"),
+		//rejectedClient: new Error("client rejected - bad cert, profile or session"),
+		//tooBusy: new Error("too busy - try again later"),
+		//noFile: new Error("file not found"),
+		//noIndex: new Error("cannot index files here"),
+		//badType: new Error("no such dataset type"),
+		//noSockets: new Error("socket.io failed"),
+		//noService: new Error("no service  to start"),
+		//retry: new Error("fetch retries exceeded"),
+		//noSession: new Error("no such session started"),
+		//noAccess: new Error("no access to master core at this endpoint"),
 	},
 
 	api: {
@@ -994,7 +994,7 @@ Configure database, define site context, then protect, connect, start and initia
 					});
 
 					if (CLUSTER.isMaster)	{ // setup listener on master port
-						CLUSTER.on('exit', (worker, code, signal) =>  Log("WORKER TERMINATED", code || "ok"));
+						CLUSTER.on('exit', (worker, code, signal) =>  Log("WORKER TERMINATED", code || errors.ok));
 
 						CLUSTER.on('online', worker => Log("WORKER CONNECTED"));
 
@@ -1376,7 +1376,7 @@ Configure database, define site context, then protect, connect, start and initia
 														}
 
 													else
-														sendError( errors.noData );
+														sendError( errors.badReturn );
 												}
 
 												catch (err) {
@@ -1882,7 +1882,7 @@ By-table endpoint routers {table: method(req,res), ... } for data fetchers, syst
 				}),
 				engine = `(${cb})( (${task})(${$}) )`;
 
-			res( "ok" );
+			res( errors.ok );
 
 			if ( task && cb ) 
 				doms.forEach( index => {
@@ -2148,7 +2148,7 @@ Default paths to service files
 		addSession: "UPDATE openv.profiles SET Online=1, SessionID=? WHERE Client=?",
 		endSession: "UPDATE openv.profiles SET Online=0, SessionID=null WHERE Client=?",
 		//logThreads: "show session status like 'Thread%'",
-		users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM openv.dblogs WHERE instr(dataset,'@')",
+		//users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM openv.dblogs WHERE instr(dataset,'@')",
 		derive: "SELECT * FROM openv.apps WHERE ? LIMIT 1",
 		// logMetrics: "INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?",
 		search: "SELECT * FROM openv.files HAVING Score > 0.1",
@@ -2160,7 +2160,7 @@ Default paths to service files
 		//addConnect: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1",
 		//challenge: "SELECT *,concat(client,password) AS Passphrase FROM openv.profiles WHERE Client=? LIMIT 1",
 		guest: "SELECT * FROM openv.profiles WHERE Client='guest@totem.org' LIMIT 1",
-		pocs: "SELECT lower(Access) AS Role, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Clients FROM openv.acl GROUP BY Access"
+		pocs: "SELECT admin,overlord, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Users FROM openv.profiles GROUP BY admin,overlord"
 	},
 
 /**
@@ -2226,7 +2226,7 @@ Sets the site context parameters.
 		Log(`CONTEXTING ${TOTEM.name}`);
 	
 		const 
-			{pocs,users,guest,derive} = sqls;
+			{pocs,guest,derive} = sqls;
 
 		site.warning = "";
 
@@ -2264,11 +2264,13 @@ Sets the site context parameters.
 		});
 		*/
 		
+		/*
 		if (users) 
 			sql.query(users)
 			.on("result", user => site.pocs["user"] = (user.Clients || "").toLowerCase() );
 			//.on("end", () => Log("user pocs", site.pocs) );
-
+		*/
+		
 		sql.query(derive, {Nick:TOTEM.name})
 		.on("result", opts => {
 			Each(opts, (key,val) => {
@@ -2287,13 +2289,18 @@ Sets the site context parameters.
 			});
 		})
 		.on("end", () => {
-			sql.query(pocs)
-			.on("result", poc => site.pocs[poc.Role] = (poc.Clients || "").toLowerCase() )
-			.on("end", () => {
+		
+			sql.query(pocs, [], (err,recs) => {
+				recs.forEach( rec => {
+					if ( rec.admin ) site.pocs.admin = rec.Users.toLowerCase();
+					if ( rec.overlord ) site.pocs.overlord = rec.Users.toLowerCase();
+				});
+							 
 				if (cb) cb();
 			});
-		});
 			
+		});
+		
 		/* legacy
 		sql.query("SELECT count(ID) AS Fails FROM openv.aspreqts WHERE Status LIKE '%fail%'").on("result", asp => {
 		sql.query("SELECT count(ID) AS Fails FROM openv.ispreqts WHERE Status LIKE '%fail%'").on("result", isp => {
@@ -2698,6 +2705,11 @@ function selectDS(req, res) {
 	//Log("selDS", ds, index);
 	
 	if (sql)
+		sql.Select( ds, index, where, flags, (err,recs) => {
+			res( err || recs );
+		});
+					   
+		/*
 		sql.Index( ds, index, (selects,jsons) => { 
 			
 			// const {json} = types;
@@ -2737,6 +2749,7 @@ function selectDS(req, res) {
 					}
 				});
 		});
+		*/
 	
 	else
 		res( errors.noDB );
@@ -2749,10 +2762,22 @@ CRUD insert endpoint.
 */
 function insertDS(req, res) {
 	const 
-		{ sql, flags, body, client, action, ds } = req,
-		{ trace } = flags;
+		{ sql, flags, body, client, action, ds,table } = req,
+		{ trace } = flags,
+		{ sio } = SECLINK;
 
-	//Log(ds,body);
+	sql.Insert(ds,body,(err,info) => {
+		res( err || {ID: info.insertId} );
+		
+		if ( sio && !err ) // Notify other clients of change
+			sio.emit( "insert", {
+				ds: table, 
+				change: body, 
+				recID: info.insertId,
+				by: client
+			});			
+	});
+	/*
 	if ( sql )
 		sql.Query(
 			"INSERT INTO ?? ${set}", [ds,body], {
@@ -2768,6 +2793,8 @@ function insertDS(req, res) {
 	
 	else
 		res( errors.noDB );
+	*/
+	
 }
 
 /**
@@ -2777,14 +2804,30 @@ CRUD delete endpoint.
 */	
 function deleteDS(req, res) {
 	const 
-		{ sql, flags, where, query, body, client, action, ds } = req,
-		{ trace } = flags;
+		{ sql, flags, where, query, body, client, action, ds, table } = req,
+		{ trace } = flags,
+		{ sio } = SECLINK;
 
-	if ( isEmpty(where) )
+	if ( !query.ID )
 		res( errors.noID );
-		
+
 	else
-	if ( sql )
+		sql.Delete(ds, where, (err,info) => {
+			body.ID = query.ID;
+			res( err || body );
+			
+			if ( sio && !err ) // Notify other clients of change
+				sio.emit( "delete", {
+					ds: table, 
+					change: {}, 
+					recID: query.ID || -1, 
+					by: client
+				});	
+	
+		});
+
+		/*
+		if ( sql )
 		sql.Query(
 			"DELETE FROM ?? ${where}", [ds], {
 				trace: trace,			
@@ -2797,9 +2840,7 @@ function deleteDS(req, res) {
 				res( err || body );
 
 			});
-	
-	else
-		res( errors.noDB );
+		*/
 }
 
 /**
@@ -2809,8 +2850,9 @@ CRUD update endpoint.
 */	
 function updateDS(req, res) {
 	const 
-		{ sql, flags, body, where, query, client, action, ds,table } = req,
-		{ trace } = flags;
+		{ sql, flags, body, where, query, client, action, ds, table } = req,
+		{ trace } = flags,
+		{ sio } = SECLINK;
 	
 	//Log({w:where, q:query, b:body, t:table, ds: ds});
 	
@@ -2818,10 +2860,32 @@ function updateDS(req, res) {
 		res( errors.noBody );
 	
 	else
-	if ( isEmpty( where ) )
+	if ( !query.ID )
 		res( errors.noID );
 	
-	else 
+	else {
+		sql.query(	// update db logs if it exits
+			"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1", {
+				Dataset: table,
+				Client: client
+			});
+		
+		sql.Update(ds, where, body, (err,info) => {
+			
+			body.ID = query.ID;
+			res( err || body );
+			
+			if ( sio && !err ) // Notify other clients of change
+				sio.emit( "update", {
+					ds: table, 
+					change: {}, 
+					recID: query.ID || -1, 
+					by: client
+				});				
+		});
+	}
+	
+	/*
 	if ( sql ) {
 		sql.query(
 			"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1", {
@@ -2851,7 +2915,7 @@ function updateDS(req, res) {
 	
 	else
 		res( errors.noDB );
-	
+	*/
 }
 
 /**
@@ -2860,13 +2924,15 @@ CRUD execute endpoint.
 @param {Function} res Totem response callback
 */
 function executeDS(req,res) {
-	res( errors.notAllowed );
+	res( errors.noEndpoint );
 }
 
+/*
 function isAdmin(client) {
 	return site.pocs.admin.indexOf(client) >= 0;
 }
-
+*/
+		
 /*
 function simThread(sock) { 
 	//Req.setSocketKeepAlive(true);
