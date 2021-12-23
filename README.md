@@ -239,7 +239,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 // no cores but a mysql database and an anti-bot shield
 
 TOTEM.config({
-	riddles: 20
+	"secureLink.challenge.extend": 20
 }, sql => {
 	Log("", {
 		msg:
@@ -449,6 +449,7 @@ neoThread( neo => {
 
 * [TOTEM](#module_TOTEM)
     * _static_
+        * [.secureLink](#module_TOTEM.secureLink)
         * [.errors](#module_TOTEM.errors)
         * [.tasking](#module_TOTEM.tasking)
         * [.dogs](#module_TOTEM.dogs)
@@ -457,7 +458,6 @@ neoThread( neo => {
         * [.neoThread](#module_TOTEM.neoThread)
         * [.crudIF](#module_TOTEM.crudIF)
         * [.filterFlag](#module_TOTEM.filterFlag)
-        * [.secureLink](#module_TOTEM.secureLink)
         * [.cores](#module_TOTEM.cores)
         * [.onFile](#module_TOTEM.onFile)
         * [.modTimes](#module_TOTEM.modTimes)
@@ -484,7 +484,6 @@ neoThread( neo => {
         * [.guard](#module_TOTEM.guard)
         * [.guards](#module_TOTEM.guards)
         * [.admitRules](#module_TOTEM.admitRules)
-        * [.riddles](#module_TOTEM.riddles)
         * [.proxies](#module_TOTEM.proxies)
         * [.paths](#module_TOTEM.paths)
         * [.sqls](#module_TOTEM.sqls)
@@ -512,6 +511,12 @@ neoThread( neo => {
         * [~updateDS(req, res)](#module_TOTEM..updateDS)
         * [~executeDS(req, res)](#module_TOTEM..executeDS)
 
+<a name="module_TOTEM.secureLink"></a>
+
+### TOTEM.secureLink
+SecureLink configuration settings.  Null to disable secure client links.
+
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.errors"></a>
 
 ### TOTEM.errors
@@ -579,13 +584,6 @@ Options to parse request flags
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="module_TOTEM.secureLink"></a>
-
-### TOTEM.secureLink
-Enabled to support web sockets
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Boolean</code> [sockets=false]  
 <a name="module_TOTEM.cores"></a>
 
 ### TOTEM.cores
@@ -828,13 +826,6 @@ Client admission rules
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="module_TOTEM.riddles"></a>
-
-### TOTEM.riddles
-Number of antibot riddles to extend
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Number</code> [riddles=0]  
 <a name="module_TOTEM.proxies"></a>
 
 ### TOTEM.proxies
