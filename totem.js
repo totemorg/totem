@@ -1052,6 +1052,10 @@ const
 					if ( secureLink )		// setup secure link sessions 
 						sqlThread( sql => {
 							sql.query( "SELECT * FROM openv.profiles WHERE Client='Guest' LIMIT 1", [], (err,recs) => {
+								Log( recs[0] 
+									? "Guest logins enabled"
+									: "Guest logins disabled!" );
+								
 								SECLINK.config({
 									server: server,
 									sqlThread: sqlThread,
