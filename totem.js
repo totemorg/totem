@@ -401,17 +401,6 @@ const
 	defaultType: "run",
 
 	/**
-	*/
-	getClient: (client,cb) => {
-		const
-			{ Login } = SECLINK;
-		
-		Login( client, function getUser(err,prof) { // no-authenticaion session
-			cb( err, prof );
-		});		
-	},
-
-	/**
 	Validate a client's session by attaching a log, profile, group, client, 
 	cert and joined info to this `req` request then callback `res`(error) with 
 	a null `error` if the session was sucessfully validated.  
@@ -499,10 +488,9 @@ const
 							return cb( errors.badCert );
 				}
 
-				else
-					Login( cookies.session || client, function guestSession(err,prof) { // no-authenticaion session
-						cb( err, prof );
-					});
+				Login( cookies.session || client, function guestSession(err,prof) { // no-authenticaion session
+					cb( err, prof );
+				});
 			}
 
 			else

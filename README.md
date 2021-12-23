@@ -491,7 +491,6 @@ neoThread( neo => {
         * [.uploadFile](#module_TOTEM.uploadFile)
         * [.busyTime](#module_TOTEM.busyTime)
         * [.cache](#module_TOTEM.cache)
-        * [.getClient()](#module_TOTEM.getClient)
         * [.loginClient(req, res)](#module_TOTEM.loginClient)
         * [.routeRequest(req, res)](#module_TOTEM.routeRequest)
         * [.config(opts, cb)](#module_TOTEM.config)
@@ -872,10 +871,6 @@ File cache
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="module_TOTEM.getClient"></a>
-
-### TOTEM.getClient()
-**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.loginClient"></a>
 
 ### TOTEM.loginClient(req, res)
