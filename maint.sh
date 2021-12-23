@@ -616,11 +616,9 @@ pubprime.)
 	;;
 	
 startup.)		# status and start dependent services
-	source ./maint.sh all config	# setup external vars
+	source ./maint.sh config debug	# setup external vars
 	source ./maint.sh mysql start	# start mysql service
 	source ./maint.sh neo4j start	# start neo4j service
-    cd /local/service
-	source ./maint.sh debug	# start totem service
 	sudo systemctl stop firewalld	# if running in host os
 	#notepadqq & # debe/debe.js totem/totem.js jsdb/jsdb.js flex/flex.js &
 	#source ./maint.sh start_cesium
@@ -634,7 +632,7 @@ restyle.)
 	echo "to be developed"
 	;;
 
-_prmgen.)	# legacy 
+_prmgen.)	# legacy codedoc gen
 
 	documentation build prm_*.js -f html -o prm -c /local/docconfig.json
 	;;
@@ -682,15 +680,15 @@ proxy.)	# establish email proxy
 _nada.)	# quite mode
 	;;
 
-notes.) 		# centos install notes
+_notes.) 		# centos install notes
 
-	vi $SRV/totem/install.notes
+	vi notes.txt
 	;;
 	
-_bind.) 	# bind known genode c-modules
+_bind.) 	# rebind atomic engines
 
 	cd $ENGINES/opencv
-	node-gyp rebuild  $GYPOPTS
+	node-gyp rebuild $GYPOPTS
 	
 	cd $ENGINES/python
 	node-gyp rebuild $GYPOPTS
@@ -700,7 +698,6 @@ _bind.) 	# bind known genode c-modules
 
 	cd $ENGINES
 	node-gyp rebuild $GYPOPTS
-
 	;;
 
 _archive.) 	# archive service to archive area
@@ -716,64 +713,25 @@ _archive.) 	# archive service to archive area
 # Local and remote archives
 #
 
-git.)
-	
-	case "$2." in
-	
-	newkey.) 		# make pub-pri key for git auto-password agent 
-		echo "store keys under .ssh/git_totemstan_rsa and upload git_totemstan_rsa.pub key to git account." 
-		echo "git remote add agent git@github.com:totemstan/REPO"
-		ssh-keygen -t rsa -b 4096 -C "brian.d.james@comcast.com"
-		;;
-		
-	newagent.)		# start ssh agent
-		eval $(ssh-agent -s)
-		ssh-add ~/.ssh/git_totemstan_rsa
-		;;
-	
-	config.)
-		git config --global http.sslVerify false
-		;;
-
-	zip.)
-		zip -ry ../transfer/$MODULE.zip * -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
-		;;
-
-	clone.)	# clone a project
-		echo "Cloning project $2"
-		git clone $REPO/$2.git
-		;;	
-
-	baseline.)
-		echo "Baseline project $2"
-		cd $2
-			git init
-			git remote add origin $REPO/$2.git
-			git pull origin master
-		cd ..
-		;;
-
-	rebase.)
-		zip -uP $ZIP_PASS $MODULE.zip $MODULE.js
-		git -commit -am "rebase $2"
-		git push origin master
-		;;
-
-	commit.)   # commit changes
-		git commit -am "$2"
-		;;
-
-	push.)   # push code changes to git
-		git push origin master
-		;;
-
-	pull.)	# pull code changes from git
-		git pull origin master
-		;;
-
-	esac
+gitgenkey.) 		# make pub-pri key for git auto-password agent 
+	echo "store keys under .ssh/git_totemstan_rsa and upload git_totemstan_rsa.pub key to git account." 
+	echo "git remote add agent git@github.com:totemstan/REPO"
+	ssh-keygen -t rsa -b 4096 -C "brian.d.james@comcast.com"
 	;;
-	
+
+gitagent.)		# start ssh agent
+	eval $(ssh-agent -s)
+	ssh-add ~/.ssh/git_totemstan_rsa
+	;;
+
+gitconfig.)
+	git config --global http.sslVerify false
+	;;
+
+_gitzip.)
+	zip -ry ../transfer/$MODULE.zip * -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
+	;;
+
 _zipall.)
 
 	rm ../transfer/totem-project.zip
@@ -782,48 +740,9 @@ _zipall.)
 	done
 	;;
 
-sync.)   # special forced code syncs
-	#rsync $CHIPS/forecasts/* $GPUHOST:$CHIPS/forecasts
-	rsync $HOME/*.jpg $GPUHOST:$HOME
-
-	# rsync -r $NODEPATH/swag $GPUHOST:$NODEPATH
-	# rsync -r $NODEPATH/tauif $GPUHOST:$NODEPATH
-	# rsync -r $HERE/start.sh $GPUHOST:/base/geonode
-	# rsync -r $HERE/public/dets $GPUHOST:$PUBLIC
-	# rsync -r $HERE/public/dbs $GPUHOST:$PUBLIC
-	# rsync -r /base/sqldb/* $GPUHOST:/base/sqldb	
-	# rsync -r $PUBLIC/python/exccaffe.py $GPUHOST:$PUBLIC/python
-	# rsync -r $NODEPATH/caffe $GPUHOST:$NODEPATH
-	# rsync $DNN/cuda/lib64/libcudnn.* $GPUHOST:/base/cuDNN/cuda/lib64   # make caffe creates the so.7 libs
-	
-	;;
-		
-_list.)	# list available geonode apps
-	node client.js --help
-	;;
-
-#
-# Start/stop TOTEM
-#
-
-halt.)	# stop and remove GPU-caffe docker instances
-	docker stop `socker ps -qa`
-	docker rm `docker ps -qa`
-	;;
-
-docker.) 
-
-	let con=$2
-	while [ $con -gt 0 ]; do
-		echo "docking $1 in container $con"
-		docker $RUND centos.nvidia sh -c "`pwd`/setup.sh $3 $4 $5 $6"
-		let con-=1
-	done
-	;;
-
 help.)	# some help
 
-	echo "usage:"
+	echo "Usage:"
 	echo "	. maint.sh CMD OPTIONS"
 	echo "	. maint.sh docker N FILE.js OPTIONS"
 	echo "	. maint.sh CONFIG OPTIONS"
