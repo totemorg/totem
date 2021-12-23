@@ -171,7 +171,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 // no cores but a mysql database and an anti-bot shield
 
 TOTEM.config({
-	riddles: 20
+	"secureLink.challenge.extend": 20
 }, sql => {
 	Log("", {
 		msg:
@@ -382,7 +382,7 @@ neoThread( neo => {
 const 
 	{ 	Log, Trace,
 		byArea, byType, byAction, byTable, CORS,
-		defaultType, isTrusted,
+		defaultType, 
 		$master, $worker, 
 	 	createCert, loginClient,
 		getBrick, routeRequest, setContext,
@@ -392,13 +392,58 @@ const
 	Log: (...args) => console.log(">>>totem", args),
 	Trace: (msg,args,req) => "totem".trace(msg, req, msg => console.log(msg,args) ),	
 		
-	inspector: null,
+	inspect: null,
 			
 	CORS: false,	//< enable to support cross-origin-scripting
 		
-	isTrusted: account => account.endsWith(".mil") && !account.match(/\.ctr@.&\.mil/) ,
-
 	defaultType: "run",
+
+	/**
+	SecureLink configuration settings.  Null to disable secure client links.
+	*/
+	secureLink: {
+		host: ENV.DOMAIN_NAME || "totem",
+		
+		isTrusted: account => account.endsWith(".mil") && !account.match(/\.ctr@.&\.mil/) ,
+		inspect: (doc,to,cb) => { 
+			//throw new Error("link inspect never configured"); 
+		},
+		challenge: {
+			/**
+			Number of antibot riddles to extend 
+			@cfg {Number} [extend=0]
+			*/		
+			extend: 0,
+
+			/**
+			Antibot riddle store to protect site 
+			@cfg {Array} 
+			@private
+			*/		
+			store: [], 
+
+			/**
+			Riddle digit-to-jpeg map (null to disable riddles)
+			@cfg {Object} 
+			@private
+			*/				
+			map: { 					
+				0: ["10","210"],
+				1: ["30","60"],
+				2: ["50","160"],
+				3: ["70","100"],
+				4: ["20","90"],
+				5: ["00","110"],
+				6: ["130","180"],
+				7: ["150","290"],
+				8: ["170","310"],
+				9: ["40","190"]
+			},
+
+			riddler: "/riddle.html",
+			captcha: "/captcha" 		 // path to antibot captchas
+		}
+	},
 
 	/**
 	Validate a client's session by attaching a log, profile, group, client, 
@@ -1045,7 +1090,7 @@ const
 				*/				
 				function startServer(server, port, agent) {	//< attach listener callback cb(Req,Res) to the specified port
 					const 
-						{ initialize, secureLink, name, dogs, guard, guards, proxy, proxies, riddle, cores } = TOTEM;
+						{ initialize, secureLink, name, dogs, guard, guards, proxy, proxies, cores } = TOTEM;
 					
 					Log(`STARTING ${name}`);
 
@@ -1056,43 +1101,13 @@ const
 									? "Guest logins enabled"
 									: "Guest logins disabled!" );
 								
-								SECLINK.config({
+								SECLINK.config( Copy(secureLink, {
 									server: server,
 									sqlThread: sqlThread,
-									isTrsuted: TOTEM.isTrusted,
-									sendMail: TOTEM.sendMail,
-									inspector: TOTEM.inspector,
-									challenge: {
-										extend: TOTEM.riddles,
-										store: TOTEM.riddle,
-										map: TOTEM.riddleMap,
-										riddler: paths.riddler,
-										captcha: paths.captcha,
-									},
+									notify: TOTEM.sendMail,
 									guest: recs[0]
-								});
+								}) );
 							});
-							/*{
-								Banned: "",  // nonempty to ban user
-								QoS: 10,  // [secs] job regulation interval
-								Credit: 100,  // job cred its
-								Charge: 0,	// current job charges
-								LikeUs: 0,	// number of user likeus
-								Trusted: trust,
-								Expires: expires,
-								//Password: "",	
-								//SecureCom: trust ? account : "",	// default securecom passphrase
-								Challenge: !trust,		// enable to challenge user at session join
-								Client: account,
-								User: "",		// default user ID (reserved for login)
-								Login: "",	// existing login ID
-								Group: "app",		// default group name (db to access)
-								Repoll: true,	// challenge repoll during active sessions
-								Retries: 5,		// challenge number of retrys before session killed
-								Timeout: 30,	// challenge timeout in secs
-								Expires: getExpires( trust ? expireTemp : expirePerm ),
-								Message: `What is #riddle?`		// challenge message with riddles, ids, etc	
-							} */
 						});
 
 					/*
@@ -1157,7 +1172,7 @@ const
 							"FROM " + process.cwd(),
 							"WITH " + (sockets?"":"NO")+" SOCKETS",
 							"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
-							"WITH "+ (riddle.length?"":"NO") + " ANTIBOT PROTECTION",
+							"WITH "+ (secureLink ? "SECURE" : "INSECURE")+" LINKS",
 							"WITH " + (site.sessions||"UNLIMITED") + " CONNECTIONS",
 							"WITH " + (cores ? cores + " WORKERS AT "+site.worker : "NO WORKERS"),
 							"POCS " + JSON.stringify(site.pocs)
@@ -1912,12 +1927,6 @@ const
 	},
 
 	/**
-	Enabled to support web sockets
-	@cfg {Boolean} [sockets=false]
-	*/
-	secureLink: true, 	//< enabled to support web sockets
-		
-	/**
 	Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
 	become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
 	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
@@ -2248,39 +2257,6 @@ const
 	},
 
 	sendMail: msg => { throw new Error("sendMail never configured"); },
-	inspector: msg => { throw new Error("inspector never configured"); },
-		
-	/**
-	Number of antibot riddles to extend 
-	@cfg {Number} [riddles=0]
-	*/		
-	riddles: 0,
-
-	/**
-	Antibot riddle store to protect site 
-	@cfg {Array} 
-	@private
-	*/		
-	riddle: [],  //< reserved for riddles
-		
-	/**
-	Riddle digit-to-jpeg map (null to disable riddles)
-	@cfg {Object} 
-	@private
-	*/				
-	riddleMap: { 					
-		0: ["10","210"],
-		1: ["30","60"],
-		2: ["50","160"],
-		3: ["70","100"],
-		4: ["20","90"],
-		5: ["00","110"],
-		6: ["130","180"],
-		7: ["150","290"],
-		8: ["170","310"],
-		9: ["40","190"]
-	},
-
 	/**
 	*/
 	proxies: null, /* [	// rotating proxy services
@@ -2301,7 +2277,6 @@ const
 		//wget: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 		//curl: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 		//http: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
-		riddler: "/riddle.html",
 
 		crud: ["create","select","update","delete","execute"],
 			
@@ -2317,8 +2292,6 @@ const
 			3: ENV.SHARD3 || "http://localhost:8080/task"
 		},
 
-		captcha: "/captcha",  // path to antibot captchas
-			
 		mimes: {  // Extend and remove mime types as needed
 		}
 	},
@@ -3052,7 +3025,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 
 	case "T5": 
 		TOTEM.config({
-			riddles: 20
+			"secureLink.challenge.extend": 20
 		}, sql => {
 			Log("", {
 				msg:
