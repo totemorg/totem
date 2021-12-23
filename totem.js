@@ -384,6 +384,7 @@ const
 		byArea, byType, byAction, byTable, CORS,
 		defaultType, isTrusted,
 		$master, $worker, 
+	 	createCert, loginClient,
 		getBrick, routeRequest, setContext,
 		filterFlag, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitRules,
 		filterType,tableRoutes, routeTable, startDogs, cache } = TOTEM = module.exports = {
@@ -399,6 +400,121 @@ const
 
 	defaultType: "run",
 
+	/**
+	*/
+	getClient: (client,cb) => {
+		const
+			{ Login } = SECLINK;
+		
+		Login( client, function getUser(err,prof) { // no-authenticaion session
+			cb( err, prof );
+		});		
+	},
+
+	/**
+	Validate a client's session by attaching a log, profile, group, client, 
+	cert and joined info to this `req` request then callback `res`(error) with 
+	a null `error` if the session was sucessfully validated.  
+
+	@param {Object} req totem session request
+	@param {Function} res totem session responder
+	*/
+	loginClient: (req,cb) => {  
+
+		function getCert(sock) {  //< Return cert presented on this socket (w or w/o proxy).
+			const 
+				cert = sock.getPeerCertificate();
+
+			// Log("getcert>>>>>>>>", cert, cert.subjectaltname);
+			if (behindProxy) {  // update cert with originating cert info that was placed in header
+				const 
+					NA = Req.headers.ssl_client_notafter,
+					NB = Req.headers.sll_client_notbefore,
+					DN = Req.headers.ssl_client_s_dn;
+
+				if (NA) cert.valid_to = new Date(
+						[NA.substr(2,2),NA.substr(4,2),NA.substr(0,2)].join("/")+" "+
+						[NA.substr(6,2),NA.substr(8,2),NA.substr(10,2)].join(":")
+					);
+
+				if (NB) cert.valid_to = new Date(
+						[NB.substr(2,2),NB.substr(4,2),NB.substr(0,2)].join("/")+" "+
+						[NB.substr(6,2),NB.substr(8,2),NB.substr(10,2)].join(":")
+					);
+
+				if (DN)
+					Each(DN.split("/"), function (n,hdr) {
+						if (hdr) {
+							var sub = hdr.split("=");
+							cert.subject[sub[0]] += sub[1];
+						}
+					});
+
+				if ( CN = cert.subject.CN ) {
+					CN = CN.split(" ");
+					cert.subject.CN = CN[CN.length-1] + "@lost.org";
+				}
+			}
+
+			return cert;
+		}
+		
+		const 
+			{ sql, cookie, encrypted, reqSocket, ipAddress } = req,
+			cookies = req.cookies = {},
+			{ Login, host } = SECLINK,
+			cert = (encrypted && reqSocket.getPeerCertificate) ? getCert(reqSocket) : null,
+			now = new Date(),
+			guest = `guest${ipAddress}@${host}`;
+
+		if ( cookie ) 						//  client providing cookie to hold profile
+			cookie.split("; ").forEach( cook => {
+				const [key,val] = cook.split("=");
+				cookies[key] = val;
+			});
+
+		//Log("cookies", cookies, client);
+		
+		if ( cert ) {		// client on encrypted socket so has a pki cert
+			const
+				[x,client] = (cert.subjectaltname||"").toLowerCase().split(",")[0].match(/email:(.*)/) || [];
+
+			if ( client ) {		// found a client
+				// Log("CHECKCERT", account, cookie, cookies);
+
+				// Log("cert>>>", cert, admitRules);
+
+				if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
+					cb( errors.badCert );
+
+				else
+				if ( check = cert.subject || cert.issuer ) {
+					for (var key in admitRules) 
+						if ( test = check[key] ) {
+							if ( test.toLowerCase().indexOf( admitRules[key] ) < 0 ) 
+								return cb( errors.badCert );
+						}
+
+						else
+							return cb( errors.badCert );
+				}
+
+				else
+					Login( cookies.session || client, function guestSession(err,prof) { // no-authenticaion session
+						cb( err, prof );
+					});
+			}
+
+			else
+				cb( errors.badCert );
+		}
+		
+		else 
+			Login( cookies.session || guest, function guestSession(err,prof) { // no-user-authentication session
+				cb( err, prof );
+			});			
+	},
+			
 	routeTable: req => {
 		const {table} =  req;
 		if ( route = tableRoutes[table] )
@@ -425,34 +541,34 @@ const
 		});
 	}),
 					
-/**
-Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
-byActionTable then byAction routers.	
+	/**
+	Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
+	byActionTable then byAction routers.	
 
-The provided response method accepts a string, an objects, an array, an error, or 
-a file-cache function and terminates the session's sql connection.  The client is 
-validated and their session logged.
+	The provided response method accepts a string, an objects, an array, an error, or 
+	a file-cache function and terminates the session's sql connection.  The client is 
+	validated and their session logged.
 
-In phase3 of the session setup, the following is added to the req:
+	In phase3 of the session setup, the following is added to the req:
 
-	files: [...]		// list of files being uploaded
-	//canvas: {...}		// canvas being uploaded
-	query: {...} 		// raw keys from url
-	where: {...} 		// sql-ized query keys from url
-	body: {...}			// body keys from request 
-	flags: {...} 		// flag keys from url
-	index: {...}		// sql-ized index keys from url
-	path: "/[area/...]name.type"			// requested resource
-	area: "name"		// file area being requested
-	table: "name"		// name of sql table being requested
-	ds:	"db.name"		// fully qualified sql table
-	body: {...}			// json parsed post
-	type: "type" 		// type part 
+		files: [...]		// list of files being uploaded
+		//canvas: {...}		// canvas being uploaded
+		query: {...} 		// raw keys from url
+		where: {...} 		// sql-ized query keys from url
+		body: {...}			// body keys from request 
+		flags: {...} 		// flag keys from url
+		index: {...}		// sql-ized index keys from url
+		path: "/[area/...]name.type"			// requested resource
+		area: "name"		// file area being requested
+		table: "name"		// name of sql table being requested
+		ds:	"db.name"		// fully qualified sql table
+		body: {...}			// json parsed post
+		type: "type" 		// type part 
 
-@cfg {Function}
-@param {Object} req session request
-@param {Object} res session response
-*/
+	@cfg {Function}
+	@param {Object} req session request
+	@param {Object} res session response
+	*/
 	routeRequest: (req,res) => {
 		function routeNode(node, req, res) {	//< Parse and route the NODE = /DATASET.TYPE request
 			/*
@@ -798,10 +914,10 @@ In phase3 of the session setup, the following is added to the req:
 		});
 	},
 
-/**
-Error messages
-@cfg {Object} 
-*/		
+	/**
+	Error messages
+	@cfg {Object} 
+	*/		
 	errors: {
 		ok: "ok",
 		pretty: err => (err+"").replace("Error:",""),
@@ -812,8 +928,10 @@ Error messages
 		badReturn: new Error("no data returned"),
 		noEndpoint: new Error("this endpoint disabled"),
 		noID: new Error("missing record id"),
-		badLogin: new Error("invalid session credentials"),
-		isBusy: "Too busy"
+		badCert: new Error("invalid PKI credentials"),
+		badLogin: new Error("login failed"),
+		isBusy: "Too busy",
+		noSocket: new Error("socket lost"),
 		//noProtocol: new Error("no fetch protocol specified"),
 		//badQuery: new Error("invalid query"),
 		//badGroup: new Error("invalid group requested"),
@@ -830,20 +948,19 @@ Error messages
 		//noSockets: new Error("socket.io failed"),
 		//noService: new Error("no service  to start"),
 		//retry: new Error("fetch retries exceeded"),
-		//noSession: new Error("no such session started"),
 		//noAccess: new Error("no access to master core at this endpoint"),
 	},
 
 	api: {
 	},
 
-/**
-Configure and start the service with options and optional callback when started.
-Configure database, define site context, then protect, connect, start and initialize this server.
-@cfg {Function}
-@param {Object} opts configuration options following the Copy() conventions.
-@param {Function} cb callback(err) after service configured
-*/
+	/**
+	Configure and start the service with options and optional callback when started.
+	Configure database, define site context, then protect, connect, start and initialize this server.
+	@cfg {Function}
+	@param {Object} opts configuration options following the Copy() conventions.
+	@param {Function} cb callback(err) after service configured
+	*/
 	config: (opts,cb) => {
 		function addEndpoints(pts) {
 			const
@@ -944,22 +1061,48 @@ Configure database, define site context, then protect, connect, start and initia
 					
 					Log(`STARTING ${name}`);
 
-					if ( secureLink )		// setup secureLink socketio 
-						SECLINK.config({
-							server: server,
-							sqlThread: sqlThread,
-							isTrsuted: TOTEM.isTrusted,
-							sendMail: TOTEM.sendMail,
-							inspector: TOTEM.inspector,
-							challenge: {
-								extend: TOTEM.riddles,
-								store: TOTEM.riddle,
-								map: TOTEM.riddleMap,
-								riddler: paths.riddler,
-								captcha: paths.captcha,
-							}
+					if ( secureLink )		// setup secure link sessions 
+						sqlThread( sql => {
+							sql.query( "SELECT * FROM openv.profiles WHERE Client='Guest' LIMIT 1", [], (err,recs) => {
+								SECLINK.config({
+									server: server,
+									sqlThread: sqlThread,
+									isTrsuted: TOTEM.isTrusted,
+									sendMail: TOTEM.sendMail,
+									inspector: TOTEM.inspector,
+									challenge: {
+										extend: TOTEM.riddles,
+										store: TOTEM.riddle,
+										map: TOTEM.riddleMap,
+										riddler: paths.riddler,
+										captcha: paths.captcha,
+									},
+									guest: recs[0]
+								});
+							});
+							/*{
+								Banned: "",  // nonempty to ban user
+								QoS: 10,  // [secs] job regulation interval
+								Credit: 100,  // job cred its
+								Charge: 0,	// current job charges
+								LikeUs: 0,	// number of user likeus
+								Trusted: trust,
+								Expires: expires,
+								//Password: "",	
+								//SecureCom: trust ? account : "",	// default securecom passphrase
+								Challenge: !trust,		// enable to challenge user at session join
+								Client: account,
+								User: "",		// default user ID (reserved for login)
+								Login: "",	// existing login ID
+								Group: "app",		// default group name (db to access)
+								Repoll: true,	// challenge repoll during active sessions
+								Retries: 5,		// challenge number of retrys before session killed
+								Timeout: 30,	// challenge timeout in secs
+								Expires: getExpires( trust ? expireTemp : expirePerm ),
+								Message: `What is #riddle?`		// challenge message with riddles, ids, etc	
+							} */
 						});
-						
+
 					/*
 					The BUSY interface provides a means to limit client connections that would lock the 
 					service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
@@ -1252,18 +1395,12 @@ Configure database, define site context, then protect, connect, start and initia
 
 							@param {Function} cb connection accepting the provided response callback
 							*/
-							function startResponse( ses ) {  	// start response using this session callback
+							function startResponse( ses ) {  	// start response using this session callback								
 								if ( req.reqSocket )	// have a valid request socket so ....
-									resolveClient(req, (err,profile) => {	// admit good client
-
-										//Log("resolve", err);
-
-										if ( err ) 
-											ses( err );
-
-										else {			// client accepted so start session
-											req.client = profile.Client;
-											req.profile = Copy( profile, {});
+									loginClient(req, (err,prof) => {	// get client profile
+										if (prof) {			// client accepted so start session
+											req.client = prof.Client;
+											req.profile = prof;
 
 											const 
 												{ sql, client } = req,
@@ -1391,10 +1528,13 @@ Configure database, define site context, then protect, connect, start and initia
 													Joined: new Date()
 												});
 										}
+										
+										else
+											ses( err || errors.badLogin );
 									});
 
 								else 	// lost request socket for some reason so ...
-									res( new Error("socket lost") );
+									res( errors.noSocket );
 							}
 
 							//Log("startReq", err);
@@ -1434,7 +1574,7 @@ Configure database, define site context, then protect, connect, start and initia
 			if ( isEncrypted() )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
 					if (err) // create self-signed cert then connect
-						createCert(name, TOTEM.passEncrypted, () => {
+						createCert(	`${paths.certs}${name}`, TOTEM.passEncrypted, () => {
 							createServer();
 						});	
 
@@ -1479,16 +1619,18 @@ Configure database, define site context, then protect, connect, start and initia
 		});	
 	},
 
+	/**
+	*/
 	initialize: (sql,init) => {
 		init(sql);
 	},
 	
 	queues: JSDB.queues, 	// pass along
 		
-/**
-Common methods for task sharding
-@cfg {Object}
-*/
+	/**
+	Common methods for task sharding
+	@cfg {Object}
+	*/
 	tasking: {
 		console: console,
 		log: console.log
@@ -1496,32 +1638,32 @@ Common methods for task sharding
 	
 	onUpdate: null,
 		
-/**
-Shard one or more tasks to workers residing in a compute node cloud.
+	/**
+	Shard one or more tasks to workers residing in a compute node cloud.
 
-@example
-runTask({  		// example
-	keys: "i,j,k",  	// e.g. array indecies
-	i: [0,1,2,3],  		// domain of index i
-	j: [4,8],				// domain of index j
-	k: [0],					// domain of index k
-	qos: 0,				// regulation time in ms if not zero
-	local: false, 		// enable to run task local, i.e. w/o workers and nodes
-	workers: 4, 		// limit number of workers (aka cores) per node
-	nodes: 3 			// limit number of nodes (ala locales) in the cluster
-}, 
-	// here, a simple task that returns a message 
-	$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
+	@example
+	runTask({  		// example
+		keys: "i,j,k",  	// e.g. array indecies
+		i: [0,1,2,3],  		// domain of index i
+		j: [4,8],				// domain of index j
+		k: [0],					// domain of index k
+		qos: 0,				// regulation time in ms if not zero
+		local: false, 		// enable to run task local, i.e. w/o workers and nodes
+		workers: 4, 		// limit number of workers (aka cores) per node
+		nodes: 3 			// limit number of nodes (ala locales) in the cluster
+	}, 
+		// here, a simple task that returns a message 
+		$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
 
-	// here, a simple callback that displays the task results
-	msg => console.log(msg) 
-);
+		// here, a simple callback that displays the task results
+		msg => console.log(msg) 
+	);
 
-@cfg {Function}
-@param {Object} opts tasking options (see example)
-@param {Function} task runTask of the form ($) => {return msg} where $ contains process info
-@param {Function} cb callback of the form (msg) => {...} to process msg returned by task
-*/				
+	@cfg {Function}
+	@param {Object} opts tasking options (see example)
+	@param {Function} task runTask of the form ($) => {return msg} where $ contains process info
+	@param {Function} cb callback of the form (msg) => {...} to process msg returned by task
+	*/				
 	runTask: function (opts, task, cb) {
 
 		function genDomain(depth, keys, opts, index, lastIndex, cb) {
@@ -1599,20 +1741,20 @@ runTask({  		// example
 			});
 	},
 					
-/**
-Watchdogs {name: dog(sql, lims), ... } run at intervals dog.cycle seconds usings its
-dog.trace, dog.parms, sql connector and threshold parameters.
-@cfg {Object}
-*/		
+	/**
+	Watchdogs {name: dog(sql, lims), ... } run at intervals dog.cycle seconds usings its
+	dog.trace, dog.parms, sql connector and threshold parameters.
+	@cfg {Object}
+	*/		
 	dogs: { //< watchdog functions(sql, lims)
 	},
 	
-/**
-Establish smart file watcher when file at area/name has changed.
-@cfg {Function}
-@param {String} path to file being watched
-@param {Function} callback cb(sql, name, path) when file at path has changed
-*/
+	/**
+	Establish smart file watcher when file at area/name has changed.
+	@cfg {Function}
+	@param {String} path to file being watched
+	@param {Function} callback cb(sql, name, path) when file at path has changed
+	*/
 	watchFile: function (path, cb) { 
 		const 
 			{ modTimes } = TOTEM;
@@ -1658,39 +1800,90 @@ Establish smart file watcher when file at area/name has changed.
 		}
 	},
 		
-/**
-Create a PKI cert given user name and password.
+	/**
+	Create a cert for the desired owner with the desired passphrase then 
+	callback cb() when complete.
 
-@cfg {Function}
-@param {String} path to file being watched
-@param {Function} callback cb(sql, name, path) when file at path has changed
-*/
-	createCert: createCert, //< method to create PKI certificate
-		
-/**
-Stop the server.
-@cfg {Function}
-*/
+	@param {String} owner userID to own this cert
+	@param {String} password for this cert
+	@param {Function} cb callback when completed
+	*/
+	createCert: (path,pass,cb) => { 
+
+		function traceExecute(cmd,cb) {
+
+			Log(cmd.replace(/\n/g,"\\n"));
+
+			CP.exec(cmd, err => {
+
+				if (err)
+					console.info({
+						shell: cmd,
+						error: err
+					});
+
+				cb();
+			});
+		}
+
+		const 
+			truststore = `${paths.certs}truststore`,
+			pfx = path + ".pfx",
+			key = path + ".key",
+			crt = path + ".crt",
+			ppk = path + ".ppk";
+
+		Log( "CREATE SELF-SIGNED CERT", path );	
+
+		traceExecute(
+			`echo -e "\n\n\n\n\n\n\n" | openssl req -x509 -nodes -days 5000 -newkey rsa:2048 -keyout ${key} -out ${crt}`, 
+			function () { 
+
+		traceExecute(
+			`export PASS="${pass}";openssl pkcs12 -export -in ${crt} -inkey ${key} -out ${pfx} -passout env:PASS`, 
+			function () {
+
+		traceExecute(
+			`cp ${crt} ${truststore}`,
+			function () {
+
+		traceExecute(
+			`puttygen ${owner}.key -N ${pass} -o ${ppk}`, 	
+			function () {
+
+			Log("IGNORE PUTTYGEN ERRORS IF NOT INSTALLED"); 
+			cb();
+		});
+		});
+		});
+		});
+
+	},
+	
+	/**
+	Stop the server.
+	@cfg {Function}
+	*/
 	stop: stopService,
 	
-/**
-Thread a new sql connection to a callback.  
-@cfg {Function}
-@param {Function} cb callback(sql connector)
-*/
+	/**
+	Thread a new sql connection to a callback.  
+	@cfg {Function}
+	@param {Function} cb callback(sql connector)
+	*/
 	sqlThread: sqlThread,
 
-/**
-Thread a new neo4j connection to a callback.  
-@cfg {Function}
-@param {Function} cb callback(sql connector)
-*/
+	/**
+	Thread a new neo4j connection to a callback.  
+	@cfg {Function}
+	@param {Function} cb callback(sql connector)
+	*/
 	neoThread: neoThread,
 			
-/**
-REST-to-CRUD translations
-@cfg {Object}  
-*/
+	/**
+	REST-to-CRUD translations
+	@cfg {Object}  
+	*/
 	crudIF: {
 		GET: "select",
 		DELETE: "delete",
@@ -1698,10 +1891,10 @@ REST-to-CRUD translations
 		PUT: "update"
 	},
 	
-/**
-Options to parse request flags
-@cfg {Object} 
-*/
+	/**
+	Options to parse request flags
+	@cfg {Object} 
+	*/
 	filterFlag: {				//< Properties for request flags
 		traps: { //< cb(query) traps to reorganize query
 			filters: req => {
@@ -1726,65 +1919,65 @@ Options to parse request flags
 		} */
 	},
 
-/**
-Enabled to support web sockets
-@cfg {Boolean} [sockets=false]
-*/
+	/**
+	Enabled to support web sockets
+	@cfg {Boolean} [sockets=false]
+	*/
 	secureLink: true, 	//< enabled to support web sockets
 		
-/**
-Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
-become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
-encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
-workers via the masterport.	
-@cfg {Number} [cores=0]
-*/				
+	/**
+	Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
+	become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
+	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
+	workers via the masterport.	
+	@cfg {Number} [cores=0]
+	*/				
 	cores: 0,	//< Number of worker cores (0 for master-only)
 		
-/**
-Folder watching callbacks cb(path) 
-@cfg {Object}
-*/				
+	/**
+	Folder watching callbacks cb(path) 
+	@cfg {Object}
+	*/				
 	onFile: {		//< File folder watchers with callbacks cb(path) 
 	},
 	
-/**
-File mod-times tracked as OS will trigger multiple events when file changed
-@cfg {Object}
-*/
+	/**
+	File mod-times tracked as OS will trigger multiple events when file changed
+	@cfg {Object}
+	*/
 	modTimes: { 	//< File mod-times tracked as OS will trigger multiple events when file changed
 	},
 		
-/**
-Enable if https server being proxied
-@cfg {Boolean} [behindProxy=false]
-*/				
+	/**
+	Enable if https server being proxied
+	@cfg {Boolean} [behindProxy=false]
+	*/				
 	behindProxy: false,		//< Enable if https server being proxied
 
-/**		
-Service name used to
-	1) derive site parms from mysql openv.apps by Nick=name
-	2) set mysql name.table for guest clients,
-	3) identify server cert name.pfx file.
+	/**		
+	Service name used to
+		1) derive site parms from mysql openv.apps by Nick=name
+		2) set mysql name.table for guest clients,
+		3) identify server cert name.pfx file.
 
-If the Nick=name is not located in openv.apps, the supplied	config() options 
-are not overridden.
-*/
+	If the Nick=name is not located in openv.apps, the supplied	config() options 
+	are not overridden.
+	*/
 	name: "Totem",
 
-/**
-Enabled when master/workers on encrypted service
-@cfg {Boolean}
-*/
+	/**
+	Enabled when master/workers on encrypted service
+	@cfg {Boolean}
+	*/
 	passEncrypted: ENV.SERVICE_PASS || "",
 			
 	isEncrypted: () => ( CLUSTER.isMaster ? $master.protocol : $worker.protocol ) == "https:",
 
-/**
-Host information: https encryption passphrase,
-domain name of workers, domain name of master.
-@cfg {String} [name="Totem"]
-*/	
+	/**
+	Host information: https encryption passphrase,
+	domain name of workers, domain name of master.
+	@cfg {String} [name="Totem"]
+	*/	
 
 	$master: { // derived
 	},
@@ -1792,10 +1985,10 @@ domain name of workers, domain name of master.
 	$worker: { // derived
 	},
 			
-/**
-Site context extended by the mysql derived query when service starts
-@cfg {Object} 
-*/
+	/**
+	Site context extended by the mysql derived query when service starts
+	@cfg {Object} 
+	*/
 	site: {  	//< reserved for derived context vars
 		nick: "totem",
 		socketio: 
@@ -1814,10 +2007,10 @@ Site context extended by the mysql derived query when service starts
 		}		
 	},
 
-/**
-Endpoint filterType cb(data data as string || error)
-@cfg {Object} 
-*/
+	/**
+	Endpoint filterType cb(data data as string || error)
+	@cfg {Object} 
+	*/
 	filterType: {  //< record data convertors
 		csv: (recs, req, res) => {
 			JS2CSV({ 
@@ -1840,10 +2033,10 @@ Endpoint filterType cb(data data as string || error)
 		}		
 	},
 
-/**
-By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
-@cfg {Object} 
-*/	
+	/**
+	By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
+	@cfg {Object} 
+	*/	
 	byTable: { 			  //< by-table routers	
 		/**
 		Endpoint to test connectivity.
@@ -1940,24 +2133,24 @@ By-table endpoint routers {table: method(req,res), ... } for data fetchers, syst
 		}	
 	},
 		
-/**
-By-action endpoint routers for accessing engines
-@cfg {Object} 
-*/				
+	/**
+	By-action endpoint routers for accessing engines
+	@cfg {Object} 
+	*/				
 	byAction: { //< by-action routers
 	},
 
-/**
-By-type endpoint routers  {type: method(req,res), ... } for accessing dataset readers
-@cfg {Object} 
-*/				
+	/**
+	By-type endpoint routers  {type: method(req,res), ... } for accessing dataset readers
+	@cfg {Object} 
+	*/				
 	byType: {  //< by-type routers
 	},
 
-/**
-By-area endpoint routers {area: method(req,res), ... } for sending/cacheing files
-@cfg {Object} 
-*/		
+	/**
+	By-area endpoint routers {area: method(req,res), ... } for sending/cacheing files
+	@cfg {Object} 
+	*/		
 	byArea: {
 		default: (req,res) => {
 			const
@@ -1973,72 +2166,72 @@ By-area endpoint routers {area: method(req,res), ... } for sending/cacheing file
 		}
 	},
 
-/**
-Trust store extened with certs in the certs.truststore folder when the service starts in encrypted mode
-@cfg {Object} 
-*/		
+	/**
+	Trust store extened with certs in the certs.truststore folder when the service starts in encrypted mode
+	@cfg {Object} 
+	*/		
 	trustStore: [ ],   //< reserved for trust store
 		
-/**
-CRUDE (req,res) method to respond to Totem request
-@cfg {Object} 
-*/				
+	/**
+	CRUD endpoint to respond to Totem request
+	@cfg {Object} 
+	*/				
 	server: null,  //< established by TOTEM at config
 	
 	//====================================== CRUDE interface
 		
-/**
-CRUDE (req,res) method to respond to a select||GET request
-@cfg {Function}
-@param {Object} req Totem session request
-@param {Function} res Totem session response
-*/				
+	/**
+	CRUD endpoint to respond to a select||GET request
+	@cfg {Function}
+	@param {Object} req Totem session request
+	@param {Function} res Totem session response
+	*/				
 	select: selectDS,	
 	
-/**
-CRUDE (req,res) method to respond to a update||POST request
-@cfg {Function}	
-@param {Object} req Totem session request
-@param {Function} res Totem session response
-*/				
+	/**
+	CRUD endpoint to respond to a update||POST request
+	@cfg {Function}	
+	@param {Object} req Totem session request
+	@param {Function} res Totem session response
+	*/				
 	update: updateDS,
 	
-/**
-CRUDE (req,res) method to respond to a delete||DELETE request
-@cfg {Function}	
-@param {Object} req Totem session request
-@param {Function} res Totem session response
-*/				
+	/**
+	CRUD endpoint to respond to a delete||DELETE request
+	@cfg {Function}	
+	@param {Object} req Totem session request
+	@param {Function} res Totem session response
+	*/				
 	delete: deleteDS,
 	
-/**
-CRUDE (req,res) method to respond to a insert||PUT request
-@cfg {Function}
-@param {Object} req Totem session request
-@param {Function} res Totem session response
-*/				
+	/**
+	CRUD endpoint to respond to a insert||PUT request
+	@cfg {Function}
+	@param {Object} req Totem session request
+	@param {Function} res Totem session response
+	*/				
 	insert: insertDS,
 	
-/**
-CRUDE (req,res) method to respond to a Totem request
-@cfg {Function}
-@param {Object} req Totem session request
-@param {Function} res Totem session response
-*/				
+	/**
+	CRUD endpoint to respond to a Totem request
+	@cfg {Function}
+	@param {Object} req Totem session request
+	@param {Function} res Totem session response
+	*/				
 	execute: executeDS,
 
 	//====================================== MISC
 		
-/**
-Enable/disable service fault protection guards
-@cfg {Boolean} 
-*/
+	/**
+	Enable/disable service fault protection guards
+	@cfg {Boolean} 
+	*/
 	guard: false,  //< enable to use all defined guards
 		
-/**
-Service guard modes
-@cfg {Object} 
-*/
+	/**
+	Service guard modes
+	@cfg {Object} 
+	*/
 	guards: {	// faults to trap 
 		SIGUSR1:1,
 		SIGTERM:1,
@@ -2051,11 +2244,11 @@ Service guard modes
 		SIGSTOP:1 
 	},	
 	
-/**
-Client admission rules
-@cfg {Object} 
-*/
-	admitRules: {  // empty or null to disable rules
+	/**
+	Client admission rules
+	@cfg {Object} 
+	*/
+	admitRules: {  // empty to disable rules
 		// CN: "james brian d jamesbd",
 		// O: "u.s. government",
 		// OU: ["nga", "dod"],
@@ -2065,24 +2258,24 @@ Client admission rules
 	sendMail: msg => { throw new Error("sendMail never configured"); },
 	inspector: msg => { throw new Error("inspector never configured"); },
 		
-/**
-Number of antibot riddles to extend 
-@cfg {Number} [riddles=0]
-*/		
+	/**
+	Number of antibot riddles to extend 
+	@cfg {Number} [riddles=0]
+	*/		
 	riddles: 0,
-	
-/**
-Antibot riddle store to protect site 
-@cfg {Array} 
-@private
-*/		
+
+	/**
+	Antibot riddle store to protect site 
+	@cfg {Array} 
+	@private
+	*/		
 	riddle: [],  //< reserved for riddles
 		
-/**
-Riddle digit-to-jpeg map (null to disable riddles)
-@cfg {Object} 
-@private
-*/				
+	/**
+	Riddle digit-to-jpeg map (null to disable riddles)
+	@cfg {Object} 
+	@private
+	*/				
 	riddleMap: { 					
 		0: ["10","210"],
 		1: ["30","60"],
@@ -2096,16 +2289,18 @@ Riddle digit-to-jpeg map (null to disable riddles)
 		9: ["40","190"]
 	},
 
+	/**
+	*/
 	proxies: null, /* [	// rotating proxy services
 		//"https://free-proxy-list.net",
 		//https://luminato.io
 		"https://sslproxies.org"
 	], */
 
-/**
-Default paths to service files
-@cfg {Object} 
-*/		
+	/**
+	Default paths to service files
+	@cfg {Object} 
+	*/		
 	paths: { 			
 		//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 		//default: "/gohome",
@@ -2139,39 +2334,41 @@ Default paths to service files
 	//lookups: {},
 	//Lookups: {},
 		
+	/**
+	*/
 	sqls: {	// sql queries
-		getAccount:	"SELECT Trusted, validEmail, Banned, aes_decrypt(unhex(Password),?) AS Password, SecureCom FROM openv.profiles WHERE Client=? AND !Online", 
-		addAccount:	"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
-		setToken: "UPDATE openv.profiles SET Password=hex(aes_encrypt(?,?)), SecureCom=if(?,concat(Client,Password),''), TokenID=null WHERE TokenID=?",
+		//getAccount:	"SELECT Trusted, validEmail, Banned, aes_decrypt(unhex(Password),?) AS Password, SecureCom FROM openv.profiles WHERE Client=? AND !Online", 
+		//addAccount:	"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
+		//setToken: "UPDATE openv.profiles SET Password=hex(aes_encrypt(?,?)), SecureCom=if(?,concat(Client,Password),''), TokenID=null WHERE TokenID=?",
 		//getToken: "SELECT Client FROM openv.profiles WHERE TokenID=?", 
-		addToken: "UPDATE openv.profiles SET SessionID=? WHERE Client=?",
-		addSession: "UPDATE openv.profiles SET Online=1, SessionID=? WHERE Client=?",
-		endSession: "UPDATE openv.profiles SET Online=0, SessionID=null WHERE Client=?",
+		//addToken: "UPDATE openv.profiles SET SessionID=? WHERE Client=?",
+		//addSession: "UPDATE openv.profiles SET Online=1, SessionID=? WHERE Client=?",
+		//endSession: "UPDATE openv.profiles SET Online=0, SessionID=null WHERE Client=?",
 		//logThreads: "show session status like 'Thread%'",
 		//users: "SELECT 'users' AS Role, group_concat( DISTINCT lower(dataset) SEPARATOR ';' ) AS Clients FROM openv.dblogs WHERE instr(dataset,'@')",
 		derive: "SELECT * FROM openv.apps WHERE ? LIMIT 1",
 		// logMetrics: "INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1, Transfer=Transfer+?, Delay=Delay+?",
 		search: "SELECT * FROM openv.files HAVING Score > 0.1",
 		//credit: "SELECT * FROM openv.files LEFT JOIN openv.profiles ON openv.profiles.Client = files.Client WHERE least(?) LIMIT 1",
-		getProfile: "SELECT * FROM openv.profiles WHERE Client=? LIMIT 1",
+		//getProfile: "SELECT * FROM openv.profiles WHERE Client=? LIMIT 1",
 		//addSession: "INSERT INTO openv.sessions SET ?",
-		addProfile: "INSERT INTO openv.profiles SET ?",
+		//addProfile: "INSERT INTO openv.profiles SET ?",
 		//getSession: "SELECT * FROM openv.sessions WHERE ? LIMIT 1",
 		//addConnect: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1",
 		//challenge: "SELECT *,concat(client,password) AS Passphrase FROM openv.profiles WHERE Client=? LIMIT 1",
-		guest: "SELECT * FROM openv.profiles WHERE Client='guest@totem.org' LIMIT 1",
+		//guest: "SELECT * FROM openv.profiles WHERE Client='guest@totem.org' LIMIT 1",
 		pocs: "SELECT admin,overlord, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Users FROM openv.profiles GROUP BY admin,overlord"
 	},
 
-/**
-Get (or create if needed) a file with callback cb(fileID, sql) if no errors
+	/**
+	Get (or create if needed) a file with callback cb(fileID, sql) if no errors
 
-@param {String} client owner of file
-@param {String} name of file to get/make
-@param {Function} cb callback(file, sql) if no errors
-@cfg {Function}
-*/
-		
+	@param {String} client owner of file
+	@param {String} name of file to get/make
+	@param {Function} cb callback(file, sql) if no errors
+	@cfg {Function}
+	*/
+
 	getBrick: (client, name, cb) => {  
 		sqlThread( sql => {
 			sql.forFirst( 
@@ -2206,27 +2403,27 @@ Get (or create if needed) a file with callback cb(fileID, sql) if no errors
 		});
 	},
 
-/**
-File uploader 
-@cfg {Function}
-*/			
+	/**
+	File uploader 
+	@cfg {Function}
+	*/			
 	uploadFile: uploadFile,
 
-/**
-Server toobusy check period in seconds
-@cfg {Number}
-*/		
+	/**
+	Server toobusy check period in seconds
+	@cfg {Number}
+	*/		
 	busyTime: 5000,  //< site too-busy check interval [ms] (0 disables)
 
-/**
-Sets the site context parameters.
-@cfg {Function}
-*/		
+	/**
+	Sets the site context parameters.
+	@cfg {Function}
+	*/		
 	setContext: function (sql,cb) { 
 		Log(`CONTEXTING ${TOTEM.name}`);
 	
 		const 
-			{pocs,guest,derive} = sqls;
+			{pocs,derive} = sqls;
 
 		site.warning = "";
 
@@ -2324,10 +2521,10 @@ Sets the site context parameters.
 
 	certs: {}, 		// server and client cert cache (pfx, crt, and key)
 
-/**
-File cache
-@cfg {Object} 
-*/		
+	/**
+	File cache
+	@cfg {Object} 
+	*/		
 	cache: { 				//< file cacheing options
 		never: {	//< files to never cache - useful while debugging client side stuff
 			uis: 1,
@@ -2351,183 +2548,6 @@ function stopService(cb) {
 		Trace("SERVICE NEVER STARTED");
 		if (cb) cb();
 	}
-}
-
-/**
-Create a cert for the desired owner with the desired passphrase then 
-callback cb() when complete.
-
-@param {String} owner userID to own this cert
-@param {String} password for this cert
-@param {Function} cb callback when completed
-*/
-function createCert(owner,pass,cb) { 
-
-	function traceExecute(cmd,cb) {
-
-		Log(cmd.replace(/\n/g,"\\n"));
-
-		CP.exec(cmd, err => {
-
-			if (err)
-				console.info({
-					shell: cmd,
-					error: err
-				});
-
-			cb();
-		});
-	}
-
-	var 
-		name = `${paths.certs}${owner}`, 
-		truststore = `${paths.certs}truststore`,
-		pfx = name + ".pfx",
-		key = name + ".key",
-		crt = name + ".crt",
-		ppk = name + ".ppk";
-		
-	Log( "CREATE SELF-SIGNED SERVER CERT", owner );			
-	
-	traceExecute(
-		`echo -e "\n\n\n\n\n\n\n" | openssl req -x509 -nodes -days 5000 -newkey rsa:2048 -keyout ${key} -out ${crt}`, 
-		function () { 
-		
-	traceExecute(
-		`export PASS="${pass}";openssl pkcs12 -export -in ${crt} -inkey ${key} -out ${pfx} -passout env:PASS`, 
-		function () {
-		
-	traceExecute(
-		`cp ${crt} ${truststore}`,
-		function () {
-			
-	traceExecute(
-		`puttygen ${owner}.key -N ${pass} -o ${ppk}`, 	
-		function () {
-		
-		Log("IGNORE PUTTYGEN ERRORS IF NOT INSTALLED"); 
-		cb();
-	});
-	});
-	});
-	});
-
-}
-
-/**
-Validate a client's session by attaching a log, profile, group, client, 
-cert and joined info to this `req` request then callback `res`(error) with 
-a null `error` if the session was sucessfully validated.  
-
-@param {Object} req totem session request
-@param {Function} res totem session responder
-*/
-function resolveClient(req,res) {  
-	
-	function checkCert(cb) { //< callbck cb(cert || null)
-		function getCert(sock) {  //< Return cert presented on this socket (w or w/o proxy).
-			const 
-				cert =  (encrypted && sock.getPeerCertificate) ? sock.getPeerCertificate() : {
-					subject: {
-						C: "",
-						O: "",
-						OU: "",
-						CN: ""
-					},
-					subjectaltname: ""
-				};		
-
-			// Log("getcert>>>>>>>>", cert, cert.subjectaltname);
-			if (behindProxy) {  // update cert with originating cert info that was placed in header
-				var 
-					NA = Req.headers.ssl_client_notafter,
-					NB = Req.headers.sll_client_notbefore,
-					DN = Req.headers.ssl_client_s_dn;
-
-				if (NA) cert.valid_to = new Date(
-						[NA.substr(2,2),NA.substr(4,2),NA.substr(0,2)].join("/")+" "+
-						[NA.substr(6,2),NA.substr(8,2),NA.substr(10,2)].join(":")
-					);
-
-				if (NB) cert.valid_to = new Date(
-						[NB.substr(2,2),NB.substr(4,2),NB.substr(0,2)].join("/")+" "+
-						[NB.substr(6,2),NB.substr(8,2),NB.substr(10,2)].join(":")
-					);
-
-				if (DN)
-					Each(DN.split("/"), function (n,hdr) {
-						if (hdr) {
-							var sub = hdr.split("=");
-							cert.subject[sub[0]] += sub[1];
-						}
-					});
-
-				if ( CN = cert.subject.CN ) {
-					CN = CN.split(" ");
-					cert.subject.CN = CN[CN.length-1] + "@lost.org";
-				}
-			}
-
-			return cert;
-		}
-
-		const 
-			cert = getCert(reqSocket),
-			now = new Date();
-		
-		// Log("cert>>>", cert, admitRules);
-
-		if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
-			cb( null );
-
-		else
-		if ( user = cert.subject || cert.issuer ) {
-			for (var key in admitRules) 
-				if ( test = user[key] ) 
-					if ( test.toLowerCase().indexOf( admitRules[key] ) < 0 ) return cb( null );
-
-				else
-					return cb( null );
-
-			cb( cert );
-		}
-
-		else
-			cb( null );
-	}
-
-	const 
-		{ sql, cookie, encrypted, reqSocket, ipAddress } = req,
-		{ getProfile, addProfile } = sqls,
-		cookies = req.cookies = {},
-		{ Login, host } = SECLINK,
-		guest = `email:guest${ipAddress}@${host}`;
-	
-	checkCert( cert => {
-		
-		const
-			[x,account] = (cert.subjectaltname||guest).toLowerCase().split(",")[0].match(/email:(.*)/) || [];
-
-		if ( account ) {
-			// Log("CHECKCERT>>>>>>>>>>>>>>>", account, cookie, cookies);
-			req.client = account;
-			
-			if ( cookie ) 						//  client providing cookie to hold their profile
-				cookie.split("; ").forEach( cook => {
-					const [key,val] = cook.split("=");
-					cookies[key] = val;
-				});
-
-			//Log("cookies", cookies, account);
-
-			Login( cookies.session || account, function guestSession(err,profile) {
-				res( err, profile );
-			});
-		}
-		
-		else
-			res( errors.badLogin );
-	});
 }
 
 /**
