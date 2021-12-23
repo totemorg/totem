@@ -119,6 +119,74 @@ totem_config.)
 	# define passwords
 	source totem/config/_pass.sh
 
+	# define service urls
+	
+	case "$(hostname)." in
+		wsn3303.)
+			DOMAIN=totem.nga.mil
+			;;
+
+		awshigh.)
+			DOMAIN=totem.west.ile.nga.ic.gov
+			;;
+
+		ilehigh.)
+			DOMAIN=totem.west.ile.nga.ic.gov
+			;;
+
+		acmesds.)
+			DOMAIN=totem.hopto.org
+			;;
+		
+		dockerhost.)
+			DOMAIN=totem.hopto.org
+			;;
+
+		*)
+			DOMAIN=unknown
+	esac
+	
+	case "$2." in 
+		prod.)	# multi core production
+			PROTO=https
+			PORT1=8080
+			PORT2=443
+			;;
+
+		prot.)	# single core
+			PROTO=https
+			PORT1=8443
+			PORT2=8080
+			;;
+
+		oper.)
+			export SERVICE_OPER=yes
+			DOMAIN=localhost
+			PROTO=https
+			PORT1=80
+			PORT2=443
+			;;
+		
+		*)
+			DOMAIN=localhost
+			PROTO=http
+			PORT1=8080
+			PORT2=8081
+			;;
+	esac
+	
+	# define service url
+	export SERVICE_MASTER_URL=$PROTO://$DOMAIN:$PORT1
+	export SERVICE_WORKER_URL=$PROTO://$DOMAIN:$PORT2
+	
+	echo "Running $DOMAIN_NAME on $SERVICE_MASTER_URL and $SERVICE_WORKER_URL"
+	
+	# define task sharding urls
+	export SHARD0=$PROTO://$DOMAIN/task
+	export SHARD1=$PROTO://$DOMAIN/task
+	export SHARD2=$PROTO://$DOMAIN/task
+	export SHARD3=$PROTO://$DOMAIN/task
+
 	;;
 	
 atomic_config.)
@@ -216,7 +284,7 @@ atomic_config.)
 config.)
 	source ./maint.sh system_config
 	source ./maint.sh atomic_config
-	source ./maint.sh totem_config
+	source ./maint.sh totem_config $2
 	source ./maint.sh jsdb_config
 	source ./maint.sh geohack_config
 	source ./maint.sh debe_config
@@ -792,75 +860,10 @@ net_restart.)
 	sudo /etc/init.d/network restart
 	;;
 
-oper.|prod.|prot.|debug.|lab.)  	# start totem
+admin.|lab.)  	# start totem
 
-	case "$(hostname)." in
-		wsn3303.)
-			DOMAIN=totem.nga.mil
-			;;
-
-		awshigh.)
-			DOMAIN=totem.west.ile.nga.ic.gov
-			;;
-
-		ilehigh.)
-			DOMAIN=totem.west.ile.nga.ic.gov
-			;;
-
-		acmesds.)
-			DOMAIN=totem.hopto.org
-			;;
-		
-		dockerhost.)
-			DOMAIN=totem.hopto.org
-			;;
-
-		*)
-			DOMAIN=unknown
-	esac
-	
-	case "$1." in 
-		prod.)	# multi core production
-			PROTO=https
-			PORT1=8080
-			PORT2=443
-			;;
-
-		prot.)	# single core
-			PROTO=https
-			PORT1=8443
-			PORT2=8080
-			;;
-
-		oper.)
-			DOMAIN=localhost
-			PROTO=https
-			PORT1=80
-			PORT2=443
-			;;
-		
-		*)
-			DOMAIN=localhost
-			PROTO=http
-			PORT1=8080
-			PORT2=8081
-			;;
-	esac
-	
-	# define service url
-	export SERVICE_MASTER_URL=$PROTO://$DOMAIN:$PORT1
-	export SERVICE_WORKER_URL=$PROTO://$DOMAIN:$PORT2
-	
-	echo "Running $DOMAIN_NAME on $SERVICE_MASTER_URL and $SERVICE_WORKER_URL"
-	
-	# define task sharding nodes
-	export SHARD0=$PROTO://$DOMAIN/task
-	export SHARD1=$PROTO://$DOMAIN/task
-	export SHARD2=$PROTO://$DOMAIN/task
-	export SHARD3=$PROTO://$DOMAIN/task
-
-	case "$1." in 
-		oper.)
+	case "$SERVICE_OPER." in 
+		yes.)
 			sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o debe.log start debe.js $1 $2 $3 $4 $5
 			;;
 		
