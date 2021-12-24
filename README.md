@@ -239,7 +239,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 // no cores but a mysql database and an anti-bot shield
 
 TOTEM.config({
-	"secureLink.challenge.extend": 20
+	"secureIO.challenge.extend": 20
 }, sql => {
 	Log("", {
 		msg:
@@ -449,7 +449,7 @@ neoThread( neo => {
 
 * [TOTEM](#module_TOTEM)
     * _static_
-        * [.secureLink](#module_TOTEM.secureLink)
+        * [.secureIO](#module_TOTEM.secureIO)
         * [.errors](#module_TOTEM.errors)
         * [.tasking](#module_TOTEM.tasking)
         * [.dogs](#module_TOTEM.dogs)
@@ -511,9 +511,9 @@ neoThread( neo => {
         * [~updateDS(req, res)](#module_TOTEM..updateDS)
         * [~executeDS(req, res)](#module_TOTEM..executeDS)
 
-<a name="module_TOTEM.secureLink"></a>
+<a name="module_TOTEM.secureIO"></a>
 
-### TOTEM.secureLink
+### TOTEM.secureIO
 SecureLink configuration settings.  Null to disable secure client links.
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
@@ -960,7 +960,7 @@ Create and start the HTTP/HTTPS server.  If starting a HTTPS server, the trustst
 <a name="module_TOTEM.config..configService..createServer..startServer"></a>
 
 ###### createServer~startServer(server, port, cb)
-Start service and attach listener.  Established the secureLink if configured.  Establishes
+Start service and attach listener.  Established the secureIO if configured.  Establishes
 				server-busy tests to thwart deniel-of-service attackes and process guards to trap faults.  When
 				starting the master process, other configurations are completed.  Watchdogs and proxies are
 				also established.

@@ -171,7 +171,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 // no cores but a mysql database and an anti-bot shield
 
 TOTEM.config({
-	"secureLink.challenge.extend": 20
+	"secureIO.challenge.extend": 20
 }, sql => {
 	Log("", {
 		msg:
@@ -401,7 +401,9 @@ const
 	/**
 	SecureLink configuration settings.  Null to disable secure client links.
 	*/
-	secureLink: {
+	secureIO: {
+		sio: null,		//< set on configuration
+			
 		host: ENV.DOMAIN_NAME || "totem",
 		
 		isTrusted: account => account.endsWith(".mil") && !account.match(/\.ctr@.&\.mil/) ,
@@ -1079,7 +1081,7 @@ const
 			function createServer() {		//< create and start the server
 				
 				/**
-				Start service and attach listener.  Established the secureLink if configured.  Establishes
+				Start service and attach listener.  Established the secureIO if configured.  Establishes
 				server-busy tests to thwart deniel-of-service attackes and process guards to trap faults.  When
 				starting the master process, other configurations are completed.  Watchdogs and proxies are
 				also established.
@@ -1090,23 +1092,25 @@ const
 				*/				
 				function startServer(server, port, agent) {	//< attach listener callback cb(Req,Res) to the specified port
 					const 
-						{ initialize, secureLink, name, dogs, guard, guards, proxy, proxies, cores } = TOTEM;
+						{ initialize, secureIO, name, dogs, guard, guards, proxy, proxies, cores } = TOTEM;
 					
 					Log(`STARTING ${name}`);
 
-					if ( secureLink )		// setup secure link sessions 
+					if ( secureIO )		// setup secure link sessions 
 						sqlThread( sql => {
 							sql.query( "SELECT * FROM openv.profiles WHERE Client='Guest' LIMIT 1", [], (err,recs) => {
 								Log( recs[0] 
 									? "Guest logins enabled"
 									: "Guest logins disabled!" );
 								
-								SECLINK.config( Copy(secureLink, {
+								SECLINK.config( Copy(secureIO, {
 									server: server,
 									sqlThread: sqlThread,
 									notify: TOTEM.sendMail,
 									guest: recs[0]
 								}) );
+								
+								secureIO.sio = SECLINK.sio;
 							});
 						});
 
@@ -1151,7 +1155,7 @@ const
 						for (var core = 0; core < TOTEM.cores; core++) // create workers
 							worker = CLUSTER.fork();
 						
-						const { modTimes, onFile, watchFile } = TOTEM;
+						const { modTimes, onFile, watchFile,secureIO } = TOTEM;
 
 						Each(onFile, (area, cb) => {  // callback cb(sql,name,area) when file changed
 							FS.readdir( area, (err, files) => {
@@ -1170,9 +1174,8 @@ const
 							"HOSTING " + site.nick,
 							"AT " + `(${site.master}, ${site.worker})`,
 							"FROM " + process.cwd(),
-							"WITH " + (sockets?"":"NO")+" SOCKETS",
 							"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
-							"WITH "+ (secureLink ? "SECURE" : "INSECURE")+" LINKS",
+							"WITH "+ (secureIO ? secureIO.sio ? "SECURE" : "INSECURE" : "NO")+" LINKS",
 							"WITH " + (site.sessions||"UNLIMITED") + " CONNECTIONS",
 							"WITH " + (cores ? cores + " WORKERS AT "+site.worker : "NO WORKERS"),
 							"POCS " + JSON.stringify(site.pocs)
@@ -1244,7 +1247,7 @@ const
 				}
 
 				const 
-					{ crudIF,sockets,name,cache,trustStore,certs } = TOTEM,
+					{ crudIF,name,cache,trustStore,certs } = TOTEM,
 					port = parseInt( CLUSTER.isMaster ? $master.port : $worker.port );
 
 				//Log( ">>start", isEncrypted(), $master, $worker );
@@ -3025,7 +3028,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 
 	case "T5": 
 		TOTEM.config({
-			"secureLink.challenge.extend": 20
+			"secureIO.challenge.extend": 20
 		}, sql => {
 			Log("", {
 				msg:
