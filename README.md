@@ -78,11 +78,24 @@ Simply install and start its federated docker image (
 
 ## Manage 
 
+### Defining operating mode
+
+	npm run setprot						# Configure for protected mode
+	npm run setdebug					# Configure for debugging mode
+	npm run setoper						# Configure for operational mode
+	npm run setprod						# Configure for production mode
+
+### Starting
+
+	npm run test						# Start totem in test mode
+
+### Testing and maintenance 
 	npm test [ ? || T1 || T2 || ...]	# Run unit test
+	npm run	startdbs					# Start required database servers
 	npm run redoc						# Update repo
-	npm run config						# Configure passwords
-	npm run startdb						# Start the database servers
-	npm run start						# Start totem
+	npm run verminor					# Roll version
+	npm run vermajor					# Roll version
+	rpm run	relink						# Relink dependent TOTEM modules
 
 ## Usage
 
