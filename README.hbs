@@ -39,9 +39,7 @@ Clone **TOTEM** from one of its repos:
 	git clone https://sc.appdev.proj.coe/acmesds/totem
 	git clone https://gitlab.west.nga.ic.gov/acmesds/totem
 
-Revise passwords `_pass.sh` as needed.
-
-Install dependencies:
+then install its dependencies:
 
 + **ENUMS** [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
 + **SECLINK** [WWW](https://github.com/totemstan/securelink)  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
@@ -65,7 +63,7 @@ Simply install and start its federated docker image (
 	npm run setoper						# Configure for operational mode
 	npm run setprod						# Configure for production mode
 
-to establish the following env vars:
+to establish the following env vars (revise passwords in `_pass.sh` as needed):
 
 	MYSQL_HOST = domain name
 	MYSQL_USER = user name
