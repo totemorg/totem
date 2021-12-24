@@ -39,26 +39,6 @@ Clone **TOTEM** from one of its repos:
 	git clone https://sc.appdev.proj.coe/acmesds/totem
 	git clone https://gitlab.west.nga.ic.gov/acmesds/totem
 
-Define its env vars:
-
-	MYSQL_HOST = domain name
-	MYSQL_USER = user name
-	MYSQL_PASS = user password
-	
-	NEO4J_HOST = bolt://DOMAIN:PORT
-	NEO4J_USER = user name
-	NEO4J_PASS = user password
-
-	SERVICE_PASS = passphrase to server pki cert
-	
-	SERVICE_WORKER_URL = PROTO://DOMAIN:PORT
-	SERVICE_MASTER_URL = PROTO://DOMAIN:PORT
-	
-	SHARD0 = PROTO://DOMAIN:PORT
-	SHARD1 = PROTO://DOMAIN:PORT
-	SHARD2 = PROTO://DOMAIN:PORT
-	SHARD3 = PROTO://DOMAIN:PORT
-
 Revise passwords `_pass.sh` as needed.
 
 Install dependencies:
@@ -84,6 +64,26 @@ Simply install and start its federated docker image (
 	npm run setdebug					# Configure for debugging mode
 	npm run setoper						# Configure for operational mode
 	npm run setprod						# Configure for production mode
+
+to establish the following env vars:
+
+	MYSQL_HOST = domain name
+	MYSQL_USER = user name
+	MYSQL_PASS = user password
+	
+	NEO4J_HOST = bolt://DOMAIN:PORT
+	NEO4J_USER = user name
+	NEO4J_PASS = user password
+
+	SERVICE_PASS = passphrase to server pki cert
+	
+	SERVICE_WORKER_URL = PROTO://DOMAIN:PORT
+	SERVICE_MASTER_URL = PROTO://DOMAIN:PORT
+	
+	SHARD0 = PROTO://DOMAIN:PORT
+	SHARD1 = PROTO://DOMAIN:PORT
+	SHARD2 = PROTO://DOMAIN:PORT
+	SHARD3 = PROTO://DOMAIN:PORT
 
 ### Starting
 
