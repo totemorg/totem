@@ -33,13 +33,13 @@ and the `stores | shares` areas for sharing static *FILE*s.
 
 ## Local Installation
 
-1. Clone **TOTEM** from one of its repos
+Clone **TOTEM** from one of its repos:
 
-+ git clone https://github.com/totemstan/totem
-+ git clone https://sc.appdev.proj.coe/acmesds/totem
-+ git clone https://gitlab.west.nga.ic.gov/acmesds/totem
+	git clone https://github.com/totemstan/totem
+	git clone https://sc.appdev.proj.coe/acmesds/totem
+	git clone https://gitlab.west.nga.ic.gov/acmesds/totem
 
-2. Define its env vars:
+Define its env vars:
 
 	MYSQL_HOST = domain name
 	MYSQL_USER = user name
@@ -59,9 +59,9 @@ and the `stores | shares` areas for sharing static *FILE*s.
 	SHARD2 = PROTO://DOMAIN:PORT
 	SHARD3 = PROTO://DOMAIN:PORT
 
-3. Revise its passwords `_pass.sh` as needed
+Revise passwords `_pass.sh` as needed.
 
-4. Install its dependencies:
+Install dependencies:
 
 + **ENUMS** [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
 + **SECLINK** [WWW](https://github.com/totemstan/securelink)  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
