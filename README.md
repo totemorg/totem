@@ -33,13 +33,13 @@ and the `stores | shares` areas for sharing static *FILE*s.
 
 ## Local Installation
 
-1. Clone **TOTEM** from one of its repos:
+1. Clone **TOTEM** from one of its repos
 
-	git clone https://github.com/totemstan/totem
-	git clone https://sc.appdev.proj.coe/acmesds/totem
-	git clone https://gitlab.west.nga.ic.gov/acmesds/totem
++ git clone https://github.com/totemstan/totem
++ git clone https://sc.appdev.proj.coe/acmesds/totem
++ git clone https://gitlab.west.nga.ic.gov/acmesds/totem
 
-2. Ddefine its env vars:
+2. Define its env vars:
 
 	MYSQL_HOST = domain name
 	MYSQL_USER = user name
