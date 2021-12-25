@@ -1,4 +1,20 @@
 ############################
+# IP port forwarding in home network
+############################
+# Alas, all efforts to get the Guest enp0s8 on a static IP address fail.  Setting the Guest to 172.16.0.100 [1] 
+# is reflected in a "ifconfig -a" but the Guest cannot ping the Host, nor the Host ping the Guest; thus IP Port
+# Forwarding fails as well.  The problem appears to be that static IPs prevent (by nature) DHCP to run, and this 
+# causes enp0s8 to assume the same MAC address as the Host (regardless of the MAC address assigned by the VM 
+# Bridge adapter [2]).  Thus, everytime the VM is booted, DHCP may assign a new IP address, and thus IP
+# Forwarding (on the Netgear router) needs to get reprogrammed.  Crap.
+
+# [1] When our home routers are in Access Point mode, the entire LAN comes up in the 172.16.0.x network.  When not
+# in AP mode, each router makes its own 192.168.1.x network.  
+# [2] The VM adapter (typically Adapter 2) is set to Bridge with (a) its Guest Driver = Host Driver = Qualcom
+# and (b) Cable Connected.
+
+
+############################
 # gnome desktop
 ############################
 
