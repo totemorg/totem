@@ -483,15 +483,15 @@ neoThread( neo => {
             * [.task(req, res)](#module_TOTEM.byTable.task)
             * [.riddle(req, res)](#module_TOTEM.byTable.riddle)
         * [.byAction](#module_TOTEM.byAction)
+            * [.select(req, res)](#module_TOTEM.byAction.select)
+            * [.update(req, res)](#module_TOTEM.byAction.update)
+            * [.delete(req, res)](#module_TOTEM.byAction.delete)
+            * [.insert(req, res)](#module_TOTEM.byAction.insert)
+            * [.execute(req, res)](#module_TOTEM.byAction.execute)
         * [.byType](#module_TOTEM.byType)
         * [.byArea](#module_TOTEM.byArea)
         * [.trustStore](#module_TOTEM.trustStore)
         * [.server](#module_TOTEM.server)
-        * [.select](#module_TOTEM.select)
-        * [.update](#module_TOTEM.update)
-        * [.delete](#module_TOTEM.delete)
-        * [.insert](#module_TOTEM.insert)
-        * [.execute](#module_TOTEM.execute)
         * [.guard](#module_TOTEM.guard)
         * [.guards](#module_TOTEM.guards)
         * [.admitRules](#module_TOTEM.admitRules)
@@ -516,11 +516,6 @@ neoThread( neo => {
     * _inner_
         * [~stopService()](#module_TOTEM..stopService)
         * [~uploadFile(client, source, sinkPath, tags, cb)](#module_TOTEM..uploadFile)
-        * [~selectDS(req, res)](#module_TOTEM..selectDS)
-        * [~insertDS(req, res)](#module_TOTEM..insertDS)
-        * [~deleteDS(req, res)](#module_TOTEM..deleteDS)
-        * [~updateDS(req, res)](#module_TOTEM..updateDS)
-        * [~executeDS(req, res)](#module_TOTEM..executeDS)
 
 <a name="module_TOTEM.secureIO"></a>
 
@@ -723,6 +718,79 @@ By-action endpoint routers for accessing engines
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
+
+* [.byAction](#module_TOTEM.byAction)
+    * [.select(req, res)](#module_TOTEM.byAction.select)
+    * [.update(req, res)](#module_TOTEM.byAction.update)
+    * [.delete(req, res)](#module_TOTEM.byAction.delete)
+    * [.insert(req, res)](#module_TOTEM.byAction.insert)
+    * [.execute(req, res)](#module_TOTEM.byAction.execute)
+
+<a name="module_TOTEM.byAction.select"></a>
+
+#### byAction.select(req, res)
+CRUD endpoint to respond to a select||GET request
+
+**Kind**: static method of [<code>byAction</code>](#module_TOTEM.byAction)  
+**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.byAction.update"></a>
+
+#### byAction.update(req, res)
+CRUD endpoint to respond to a update||POST request
+
+**Kind**: static method of [<code>byAction</code>](#module_TOTEM.byAction)  
+**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.byAction.delete"></a>
+
+#### byAction.delete(req, res)
+CRUD endpoint to respond to a delete||DELETE request
+
+**Kind**: static method of [<code>byAction</code>](#module_TOTEM.byAction)  
+**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.byAction.insert"></a>
+
+#### byAction.insert(req, res)
+CRUD endpoint to respond to a insert||PUT request
+
+**Kind**: static method of [<code>byAction</code>](#module_TOTEM.byAction)  
+**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.byAction.execute"></a>
+
+#### byAction.execute(req, res)
+CRUD endpoint to respond to a Totem request
+
+**Kind**: static method of [<code>byAction</code>](#module_TOTEM.byAction)  
+**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
 <a name="module_TOTEM.byType"></a>
 
 ### TOTEM.byType
@@ -751,71 +819,6 @@ CRUD endpoint to respond to Totem request
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="module_TOTEM.select"></a>
-
-### TOTEM.select
-CRUD endpoint to respond to a select||GET request
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem session response |
-
-<a name="module_TOTEM.update"></a>
-
-### TOTEM.update
-CRUD endpoint to respond to a update||POST request
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem session response |
-
-<a name="module_TOTEM.delete"></a>
-
-### TOTEM.delete
-CRUD endpoint to respond to a delete||DELETE request
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem session response |
-
-<a name="module_TOTEM.insert"></a>
-
-### TOTEM.insert
-CRUD endpoint to respond to a insert||PUT request
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem session response |
-
-<a name="module_TOTEM.execute"></a>
-
-### TOTEM.execute
-CRUD endpoint to respond to a Totem request
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem session response |
-
 <a name="module_TOTEM.guard"></a>
 
 ### TOTEM.guard
@@ -1093,66 +1096,6 @@ specified `client`; optional `tags` are tagged to the upload and the callback
 | sinkPath | <code>String</code> | path to target file |
 | tags | <code>Object</code> | hash of tags to add to file |
 | cb | <code>function</code> | callback(file) if upload successful |
-
-<a name="module_TOTEM..selectDS"></a>
-
-### TOTEM~selectDS(req, res)
-CRUD select endpoint.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem session responder |
-
-<a name="module_TOTEM..insertDS"></a>
-
-### TOTEM~insertDS(req, res)
-CRUD insert endpoint.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem response callback |
-
-<a name="module_TOTEM..deleteDS"></a>
-
-### TOTEM~deleteDS(req, res)
-CRUD delete endpoint.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem response callback |
-
-<a name="module_TOTEM..updateDS"></a>
-
-### TOTEM~updateDS(req, res)
-CRUD update endpoint.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem response callback |
-
-<a name="module_TOTEM..executeDS"></a>
-
-### TOTEM~executeDS(req, res)
-CRUD execute endpoint.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem response callback |
 
 </details>
 
