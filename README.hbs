@@ -39,7 +39,31 @@ Clone **TOTEM** from one of its repos:
 	git clone https://sc.appdev.proj.coe/acmesds/totem
 	git clone https://gitlab.west.nga.ic.gov/acmesds/totem
 
-and define its env vars:
+then install its dependencies:
+
++ **ENUMS** [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
++ **SECLINK** [WWW](https://github.com/totemstan/securelink)  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
++ **SOCKETIO** [WWW](https://github.com/totemstan/socketio)  [COE](https://sc.appdev.proj.coe/acmesds/socketio)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
++ **JSDB** [WWW](https://github.com/totemstan/jsdb)  [COE](https://sc.appdev.proj.coe/acmesds/jsdb)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
+
+## Federated Installation
+
+Simply install and start its federated docker image (
+[WWW](https://github.com/totemstan/dockify) 
+[COE](https://sc.appdev.proj.coe/acmesds/dockify)
+[SBU](https://gitlab.west.nga.ic.gov/acmesds/dockify)
+).
+
+## Manage 
+
+### Defining operating mode
+
+	npm run setprot						# Configure for protected mode
+	npm run setdebug					# Configure for debugging mode
+	npm run setoper						# Configure for operational mode
+	npm run setprod						# Configure for production mode
+
+to establish the following env vars (revise passwords in `_pass.sh` as needed):
 
 	MYSQL_HOST = domain name
 	MYSQL_USER = user name
@@ -59,30 +83,17 @@ and define its env vars:
 	SHARD2 = PROTO://DOMAIN:PORT
 	SHARD3 = PROTO://DOMAIN:PORT
 
-Passwords are defined in **TOTEM**'s `_pass.sh` script.
+### Starting
 
-Dependent modules:
+	npm run test						# Start totem in test mode
 
-+ **ENUMS** [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
-+ **SECLINK** [WWW](https://github.com/totemstan/securelink)  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
-+ **SOCKETIO** [WWW](https://github.com/totemstan/socketio)  [COE](https://sc.appdev.proj.coe/acmesds/socketio)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
-+ **JSDB** [WWW](https://github.com/totemstan/jsdb)  [COE](https://sc.appdev.proj.coe/acmesds/jsdb)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
-
-## Federated Installation
-
-Simply install and start its federated docker image (
-[WWW](https://github.com/totemstan/dockify) 
-[COE](https://sc.appdev.proj.coe/acmesds/dockify)
-[SBU](https://gitlab.west.nga.ic.gov/acmesds/dockify)
-).
-
-## Manage 
-
+### Testing and maintenance 
 	npm test [ ? || T1 || T2 || ...]	# Run unit test
+	npm run	startdbs					# Start required database servers
 	npm run redoc						# Update repo
-	npm run config						# Configure passwords
-	npm run startdb						# Start the database servers
-	npm run start						# Start totem
+	npm run verminor					# Roll version
+	npm run vermajor					# Roll version
+	rpm run	relink						# Relink dependent TOTEM modules
 
 ## Usage
 

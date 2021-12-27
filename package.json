@@ -1,12 +1,18 @@
 {
   "name": "totem",
-  "version": "1.10.0",
+  "version": "1.13.0",
   "description": "bare essentials web service",
   "main": "totem.js",
   "scripts": {
-    "config": "vi ./_pass.sh; source ./_pass.sh",
-    "start": "node totem.js T3",
-    "startdb": "source ./maint.sh mysql start",
+    "startdbs": "source ./maint.sh startdbs",
+    "setdebug": "source ./maint.sh config debug",
+    "setoper": "source ./maint.sh config oper",
+    "setprot": "source ./maint.sh config prot",
+    "setprod": "source ./maint.sh config prod",
+    "verminor": "npm version minor -f",
+    "vermajor": "npm version major -f",
+    "test": "node totem.js T3",
+    "relink": "cd node_modules; for f in enums jsdb securelink; do ln -s ../../$f $f; done",
     "redoc": "jsdoc2md --template README.hbs --files totem.js >README.md; git commit -am 'redoc'; git  push agent master"
   },
   "author": "ACME SDS",

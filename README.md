@@ -39,7 +39,31 @@ Clone **TOTEM** from one of its repos:
 	git clone https://sc.appdev.proj.coe/acmesds/totem
 	git clone https://gitlab.west.nga.ic.gov/acmesds/totem
 
-and define its env vars:
+then install its dependencies:
+
++ **ENUMS** [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
++ **SECLINK** [WWW](https://github.com/totemstan/securelink)  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
++ **SOCKETIO** [WWW](https://github.com/totemstan/socketio)  [COE](https://sc.appdev.proj.coe/acmesds/socketio)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
++ **JSDB** [WWW](https://github.com/totemstan/jsdb)  [COE](https://sc.appdev.proj.coe/acmesds/jsdb)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
+
+## Federated Installation
+
+Simply install and start its federated docker image (
+[WWW](https://github.com/totemstan/dockify) 
+[COE](https://sc.appdev.proj.coe/acmesds/dockify)
+[SBU](https://gitlab.west.nga.ic.gov/acmesds/dockify)
+).
+
+## Manage 
+
+### Defining operating mode
+
+	npm run setprot						# Configure for protected mode
+	npm run setdebug					# Configure for debugging mode
+	npm run setoper						# Configure for operational mode
+	npm run setprod						# Configure for production mode
+
+to establish the following env vars (revise passwords in `_pass.sh` as needed):
 
 	MYSQL_HOST = domain name
 	MYSQL_USER = user name
@@ -59,30 +83,17 @@ and define its env vars:
 	SHARD2 = PROTO://DOMAIN:PORT
 	SHARD3 = PROTO://DOMAIN:PORT
 
-Passwords are defined in **TOTEM**'s `_pass.sh` script.
+### Starting
 
-Dependent modules:
+	npm run test						# Start totem in test mode
 
-+ **ENUMS** [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
-+ **SECLINK** [WWW](https://github.com/totemstan/securelink)  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
-+ **SOCKETIO** [WWW](https://github.com/totemstan/socketio)  [COE](https://sc.appdev.proj.coe/acmesds/socketio)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
-+ **JSDB** [WWW](https://github.com/totemstan/jsdb)  [COE](https://sc.appdev.proj.coe/acmesds/jsdb)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
-
-## Federated Installation
-
-Simply install and start its federated docker image (
-[WWW](https://github.com/totemstan/dockify) 
-[COE](https://sc.appdev.proj.coe/acmesds/dockify)
-[SBU](https://gitlab.west.nga.ic.gov/acmesds/dockify)
-).
-
-## Manage 
-
+### Testing and maintenance 
 	npm test [ ? || T1 || T2 || ...]	# Run unit test
+	npm run	startdbs					# Start required database servers
 	npm run redoc						# Update repo
-	npm run config						# Configure passwords
-	npm run startdb						# Start the database servers
-	npm run start						# Start totem
+	npm run verminor					# Roll version
+	npm run vermajor					# Roll version
+	rpm run	relink						# Relink dependent TOTEM modules
 
 ## Usage
 
@@ -239,7 +250,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 // no cores but a mysql database and an anti-bot shield
 
 TOTEM.config({
-	"secureLink.challenge.extend": 20
+	"secureIO.challenge.extend": 20
 }, sql => {
 	Log("", {
 		msg:
@@ -449,7 +460,7 @@ neoThread( neo => {
 
 * [TOTEM](#module_TOTEM)
     * _static_
-        * [.secureLink](#module_TOTEM.secureLink)
+        * [.secureIO](#module_TOTEM.secureIO)
         * [.errors](#module_TOTEM.errors)
         * [.tasking](#module_TOTEM.tasking)
         * [.dogs](#module_TOTEM.dogs)
@@ -472,15 +483,15 @@ neoThread( neo => {
             * [.task(req, res)](#module_TOTEM.byTable.task)
             * [.riddle(req, res)](#module_TOTEM.byTable.riddle)
         * [.byAction](#module_TOTEM.byAction)
+            * [.select(req, res)](#module_TOTEM.byAction.select)
+            * [.update(req, res)](#module_TOTEM.byAction.update)
+            * [.delete(req, res)](#module_TOTEM.byAction.delete)
+            * [.insert(req, res)](#module_TOTEM.byAction.insert)
+            * [.execute(req, res)](#module_TOTEM.byAction.execute)
         * [.byType](#module_TOTEM.byType)
         * [.byArea](#module_TOTEM.byArea)
         * [.trustStore](#module_TOTEM.trustStore)
         * [.server](#module_TOTEM.server)
-        * [.select](#module_TOTEM.select)
-        * [.update](#module_TOTEM.update)
-        * [.delete](#module_TOTEM.delete)
-        * [.insert](#module_TOTEM.insert)
-        * [.execute](#module_TOTEM.execute)
         * [.guard](#module_TOTEM.guard)
         * [.guards](#module_TOTEM.guards)
         * [.admitRules](#module_TOTEM.admitRules)
@@ -505,15 +516,10 @@ neoThread( neo => {
     * _inner_
         * [~stopService()](#module_TOTEM..stopService)
         * [~uploadFile(client, source, sinkPath, tags, cb)](#module_TOTEM..uploadFile)
-        * [~selectDS(req, res)](#module_TOTEM..selectDS)
-        * [~insertDS(req, res)](#module_TOTEM..insertDS)
-        * [~deleteDS(req, res)](#module_TOTEM..deleteDS)
-        * [~updateDS(req, res)](#module_TOTEM..updateDS)
-        * [~executeDS(req, res)](#module_TOTEM..executeDS)
 
-<a name="module_TOTEM.secureLink"></a>
+<a name="module_TOTEM.secureIO"></a>
 
-### TOTEM.secureLink
+### TOTEM.secureIO
 SecureLink configuration settings.  Null to disable secure client links.
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
@@ -712,6 +718,79 @@ By-action endpoint routers for accessing engines
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
+
+* [.byAction](#module_TOTEM.byAction)
+    * [.select(req, res)](#module_TOTEM.byAction.select)
+    * [.update(req, res)](#module_TOTEM.byAction.update)
+    * [.delete(req, res)](#module_TOTEM.byAction.delete)
+    * [.insert(req, res)](#module_TOTEM.byAction.insert)
+    * [.execute(req, res)](#module_TOTEM.byAction.execute)
+
+<a name="module_TOTEM.byAction.select"></a>
+
+#### byAction.select(req, res)
+CRUD endpoint to respond to a select||GET request
+
+**Kind**: static method of [<code>byAction</code>](#module_TOTEM.byAction)  
+**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.byAction.update"></a>
+
+#### byAction.update(req, res)
+CRUD endpoint to respond to a update||POST request
+
+**Kind**: static method of [<code>byAction</code>](#module_TOTEM.byAction)  
+**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.byAction.delete"></a>
+
+#### byAction.delete(req, res)
+CRUD endpoint to respond to a delete||DELETE request
+
+**Kind**: static method of [<code>byAction</code>](#module_TOTEM.byAction)  
+**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.byAction.insert"></a>
+
+#### byAction.insert(req, res)
+CRUD endpoint to respond to a insert||PUT request
+
+**Kind**: static method of [<code>byAction</code>](#module_TOTEM.byAction)  
+**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.byAction.execute"></a>
+
+#### byAction.execute(req, res)
+CRUD endpoint to respond to a Totem request
+
+**Kind**: static method of [<code>byAction</code>](#module_TOTEM.byAction)  
+**Cfg**: <code>Function</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
 <a name="module_TOTEM.byType"></a>
 
 ### TOTEM.byType
@@ -740,71 +819,6 @@ CRUD endpoint to respond to Totem request
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="module_TOTEM.select"></a>
-
-### TOTEM.select
-CRUD endpoint to respond to a select||GET request
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem session response |
-
-<a name="module_TOTEM.update"></a>
-
-### TOTEM.update
-CRUD endpoint to respond to a update||POST request
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem session response |
-
-<a name="module_TOTEM.delete"></a>
-
-### TOTEM.delete
-CRUD endpoint to respond to a delete||DELETE request
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem session response |
-
-<a name="module_TOTEM.insert"></a>
-
-### TOTEM.insert
-CRUD endpoint to respond to a insert||PUT request
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem session response |
-
-<a name="module_TOTEM.execute"></a>
-
-### TOTEM.execute
-CRUD endpoint to respond to a Totem request
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Function</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem session response |
-
 <a name="module_TOTEM.guard"></a>
 
 ### TOTEM.guard
@@ -960,7 +974,7 @@ Create and start the HTTP/HTTPS server.  If starting a HTTPS server, the trustst
 <a name="module_TOTEM.config..configService..createServer..startServer"></a>
 
 ###### createServer~startServer(server, port, cb)
-Start service and attach listener.  Established the secureLink if configured.  Establishes
+Start service and attach listener.  Established the secureIO if configured.  Establishes
 				server-busy tests to thwart deniel-of-service attackes and process guards to trap faults.  When
 				starting the master process, other configurations are completed.  Watchdogs and proxies are
 				also established.
@@ -1082,66 +1096,6 @@ specified `client`; optional `tags` are tagged to the upload and the callback
 | sinkPath | <code>String</code> | path to target file |
 | tags | <code>Object</code> | hash of tags to add to file |
 | cb | <code>function</code> | callback(file) if upload successful |
-
-<a name="module_TOTEM..selectDS"></a>
-
-### TOTEM~selectDS(req, res)
-CRUD select endpoint.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem session responder |
-
-<a name="module_TOTEM..insertDS"></a>
-
-### TOTEM~insertDS(req, res)
-CRUD insert endpoint.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem response callback |
-
-<a name="module_TOTEM..deleteDS"></a>
-
-### TOTEM~deleteDS(req, res)
-CRUD delete endpoint.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem response callback |
-
-<a name="module_TOTEM..updateDS"></a>
-
-### TOTEM~updateDS(req, res)
-CRUD update endpoint.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem response callback |
-
-<a name="module_TOTEM..executeDS"></a>
-
-### TOTEM~executeDS(req, res)
-CRUD execute endpoint.
-
-**Kind**: inner method of [<code>TOTEM</code>](#module_TOTEM)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| req | <code>Object</code> | Totem session request |
-| res | <code>function</code> | Totem response callback |
 
 </details>
 

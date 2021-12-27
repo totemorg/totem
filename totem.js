@@ -171,7 +171,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 // no cores but a mysql database and an anti-bot shield
 
 TOTEM.config({
-	"secureLink.challenge.extend": 20
+	"secureIO.challenge.extend": 20
 }, sql => {
 	Log("", {
 		msg:
@@ -387,7 +387,7 @@ const
 	 	createCert, loginClient,
 		getBrick, routeRequest, setContext,
 		filterFlag, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitRules,
-		filterType,tableRoutes, routeTable, startDogs, cache } = TOTEM = module.exports = {
+		filterType,tableRoutes, dsThread, startDogs, cache } = TOTEM = module.exports = {
 	
 	Log: (...args) => console.log(">>>totem", args),
 	Trace: (msg,args,req) => "totem".trace(msg, req, msg => console.log(msg,args) ),	
@@ -401,7 +401,9 @@ const
 	/**
 	SecureLink configuration settings.  Null to disable secure client links.
 	*/
-	secureLink: {
+	secureIO: {
+		sio: null,		//< set on configuration
+			
 		host: ENV.DOMAIN_NAME || "totem",
 		
 		isTrusted: account => account.endsWith(".mil") && !account.match(/\.ctr@.&\.mil/) ,
@@ -548,13 +550,72 @@ const
 			});			
 	},
 			
-	routeTable: req => {
-		const {table} =  req;
-		if ( route = tableRoutes[table] )
-			return route(req);
+	dsThread: (req,cb) => {
+		const
+			{ url, body, client } = req,
+			query = req.query = {},
+			index = req.index = {},
+			flags = req.flags = {},
+			where = req.where = {},
+			[path,table,type,area] = url.parsePath(query, index, flags, where);
+
+		const
+			{ strips, prefix, traps, id } = filterFlag;
+
+		for (var key in query) 		// strip or remap bogus keys
+			if ( key in strips )
+				delete query[key];
+
+		for (var key in flags) 	// trap special flags
+			if ( trap = traps[key] )
+				trap(req);
+
+		for (var key in body) 		// remap body flags
+			if ( key.startsWith(prefix) ) {  
+				flags[key.substr(1)] = body[key]+"";
+				delete body[key];
+			}
+
+		if (id in body) {  			// remap body record id
+			where["="][id] = query[id] = body[id]+""; 
+			delete body[id];
+		}
+
+		for (var key in query) 		// strip or remap bogus keys
+			if ( key in strips )
+				delete query[key];
+
+		for (var key in flags) 	// trap special flags
+			if ( trap = traps[key] )
+				trap(req);
+
+		for (var key in body) 		// remap body flags
+			if ( key.startsWith(prefix) ) {  
+				flags[key.substr(1)] = body[key]+"";
+				delete body[key];
+			}
+
+		if (id in body) {  			// remap body record id
+			where["="][id] = query[id] = body[id]+""; 
+			delete body[id];
+		}
+
+		//Log({u:url, f: flags, q:query, b:body, i:index, w:where});
+		//Log([path,table,type,area]);
 		
-		else
-			return "app."+req.table;
+		sqlThread( sql => {
+			req.ds = ( 
+				tableRoutes[flags.notebook || flags.nb || flags.project || flags.option || flags.task || table] 
+				|| (req => `app.${table}`)
+				) (req);
+			req.path = path;
+			req.area = area;
+			req.table = table || "ping";
+			req.type = type || ""; //defaultType;
+			req.sql = sql;
+			
+			cb(req);
+		});
 	},
 
 	tableRoutes: {	// setup default DataSet routes
@@ -603,10 +664,10 @@ const
 	@param {Object} res session response
 	*/
 	routeRequest: (req,res) => {
-		function routeNode(node, req, res) {	//< Parse and route the NODE = /DATASET.TYPE request
+		function route(req, res) {	//< Parse and route the NODE = /DATASET.TYPE request
 			/*
-				Log session metrics, trace the current route, then callback route on the supplied 
-				request-response thread.
+			Log session metrics, trace the current route, then callback route on the supplied 
+			request-response thread.
 			*/
 			function followRoute(route) {	//< route the request
 
@@ -649,7 +710,7 @@ const
 
 				const
 					{ logMetrics } = sqls,
-					{ area, table, path } = req;
+					{ area, table, path, flags } = req;
 				
 				Log( route.name.toUpperCase(), path );
 				
@@ -699,6 +760,7 @@ const
 				}
 			}
 			
+			/*
 			function checkAccess( cb ) {
 				
 				if ( true ) 
@@ -740,126 +802,84 @@ const
 				});
 				}
 			}
-
-			const 
-				{ strips, prefix, traps, id } = filterFlag,
-				{ action, body, sql, client } = req;
+			*/
 			
-			const
-				query = req.query = {},
-				index = req.index = {},	
-				where = req.where = {},
-				flags = req.flags = {},
-				[path,table,type,area] = node.parsePath(query, index, flags, where);
+			dsThread( req, req => {
+				const
+					{area,table,action,path,ds} = req;
+
+				//Log({a:area, t:table, p: path, ds: ds, act: action});
 				
-			req.path = path;
-			req.area = area;
-			req.table = table;
-			req.type = type || defaultType;
-
-			const
-				ds = req.ds = routeTable(req);
-			
-			//Log(ds,action,path,area,table,type);
-			//Log({n:node, f: flags, q:query, b:body, i:index, w:where});
-
-			for (var key in query) 		// strip or remap bogus keys
-				if ( key in strips )
-					delete query[key];
-
-			for (var key in flags) 	// trap special flags
-				if ( trap = traps[key] )
-					trap(req);
-
-			//Log("body=", req.body, body);
-			
-			for (var key in body) 		// remap body flags
-				if ( key.startsWith(prefix) ) {  
-					flags[key.substr(1)] = body[key]+"";
-					delete body[key];
-				}
-
-			//Log("body=", req.body, body);
-			if (id in body) {  			// remap body record id
-				where["="][id] = query[id] = body[id]+""; 
-				delete body[id];
-			}
-
-			if ( area || !table ) 	// send file
-				followRoute( function send(req,res) {	// provide a route to send a file
-					const
-						{area,table,type,path} = req;
-					
-					//Log(area,path,type);
-					if ( path.endsWith("/") )		// requesting folder
-						if ( route = byArea[area] || byArea.default )
-							route(req,res);
-					
-						else
-							res( errors.noRoute );
-					
-					else {	// requesting file						
+				if ( area || !table ) 	// send file
+					followRoute( function send(req,res) {	// provide a route to send a file
 						const
-							file = table+"."+type,
-							{ never } = cache,
-							neverCache = never[file] || never[area];
-							  
-						//Log("cache", file, "never=", neverCache, "cached=", path in cache);
-						
-						if ( path in cache )
-							res( cache[path] );
-						
-						else
-							Fetch( "file:" + path, txt => {
-								if ( !neverCache ) cache[path] = txt; 
-								res(txt);
-							});
-					}
-				});
+							{area,table,type,path} = req;
 
-			else
-			if ( table ) {
-				if ( route = byTable[table] ) 	// route by endpoint name
-					followRoute( route );
+						//Log(area,path,type);
+						if ( path.endsWith("/") )		// requesting folder
+							if ( route = byArea[area] || byArea.default )
+								route(req,res);
 
-				else  
-				if ( route = byType[req.type] ) // route by type
-					checkAccess( ok => {
-						if ( ok )
-							followRoute( route );
-						
-						else
-							res( new Error("no access") );
+							else
+								res( errors.noRoute );
+
+						else {	// requesting file						
+							const
+								file = table+"."+type,
+								{ never } = cache,
+								neverCache = never[file] || never[area];
+
+							//Log("cache", file, "never=", neverCache, "cached=", path in cache);
+
+							if ( path in cache )
+								res( cache[path] );
+
+							else
+								Fetch( "file:" + path, txt => {
+									if ( !neverCache ) cache[path] = txt; 
+									res(txt);
+								});
+						}
 					});
 
 				else
-				if ( route = byAction[action] ) {	// route by crud action
-					if ( route = route[table] )
+				if ( table ) {
+					if ( route = byTable[table] ) 	// route by endpoint name
 						followRoute( route );
 
+					else  
+					if ( route = byType[req.type] ) // route by type
+						followRoute( route );
+
+					/*
 					else
-					if ( route = TOTEM[action] )
-						followRoute( route );				
+					if ( route = byAction[action] ) {	// route by crud action
+						if ( route = route[table] )
+							followRoute( route );
+
+						else
+						if ( route = TOTEM[action] )
+							followRoute( route );
+
+						else
+							res( errors.noRoute );
+					}*/
 
 					else
+					if ( route = byAction[action] )	// route to database
+						followRoute( route );
+
+					else 
 						res( errors.noRoute );
 				}
 
 				else
-				if ( route = TOTEM[action] )	// route to database
-					followRoute( route );
-
-				else 
 					res( errors.noRoute );
-			}
-			
-			else
-				res( errors.noRoute );
+			});
 		}
 					
 		const 
-			{ post, url } = req,
-			node = url;
+			{ post } = req;
 
 		req.body = post.parseJSON( post => {  // get parameters or yank files from body 
 			var 
@@ -923,7 +943,7 @@ const
 			return parms;
 		});		// get body parameters/files
 
-		routeNode( node, req, res );		
+		route( req, res );
 	},
 
 	startDogs: (sql,dogs) => {
@@ -1000,12 +1020,12 @@ const
 				{ byAction, byType } = pts;
 
 			if ( byAction ) {
-				Copy(byAction, DEBE.byAction);
+				Copy(byAction, TOTEM.byAction);
 				delete pts.byAction;
 			}
 
 			if ( byType ) {
-				Copy(byType, DEBE.byType);
+				Copy(byType, TOTEM.byType);
 				delete pts.byType;
 			}
 
@@ -1079,7 +1099,7 @@ const
 			function createServer() {		//< create and start the server
 				
 				/**
-				Start service and attach listener.  Established the secureLink if configured.  Establishes
+				Start service and attach listener.  Established the secureIO if configured.  Establishes
 				server-busy tests to thwart deniel-of-service attackes and process guards to trap faults.  When
 				starting the master process, other configurations are completed.  Watchdogs and proxies are
 				also established.
@@ -1090,23 +1110,25 @@ const
 				*/				
 				function startServer(server, port, agent) {	//< attach listener callback cb(Req,Res) to the specified port
 					const 
-						{ initialize, secureLink, name, dogs, guard, guards, proxy, proxies, cores } = TOTEM;
+						{ initialize, secureIO, name, dogs, guard, guards, proxy, proxies, cores } = TOTEM;
 					
 					Log(`STARTING ${name}`);
 
-					if ( secureLink )		// setup secure link sessions 
+					if ( secureIO )		// setup secure link sessions 
 						sqlThread( sql => {
 							sql.query( "SELECT * FROM openv.profiles WHERE Client='Guest' LIMIT 1", [], (err,recs) => {
 								Log( recs[0] 
 									? "Guest logins enabled"
 									: "Guest logins disabled!" );
 								
-								SECLINK.config( Copy(secureLink, {
+								SECLINK.config( Copy(secureIO, {
 									server: server,
 									sqlThread: sqlThread,
 									notify: TOTEM.sendMail,
 									guest: recs[0]
 								}) );
+								
+								secureIO.sio = SECLINK.sio;
 							});
 						});
 
@@ -1151,7 +1173,7 @@ const
 						for (var core = 0; core < TOTEM.cores; core++) // create workers
 							worker = CLUSTER.fork();
 						
-						const { modTimes, onFile, watchFile } = TOTEM;
+						const { modTimes, onFile, watchFile,secureIO } = TOTEM;
 
 						Each(onFile, (area, cb) => {  // callback cb(sql,name,area) when file changed
 							FS.readdir( area, (err, files) => {
@@ -1170,9 +1192,8 @@ const
 							"HOSTING " + site.nick,
 							"AT " + `(${site.master}, ${site.worker})`,
 							"FROM " + process.cwd(),
-							"WITH " + (sockets?"":"NO")+" SOCKETS",
 							"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
-							"WITH "+ (secureLink ? "SECURE" : "INSECURE")+" LINKS",
+							"WITH "+ (secureIO ? secureIO.sio ? "SECURE" : "INSECURE" : "NO")+" LINKS",
 							"WITH " + (site.sessions||"UNLIMITED") + " CONNECTIONS",
 							"WITH " + (cores ? cores + " WORKERS AT "+site.worker : "NO WORKERS"),
 							"POCS " + JSON.stringify(site.pocs)
@@ -1244,7 +1265,7 @@ const
 				}
 
 				const 
-					{ crudIF,sockets,name,cache,trustStore,certs } = TOTEM,
+					{ crudIF,name,cache,trustStore,certs } = TOTEM,
 					port = parseInt( CLUSTER.isMaster ? $master.port : $worker.port );
 
 				//Log( ">>start", isEncrypted(), $master, $worker );
@@ -1298,7 +1319,6 @@ const
 						url	: "/query"		// requested url path
 						reqSocket: socket	// socket to retrieve client cert 
 						resSocket: socket	// socket to accept response
-						sql: connector 		// sql database connector 
 						site: {...}			// site info
 
 					@param {Function} ses session(req) callback accepting the provided request
@@ -1331,36 +1351,28 @@ const
 							case "DELETE":
 								getPost( post => {
 									//Log(">>>>post", post);
-									if ( sqlThread() )
-										sqlThread( sql => {
-											//Log(Req.headers, Req.url);
-
-											ses(null, {			// prime session request
-												cookie: Req.headers["cookie"] || "",
-												ipAddress: Req.connection.remoteAddress,
-												host: $master.protocol+"//"+Req.headers["host"],	// domain being requested
-												referer: Req.headers["referer"], 	// proto://domain used
-												agent: Req.headers["user-agent"] || "",	// requester info
-												sql: sql,	// sql connector
-												post: post, // raw post body
-												method: Req.method,		// get,put, etc
-												started: new Date(),  // Req.headers.Date,  // time client started request
-												action: crudIF[Req.method],	// crud action being requested
-												reqSocket: Req.socket,   // use supplied request socket 
-												resSocket: getSocket,		// attach method to return a response socket
-												encrypted: isEncrypted(),	// on encrypted worker
-												url: unescape( Req.url || "/" ),	// unescaped url
-												site: site			// site info
-												/*
-												There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
-												embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
-												unescapes to /\\"ABC\\".  This is ok but can be confusing.
-												*/
-											});
-										});
-									
-									else
-										ses( errors.noDB );
+									//Log(Req.headers, Req.url);
+									ses(null, {			// prime session request
+										cookie: Req.headers["cookie"] || "",
+										ipAddress: Req.connection.remoteAddress,
+										host: $master.protocol+"//"+Req.headers["host"],	// domain being requested
+										referer: Req.headers["referer"], 	// proto://domain used
+										agent: Req.headers["user-agent"] || "",	// requester info
+										post: post, // raw post body
+										method: Req.method,		// get,put, etc
+										started: new Date(),  // Req.headers.Date,  // time client started request
+										action: crudIF[Req.method],	// crud action being requested
+										reqSocket: Req.socket,   // use supplied request socket 
+										resSocket: getSocket,		// attach method to return a response socket
+										encrypted: isEncrypted(),	// on encrypted worker
+										url: unescape( Req.url || "/" ),	// unescaped url
+										site: site			// site info
+										/*
+										There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
+										embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
+										unescapes to /\\"ABC\\".  This is ok but can be confusing.
+										*/
+									});
 								});
 								break;
 
@@ -2139,6 +2151,129 @@ const
 	@cfg {Object} 
 	*/				
 	byAction: { //< by-action routers
+		/**
+		CRUD endpoint to respond to a select||GET request
+		@cfg {Function}
+		@param {Object} req Totem session request
+		@param {Function} res Totem session response
+		*/
+		select: (req, res) => {
+			const 
+				{ sql, flags, client, where, index, ds } = req;
+
+			//Log("selDS", ds, index);
+
+			sql.Select( ds, index, where, flags, (err,recs) => {
+				res( err || recs );
+			});
+		},	
+
+		/**
+		CRUD endpoint to respond to a update||POST request
+		@cfg {Function}	
+		@param {Object} req Totem session request
+		@param {Function} res Totem session response
+		*/
+		update: (req, res) => {
+			const 
+				{ sql, flags, body, where, query, client, ds, table } = req,
+				{ sio } = SECLINK;
+
+			//Log({w:where, q:query, b:body, t:table, ds: ds});
+
+			if ( isEmpty(body) )
+				res( errors.noBody );
+
+			else
+			if ( !query.ID )
+				res( errors.noID );
+
+			else {
+				sql.query(	// update db logs if it exits
+					"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1", {
+						Dataset: table,
+						Client: client
+					});
+
+				sql.Update(ds, where, body, (err,info) => {
+
+					body.ID = query.ID;
+					res( err || body );
+
+					if ( sio && !err ) // Notify other clients of change
+						sio.emit( "update", {
+							ds: table, 
+							change: {}, 
+							recID: query.ID || -1, 
+							by: client
+						});				
+				});
+			}
+		},
+
+		/**
+		CRUD endpoint to respond to a delete||DELETE request
+		@cfg {Function}	
+		@param {Object} req Totem session request
+		@param {Function} res Totem session response
+		*/
+		delete: (req, res) => {
+			const 
+				{ sql, flags, where, query, body, client, ds, table } = req,
+				{ sio } = SECLINK;
+
+			if ( !query.ID )
+				res( errors.noID );
+
+			else
+				sql.Delete(ds, where, (err,info) => {
+					body.ID = query.ID;
+					res( err || body );
+
+					if ( sio && !err ) // Notify other clients of change
+						sio.emit( "delete", {
+							ds: table, 
+							change: {}, 
+							recID: query.ID || -1, 
+							by: client
+						});	
+
+				});
+		},
+
+		/**
+		CRUD endpoint to respond to a insert||PUT request
+		@cfg {Function}
+		@param {Object} req Totem session request
+		@param {Function} res Totem session response
+		*/
+		insert: (req, res) => {
+			const 
+				{ sql, flags, body, client, ds,table } = req,
+				{ sio } = SECLINK;
+
+			sql.Insert(ds,body,(err,info) => {
+				res( err || {ID: info.insertId} );
+
+				if ( sio && !err ) // Notify other clients of change
+					sio.emit( "insert", {
+						ds: table, 
+						change: body, 
+						recID: info.insertId,
+						by: client
+					});			
+			});
+		},
+
+		/**
+		CRUD endpoint to respond to a Totem request
+		@cfg {Function}
+		@param {Object} req Totem session request
+		@param {Function} res Totem session response
+		*/
+		execute: (req,res) => {
+			res( errors.noEndpoint );
+		}
 	},
 
 	/**
@@ -2179,48 +2314,6 @@ const
 	*/				
 	server: null,  //< established by TOTEM at config
 	
-	//====================================== CRUDE interface
-		
-	/**
-	CRUD endpoint to respond to a select||GET request
-	@cfg {Function}
-	@param {Object} req Totem session request
-	@param {Function} res Totem session response
-	*/				
-	select: selectDS,	
-	
-	/**
-	CRUD endpoint to respond to a update||POST request
-	@cfg {Function}	
-	@param {Object} req Totem session request
-	@param {Function} res Totem session response
-	*/				
-	update: updateDS,
-	
-	/**
-	CRUD endpoint to respond to a delete||DELETE request
-	@cfg {Function}	
-	@param {Object} req Totem session request
-	@param {Function} res Totem session response
-	*/				
-	delete: deleteDS,
-	
-	/**
-	CRUD endpoint to respond to a insert||PUT request
-	@cfg {Function}
-	@param {Object} req Totem session request
-	@param {Function} res Totem session response
-	*/				
-	insert: insertDS,
-	
-	/**
-	CRUD endpoint to respond to a Totem request
-	@cfg {Function}
-	@param {Object} req Totem session request
-	@param {Function} res Totem session response
-	*/				
-	execute: executeDS,
-
 	//====================================== MISC
 		
 	/**
@@ -2437,12 +2530,11 @@ const
 		.on("result", opts => {
 			Each(opts, (key,val) => {
 				key = key.toLowerCase();
-				site[key] = val;
-
 				try {
 					site[key] = JSON.parse( val );
 				}
 				catch (err) {
+					site[key] = val;
 				}
 
 				//Log(">>>site",key,val);
@@ -2677,241 +2769,6 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 }
 */
 
-/**
-CRUD select endpoint.
-@param {Object} req Totem session request
-@param {Function} res Totem session responder
-*/
-function selectDS(req, res) {
-	const 
-		{ sql, flags, client, where, index, action, ds } = req,
-		{ trace, pivot, browse, sort, limit, offset } = flags;
-
-	//Log("selDS", ds, index);
-	
-	if (sql)
-		sql.Select( ds, index, where, flags, (err,recs) => {
-			res( err || recs );
-		});
-					   
-		/*
-		sql.Index( ds, index, (selects,jsons) => { 
-			
-			// const {json} = types;
-			
-			sql.Query(
-				"SELECT SQL_CALC_FOUND_ROWS ${index} FROM ?? ${where} ${having} ${limit} ${offset}", 
-				[ ds ], {
-					trace: trace,
-					pivot: pivot,
-					browse: browse,		
-					sort: sort,
-					limit: limit || 0,
-					offset: offset || 0,
-					where: where,
-					index: selects,
-					having: null,
-					client: client
-				}, (err,recs) => {
-
-					if ( err )
-						res(err);
-
-					else {
-						jsons.forEach( key => {
-							recs.forEach( rec => {
-								try {
-									rec[key] = JSON.parse(rec[key]);
-								}
-								
-								catch (err) {
-									Log(key,err);
-								}
-							});
-						});
-
-						res( recs );
-					}
-				});
-		});
-		*/
-	
-	else
-		res( errors.noDB );
-}
-
-/**
-CRUD insert endpoint.
-@param {Object} req Totem session request
-@param {Function} res Totem response callback
-*/
-function insertDS(req, res) {
-	const 
-		{ sql, flags, body, client, action, ds,table } = req,
-		{ trace } = flags,
-		{ sio } = SECLINK;
-
-	sql.Insert(ds,body,(err,info) => {
-		res( err || {ID: info.insertId} );
-		
-		if ( sio && !err ) // Notify other clients of change
-			sio.emit( "insert", {
-				ds: table, 
-				change: body, 
-				recID: info.insertId,
-				by: client
-			});			
-	});
-	/*
-	if ( sql )
-		sql.Query(
-			"INSERT INTO ?? ${set}", [ds,body], {
-				trace: trace,
-				set: body,
-				client: client,
-				sio: SECLINK.sio
-			}, (err,info) => {
-
-				res( err || {ID: info.insertId} );
-
-			});
-	
-	else
-		res( errors.noDB );
-	*/
-	
-}
-
-/**
-CRUD delete endpoint.
-@param {Object} req Totem session request
-@param {Function} res Totem response callback
-*/	
-function deleteDS(req, res) {
-	const 
-		{ sql, flags, where, query, body, client, action, ds, table } = req,
-		{ trace } = flags,
-		{ sio } = SECLINK;
-
-	if ( !query.ID )
-		res( errors.noID );
-
-	else
-		sql.Delete(ds, where, (err,info) => {
-			body.ID = query.ID;
-			res( err || body );
-			
-			if ( sio && !err ) // Notify other clients of change
-				sio.emit( "delete", {
-					ds: table, 
-					change: {}, 
-					recID: query.ID || -1, 
-					by: client
-				});	
-	
-		});
-
-		/*
-		if ( sql )
-		sql.Query(
-			"DELETE FROM ?? ${where}", [ds], {
-				trace: trace,			
-				where: where,
-				client: client,
-				sio: SECLINK.sio
-			}, (err,info) => {
-
-				body.ID = query.ID;
-				res( err || body );
-
-			});
-		*/
-}
-
-/**
-CRUD update endpoint.
-@param {Object} req Totem session request
-@param {Function} res Totem response callback
-*/	
-function updateDS(req, res) {
-	const 
-		{ sql, flags, body, where, query, client, action, ds, table } = req,
-		{ trace } = flags,
-		{ sio } = SECLINK;
-	
-	//Log({w:where, q:query, b:body, t:table, ds: ds});
-	
-	if ( isEmpty(body) )
-		res( errors.noBody );
-	
-	else
-	if ( !query.ID )
-		res( errors.noID );
-	
-	else {
-		sql.query(	// update db logs if it exits
-			"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1", {
-				Dataset: table,
-				Client: client
-			});
-		
-		sql.Update(ds, where, body, (err,info) => {
-			
-			body.ID = query.ID;
-			res( err || body );
-			
-			if ( sio && !err ) // Notify other clients of change
-				sio.emit( "update", {
-					ds: table, 
-					change: {}, 
-					recID: query.ID || -1, 
-					by: client
-				});				
-		});
-	}
-	
-	/*
-	if ( sql ) {
-		sql.query(
-			"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1", {
-				Dataset: table,
-				Client: client
-			});
-		
-		sql.Query(
-			"UPDATE ?? ${set} ${where}", [ds,body], {
-				trace: trace,
-				
-				from: ds,
-				where: where,
-				set: body,
-				client: client,
-				sio: SECLINK.sio
-			}, (err,info) => {
-
-				body.ID = query.ID;
-				res( err || body );
-
-				if ( onUpdate = TOTEM.onUpdate )
-					onUpdate(sql, table, body);
-
-			});
-	}
-	
-	else
-		res( errors.noDB );
-	*/
-}
-
-/**
-CRUD execute endpoint.
-@param {Object} req Totem session request
-@param {Function} res Totem response callback
-*/
-function executeDS(req,res) {
-	res( errors.noEndpoint );
-}
-
 /*
 function isAdmin(client) {
 	return site.pocs.admin.indexOf(client) >= 0;
@@ -3025,7 +2882,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 
 	case "T5": 
 		TOTEM.config({
-			"secureLink.challenge.extend": 20
+			"secureIO.challenge.extend": 20
 		}, sql => {
 			Log("", {
 				msg:

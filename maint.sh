@@ -60,6 +60,10 @@ system_config.)
 	#export PATH=$BASE/oxygen/bin:$PATH    	# doxygen code documenter if needed (jsduck used)
 	#export PATH=$PATH:/usr/local/share/gems/gems/jsduck-5.3.4/bin 	# for jsduck
 
+	# DBs
+	export MYSQL=/local/mysql
+	export NEO4J=/local/neo4j
+	
 	# R
 	export R_libs=/usr/lib64/R/library/
 
@@ -78,7 +82,6 @@ system_config.)
 	
 jsdb_config.)
 	# MYSQL
-	export MYSQL=$BASE/mysql
 	export PATH=$MYSQL/bin:$PATH
 	export MYSQL_USER=root
 	export MYSQL_NAME=app
@@ -260,7 +263,7 @@ atomic_config.)
 	export PATH=$CONDA/bin:$INC/python:$PATH
 	export REBUILD="node-gyp rebuild --nodedir=$NODE"	# use "node-gyp $GYPTOPS" to override distro ref to inet
 
-	# others
+	# more dev paths
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/opencv
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/python
@@ -268,7 +271,7 @@ atomic_config.)
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/R/R
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/conda
 	
-	# caffe
+	# caffe dev paths
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/boost
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/gflags
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIB/glog
@@ -289,6 +292,8 @@ config.)
 	source ./maint.sh geohack_config
 	source ./maint.sh debe_config
 	source ./maint.sh seclink_config
+	
+	source ./maint.sh startdbs
 	;;
 	
 gnome.)
@@ -447,11 +452,11 @@ expand.)
 # DB maint
 #
 
-dbrecover.)
+_dbrecover.)
 	source ./maint.sh mysql prime
 	;;
 
-dbstart.)
+startdbs.)
 	source ./maint.sh mysql start
 	source ./maint.sh neo4j start
 	;;
@@ -461,8 +466,7 @@ neo4j.)
 	case "$2." in
 	
 	start.)
-		cd /local/neo4j
-		./bin/neo4j console &
+		$NEO4J/bin/neo4j console &
 		;;
 
 	esac
@@ -517,9 +521,7 @@ mysql.)
 		else
 			#rm /var/lib/mysql/mysql.sock      # in case its hanging around
 			rm /tmp/mysql.sock.lock
-			cd /local/mysql
-			bin/mysqld_safe --defaults-file=my.cnf --sql-mode="" --max_allowed_packet=64000000 &
-			cd /local/service
+			$MYSQL/bin/mysqld_safe --defaults-file=$MYSQL/my.cnf --sql-mode="" --max_allowed_packet=64000000 &
 		fi
 		;;
 
