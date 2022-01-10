@@ -13,6 +13,26 @@
 # [2] The VM adapter (typically Adapter 2) is set to Bridge with (a) its Guest Driver = Host Driver = Qualcom
 # and (b) Cable Connected.
 
+############################
+# openlayers openstreetmap
+############################
+# https://github.com/openlayers
+# https://openlayers.org/en/latest/doc/tutorials/bundle.html
+
+Create a new empty directory for your project and navigate to it by running mkdir new-project && cd new-project. Initialize your project with
+
+npx create-ol-app
+
+You will need to have git installed for the above command to work. If you receive an error, make sure that Git is installed on your system.
+
+This will install the ol package, set up a development environment with additional dependencies, and give you an index.html and main.js starting point for your application. By default, Vite will be used as a module loader and bundler. See the create-ol-app documentation for details on using another bundler.
+
+To start the development server
+
+npm start
+
+You can now visit http://localhost:3000/ to view your application. Begin making changes to the index.html and main.js files to add additional functionality.
+
 
 ############################
 # gnome desktop

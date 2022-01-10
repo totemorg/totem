@@ -47,7 +47,7 @@ geohack_config.)
 	
 system_config.)
 	export BASE=/local
-	export MODULES=(totem atomic certs geohack flex enums reader debe pipe jsdb man randpr liegroup securelink socketio)
+	export MODULES=(totem atomic certs geohack enums reader debe pipe jsdb man randpr liegroup securelink socketio)
 	export MODULE=`basename $HERE`
 	
 	# initialize dev/prod paths
@@ -120,7 +120,7 @@ totem_config.)
 	#export SERVICE_WORKER_URL=http://localhost:8081  # in debug mode
 
 	# define passwords
-	source totem/config/_pass.sh
+	source ./config/_pass.sh
 
 	# define service urls
 	
@@ -182,7 +182,7 @@ totem_config.)
 	export SERVICE_MASTER_URL=$PROTO://$DOMAIN:$PORT1
 	export SERVICE_WORKER_URL=$PROTO://$DOMAIN:$PORT2
 	
-	echo "Running $DOMAIN_NAME on $SERVICE_MASTER_URL and $SERVICE_WORKER_URL"
+	echo "$DOMAIN_NAME at $SERVICE_MASTER_URL and $SERVICE_WORKER_URL"
 	
 	# define task sharding urls
 	export SHARD0=$PROTO://$DOMAIN/task
@@ -286,14 +286,13 @@ atomic_config.)
 
 config.)
 	source ./maint.sh system_config
-	source ./maint.sh atomic_config
-	source ./maint.sh totem_config $2
+	source ./maint.sh seclink_config
 	source ./maint.sh jsdb_config
+	source ./maint.sh totem_config $2
+	
+	source ./maint.sh atomic_config
 	source ./maint.sh geohack_config
 	source ./maint.sh debe_config
-	source ./maint.sh seclink_config
-	
-	source ./maint.sh startdbs
 	;;
 	
 gnome.)
@@ -563,7 +562,7 @@ start_cesium.)
 		echo -e "cesium service running: \n$P"
 	else
 		#node $BASE/cesium/geonode/geocesium --port 8083 --public &
-		//node $BASE/cesium/server --port 8083 --public &
+		#node $BASE/cesium/server --port 8083 --public &
 		node $BASE/cesium/server.cjs --port 8083 --public &
 	fi
 	;;
@@ -734,14 +733,21 @@ _gitzip.)
 	zip -ry ../transfer/$MODULE.zip * -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
 	;;
 
-_zipall.)
+zipmin.)
 
-	rm ../transfer/totem-project.zip
 	for mod in "${MODULES[@]}"; do
-		zip -ry ../transfer/totem-project.zip ../$mod/* -x \*/node_modules/\* \*/_\* \*/debe/captcha\* \*/debe/clients\*
+		zip -ry /local/archive/totem/$mod.zip ./$mod/* -x \*/_\* /debe/captcha\* /debe/clients\* /debe/config/stores\* \*/.git* \*/node_modules/\*
 	done
 	;;
 
+zipnogit.)
+
+	for mod in "${MODULES[@]}"; do
+		echo "ziping $mod"
+		zip -ry /local/archive/snapshot/$mod ./$mod/* -x \*/_\* /debe/captcha\* /debe/clients\* /debe/config/stores\* \*/.git* 
+	done
+	;;
+	
 help.)	# some help
 
 	echo "Usage:"
