@@ -1119,7 +1119,7 @@ const
 							sql.query( "SELECT * FROM openv.profiles WHERE Client='Guest' LIMIT 1", [], (err,recs) => {
 								Log( recs[0] 
 									? "Guest logins enabled"
-									: "Guest logins disabled!" );
+									: "Guest logins disabled" );
 								
 								SECLINK.config( Copy(secureIO, {
 									server: server,
