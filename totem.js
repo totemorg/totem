@@ -80,6 +80,304 @@ in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @requires toobusy-js
 @requires cheerio
 
+@example
+
+// npm test T1
+// Create simple service but dont start it.
+Log({
+	msg: "Im simply a Totem interface so Im not even running as a service", 
+	default_fetcher_endpts: TOTEM.byTable,
+	default_protect_mode: TOTEM.guard,
+	default_cores_used: TOTEM.cores
+});
+
+@example
+
+// npm test T2
+// Totem service running in fault protection mode, no database, no UI; but I am running
+// with 2 workers and the default endpoint routes.
+
+TOTEM.config({
+	mysql: null,
+	guard: true,
+	cores: 2
+}, sql => {
+
+	Log( 
+`I'm a Totem service running in fault protection mode, no database, no UI; but I am running
+with 2 workers and the default endpoint routes` );
+
+});
+
+@example
+
+// npm test T3
+// A Totem service with no workers.
+
+TOTEM.config({
+}, sql => {
+	Log( 
+`I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
+my startup options (see the openv.apps table for the Nick="Totem1").  
+No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
+these files. `
+	);
+});
+
+@example
+
+// npm test T4
+// Only 1 worker, unprotected, a mysql database, and two endpoints.
+
+TOTEM.config({
+	byTable: {
+		dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
+			res( "123" );
+
+			Log("", {
+				do_query: req.query
+			});
+		},
+
+		dothat: function dothat(req,res) {
+
+			if (req.query.x)
+				res( [{x:req.query.x+1,y:req.query.x+2}] );
+			else
+				res( new Error("We have a problem huston") );
+
+			Log("", {
+				msg: `Like dothis, but needs an ?x=value query`, 
+				or_query: req.query,
+				or_user: req.client
+			});
+		}
+	}
+}, sql => {
+	Log("", {
+		msg:
+`As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
+and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
+aka core), Im running unprotected, and have a mysql database.  
+[*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
+associated public NICK.crt and private NICK.key certs it creates.`,
+		my_endpoints: T.byTable
+	});
+});
+
+@example
+
+// npm test T5
+// no cores but a mysql database and an anti-bot shield
+
+TOTEM.config({
+	"secureIO.challenge.extend": 20
+}, sql => {
+	Log("", {
+		msg:
+`I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
+shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.`, 
+		mysql_derived_parms: T.site
+	});
+});
+
+@example
+
+// npm test T6
+// Testing tasker with database, 3 cores and an additional /test endpoint.
+
+TOTEM.config({
+	guard: false,	// ex override default 
+	cores: 3,		// ex override default
+
+	"byTable.": {  // define endpoints
+		test: function (req,res) {
+			res(" here we go");  // endpoint must always repond to its client 
+			if (CLUSTER.isMaster)  // setup tasking examples on on master
+				switch (req.query.opt || 1) {  // test example runTask
+					case 1: 
+						T.runTask({  // setup tasking for loops over these keys
+							keys: "i,j",
+							i: [1,2,3],
+							j: [4,5]
+						}, 
+							// define the task which returns a message msg
+							($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
+
+							// define the message msg handler
+							(msg) => console.log(msg)
+						);
+						break;
+
+					case 2:
+						T.runTask({
+							qos: 1,
+							keys: "i,j",
+							i: [1,2,3],
+							j: [4,5]
+						}, 
+							($) => "hello i,j=" + [i,j] + " from worker " + $.worker + " on " + $.node, 
+							(msg) => console.log(msg)
+						);
+						break;
+
+					case 3:
+						break;
+				}
+
+		}
+	}
+
+}, sql => {
+	Log( "Testing runTask with database and 3 cores at /test endpoint" );
+});
+
+@example
+
+// npm test T7
+// Conduct db maintenance
+
+TOTEM.config({
+}, sql => {				
+	Log( "db maintenance" );
+
+	if (CLUSTER.isMaster)
+		switch (process.argv[3]) {
+			case 1: 
+				sql.query( "select voxels.id as voxelID, chips.id as chipID from openv.voxels left join openv.chips on voxels.Ring = chips.Ring", function (err,recs) {
+					recs.forEach( rec => {
+						sql.query("update openv.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
+							Log(err);
+						});
+					});
+				});
+				break;
+
+			case 2:
+				sql.query("select ID, Ring from openv.voxels", function (err, recs) {
+					recs.forEach( rec => {
+						sql.query(
+							"update openv.voxels set Point=geomFromText(?) where ?", 
+							[ `POINT(${rec.Ring[0][0].x} ${rec.Ring[0][0].y})` , {ID: rec.ID} ], 
+							err => {
+								Log(err);
+						});
+					});
+				});
+				break;
+
+			case 3:
+				sql.query( "select voxels.id as voxelID, cache.id as chipID from openv.voxels left join openv.cache on voxels.Ring = cache.geo1", function (err,recs) {
+					Log(err);
+					recs.forEach( rec => {
+						sql.query("update openv.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
+							Log(err);
+						});
+					});
+				});
+				break;
+
+			case 4:
+				sql.query("select ID, geo1 from openv.cache where bank='chip'", function (err, recs) {
+					recs.forEach( rec => {
+						if (rec.geo1)
+							sql.query(
+								"update openv.cache set x1=?, x2=? where ?", 
+								[ rec.geo1[0][0].x, rec.geo1[0][0].y, {ID: rec.ID} ], 
+								err => {
+									Log(err);
+							});
+					});
+				});
+				break;
+
+			case 5: 
+				var parms = {
+ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on the earth's surface",
+"chip length": "[m] length of chip across an edge",
+"chip samples": "[pixels] number of pixels across edge of chip"
+				};
+				//get all tables and revise field comments with info data here -  archive parms - /parms in flex will
+				//use getfileds to get comments and return into
+
+			case 6:
+				var 
+					RAN = require("../randpr"),
+					ran = new RAN({
+						models: ["sinc"],
+						Mmax: 150,  // max coherence intervals
+						Mstep: 5 	// step intervals
+					});
+
+				ran.config( function (pc) {
+					var 
+						vals = pc.values,
+						vecs = pc.vectors,
+						N = vals.length, 
+						ref = vals[N-1];
+
+					vals.forEach( (val, idx) => {
+						var
+							save = {
+								correlation_model: pc.model,
+								coherence_intervals: pc.intervals,
+								eigen_value: val,
+								eigen_index: idx,
+								ref_value: ref,
+								max_intervals: ran.Mmax,
+								eigen_vector: JSON.stringify( vecs[idx] )
+							};
+
+						sql.query("INSERT INTO openv.pcs SET ? ON DUPLICATE KEY UPDATE ?", [save,save] );	
+					});
+				});
+				break;	
+		}
+});		
+
+@example
+
+// npm test T8
+// Conduct neo4j database maintenance
+
+const $ = require("../man/man.js");
+TOTEM.config();
+neoThread( neo => {
+	neo.cypher( "MATCH (n:gtd) RETURN n", {}, (err,nodes) => {
+		Log("nodes",err,nodes.length,nodes[0]);
+		var map = {};
+		nodes.forEach( (node,idx) => map[node.n.name] = idx );
+		//Log(">map",map);
+
+		neo.cypher( "MATCH (a:gtd)-[r]->(b:gtd) RETURN r", {}, (err,edges) => {
+			Log("edges",err,edges.length,edges[0]);
+			var 
+				N = nodes.length,	
+				cap = $([N,N], (u,v,C) => C[u][v] = 0 ),
+				lambda = $([N,N], (u,v,L) => L[u][v] = 0),
+				lamlist = $(N, (n,L) => L[n] = [] );
+
+			edges.forEach( edge => cap[map[edge.r.srcId]][map[edge.r.tarId]] = 1 );
+
+			//Log(">cap",cap);
+
+			for (var s=0; s<N; s++)
+				for (var t=s+1; t<N; t++) {
+					var 
+						{cutset} = $.MaxFlowMinCut(cap,s,t),
+						cut = lambda[s][t] = lambda[t][s] = cutset.length;
+
+					lamlist[cut].push([s,t]);
+				}
+
+			lamlist.forEach( (list,r) => {
+				if ( r && list.length ) Log(r,list);
+			});
+
+		});
+	});
+});	
+
 
 */
 

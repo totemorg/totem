@@ -54,9 +54,15 @@ Simply install and start its federated docker image (
 [SBU](https://gitlab.west.nga.ic.gov/acmesds/dockify)
 ).
 
-## Required env vars
+## Setup
 
-	Passwords in `config/_pass.sh`.
+	npm run setprot						# Configure for protected mode
+	npm run setdebug					# Configure for debugging mode
+	npm run setoper						# Configure for operational mode
+	npm run setprod						# Configure for production mode
+	npm run	startdbs					# Start required database servers
+
+Established the required env vars:
 
 	MYSQL_HOST = domain name
 	MYSQL_USER = user name
@@ -76,13 +82,6 @@ Simply install and start its federated docker image (
 	SHARD2 = PROTO://DOMAIN:PORT
 	SHARD3 = PROTO://DOMAIN:PORT
 
-## Setup
-
-	npm run setprot						# Configure for protected mode
-	npm run setdebug					# Configure for debugging mode
-	npm run setoper						# Configure for operational mode
-	npm run setprod						# Configure for production mode
-	npm run	startdbs					# Start required database servers
 
 ## Starting
 	npm run	start						# Start totem
@@ -118,8 +117,47 @@ follow the ENUM deep copy conventions (
 [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
 ).
 
-@example
+## Program Reference
+<details>
+<summary>
+<i>Open/Close</i>
+</summary>
+## Modules
 
+<dl>
+<dt><a href="#TOTEM.module_String">String</a></dt>
+<dd></dd>
+<dt><a href="#module_TOTEM">TOTEM</a></dt>
+<dd><p>Provides a <a href="https://github.com/totemstan/totem">barebones web service</a>.  This module documented 
+in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
+</dd>
+</dl>
+
+<a name="TOTEM.module_String"></a>
+
+## String
+<a name="TOTEM.module_String..parseXML"></a>
+
+### String~parseXML(cb) ⇐ <code>String</code>
+Parse XML string into json and callback cb(json)
+
+**Kind**: inner method of [<code>String</code>](#TOTEM.module_String)  
+**Extends**: <code>String</code>  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| cb | <code>function</code> | callback( json || null if error ) |
+
+<a name="module_TOTEM"></a>
+
+## TOTEM
+Provides a [barebones web service](https://github.com/totemstan/totem).  This module documented 
+in accordance with [jsdoc](https://jsdoc.app/).
+
+**Requires**: <code>module:http</code>, <code>module:https</code>, <code>module:fs</code>, <code>module:constants</code>, <code>module:cluster</code>, <code>module:child\_process</code>, <code>module:os</code>, <code>module:stream</code>, <code>module:vm</code>, <code>module:crypto</code>, <code>module:enums</code>, <code>module:jsdb</code>, <code>module:securelink</code>, <code>module:socketio</code>, <code>module:mime</code>, <code>module:mysql</code>, <code>module:xml2js</code>, <code>module:toobusy</code>, <code>module:json2csv</code>, <code>module:js2xmlparser</code>, <code>module:toobusy-js</code>, <code>module:cheerio</code>  
+**Author**: [ACMESDS](https://totemstan.github.io)  
+**Example**  
+```js
 // npm test T1
 // Create simple service but dont start it.
 Log({
@@ -128,9 +166,9 @@ Log({
 	default_protect_mode: TOTEM.guard,
 	default_cores_used: TOTEM.cores
 });
-
-@example
-
+```
+**Example**  
+```js
 // npm test T2
 // Totem service running in fault protection mode, no database, no UI; but I am running
 // with 2 workers and the default endpoint routes.
@@ -146,9 +184,9 @@ TOTEM.config({
 with 2 workers and the default endpoint routes` );
 
 });
-
-@example
-
+```
+**Example**  
+```js
 // npm test T3
 // A Totem service with no workers.
 
@@ -161,9 +199,9 @@ No endpoints to speak off (execept for the standard wget, riddle, etc) but you c
 these files. `
 	);
 });
-
-@example
-
+```
+**Example**  
+```js
 // npm test T4
 // Only 1 worker, unprotected, a mysql database, and two endpoints.
 
@@ -202,9 +240,9 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 		my_endpoints: T.byTable
 	});
 });
-
-@example
-
+```
+**Example**  
+```js
 // npm test T5
 // no cores but a mysql database and an anti-bot shield
 
@@ -218,9 +256,9 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 		mysql_derived_parms: T.site
 	});
 });
-
-@example
-
+```
+**Example**  
+```js
 // npm test T6
 // Testing tasker with database, 3 cores and an additional /test endpoint.
 
@@ -269,9 +307,9 @@ TOTEM.config({
 }, sql => {
 	Log( "Testing runTask with database and 3 cores at /test endpoint" );
 });
-
-@example
-
+```
+**Example**  
+```js
 // npm test T7
 // Conduct db maintenance
 
@@ -372,9 +410,9 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 				break;	
 		}
 });		
-
-@example
-
+```
+**Example**  
+```js
 // npm test T8
 // Conduct neo4j database maintenance
 
@@ -415,46 +453,7 @@ neoThread( neo => {
 		});
 	});
 });	
-
-## Program Reference
-<details>
-<summary>
-<i>Open/Close</i>
-</summary>
-## Modules
-
-<dl>
-<dt><a href="#TOTEM.module_String">String</a></dt>
-<dd></dd>
-<dt><a href="#module_TOTEM">TOTEM</a></dt>
-<dd><p>Provides a <a href="https://github.com/totemstan/totem">barebones web service</a>.  This module documented 
-in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
-</dd>
-</dl>
-
-<a name="TOTEM.module_String"></a>
-
-## String
-<a name="TOTEM.module_String..parseXML"></a>
-
-### String~parseXML(cb) ⇐ <code>String</code>
-Parse XML string into json and callback cb(json)
-
-**Kind**: inner method of [<code>String</code>](#TOTEM.module_String)  
-**Extends**: <code>String</code>  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| cb | <code>function</code> | callback( json || null if error ) |
-
-<a name="module_TOTEM"></a>
-
-## TOTEM
-Provides a [barebones web service](https://github.com/totemstan/totem).  This module documented 
-in accordance with [jsdoc](https://jsdoc.app/).
-
-**Requires**: <code>module:http</code>, <code>module:https</code>, <code>module:fs</code>, <code>module:constants</code>, <code>module:cluster</code>, <code>module:child\_process</code>, <code>module:os</code>, <code>module:stream</code>, <code>module:vm</code>, <code>module:crypto</code>, <code>module:enums</code>, <code>module:jsdb</code>, <code>module:securelink</code>, <code>module:socketio</code>, <code>module:mime</code>, <code>module:mysql</code>, <code>module:xml2js</code>, <code>module:toobusy</code>, <code>module:json2csv</code>, <code>module:js2xmlparser</code>, <code>module:toobusy-js</code>, <code>module:cheerio</code>  
-**Author**: [ACMESDS](https://totemstan.github.io)  
+```
 
 * [TOTEM](#module_TOTEM)
     * _static_
