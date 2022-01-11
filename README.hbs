@@ -60,9 +60,8 @@ Simply install and start its federated docker image (
 	npm run setdebug					# Configure for debugging mode
 	npm run setoper						# Configure for operational mode
 	npm run setprod						# Configure for production mode
-	npm run	startdbs					# Start required database servers
 
-Established the required env vars:
+to establish the required env vars:
 
 	MYSQL_HOST = domain name
 	MYSQL_USER = user name
@@ -83,10 +82,11 @@ Established the required env vars:
 	SHARD3 = PROTO://DOMAIN:PORT
 
 
-## Starting
+## Start
+	npm run	startdbs					# Start required database servers
 	npm run	start						# Start totem
 
-## Maint
+## Maintenance
 	npm run redoc						# Update repo
 	npm run verminor					# Roll version
 	npm run vermajor					# Roll version
