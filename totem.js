@@ -415,7 +415,7 @@ const
 			Number of antibot riddles to extend 
 			@cfg {Number} [extend=0]
 			*/		
-			extend: 0,
+			extend: 10,
 
 			/**
 			Antibot riddle store to protect site 
@@ -442,8 +442,8 @@ const
 				9: ["40","190"]
 			},
 
-			riddler: "/riddle.html",
-			captcha: "/captcha" 		 // path to antibot captchas
+			checkEndpoint: "/riddle.html",
+			captchaEndpoint: "/captcha" 		 // path to antibot captchas
 		}
 	},
 
@@ -503,14 +503,6 @@ const
 			now = new Date(),
 			guest = `guest${ipAddress}@${host}`;
 
-		if ( cookie ) 						//  client providing cookie to hold profile
-			cookie.split("; ").forEach( cook => {
-				const [key,val] = cook.split("=");
-				cookies[key] = val;
-			});
-
-		//Log("cookies", cookies, client);
-		
 		if ( cert ) {		// client on encrypted socket so has a pki cert
 			const
 				[x,client] = (cert.subjectaltname||"").toLowerCase().split(",")[0].match(/email:(.*)/) || [];
@@ -535,7 +527,7 @@ const
 							return cb( errors.badCert );
 				}
 
-				Login( cookies.session || client, function guestSession(err,prof) { // no-authenticaion session
+				Login( client, function guestSession(err,prof) { // no-authentication session
 					cb( err, prof );
 				});
 			}
@@ -544,10 +536,19 @@ const
 				cb( errors.badCert );
 		}
 		
-		else 
-			Login( cookies.session || guest, function guestSession(err,prof) { // no-user-authentication session
+		else {
+			if ( cookie ) 						//  providing cookie to define client profile
+				cookie.split("; ").forEach( cook => {
+					const [key,val] = cook.split("=");
+					if ( val != "undefined" ) cookies[key] = val;
+				});
+
+			//Log(">>>>>>>>>>>>>>>>>>cookies", cookie, cookies);
+		
+			Login( cookies.session || guest, function guestSession(err,prof) { // no-authentication session
 				cb( err, prof );
-			});			
+			});
+		}
 	},
 			
 	dsThread: (req,cb) => {
@@ -979,12 +980,13 @@ const
 		noRoute: new Error("no route found"),
 		noDB: new Error("database unavailable"),
 		badReturn: new Error("no data returned"),
-		noEndpoint: new Error("this endpoint disabled"),
+		noEndpoint: new Error("endpoint disabled"),
 		noID: new Error("missing record id"),
 		badCert: new Error("invalid PKI credentials"),
 		badLogin: new Error("login failed"),
 		isBusy: "Too busy",
 		noSocket: new Error("socket lost"),
+		noClient: new Error("missiing client credentials")
 		//noProtocol: new Error("no fetch protocol specified"),
 		//badQuery: new Error("invalid query"),
 		//badGroup: new Error("invalid group requested"),
@@ -2134,15 +2136,21 @@ const
 				{ client , guess } = (action=="select") ? query : body;
 
 			if ( type == "help" ) 
-			return res("Validate session id=client guess=value.");
+			return res("Validate session.");
 
-			Log(client,guess);
+			Log(">>>Validate", client,guess);
 
 			if (client && guess)
-				testClient( client, guess, pass => res(pass) );
+				sql.query("SELECT Riddle FROM openv.riddles WHERE CLIENT=? LIMIT 1",[client], (err,recs) => {
+					if ( rec = recs[0] )
+						res( (rec.Riddle == guess.replace(/ /g,"")) ? "pass" : "fail" );
+					
+					else
+						res( "fail" );
+				});
 
 			else
-				res( "no admission credentials provided" );
+				res( errors.noClient );
 		}	
 	},
 		
