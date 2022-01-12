@@ -26,7 +26,7 @@ const
 	BUSY = require('toobusy-js'),  				// denial-of-service protector (cant install on NodeJS 5.x+)
 	JS2XML = require('js2xmlparser'), 			// JSON to XML parser
 	JS2CSV = require('json2csv'),				// JSON to CSV parser	
-	SECLINK = require("securelink"),			// secure com and login
+	{ testClient } = SECLINK = require("securelink"),			// secure com and login
 	{ sqlThread, neoThread } = JSDB = require("jsdb"),		// database agnosticator
 	  
 	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("enums");
@@ -406,7 +406,7 @@ const
 	secureIO: {
 		sio: null,		//< set on configuration
 			
-		host: ENV.DOMAIN_NAME || "totem",
+		host: ENV.LINK_HOST || "totem",
 		
 		isTrusted: account => account.endsWith(".mil") && !account.match(/\.ctr@.&\.mil/) ,
 		inspect: (doc,to,cb) => { 
@@ -2143,6 +2143,8 @@ const
 			Log(">>>Validate", client,guess);
 
 			if (client && guess)
+				testClient(client,guess,res);
+				/*
 				sql.query("SELECT Riddle FROM openv.riddles WHERE CLIENT=? LIMIT 1",[client], (err,recs) => {
 					if ( rec = recs[0] )
 						res( (rec.Riddle == guess.replace(/ /g,"")) ? "pass" : "fail" );
@@ -2150,6 +2152,7 @@ const
 					else
 						res( "fail" );
 				});
+				*/
 
 			else
 				res( errors.noClient );

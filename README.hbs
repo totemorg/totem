@@ -61,32 +61,13 @@ Simply install and start its federated docker image (
 	npm run setoper						# Configure for operational mode
 	npm run setprod						# Configure for production mode
 
-to establish the required env vars:
-
-	MYSQL_HOST = domain name
-	MYSQL_USER = user name
-	MYSQL_PASS = user password
-	
-	NEO4J_HOST = bolt://DOMAIN:PORT
-	NEO4J_USER = user name
-	NEO4J_PASS = user password
-
-	SERVICE_PASS = passphrase to server pki cert
-	
-	SERVICE_WORKER_URL = PROTO://DOMAIN:PORT
-	SERVICE_MASTER_URL = PROTO://DOMAIN:PORT
-	
-	SHARD0 = PROTO://DOMAIN:PORT
-	SHARD1 = PROTO://DOMAIN:PORT
-	SHARD2 = PROTO://DOMAIN:PORT
-	SHARD3 = PROTO://DOMAIN:PORT
-
-
 ## Start
+
 	npm run	startdbs					# Start required database servers
 	npm run	start						# Start totem
 
 ## Maintenance
+	
 	npm run redoc						# Update repo
 	npm run verminor					# Roll version
 	npm run vermajor					# Roll version
@@ -116,6 +97,26 @@ follow the ENUM deep copy conventions (
 [COE](https://sc.appdev.proj.coe/acmesds/enum) 
 [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
 ).
+
+## Env vars
+
+	MYSQL_HOST = domain name
+	MYSQL_USER = user name
+	MYSQL_PASS = user password
+	
+	NEO4J_HOST = bolt://DOMAIN:PORT
+	NEO4J_USER = user name
+	NEO4J_PASS = user password
+
+	SERVICE_PASS = passphrase to server pki cert
+	
+	SERVICE_WORKER_URL = PROTO://DOMAIN:PORT
+	SERVICE_MASTER_URL = PROTO://DOMAIN:PORT
+	
+	SHARD0 = PROTO://DOMAIN:PORT
+	SHARD1 = PROTO://DOMAIN:PORT
+	SHARD2 = PROTO://DOMAIN:PORT
+	SHARD3 = PROTO://DOMAIN:PORT
 
 ## Program Reference
 <details>
