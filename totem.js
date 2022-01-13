@@ -394,24 +394,41 @@ const
 	Log: (...args) => console.log(">>>totem", args),
 	Trace: (msg,args,req) => "totem".trace(msg, req, msg => console.log(msg,args) ),	
 		
-	inspect: null,
+	/**
+	Enable to support cross-origin-scripting
+	*/
 			
 	CORS: false,	//< enable to support cross-origin-scripting
 		
+	/**
+	Default NODE type during a route
+	*/
 	defaultType: "run",
 
 	/**
-	SecureLink configuration settings.  Null to disable secure client links.
+	SecureLink configuration settings.  Null to disable.
 	*/
 	secureIO: {
+		/**
+		Socketio i/f set on SECLINK config
+		*/
 		sio: null,		//< set on configuration
 			
+		/**
+		Name of SECLINK host for determining trusted clinets etc
+		*/
 		host: ENV.LINK_HOST || "totem",
 		
-		isTrusted: account => account.endsWith(".mil") && !account.match(/\.ctr@.&\.mil/) ,
+		/**
+		Used to inspect unencrypted messages
+		*/
 		inspect: (doc,to,cb) => { 
 			//throw new Error("link inspect never configured"); 
 		},
+		
+		/**
+		Specifiies client challenge options
+		*/
 		challenge: {
 			/**
 			Number of antibot riddles to extend 
@@ -552,7 +569,12 @@ const
 			});
 		}
 	},
-			
+		
+	/**
+	Start a dataset thread.
+	@param {Object} req Totem endpoint request
+	@param {Function} cb callback(competed req)
+	*/
 	dsThread: (req,cb) => {
 		const
 			{ url, body, client } = req,
@@ -624,6 +646,9 @@ const
 	tableRoutes: {	// setup default DataSet routes
 	},
 
+	/**
+	MySQL connection options
+	*/
 	mysql: { 		// database connection or null to disable
 		host: ENV.MYSQL_HOST,
 		user: ENV.MYSQL_USER,
@@ -949,6 +974,9 @@ const
 		route( req, res );
 	},
 
+	/**
+	Start watchdogs
+	*/
 	startDogs: (sql,dogs) => {
 		sql.query(
 			"SELECT * FROM openv.dogs WHERE Enabled AND Every")
@@ -1008,8 +1036,7 @@ const
 		//noAccess: new Error("no access to master core at this endpoint"),
 	},
 
-	api: {
-	},
+	//api: { },
 
 	/**
 	Configure and start the service with options and optional callback when started.
@@ -1114,11 +1141,11 @@ const
 				*/				
 				function startServer(server, port, agent) {	//< attach listener callback cb(Req,Res) to the specified port
 					const 
-						{ initialize, secureIO, name, dogs, guard, guards, proxy, proxies, cores } = TOTEM;
+						{ initialize, secureIO, name, dogs, guard, guards, proxy, proxies, cores, sendMail } = TOTEM;
 					
 					Log(`STARTING ${name}`);
 
-					if ( secureIO )		// setup secure link sessions 
+					if ( secureIO )		// setup secure link sessions with a guest profile
 						sqlThread( sql => {
 							sql.query( "SELECT * FROM openv.profiles WHERE Client='Guest' LIMIT 1", [], (err,recs) => {
 								Log( recs[0] 
@@ -1128,7 +1155,7 @@ const
 								SECLINK.config( Copy(secureIO, {
 									server: server,
 									sqlThread: sqlThread,
-									notify: TOTEM.sendMail,
+									notify: sendMail,
 									guest: recs[0]
 								}) );
 								
