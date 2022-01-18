@@ -26,7 +26,7 @@ const
 	BUSY = require('toobusy-js'),  				// denial-of-service protector (cant install on NodeJS 5.x+)
 	JS2XML = require('js2xmlparser'), 			// JSON to XML parser
 	JS2CSV = require('json2csv'),				// JSON to CSV parser	
-	SECLINK = require("securelink"),			// secure com and login
+	{ testClient } = SECLINK = require("securelink"),			// secure com and login
 	{ sqlThread, neoThread } = JSDB = require("jsdb"),		// database agnosticator
 	  
 	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("enums");
@@ -377,6 +377,8 @@ neoThread( neo => {
 		});
 	});
 });	
+
+
 */
 
 const 
@@ -392,30 +394,47 @@ const
 	Log: (...args) => console.log(">>>totem", args),
 	Trace: (msg,args,req) => "totem".trace(msg, req, msg => console.log(msg,args) ),	
 		
-	inspect: null,
+	/**
+	Enable to support cross-origin-scripting
+	*/
 			
 	CORS: false,	//< enable to support cross-origin-scripting
 		
+	/**
+	Default NODE type during a route
+	*/
 	defaultType: "run",
 
 	/**
-	SecureLink configuration settings.  Null to disable secure client links.
+	SecureLink configuration settings.  Null to disable.
 	*/
 	secureIO: {
+		/**
+		Socketio i/f set on SECLINK config
+		*/
 		sio: null,		//< set on configuration
 			
-		host: ENV.DOMAIN_NAME || "totem",
+		/**
+		Name of SECLINK host for determining trusted clinets etc
+		*/
+		host: ENV.LINK_HOST || "totem",
 		
-		isTrusted: account => account.endsWith(".mil") && !account.match(/\.ctr@.&\.mil/) ,
+		/**
+		Used to inspect unencrypted messages
+		*/
 		inspect: (doc,to,cb) => { 
 			//throw new Error("link inspect never configured"); 
 		},
+		
+		/**
+		Specifiies client challenge options
+		*/
 		challenge: {
 			/**
 			Number of antibot riddles to extend 
 			@cfg {Number} [extend=0]
 			*/		
-			extend: 0,
+			extend: 10,
 
 			/**
 			Antibot riddle store to protect site 
@@ -442,8 +461,8 @@ const
 				9: ["40","190"]
 			},
 
-			riddler: "/riddle.html",
-			captcha: "/captcha" 		 // path to antibot captchas
+			checkEndpoint: "/riddle.html",
+			captchaEndpoint: "/captcha" 		 // path to antibot captchas
 		}
 	},
 
@@ -503,14 +522,6 @@ const
 			now = new Date(),
 			guest = `guest${ipAddress}@${host}`;
 
-		if ( cookie ) 						//  client providing cookie to hold profile
-			cookie.split("; ").forEach( cook => {
-				const [key,val] = cook.split("=");
-				cookies[key] = val;
-			});
-
-		//Log("cookies", cookies, client);
-		
 		if ( cert ) {		// client on encrypted socket so has a pki cert
 			const
 				[x,client] = (cert.subjectaltname||"").toLowerCase().split(",")[0].match(/email:(.*)/) || [];
@@ -535,7 +546,7 @@ const
 							return cb( errors.badCert );
 				}
 
-				Login( cookies.session || client, function guestSession(err,prof) { // no-authenticaion session
+				Login( client, function guestSession(err,prof) { // no-authentication session
 					cb( err, prof );
 				});
 			}
@@ -544,12 +555,26 @@ const
 				cb( errors.badCert );
 		}
 		
-		else 
-			Login( cookies.session || guest, function guestSession(err,prof) { // no-user-authentication session
+		else {
+			if ( cookie ) 						//  providing cookie to define client profile
+				cookie.split("; ").forEach( cook => {
+					const [key,val] = cook.split("=");
+					if ( val != "undefined" ) cookies[key] = val;
+				});
+
+			//Log(">>>>>>>>>>>>>>>>>>cookies", cookie, cookies);
+		
+			Login( cookies.session || guest, function guestSession(err,prof) { // no-authentication session
 				cb( err, prof );
-			});			
+			});
+		}
 	},
-			
+		
+	/**
+	Start a dataset thread.
+	@param {Object} req Totem endpoint request
+	@param {Function} cb callback(competed req)
+	*/
 	dsThread: (req,cb) => {
 		const
 			{ url, body, client } = req,
@@ -621,6 +646,9 @@ const
 	tableRoutes: {	// setup default DataSet routes
 	},
 
+	/**
+	MySQL connection options
+	*/
 	mysql: { 		// database connection or null to disable
 		host: ENV.MYSQL_HOST,
 		user: ENV.MYSQL_USER,
@@ -946,6 +974,9 @@ const
 		route( req, res );
 	},
 
+	/**
+	Start watchdogs
+	*/
 	startDogs: (sql,dogs) => {
 		sql.query(
 			"SELECT * FROM openv.dogs WHERE Enabled AND Every")
@@ -979,12 +1010,13 @@ const
 		noRoute: new Error("no route found"),
 		noDB: new Error("database unavailable"),
 		badReturn: new Error("no data returned"),
-		noEndpoint: new Error("this endpoint disabled"),
+		noEndpoint: new Error("endpoint disabled"),
 		noID: new Error("missing record id"),
 		badCert: new Error("invalid PKI credentials"),
 		badLogin: new Error("login failed"),
 		isBusy: "Too busy",
 		noSocket: new Error("socket lost"),
+		noClient: new Error("missiing client credentials")
 		//noProtocol: new Error("no fetch protocol specified"),
 		//badQuery: new Error("invalid query"),
 		//badGroup: new Error("invalid group requested"),
@@ -1004,8 +1036,7 @@ const
 		//noAccess: new Error("no access to master core at this endpoint"),
 	},
 
-	api: {
-	},
+	//api: { },
 
 	/**
 	Configure and start the service with options and optional callback when started.
@@ -1110,11 +1141,11 @@ const
 				*/				
 				function startServer(server, port, agent) {	//< attach listener callback cb(Req,Res) to the specified port
 					const 
-						{ initialize, secureIO, name, dogs, guard, guards, proxy, proxies, cores } = TOTEM;
+						{ initialize, secureIO, name, dogs, guard, guards, proxy, proxies, cores, sendMail } = TOTEM;
 					
 					Log(`STARTING ${name}`);
 
-					if ( secureIO )		// setup secure link sessions 
+					if ( secureIO )		// setup secure link sessions with a guest profile
 						sqlThread( sql => {
 							sql.query( "SELECT * FROM openv.profiles WHERE Client='Guest' LIMIT 1", [], (err,recs) => {
 								Log( recs[0] 
@@ -1124,7 +1155,7 @@ const
 								SECLINK.config( Copy(secureIO, {
 									server: server,
 									sqlThread: sqlThread,
-									notify: TOTEM.sendMail,
+									notify: sendMail,
 									guest: recs[0]
 								}) );
 								
@@ -2134,15 +2165,24 @@ const
 				{ client , guess } = (action=="select") ? query : body;
 
 			if ( type == "help" ) 
-			return res("Validate session id=client guess=value.");
+			return res("Validate session.");
 
-			Log(client,guess);
+			Log(">>>Validate", client,guess);
 
 			if (client && guess)
-				testClient( client, guess, pass => res(pass) );
+				testClient(client,guess,res);
+				/*
+				sql.query("SELECT Riddle FROM openv.riddles WHERE CLIENT=? LIMIT 1",[client], (err,recs) => {
+					if ( rec = recs[0] )
+						res( (rec.Riddle == guess.replace(/ /g,"")) ? "pass" : "fail" );
+					
+					else
+						res( "fail" );
+				});
+				*/
 
 			else
-				res( "no admission credentials provided" );
+				res( errors.noClient );
 		}	
 	},
 		
@@ -2830,7 +2870,7 @@ with 2 workers and the default endpoint routes` );
 		});
 		break;
 
-	case "T3": 
+	case "start": 
 
 		TOTEM.config(null, sql => {
 			Log( 

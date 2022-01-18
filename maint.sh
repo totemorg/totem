@@ -96,7 +96,7 @@ jsdb_config.)
 	;;
 
 seclink_config.)
-	export DOMAIN_NAME=totem
+	export LINK_HOST=totem
 	;;
 	
 totem_config.)
@@ -182,7 +182,7 @@ totem_config.)
 	export SERVICE_MASTER_URL=$PROTO://$DOMAIN:$PORT1
 	export SERVICE_WORKER_URL=$PROTO://$DOMAIN:$PORT2
 	
-	echo "$DOMAIN_NAME at $SERVICE_MASTER_URL and $SERVICE_WORKER_URL"
+	echo "$LINK_HOST at $SERVICE_MASTER_URL and $SERVICE_WORKER_URL"
 	
 	# define task sharding urls
 	export SHARD0=$PROTO://$DOMAIN/task

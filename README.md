@@ -54,42 +54,20 @@ Simply install and start its federated docker image (
 [SBU](https://gitlab.west.nga.ic.gov/acmesds/dockify)
 ).
 
-## Manage 
-
-### Defining operating mode
+## Setup
 
 	npm run setprot						# Configure for protected mode
 	npm run setdebug					# Configure for debugging mode
 	npm run setoper						# Configure for operational mode
 	npm run setprod						# Configure for production mode
 
-to establish the following env vars (revise passwords in `_pass.sh` as needed):
+## Start
 
-	MYSQL_HOST = domain name
-	MYSQL_USER = user name
-	MYSQL_PASS = user password
-	
-	NEO4J_HOST = bolt://DOMAIN:PORT
-	NEO4J_USER = user name
-	NEO4J_PASS = user password
-
-	SERVICE_PASS = passphrase to server pki cert
-	
-	SERVICE_WORKER_URL = PROTO://DOMAIN:PORT
-	SERVICE_MASTER_URL = PROTO://DOMAIN:PORT
-	
-	SHARD0 = PROTO://DOMAIN:PORT
-	SHARD1 = PROTO://DOMAIN:PORT
-	SHARD2 = PROTO://DOMAIN:PORT
-	SHARD3 = PROTO://DOMAIN:PORT
-
-### Starting
-
-	npm run test						# Start totem in test mode
-
-### Testing and maintenance 
-	npm test [ ? || T1 || T2 || ...]	# Run unit test
 	npm run	startdbs					# Start required database servers
+	npm run	start						# Start totem
+
+## Maintenance
+	
 	npm run redoc						# Update repo
 	npm run verminor					# Roll version
 	npm run vermajor					# Roll version
@@ -119,6 +97,26 @@ follow the ENUM deep copy conventions (
 [COE](https://sc.appdev.proj.coe/acmesds/enum) 
 [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
 ).
+
+## Env vars
+
+	MYSQL_HOST = domain name
+	MYSQL_USER = user name
+	MYSQL_PASS = user password
+	
+	NEO4J_HOST = bolt://DOMAIN:PORT
+	NEO4J_USER = user name
+	NEO4J_PASS = user password
+
+	SERVICE_PASS = passphrase to server pki cert
+	
+	SERVICE_WORKER_URL = PROTO://DOMAIN:PORT
+	SERVICE_MASTER_URL = PROTO://DOMAIN:PORT
+	
+	SHARD0 = PROTO://DOMAIN:PORT
+	SHARD1 = PROTO://DOMAIN:PORT
+	SHARD2 = PROTO://DOMAIN:PORT
+	SHARD3 = PROTO://DOMAIN:PORT
 
 ## Program Reference
 <details>
@@ -460,7 +458,15 @@ neoThread( neo => {
 
 * [TOTEM](#module_TOTEM)
     * _static_
+        * [.CORS](#module_TOTEM.CORS)
+        * [.defaultType](#module_TOTEM.defaultType)
         * [.secureIO](#module_TOTEM.secureIO)
+            * [.sio](#module_TOTEM.secureIO.sio)
+            * [.host](#module_TOTEM.secureIO.host)
+            * [.challenge](#module_TOTEM.secureIO.challenge)
+                * [.extend](#module_TOTEM.secureIO.challenge.extend)
+            * [.inspect()](#module_TOTEM.secureIO.inspect)
+        * [.mysql](#module_TOTEM.mysql)
         * [.errors](#module_TOTEM.errors)
         * [.tasking](#module_TOTEM.tasking)
         * [.dogs](#module_TOTEM.dogs)
@@ -502,7 +508,9 @@ neoThread( neo => {
         * [.busyTime](#module_TOTEM.busyTime)
         * [.cache](#module_TOTEM.cache)
         * [.loginClient(req, res)](#module_TOTEM.loginClient)
+        * [.dsThread(req, cb)](#module_TOTEM.dsThread)
         * [.routeRequest(req, res)](#module_TOTEM.routeRequest)
+        * [.startDogs()](#module_TOTEM.startDogs)
         * [.config(opts, cb)](#module_TOTEM.config)
             * [~configService(agent)](#module_TOTEM.config..configService)
                 * [~createServer()](#module_TOTEM.config..configService..createServer)
@@ -517,10 +525,67 @@ neoThread( neo => {
         * [~stopService()](#module_TOTEM..stopService)
         * [~uploadFile(client, source, sinkPath, tags, cb)](#module_TOTEM..uploadFile)
 
+<a name="module_TOTEM.CORS"></a>
+
+### TOTEM.CORS
+Enable to support cross-origin-scripting
+
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
+<a name="module_TOTEM.defaultType"></a>
+
+### TOTEM.defaultType
+Default NODE type during a route
+
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.secureIO"></a>
 
 ### TOTEM.secureIO
-SecureLink configuration settings.  Null to disable secure client links.
+SecureLink configuration settings.  Null to disable.
+
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
+
+* [.secureIO](#module_TOTEM.secureIO)
+    * [.sio](#module_TOTEM.secureIO.sio)
+    * [.host](#module_TOTEM.secureIO.host)
+    * [.challenge](#module_TOTEM.secureIO.challenge)
+        * [.extend](#module_TOTEM.secureIO.challenge.extend)
+    * [.inspect()](#module_TOTEM.secureIO.inspect)
+
+<a name="module_TOTEM.secureIO.sio"></a>
+
+#### secureIO.sio
+Socketio i/f set on SECLINK config
+
+**Kind**: static property of [<code>secureIO</code>](#module_TOTEM.secureIO)  
+<a name="module_TOTEM.secureIO.host"></a>
+
+#### secureIO.host
+Name of SECLINK host for determining trusted clinets etc
+
+**Kind**: static property of [<code>secureIO</code>](#module_TOTEM.secureIO)  
+<a name="module_TOTEM.secureIO.challenge"></a>
+
+#### secureIO.challenge
+Specifiies client challenge options
+
+**Kind**: static property of [<code>secureIO</code>](#module_TOTEM.secureIO)  
+<a name="module_TOTEM.secureIO.challenge.extend"></a>
+
+##### challenge.extend
+Number of antibot riddles to extend
+
+**Kind**: static property of [<code>challenge</code>](#module_TOTEM.secureIO.challenge)  
+**Cfg**: <code>Number</code> [extend=0]  
+<a name="module_TOTEM.secureIO.inspect"></a>
+
+#### secureIO.inspect()
+Used to inspect unencrypted messages
+
+**Kind**: static method of [<code>secureIO</code>](#module_TOTEM.secureIO)  
+<a name="module_TOTEM.mysql"></a>
+
+### TOTEM.mysql
+MySQL connection options
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.errors"></a>
@@ -890,6 +955,18 @@ Validate a client's session by attaching a log, profile, group, client,
 | req | <code>Object</code> | totem session request |
 | res | <code>function</code> | totem session responder |
 
+<a name="module_TOTEM.dsThread"></a>
+
+### TOTEM.dsThread(req, cb)
+Start a dataset thread.
+
+**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem endpoint request |
+| cb | <code>function</code> | callback(competed req) |
+
 <a name="module_TOTEM.routeRequest"></a>
 
 ### TOTEM.routeRequest(req, res)
@@ -924,6 +1001,12 @@ Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable
 | req | <code>Object</code> | session request |
 | res | <code>Object</code> | session response |
 
+<a name="module_TOTEM.startDogs"></a>
+
+### TOTEM.startDogs()
+Start watchdogs
+
+**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.config"></a>
 
 ### TOTEM.config(opts, cb)
