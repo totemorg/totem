@@ -31,7 +31,7 @@ debe_config.)
 	export XLATE=$HERE/node_modules/i18n-abide/examples/express3/i18n	# I18N translation folder
 	export PATH=$PATH:$NODE/bin
 
-	export REPO=http://github.com:stansds
+	export REPO=http://github.com:totemstan
 	export JIRA=http://jira.tbd
 	export RAS=http://ras.tbd
 	export BY=https://research.nga.ic.gov
@@ -53,7 +53,7 @@ system_config.)
 	# initialize dev/prod paths
 	export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin:/local/cmake/bin
 	export GITUSER=totemstan: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
-	export REPO=https://$GITUSER@github.com/totemstan
+	export GITREPO=https://$GITUSER@github.com/totemstan
 
 	# doc and dev tools
 	#export PATH=/opt/cmake:$PATH 			# latest cmake
