@@ -1151,6 +1151,7 @@ sudo yum -y install kernel-devel kernel-headers dkms cmake
 # cuda GPU support (mostly for caffe and opencv)
 # https://developer.nvidia.com/da-downloads?target_os=Linux&target_arch=x86_64&target_distro=CentOS&target_version=7&target_type=rpmlocal
 # toolkit 10/11 installs cuda-8 (earlier vers install cuda-7/6)
+# downloads + guide: https://docs.nvidia.com/cuda/archive/11.5.0/
 ####################
 
 wget http://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda-repo-rhel7-10-2-local-10.2.89-440.33.01-1.0-1.x86_64.rpm

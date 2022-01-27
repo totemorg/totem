@@ -2225,15 +2225,16 @@ const
 				res( errors.noBody );
 
 			else
-			if ( !query.ID )
+			if ( isEmpty(query) )
 				res( errors.noID );
 
 			else {
+				/*
 				sql.query(	// update db logs if it exits
 					"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1", {
 						Dataset: table,
 						Client: client
-					});
+					});*/
 
 				sql.Update(ds, where, body, (err,info) => {
 
@@ -2262,7 +2263,7 @@ const
 				{ sql, flags, where, query, body, client, ds, table } = req,
 				{ sio } = SECLINK;
 
-			if ( !query.ID )
+			if ( isEmpty(query) )
 				res( errors.noID );
 
 			else
