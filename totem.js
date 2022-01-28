@@ -392,8 +392,8 @@ const
 		filterFlag, paths, sqls, errors, site, isEncrypted, behindProxy, admitRules,
 		filterType,tableRoutes, dsThread, startDogs, cache } = TOTEM = module.exports = {
 	
-	Log: (...args) => console.log(`>>>totem:${args[0]}`, args.slice(1) ),
-	Trace: (msg,args,req) => "totem".trace(msg, req, msg => console.log(msg,args) ),	
+	Log: console.log,
+	Trace: (msg, ...args) => `totem>>>${msg}`.trace( args ),	
 		
 	/**
 	Enable to support cross-origin-scripting
@@ -741,26 +741,26 @@ const
 					{ logMetrics } = sqls,
 					{ area, table, path, flags } = req;
 				
-				Log( route.name.toUpperCase(), path );
+				Trace( route.name.toUpperCase(), path );
 				
 				if ( area || !table ) // routing a file or no endpoint 
 					/* trap for legacy socket.io 
 					if ( area == "socket.io" && !table)	// ignore keep-alives from legacy socket.io 
-						Log("HUSH SOCKET.IO");
+						Trace("HUSH SOCKET.IO");
 
 					else	// send file
 					*/
 					route( req, txt => res(txt) );
 				
 				else {
-					//Log("log check", req.area, req.reqSocket?true:false, req.log );
+					//Trace("log check", req.area, req.reqSocket?true:false, req.log );
 					if ( logMetrics )
 						if ( sock = req.reqSocket ) 
 							logSession( sock );  
 
 					route(req, recs => {	// route request and capture records
 						if ( recs ) {
-							// Log("route flags", flags);
+							// Trace("route flags", flags);
 							/*
 							var call = null;
 							for ( var key in flags ) if ( !call ) {	// perform single data modifier
@@ -826,7 +826,7 @@ const
 						{Access} = recs[0] || {Access:"guest"},
 						minPower = power[tx[type] || "guest"];
 					
-					Log( "check "+type, Access, power[Access], minPower );
+					Trace( "check "+type, Access, power[Access], minPower );
 					cb( power[Access] >= minPower );
 				});
 				}
@@ -858,7 +858,7 @@ const
 								{ never } = cache,
 								neverCache = never[file] || never[area];
 
-							//Log("cache", file, "never=", neverCache, "cached=", path in cache);
+							//Trace("cache", file, "never=", neverCache, "cached=", path in cache);
 
 							if ( path in cache )
 								res( cache[path] );
@@ -944,10 +944,10 @@ const
 							parms = {};
 						}
 						else {
-							//Log("LOAD", line);
+							//Trace("LOAD", line);
 
 							line.split(";").forEach( (arg,idx) => {  // process one file at a time
-	Log("line ",idx,line.length);
+								//Trace("line ",idx,line.length);
 								var tok = arg
 									.replace("Content-Disposition: ","disposition=")
 									.replace("Content-Type: ","type=")
@@ -965,10 +965,10 @@ const
 				}
 				
 				catch (err) {
-					Log("POST FAILED", post);
+					Trace("POST FAILED", post);
 				}
 
-			//Log("body files=", files.length);
+			//Trace("body files=", files.length);
 			return parms;
 		});		// get body parameters/files
 
@@ -983,7 +983,7 @@ const
 			"SELECT * FROM openv.dogs WHERE Enabled AND Every")
 		
 		.on("result", task => {
-			//Log(">>>>dog", task, dogs[task.Name], every", task.Every);
+			//Trace(">>>>dog", task, dogs[task.Name], every", task.Every);
 			if ( dog = dogs[task.Name.toLowerCase()] )
 				sql.queueTask( new Clock("totem",task.Every), {
 					Client: "totem",
@@ -992,7 +992,7 @@ const
 					Task: "watchdog",
 					Notes: task.Description
 				}, (recs,job,res) => {
-					Log(">>>dog", job);
+					Trace(">>>dog", job);
 					dog(sql, job);
 					res();
 				});
@@ -1073,7 +1073,7 @@ const
 			
 			if ( docEditpoints ) // build endpoint docs			
 				Stream(byTable, {}, (val,skey,cb) => {	// system endpoints
-					//Log("build doc", host, cb?"stream":"end", skey);
+					//Trace("build doc", host, cb?"stream":"end", skey);
 					
 					if ( cb ) // streaming ... scan endpoint
 						if ( val.name == "sysNav" ) 
@@ -1081,7 +1081,7 @@ const
 
 						else
 							Fetch( `${host}/${skey}.help`, doc => {
-								//Log(">>>>doc",skey,"=>",doc);
+								//Trace(">>>>doc",skey,"=>",doc);
 								cb( `${skey}: ${doc}`.replace(/\n/mg,"<br>") );
 							});
 
@@ -1144,7 +1144,7 @@ const
 					const 
 						{ initialize, secureIO, name, dogs, guard, guards, proxy, proxies, cores, sendMail } = TOTEM;
 					
-					Log(`STARTING ${name}`);
+					Trace(`STARTING ${name}`);
 
 					if ( secureIO )		// setup secure link sessions with a guest profile
 						sqlThread( sql => {
@@ -1173,18 +1173,18 @@ const
 					if (BUSY && TOTEM.busyTime) BUSY.maxLag(TOTEM.busyTime);
 
 					if (guard)  { // catch core faults
-						process.on("uncaughtException", err => Log( "FAULTED" , err) );
+						process.on("uncaughtException", err => Trace( "FAULTED" , err) );
 
-						process.on("exit", code => Log( "HALTED", code ) );
+						process.on("exit", code => Trace( "HALTED", code ) );
 
 						for (var signal in guards)
-							process.on(signal, () => Log( "SIGNALED", signal) );
+							process.on(signal, () => Trace( "SIGNALED", signal) );
 					}
 
 					server.on("request", agent);
 
 					server.listen( port, () => {  	// listen on specified port
-						Log("LISTENING ON", port);
+						Trace("LISTENING ON", port);
 						
 						if (sqlThread() )
 							sqlThread( sql => {
@@ -1198,9 +1198,9 @@ const
 					});
 
 					if (CLUSTER.isMaster)	{ // setup listener on master port
-						CLUSTER.on('exit', (worker, code, signal) =>  Log("WORKER TERMINATED", code || errors.ok));
+						CLUSTER.on('exit', (worker, code, signal) =>  Trace("WORKER TERMINATED", code || errors.ok));
 
-						CLUSTER.on('online', worker => Log("WORKER CONNECTED"));
+						CLUSTER.on('online', worker => Trace("WORKER CONNECTED"));
 
 						for (var core = 0; core < TOTEM.cores; core++) // create workers
 							worker = CLUSTER.fork();
@@ -1243,7 +1243,7 @@ const
 
 								proxies.forEach( (proxy,src) => {	// in with the new
 									Fetch( proxy, html => {
-										//Log(">>>proxy", proxy, html.length);
+										//Trace(">>>proxy", proxy, html.length);
 										var 
 											$ = SCRAPE.load(html),
 											now = new Date(),
@@ -1261,7 +1261,7 @@ const
 												};
 
 												$("table").each( (idx,tab) => {
-													//Log("table",idx); 
+													//Trace("table",idx); 
 													if ( idx==0 )
 														for ( var key in cols ) {
 															if ( col = cols[key] )
@@ -1278,10 +1278,10 @@ const
 												break;
 
 											default:
-												Log("ignoring proxy", proxy);
+												Trace("ignoring proxy", proxy);
 										}
 
-										Log("SET PROXIES", recs);
+										Trace("SET PROXIES", recs);
 										recs.forEach( rec => {
 											sql.query(
 												"INSERT INTO openv.proxies SET ? ON DUPLICATE KEY UPDATE ?", 
@@ -1300,7 +1300,7 @@ const
 					{ crudIF,name,cache,trustStore,certs } = TOTEM,
 					port = parseInt( CLUSTER.isMaster ? $master.port : $worker.port );
 
-				//Log( ">>start", isEncrypted(), $master, $worker );
+				//Trace( ">>start", isEncrypted(), $master, $worker );
 
 				certs.totem = {  // totem service certs
 					pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
@@ -1308,11 +1308,11 @@ const
 					//crt: FS.readFileSync(`${paths.certs}${name}.crt`)
 				};
 
-				//Log("enc>>>", isEncrypted(), paths.certs+"truststore" );
+				//Trace("enc>>>", isEncrypted(), paths.certs+"truststore" );
 				
 				Each( FS.readdirSync(paths.certs+"truststore"), (n,file) => {
 					if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
-						Log("TRUSTING", file);
+						Trace("TRUSTING", file);
 						trustStore.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf-8") );
 					}
 				});
@@ -1382,8 +1382,8 @@ const
 							case "POST":
 							case "DELETE":
 								getPost( post => {
-									//Log(">>>>post", post);
-									//Log(Req.headers, Req.url);
+									//Trace(">>>>post", post);
+									//Trace(Req.headers, Req.url);
 									ses(null, {			// prime session request
 										cookie: Req.headers["cookie"] || "",
 										ipAddress: Req.connection.remoteAddress,
@@ -1410,7 +1410,7 @@ const
 
 							case "OPTIONS":  // client making cross-domain call - must respond with what are valid methods
 								//Req.method = Req.headers["access-control-request-method"];
-								//Log(">>>>>>opts req", Req.headers);
+								//Trace(">>>>>>opts req", Req.headers);
 								Res.writeHead(200, {
 									"access-control-allow-origin": "*", 
 									"access-control-allow-methods": "POST, GET, DELETE, PUT, OPTIONS"
@@ -1588,7 +1588,7 @@ const
 									res( errors.noSocket );
 							}
 
-							//Log("startReq", err);
+							//Trace("startReq", err);
 
 							if (err)
 								Res.end( errors.pretty( err ) );
@@ -1596,7 +1596,7 @@ const
 							else {
 								Req.req = req;
 								startResponse( (err,res) => {	// route the request on the provided response callback
-									//Log("startRes", err);
+									//Trace("startRes", err);
 
 									if ( err ) 
 										Res.end( errors.pretty( err ) );
@@ -1613,14 +1613,14 @@ const
 				{ name, cores } = TOTEM,
 				pfx = `${paths.certs}${name}.pfx` ;
 
-			Log( `PROTECTING ${name} USING ${pfx}` );
+			Trace( `PROTECTING ${name} USING ${pfx}` );
 
 			Copy( new URL(site.master), $master);
 			Copy( new URL(site.worker), $worker);
 			
 			site.domain = $master.hostname;
 			site.host = $master.protocol+"//"+$master.host;
-			//Log(">>domain",site.master, $master, site.worker, $worker, site.domain, site.host);
+			//Trace(">>domain",site.master, $master, site.worker, $worker, site.domain, site.host);
 			
 			if ( isEncrypted() )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
@@ -1640,7 +1640,7 @@ const
 		const
 			{ name } = TOTEM;
 		
-		Log(`CONFIGURING ${name}`); 
+		Trace(`CONFIGURING ${name}`); 
 
 		if (opts) Copy(opts, TOTEM, ".");
 
@@ -1723,7 +1723,7 @@ const
 				idxs = opts[key] || [],
 				N = idxs.length;
 
-			//Log(depth,key, index, N, lastIndex);
+			//Trace(depth,key, index, N, lastIndex);
 			if (key)
 				idxs.forEach( function (idx,n) {
 					index[key] = idx;
@@ -1810,7 +1810,7 @@ const
 		const 
 			{ modTimes } = TOTEM;
 		
-		Log("WATCHING", path);
+		Trace("WATCHING", path);
 		
 		modTimes[path] = 0; 
 
@@ -1823,11 +1823,11 @@ const
 					switch (ev) {
 						case "change":
 							sqlThread( sql => {
-								Log(ev.toUpperCase(), file);
+								Trace(ev.toUpperCase(), file);
 
 								FS.stat(path, function (err, stats) {
 
-									//Log(path, err, stats);
+									//Trace(path, err, stats);
 									if ( !err && (modTimes[path] != stats.mtime) ) {
 										modTimes[path] = stats.mtime;
 										cb(sql, file, path);
@@ -1847,7 +1847,7 @@ const
 		}
 		
 		catch (err) {
-			Log("watch file", err);
+			Trace("watch file", err);
 		}
 	},
 		
@@ -1863,7 +1863,7 @@ const
 
 		function traceExecute(cmd,cb) {
 
-			Log(cmd.replace(/\n/g,"\\n"));
+			Trace(cmd.replace(/\n/g,"\\n"));
 
 			CP.exec(cmd, err => {
 
@@ -1884,7 +1884,7 @@ const
 			crt = path + ".crt",
 			ppk = path + ".ppk";
 
-		Log( "CREATE SELF-SIGNED CERT", path );	
+		Trace( "CREATE SELF-SIGNED CERT", path );	
 
 		traceExecute(
 			`echo -e "\n\n\n\n\n\n\n" | openssl req -x509 -nodes -days 5000 -newkey rsa:2048 -keyout ${key} -out ${crt}`, 
@@ -1902,7 +1902,7 @@ const
 			`puttygen ${owner}.key -N ${pass} -o ${ppk}`, 	
 			function () {
 
-			Log("IGNORE PUTTYGEN ERRORS IF NOT INSTALLED"); 
+			Trace("IGNORE PUTTYGEN ERRORS IF NOT INSTALLED"); 
 			cb();
 		});
 		});
@@ -2144,7 +2144,7 @@ const
 									"PMR brief".link( `/briefs.view?options=${name}` )
 							].join(" || ")
 						}, (recs,job,res) => {
-							//Log("reg job" , job);
+							//Trace("reg job" , job);
 							runTask( job.index );
 							res();
 						});
@@ -2168,7 +2168,7 @@ const
 			if ( type == "help" ) 
 			return res("Validate session.");
 
-			Log(">>>Validate", client,guess);
+			Trace(">>>Validate", client,guess);
 
 			if (client && guess)
 				testClient(client,guess,res);
@@ -2202,7 +2202,7 @@ const
 			const 
 				{ sql, flags, client, where, index, ds } = req;
 
-			//Log("selDS", ds, index);
+			//Trace("selDS", ds, index);
 
 			sql.Select( ds, index, where, flags, (err,recs) => {
 				res( err || recs );
@@ -2525,7 +2525,7 @@ const
 	@cfg {Function}
 	*/		
 	setContext: function (sql,cb) { 
-		Log(`CONTEXTING ${TOTEM.name}`);
+		Trace(`CONTEXTING ${TOTEM.name}`);
 	
 		const 
 			{pocs,derive} = sqls;
@@ -2547,7 +2547,7 @@ const
 			
 			else
 				throw new Error("Check if mysql service is running");
-			//Log(">>>lookups", lookups);
+			//Trace(">>>lookups", lookups);
 		});
 		
 		sql.query("SELECT Ref,Path,Name FROM openv.lookups", [], (err,recs) => {
@@ -2562,7 +2562,7 @@ const
 			
 			else
 				throw new Error("Check if mysql service is running");
-			//Log(">>>Lookups", Lookups);
+			//Trace(">>>Lookups", Lookups);
 		});
 		*/
 		
@@ -2570,7 +2570,7 @@ const
 		if (users) 
 			sql.query(users)
 			.on("result", user => site.pocs["user"] = (user.Clients || "").toLowerCase() );
-			//.on("end", () => Log("user pocs", site.pocs) );
+			//.on("end", () => Trace("user pocs", site.pocs) );
 		*/
 		
 		sql.query(derive, {Nick:TOTEM.name})
@@ -2584,7 +2584,7 @@ const
 					site[key] = val;
 				}
 
-				//Log(">>>site",key,val);
+				//Trace(">>>site",key,val);
 				if (key in TOTEM) 
 					TOTEM[key] = site[key];
 			});
@@ -2675,7 +2675,7 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 			sinkStream = FS.createWriteStream( sinkPath, "utf-8")
 				.on("finish", function() {  // establish sink stream for export pipe
 
-					//Log("UPLOADED FILE");
+					//Trace("UPLOADED FILE");
 					sqlThread( sql => {
 						sql.query("UPDATE apps.files SET ? WHERE ?", [{
 							_Ingest_Tag: JSON.stringify(tags || null),
@@ -2684,7 +2684,7 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 					});
 				})
 				.on("error", err => {
-					Log("totem upload error", err);
+					Trace("totem upload error", err);
 					sqlThread( sql => {
 						sql.query("UPDATE openv.files SET ? WHERE ?", [ {
 							_State_Notes: "Upload failed: " + err 
@@ -2692,7 +2692,7 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 					});
 				});
 
-		//Log("uploading to", sinkPath);
+		//Trace("uploading to", sinkPath);
 
 		if (cb) cb(file.ID);  // callback if provided
 		
@@ -2715,19 +2715,19 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 
 	proxy.method = req.method;
 	
-	Log(proxy, pathto);
+	Trace(proxy, pathto);
 	
 	/ *
 	var sock = NET.connect( proxy.port );
 	sock.setEncoding("utf-8");
 	sock.write("here is some data for u");
 	sock.on("data", function (d) {
-		Log("sock rx", d);
+		Trace("sock rx", d);
 		res(d);
 	}); * /
 	
 	var Req = HTTP.request( pathto, function(Res) {
-		Log("==========SETUP", Res.statusCode, Res.headers);
+		Trace("==========SETUP", Res.statusCode, Res.headers);
 		
 		var body = "";
 
@@ -2737,22 +2737,22 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 		});
 
 		Res.on("end", function () {
-			Log("=========rx "+body);
+			Trace("=========rx "+body);
 			res(body);
 		});
 		
 		Res.on("error", err => {
-			Log("what??? "+err);
+			Trace("what??? "+err);
 		}); 
 		
 	}); 
 
 	Req.on('error', err => {
-		Log("=========tx "+err);
+		Trace("=========tx "+err);
 		res("oh well");
 	});
 	
-	//Log( "RELAY TX "+JSON.stringify( req.body) );
+	//Trace( "RELAY TX "+JSON.stringify( req.body) );
 
 	if (proxy.method == "PUT") 
 		Req.write( JSON.stringify(req.body) );
@@ -2794,23 +2794,23 @@ function proxyThread(req, res) {  // not presently used but might want to suppor
 
 	var server = net.createServer(socket => {
 		socket.on('data', function (msg) {
-			Log('  ** START **');
-			Log('<< From client to proxy ', msg.toString());
+			Trace('  ** START **');
+			Trace('<< From client to proxy ', msg.toString());
 			var serviceSocket = new net.Socket();
 			serviceSocket.connect(parseInt(REMOTE_PORT), REMOTE_ADDR, function () {
-				Log('>> From proxy to remote', msg.toString());
+				Trace('>> From proxy to remote', msg.toString());
 				serviceSocket.write(msg);
 			});
 			serviceSocket.on("data", function (data) {
-				Log('<< From remote to proxy', data.toString());
+				Trace('<< From remote to proxy', data.toString());
 				socket.write(data);
-				Log('>> From proxy to client', data.toString());
+				Trace('>> From proxy to client', data.toString());
 			});
 		});
 	});
 
 	server.listen(LOCAL_PORT);
-	Log("TCP server accepting connection on port: " + LOCAL_PORT);
+	Trace("TCP server accepting connection on port: " + LOCAL_PORT);
 	* /
 	
 }
@@ -2850,8 +2850,9 @@ async function prime(cb) {
 }
 
 switch (process.argv[2]) { //< unit tests
+	case "T?":
 	case "?":
-		Log("unit test with 'node totem.js [T$ || T1 || T2 || ...]'");
+		Trace("unit test with 'node totem.js [T$ || T1 || T2 || ...]'");
 		break;
 
 	case "T$":
@@ -2859,8 +2860,7 @@ switch (process.argv[2]) { //< unit tests
 		break;
 
 	case "T1": 
-		Log({
-			msg: "Im simply a Totem interface so Im not even running as a service", 
+		Trace("Im simply a Totem interface so Im not even running as a service", {
 			default_fetcher_endpts: TOTEM.byTable,
 			default_protect_mode: TOTEM.guard,
 			default_cores_used: TOTEM.cores
@@ -2874,7 +2874,7 @@ switch (process.argv[2]) { //< unit tests
 			cores: 2
 		}, sql => {
 
-			Log( 
+			Trace( 
 `I'm a Totem service running in fault protection mode, no database, no UI; but I am running
 with 2 workers and the default endpoint routes` );
 
@@ -2885,7 +2885,7 @@ with 2 workers and the default endpoint routes` );
 	case "start": 
 
 		TOTEM.config(null, sql => {
-			Log( 
+			Trace( 
 `I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
 my startup options (see the openv.apps table for the Nick="Totem1").  
 No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
@@ -2900,7 +2900,7 @@ these files. `
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 					res( "123" );
 
-					Log("", {
+					Trace("dothis", {
 						do_query: req.query
 					});
 				},
@@ -2912,7 +2912,7 @@ these files. `
 					else
 						res( new Error("We have a problem huston") );
 
-					Log("", {
+					Trace("dothat", {
 						msg: `Like dothis, but needs an ?x=value query`, 
 						or_query: req.query,
 						or_user: req.client
@@ -2920,13 +2920,12 @@ these files. `
 				}
 			}
 		}, sql => {
-			Log("", {
-				msg:
+			Trace(
 `As always, if the openv.apps Encrypt is set for the Nick="Totem" app, this service is now **encrypted** [*]
 and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only requested only 1 worker (
 aka core), Im running unprotected, and have a mysql database.  
 [*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
-associated public NICK.crt and private NICK.key certs it creates.`,
+associated public NICK.crt and private NICK.key certs it creates.`, {
 				my_endpoints: T.byTable
 			});
 		});
@@ -2936,10 +2935,9 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 		TOTEM.config({
 			"secureIO.challenge.extend": 20
 		}, sql => {
-			Log("", {
-				msg:
+			Trace(
 `I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot
-shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.`, 
+shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.`, {
 				mysql_derived_parms: T.site
 			});
 		});
@@ -2989,14 +2987,14 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 			}
 
 		}, sql => {
-			Log( "Testing runTask with database and 3 cores at /test endpoint" );
+			Trace( "Testing runTask with database and 3 cores at /test endpoint" );
 		});
 		break;
 		
 	case "T7":
 		TOTEM.config({
 		}, sql => {				
-			Log( "db maintenance" );
+			Trace( "db maintenance" );
 
 			if (CLUSTER.isMaster)
 				switch (process.argv[3]) {
@@ -3098,13 +3096,13 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		TOTEM.config();
 		neoThread( neo => {
 			neo.cypher( "MATCH (n:gtd) RETURN n", {}, (err,nodes) => {
-				Log("nodes",err,nodes.length,nodes[0]);
+				Trace("nodes",err,nodes.length,nodes[0]);
 				var map = {};
 				nodes.forEach( (node,idx) => map[node.n.name] = idx );
 				//Log(">map",map);
 				
 				neo.cypher( "MATCH (a:gtd)-[r]->(b:gtd) RETURN r", {}, (err,edges) => {
-					Log("edges",err,edges.length,edges[0]);
+					Trace("edges",err,edges.length,edges[0]);
 					var 
 						N = nodes.length,	
 						cap = $([N,N], (u,v,C) => C[u][v] = 0 ),
@@ -3113,7 +3111,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 					
 					edges.forEach( edge => cap[map[edge.r.srcId]][map[edge.r.tarId]] = 1 );
 					
-					//Log(">cap",cap);
+					//Trace(">cap",cap);
 					
 					for (var s=0; s<N; s++)
 						for (var t=s+1; t<N; t++) {
@@ -3125,7 +3123,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 						}
 					
 					lamlist.forEach( (list,r) => {
-						if ( r && list.length ) Log(r,list);
+						if ( r && list.length ) Trace(r,list);
 					});
 						
 				});
@@ -3201,7 +3199,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 	case "T11":
 		TOTEM.config({name:""}, sql => {
 			sql.batch( "gtd", {batch:100}, recs => {
-				Log("streamed", recs.length);
+				Trace("streamed", recs.length);
 			});
 		});
 		break;
