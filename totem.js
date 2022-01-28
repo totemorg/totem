@@ -388,7 +388,7 @@ const
 		$master, $worker, 
 	 	createCert, loginClient,
 		getBrick, routeRequest, setContext,
-		filterFlag, paths, sqls, errors, site, maxFiles, isEncrypted, behindProxy, admitRules,
+		filterFlag, paths, sqls, errors, site, isEncrypted, behindProxy, admitRules,
 		filterType,tableRoutes, dsThread, startDogs, cache } = TOTEM = module.exports = {
 	
 	Log: (...args) => console.log(">>>totem", args),
@@ -844,13 +844,13 @@ const
 							{area,table,type,path} = req;
 
 						//Log(area,path,type);
-						if ( path.endsWith("/") )		// requesting folder
-							if ( route = byArea[area] || byArea.default )
+						if ( path.endsWith("/") ) 		// requesting folder
+							if ( route = byArea[area] || byArea.navigate )
 								route(req,res);
 
 							else
 								res( errors.noRoute );
-
+						
 						else {	// requesting file						
 							const
 								file = table+"."+type,
@@ -2325,18 +2325,23 @@ const
 	},
 
 	/**
-	By-area endpoint routers {area: method(req,res), ... } for sending/cacheing files
+	By-area endpoint routers {area: method(req,res), ... } for sending/cacheing/navigating files
 	@cfg {Object} 
 	*/		
 	byArea: {
-		default: (req,res) => {
+		/**
+		Default area navigator
+		@param {Object} req Totem session request
+		@param {Function} res Totem session response
+		*/
+		navigate: (req,res) => {
 			const
 				{client,path} = req;
 
 			Fetch( "file:" + path, files => {
 				req.type = "html"; // otherwise default type is json.
 				res(
-					`hello ${client}<br>Index of ${path}<br>` +
+					`${client} ${path}<br>` +
 					files.map( file => file.link( file ) ).join("<br>") 
 				);
 			});
@@ -2871,6 +2876,7 @@ with 2 workers and the default endpoint routes` );
 		});
 		break;
 
+	case "T3":
 	case "start": 
 
 		TOTEM.config(null, sql => {
