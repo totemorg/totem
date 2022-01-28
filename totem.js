@@ -30,7 +30,8 @@ const
 	// totem modules
 	{ testClient } = SECLINK = require("../securelink"),			// secure com and login
 	{ sqlThread, neoThread } = JSDB = require("../jsdb"),		// database agnosticator
-	{ Copy,Each,Debug,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("../enums");
+	{ Copy,Each,Debug,Stream,Clock,Log,
+	 isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("../enums");
 
 /**
 @module TOTEM.String
@@ -383,7 +384,7 @@ neoThread( neo => {
 */
 
 const 
-	{ 	Log, Trace,
+	{ 	Trace,
 		byArea, byType, byAction, byTable, CORS,
 		defaultType, 
 		$master, $worker, 
@@ -392,7 +393,6 @@ const
 		filterFlag, paths, sqls, errors, site, isEncrypted, behindProxy, admitRules,
 		filterType,tableRoutes, dsThread, startDogs, cache } = TOTEM = module.exports = {
 	
-	Log: console.log,
 	Trace: (msg, ...args) => `totem>>>${msg}`.trace( args ),	
 		
 	/**
