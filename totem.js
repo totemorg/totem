@@ -26,10 +26,11 @@ const
 	BUSY = require('toobusy-js'),  				// denial-of-service protector (cant install on NodeJS 5.x+)
 	JS2XML = require('js2xmlparser'), 			// JSON to XML parser
 	JS2CSV = require('json2csv'),				// JSON to CSV parser	
-	{ testClient } = SECLINK = require("securelink"),			// secure com and login
-	{ sqlThread, neoThread } = JSDB = require("jsdb"),		// database agnosticator
 	  
-	{ Copy,Each,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("enums");
+	// totem modules
+	{ testClient } = SECLINK = require("../securelink"),			// secure com and login
+	{ sqlThread, neoThread } = JSDB = require("../jsdb"),		// database agnosticator
+	{ Copy,Each,Debug,Stream,Clock,isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("../enums");
 
 /**
 @module TOTEM.String
@@ -391,7 +392,7 @@ const
 		filterFlag, paths, sqls, errors, site, isEncrypted, behindProxy, admitRules,
 		filterType,tableRoutes, dsThread, startDogs, cache } = TOTEM = module.exports = {
 	
-	Log: (...args) => console.log(">>>totem", args),
+	Log: (...args) => console.log(`>>>totem:${args[0]}`, args.slice(1) ),
 	Trace: (msg,args,req) => "totem".trace(msg, req, msg => console.log(msg,args) ),	
 		
 	/**
@@ -845,7 +846,7 @@ const
 
 						//Log(area,path,type);
 						if ( path.endsWith("/") ) 		// requesting folder
-							if ( route = byArea[area] || byArea.navigate )
+							if ( route = byArea[area] || byArea.all )
 								route(req,res);
 
 							else
@@ -2330,11 +2331,11 @@ const
 	*/		
 	byArea: {
 		/**
-		Default area navigator
+		Default area navigator used for all areas.
 		@param {Object} req Totem session request
 		@param {Function} res Totem session response
 		*/
-		navigate: (req,res) => {
+		all: (req,res) => {
 			const
 				{client,path} = req;
 
@@ -2850,7 +2851,11 @@ async function prime(cb) {
 
 switch (process.argv[2]) { //< unit tests
 	case "?":
-		Log("unit test with 'node totem.js [T1 || T2 || ...]'");
+		Log("unit test with 'node totem.js [T$ || T1 || T2 || ...]'");
+		break;
+
+	case "T$":
+		Debug(TOTEM);
 		break;
 
 	case "T1": 
