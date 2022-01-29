@@ -74,7 +74,7 @@ system_config.)
 	export node_path=./node_modules
 
 	# Python
-	export CONDA=$BASE/atomconda
+	export CONDA=$BASE/anaconda
 	export PYTHONHOME=$CONDA
 	export PYTHONPATH=$BASE/caffe/python:$PYTHON/:$PYTHON/site-packages:$BASE/service/atomic
 	
@@ -195,7 +195,7 @@ totem_config.)
 atomic_config.)
 	# To link atomic with caffe, anaconda python, and opencv
 
-	export CONDA=$BASE/atomconda
+	export CONDA=$BASE/anaconda
 	export LIB=$BASE/lib64
 	export NODE=$BASE/nodejs
 	

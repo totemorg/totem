@@ -496,6 +496,7 @@ neoThread( neo => {
             * [.execute(req, res)](#module_TOTEM.byAction.execute)
         * [.byType](#module_TOTEM.byType)
         * [.byArea](#module_TOTEM.byArea)
+            * [.all(req, res)](#module_TOTEM.byArea.all)
         * [.trustStore](#module_TOTEM.trustStore)
         * [.server](#module_TOTEM.server)
         * [.guard](#module_TOTEM.guard)
@@ -866,10 +867,22 @@ By-type endpoint routers  {type: method(req,res), ... } for accessing dataset re
 <a name="module_TOTEM.byArea"></a>
 
 ### TOTEM.byArea
-By-area endpoint routers {area: method(req,res), ... } for sending/cacheing files
+By-area endpoint routers {area: method(req,res), ... } for sending/cacheing/navigating files
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
+<a name="module_TOTEM.byArea.all"></a>
+
+#### byArea.all(req, res)
+Default area navigator used for all areas.
+
+**Kind**: static method of [<code>byArea</code>](#module_TOTEM.byArea)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
 <a name="module_TOTEM.trustStore"></a>
 
 ### TOTEM.trustStore
