@@ -833,7 +833,7 @@ const
 			}
 			*/
 			
-			dsThread( req, req => {
+			dsThread( req, req => {	// start a dataset thread
 				const
 					{area,table,action,path,ds} = req;
 
@@ -911,65 +911,47 @@ const
 			{ post } = req;
 
 		req.body = post.parseJSON( post => {  // get parameters or yank files from body 
-			var 
+			const 
 				files = req.files = [], 
-				parms = {}, 
-				file = "", 
-				rem,filename,name,type;
+				body = {};
 
+			var
+				key = "";
+				
 			if (post)
-				try {	// attempt extjs file upload
+				try {
+					//Trace("post",post);
 					post.split("\r\n").forEach( (line,idx) => {	// parse file posting parms
-						if ( idx % 2 )
-							files.push({
-								filename: filename.replace(/'/g,""),
-								name: name,
-								data: line,
-								type: type,
-								size: line.length
+						if ( line.startsWith("-----------------------------") ) {
+						}
+
+						else
+						if ( line.startsWith("Content-Disposition:") )
+							line.split("; ").forEach( (arg,idx) => {
+								if (idx) {
+									const
+										[pre,key,val] = arg.match( /(.*)=\"(.*)\"/ ) || ["",""];
+
+									body[key] = val;
+								}
 							});
 
-						else {
-							[rem,filename,name,type] = line.match( /<; filename=(.*) name=(.*) ><\/;>type=(.*)/ ) || [];
-
-							if ( !filename ) 
-								line.split("&").forEach( parm => {
-									var [rem,key,value] = parm.match( /(.*)=(.*)/ ) || ["",parm,""];
-									parms[key] = value;
-								});
+						else
+						if ( line.startsWith("Content-Type:") ) {
 						}
-						/*
-						if (parms.type) {  // type was defined so have the file data
-							files.push( Copy(parms,{data: line, size: line.length}) );
-							parms = {};
-						}
-						else {
-							//Trace("LOAD", line);
 
-							line.split(";").forEach( (arg,idx) => {  // process one file at a time
-								//Trace("line ",idx,line.length);
-								var tok = arg
-									.replace("Content-Disposition: ","disposition=")
-									.replace("Content-Type: ","type=")
-									.split("="), 
-
-									val = tok.pop(), 
-									key = tok.pop();
-
-								if (key)
-									parms[key.replace(/ /g,"")] = val.replace(/"/g,"");
-							});
-						}
-						*/										
+						else
+						if (line)
+							body[ body.name ] = line;									
 					});
 				}
 				
 				catch (err) {
-					Trace("POST FAILED", post);
+					Trace("POST FAILED", err);
 				}
 
-			//Trace("body files=", files.length);
-			return parms;
+			//Trace("body", body);
+			return body;
 		});		// get body parameters/files
 
 		route( req, res );
