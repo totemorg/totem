@@ -480,8 +480,7 @@ neoThread( neo => {
         * [.modTimes](#module_TOTEM.modTimes)
         * [.behindProxy](#module_TOTEM.behindProxy)
         * [.name](#module_TOTEM.name)
-        * [.passEncrypted](#module_TOTEM.passEncrypted)
-        * [.$master](#module_TOTEM.$master)
+        * [.certPass](#module_TOTEM.certPass)
         * [.site](#module_TOTEM.site)
         * [.filterType](#module_TOTEM.filterType)
         * [.byTable](#module_TOTEM.byTable)
@@ -699,21 +698,13 @@ Service name used to
 	are not overridden.
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-<a name="module_TOTEM.passEncrypted"></a>
+<a name="module_TOTEM.certPass"></a>
 
-### TOTEM.passEncrypted
+### TOTEM.certPass
 Enabled when master/workers on encrypted service
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Boolean</code>  
-<a name="module_TOTEM.$master"></a>
-
-### TOTEM.$master
-Host information: https encryption passphrase,
-	domain name of workers, domain name of master.
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>String</code> [name="Totem"]  
 <a name="module_TOTEM.site"></a>
 
 ### TOTEM.site
