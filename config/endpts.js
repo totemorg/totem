@@ -8,8 +8,8 @@ Provide TOTEM endpoints.
 */
 
 const
-	{testClient} = require("securelink"),
-	{Copy,Log,Fetch} = require("enums"),
+	{testClient} = require("../../securelink"),
+	{Copy,Log,Fetch} = require("../../enums"),
 	CLUSTER = require("cluster");
 
 module.exports = {

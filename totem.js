@@ -15,7 +15,7 @@ const
 	//NET = require("net"), 					// network interface
 	VM = require("vm"), 						// virtual machines for tasking
 	OS = require('os'),							// OS utilitites
-
+				  
 	// 3rd party modules
 	  
 	//AGENT = require("http-proxy-agent"),		// agent to access proxies
@@ -384,10 +384,14 @@ neoThread( neo => {
 */
 
 const 
+	worker = ENV.SERVICE_WORKER_URL || "http://localhost:8081", 
+	master = ENV.SERVICE_MASTER_URL || "http://localhost:8080",
+	$worker = new URL(worker),
+	$master = new URL(master),
+	  
 	{ 	Trace,
 		byArea, byType, byAction, byTable, CORS,
 		defaultType, 
-		$master, $worker, 
 	 	createCert, loginClient,
 		getBrick, routeRequest, setContext,
 		filterFlag, paths, sqls, errors, site, isEncrypted, behindProxy, admitRules,
@@ -1124,10 +1128,8 @@ const
 				*/				
 				function startServer(server, port, agent) {	//< attach listener callback cb(Req,Res) to the specified port
 					const 
-						{ initialize, secureIO, name, dogs, guard, guards, proxy, proxies, cores, sendMail } = TOTEM;
+						{ initialize, secureIO, dogs, guard, guards, proxy, proxies, cores, sendMail } = TOTEM;
 					
-					Trace(`STARTING ${name}`);
-
 					if ( secureIO )		// setup secure link sessions with a guest profile
 						sqlThread( sql => {
 							sql.query( "SELECT * FROM openv.profiles WHERE Client='Guest' LIMIT 1", [], (err,recs) => {
@@ -1184,8 +1186,8 @@ const
 
 						CLUSTER.on('online', worker => Trace("WORKER CONNECTED"));
 
-						for (var core = 0; core < TOTEM.cores; core++) // create workers
-							worker = CLUSTER.fork();
+						// create workers
+						for (var core = 0; core < cores; core++) CLUSTER.fork();
 						
 						const { modTimes, onFile, watchFile,secureIO } = TOTEM;
 
@@ -1204,13 +1206,14 @@ const
 
 						Log( [ // splash
 							"HOSTING " + site.nick,
-							"AT " + `(${site.master}, ${site.worker})`,
+							"AT MASTER " + site.master,
+							"AT WORKER " + site.worker,
 							"FROM " + process.cwd(),
 							"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
 							"WITH "+ (secureIO ? secureIO.sio ? "SECURE" : "INSECURE" : "NO")+" LINKS",
 							"WITH " + (site.sessions||"UNLIMITED") + " CONNECTIONS",
-							"WITH " + (cores ? cores + " WORKERS AT "+site.worker : "NO WORKERS"),
-							"POCS " + JSON.stringify(site.pocs)
+							"USING " + (cores ? cores + " WORKERS" : "NO WORKERS"),
+							"HAVING POCS " + JSON.stringify(site.pocs)
 						].join("\n- ") );
 
 						sqlThread( sql => {	// initialize file watcher, proxies, watchdog and endpoints
@@ -1294,7 +1297,7 @@ const
 				
 				Each( FS.readdirSync(paths.certs+"truststore"), (n,file) => {
 					if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
-						Trace("TRUSTING", file);
+						Trace("TRUSTING ${name} WITH CA CHAIN", file);
 						trustStore.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf-8") );
 					}
 				});
@@ -1302,9 +1305,9 @@ const
 				const
 					server = TOTEM.server = isEncrypted() 
 						? HTTPS.createServer({
-							passphrase: TOTEM.passEncrypted,		// passphrase for pfx
+							passphrase: TOTEM.certPass,		// passphrase for pfx
 							pfx: certs.totem.pfx,			// pfx/p12 encoded crt and key 
-							ca: trustStore,				// list of pki authorities (trusted serrver.trust)
+							ca: trustStore,					// list of pki authorities (trusted serrver.trust)
 							crl: [],						// pki revocation list
 							requestCert: true,
 							rejectUnauthorized: true,
@@ -1592,22 +1595,22 @@ const
 			}
 
 			const
-				{ name, cores } = TOTEM,
+				{name} = TOTEM,
 				pfx = `${paths.certs}${name}.pfx` ;
 
-			Trace( `PROTECTING ${name} USING ${pfx}` );
+			Trace( `PROTECTING ${name} USING CERT ${pfx}` );
 
-			Copy( new URL(site.master), $master);
-			Copy( new URL(site.worker), $worker);
+			//Copy( new URL(site.master), $master);
+			//Copy( new URL(site.worker), $worker);
 			
-			site.domain = $master.hostname;
-			site.host = $master.protocol+"//"+$master.host;
+			//site.domain = $master.hostname;
+			//site.host = $master.protocol+"//"+$master.host;
 			//Trace(">>domain",site.master, $master, site.worker, $worker, site.domain, site.host);
 			
 			if ( isEncrypted() )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
 					if (err) // create self-signed cert then connect
-						createCert(	`${paths.certs}${name}`, TOTEM.passEncrypted, () => {
+						createCert(	`${paths.certs}${name}`, TOTEM.certPass, () => {
 							createServer();
 						});	
 
@@ -1620,9 +1623,9 @@ const
 		}
 
 		const
-			{ name } = TOTEM;
+			{name} = TOTEM;
 		
-		Trace(`CONFIGURING ${name}`); 
+		Trace(`CONFIGURING ${name} WITH ENDPOINTS`, paths.userEndpts); 
 
 		if (opts) Copy(opts, TOTEM, ".");
 
@@ -1631,7 +1634,7 @@ const
 		}
 		
 		catch (err) {
-			Trace("Bad endpts");
+			Trace("ENDPOINTS DEFAULTED");
 		}
 		
 		Each( paths.mimes, (key,val) => {	// extend or remove mime types
@@ -1996,7 +1999,7 @@ const
 	Enabled when master/workers on encrypted service
 	@cfg {Boolean}
 	*/
-	passEncrypted: ENV.SERVICE_PASS || "",
+	certPass: ENV.SERVICE_PASS || "",
 			
 	isEncrypted: () => ( CLUSTER.isMaster ? $master.protocol : $worker.protocol ) == "https:",
 
@@ -2006,12 +2009,6 @@ const
 	@cfg {String} [name="Totem"]
 	*/	
 
-	$master: { // derived
-	},
-	
-	$worker: { // derived
-	},
-			
 	/**
 	Site context extended by the mysql derived query when service starts
 	@cfg {Object} 
@@ -2021,11 +2018,17 @@ const
 		socketio: 
 			"/socketio/socketio-client.js",		// working
 			//  "/socket.io/socket.io-client.js",	// buggy
-		
+
 		started: new Date(),
-		worker:  ENV.SERVICE_WORKER_URL || "http://localhost:8081", 
-		master:  ENV.SERVICE_MASTER_URL || "http://localhost:8080",
-		domain: "tbd.domain.org",
+		
+		$master: $master,
+		$worker: $worker,
+			
+		worker:  worker, 
+		master:  master,
+		domain: $master.hostname,
+		host: 	$master.protocol + "//" + $master.host,
+		
 		pocs: {
 			admin: "admin@tbd.org",
 			overlord: "overlord@tbd.org",
@@ -2835,6 +2838,7 @@ switch (process.argv[2]) { //< unit tests
 	case "T?":
 	case "?":
 		Trace("unit test with 'node totem.js [T$ || T1 || T2 || ...]'");
+		Trace("SITE CONTEXT", site);
 		break;
 
 	case "T$":
