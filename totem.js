@@ -575,13 +575,16 @@ const
 	},
 		
 	/**
-	Start a dataset thread.
+	Start a dataset thread.  In phase 3/3 of the session connection, append 
+	{query,index,flags,where} and {sql,table,area,path,type} to the request.
+	
 	@param {Object} req Totem endpoint request
 	@param {Function} cb callback(competed req)
 	*/
 	dsThread: (req,cb) => {
 		const
-			{ url, body, client } = req,
+			{ revSession } = sqls,
+			{ ipAddress, url, body, client } = req,
 			query = req.query = {},
 			index = req.index = {},
 			flags = req.flags = {},
@@ -633,6 +636,15 @@ const
 		//Log([path,table,type,area]);
 		
 		sqlThread( sql => {
+			
+			if ( revSession )	// optional logging of connections
+				sql.query(revSession, [{
+					IPsession: ipAddress
+				}, {
+					Client: client
+				}] );
+
+			
 			req.ds = ( 
 				tableRoutes[flags.notebook || flags.nb || flags.project || flags.option || flags.task || table] 
 				|| (req => `app.${table}`)
@@ -1100,7 +1112,7 @@ const
 		Configure (create, start then initialize) a service that will handle its request-response 
 		sessions.
 
-		The session request is constructed in 3 phases: startRequest, startResponse, then routeRequest.
+		The session request is constructed in 3 phases: reqThread, resThread, then dsThread.
 		As these phases are performed, the request hash req is extended.
 
 		@param {Function} agent callback(req,res) to handle session request-response 
@@ -1130,7 +1142,7 @@ const
 					if ( secureIO )		// setup secure link sessions with a guest profile
 						sqlThread( sql => {
 							sql.query( "SELECT * FROM openv.profiles WHERE Client='Guest' LIMIT 1", [], (err,recs) => {
-								Log( recs[0] 
+								Trace( recs[0] 
 									? "Guest logins enabled"
 									: "Guest logins disabled" );
 								
@@ -1318,7 +1330,7 @@ const
 					Provide a request hash req to the supplied session, or terminate the session 
 					if the service is too busy.
 
-					In phase1 of session setup, the following is added to this req:
+					In phase 1/3 of session setup, the following is added to this req:
 
 						host: "proto://domain:port"	// requested host 
 						cookie: "...."		// client cookie string
@@ -1337,7 +1349,7 @@ const
 
 					@param {Function} ses session(req) callback accepting the provided request
 					*/
-					function startRequest( ses ) { 		// start request and callback session cb
+					function reqThread( ses ) { 		// start request and callback session cb
 						function getSocket() {  //< returns suitable response socket depending on cross/same domain session
 							if ( Req.headers.origin ) {  // cross domain session is in progress from master (on http) to its workers (on https)
 								Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
@@ -1359,38 +1371,39 @@ const
 						}
 
 						switch ( Req.method ) {	// get post parms depending on request type being made
+							// CRUD interface
 							case "PUT":
 							case "GET":
 							case "POST":
 							case "DELETE":
-								getPost( post => {
-									//Trace(">>>>post", post);
-									//Trace(Req.headers, Req.url);
-									ses(null, {			// prime session request
+								//Trace("============ip", Req.connection.remoteAddress, Req.socket.remoteAddress, Req.headers['x-forwarded-for'] );
+								getPost( post => {							// prime session request
+									ses(null, {								// start the session
 										cookie: Req.headers["cookie"] || "",
-										ipAddress: Req.connection.remoteAddress,
-										host: $master.protocol+"//"+Req.headers["host"],	// domain being requested
+										ipAddress: Req.socket.remoteAddress,
+										host: $master.protocol+"//"+Req.headers["host"],		// domain being requested
 										referer: new URL(Req.headers["referer"] || master), 	// proto://domain used
 										agent: Req.headers["user-agent"] || "",	// requester info
-										post: post, // raw post body
-										method: Req.method,		// get,put, etc
-										now: new Date(),  // Req.headers.Date,  // time client started request
-										action: crudIF[Req.method],	// crud action being requested
-										reqSocket: Req.socket,   // use supplied request socket 
-										resSocket: getSocket,		// attach method to return a response socket
-										encrypted: isEncrypted(),	// on encrypted worker
-										url: unescape( Req.url || "/" ),	// unescaped url
-										site: site			// site info
+										post: post, 						// raw post body
+										method: Req.method,					// get,put, etc
+										now: new Date(),  					// time client started request
+										action: crudIF[Req.method],			// crud action being requested
+										reqSocket: Req.socket,   			// use supplied request socket 
+										resSocket: getSocket,				// attach method to return a response socket
+										encrypted: isEncrypted(),			// on encrypted worker
 										/*
 										There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
 										embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
 										unescapes to /\\"ABC\\".  This is ok but can be confusing.
 										*/
+										url: unescape( Req.url || "/" ),	// unescaped url
+										site: site							// site info
 									});
 								});
 								break;
 
-							case "OPTIONS":  // client making cross-domain call - must respond with what are valid methods
+							// client making cross-domain CORs request, so respond with valid methods
+							case "OPTIONS":  
 								//Req.method = Req.headers["access-control-request-method"];
 								//Trace(">>>>>>opts req", Req.headers);
 								Res.writeHead(200, {
@@ -1415,12 +1428,12 @@ const
 						Res.end( errors.isBusy );
 
 					else
-						startRequest( (err,req) => {  // start request if service not busy
+						reqThread( (err,req) => {  // start request if service not busy
 							/**
 							Provide a response to a session after attaching cert, client, profile 
 							and session info to this request.  
 
-							In phase2 of the session setup, the following is added to this req:
+							In phase 2/3 of the session setup, the following is added to this req:
 							
 								log: {...}			// info to trap socket stats
 								client: "..."		// name of client from cert or "guest"
@@ -1428,7 +1441,7 @@ const
 
 							@param {Function} cb connection accepting the provided response callback
 							*/
-							function startResponse( ses ) {  	// start response using this session callback								
+							function resThread( ses ) {  	// start response using this session callback								
 								if ( req.reqSocket )	// have a valid request socket so ....
 									loginClient(req, (err,prof) => {	// get client profile
 										if (prof) {			// client accepted so start session
@@ -1436,9 +1449,8 @@ const
 											req.profile = prof;
 
 											const 
-												{ sql, client } = req,
-												{ addConnect } = sqls;
-
+												{ sql, client } = req;
+											
 											ses(null, data => {  // Provide session response callback
 
 												function sendString( data ) {  // Send string - terminate sql connection
@@ -1495,18 +1507,17 @@ const
 
 												const
 													{ req } = Req,
-													{ sql, now } = req,
+													{ now, ipAddress } = req,
 													mimes = MIME.types,
 													mime = mimes[ isError(data||0) ? "html" : req.type ] || mimes.html;
 
-												// set appropriate headers to prevent http-parse errors when using master-worker proxy
-
 												/*
+												// set appropriate headers to prevent http-parse errors when using master-worker proxy
 												if ( req.encrypted )
 													Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
 												*/
 
-												try {
+												try {  // set headers, handle CORs, then send data
 													Res.setHeader("Content-Type", mime);
 
 													if ( CORS ) {	// support CORS
@@ -1553,13 +1564,6 @@ const
 													Res.end();
 												}	
 											});	
-
-											if ( addConnect )	// optional logging of connections
-												sql.query(addConnect, {
-													Client: client,
-													Message: "joined", //JSON.stringify(cert),
-													Joined: now
-												});
 										}
 										
 										else
@@ -1577,9 +1581,7 @@ const
 
 							else {
 								Req.req = req;
-								startResponse( (err,res) => {	// route the request on the provided response callback
-									//Trace("startRes", err);
-
+								resThread( (err,res) => {	// route the request on the provided response callback
 									if ( err ) 
 										Res.end( errors.pretty( err ) );
 
@@ -1597,13 +1599,6 @@ const
 
 			Trace( `PROTECTING ${name} USING CERT ${pfx}` );
 
-			//Copy( new URL(site.master), $master);
-			//Copy( new URL(site.worker), $worker);
-			
-			//site.domain = $master.hostname;
-			//site.host = $master.protocol+"//"+$master.host;
-			//Trace(">>domain",site.master, $master, site.worker, $worker, site.domain, site.host);
-			
 			if ( isEncrypted() )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
 					if (err) // create self-signed cert then connect
@@ -2474,7 +2469,7 @@ const
 		//addSession: "INSERT INTO openv.sessions SET ?",
 		//addProfile: "INSERT INTO openv.profiles SET ?",
 		//getSession: "SELECT * FROM openv.sessions WHERE ? LIMIT 1",
-		//addConnect: "INSERT INTO openv.sessions SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1",
+		revSession: "UPDATE openv.sessions SET ? WHERE ?",
 		//challenge: "SELECT *,concat(client,password) AS Passphrase FROM openv.profiles WHERE Client=? LIMIT 1",
 		//guest: "SELECT * FROM openv.profiles WHERE Client='guest@totem.org' LIMIT 1",
 		pocs: "SELECT admin,overlord, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Users FROM openv.profiles GROUP BY admin,overlord"
