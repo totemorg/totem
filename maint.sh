@@ -45,7 +45,7 @@ geohack_config.)
 	#export IVA=/rroc/data/giat/iva			# IDOP conversion utilities
 	;;
 	
-system_config.)
+base_config.)
 	export BASE=/local
 	export MODULES=(totem atomic certs geohack enums reader debe pipe jsdb man randpr liegroup securelink socketio)
 	export MODULE=`basename $HERE`
@@ -61,9 +61,13 @@ system_config.)
 	#export PATH=$PATH:/usr/local/share/gems/gems/jsduck-5.3.4/bin 	# for jsduck
 
 	# DBs
-	export MYSQL=/local/mysql
-	export NEO4J=/local/neo4j
+	export MYSQL=$BASE/mysql
+	export NEO4J=$BASE/neo4j
 	
+	# Servers
+	export RED=$BASE/nodejs/lib/node_modules/node-red
+	export CESIUM=$BASE/cesium
+
 	# R
 	export R_libs=/usr/lib64/R/library/
 
@@ -285,7 +289,7 @@ atomic_config.)
 	;;
 
 config.)
-	source ./maint.sh system_config
+	source ./maint.sh base_config
 	source ./maint.sh seclink_config
 	source ./maint.sh jsdb_config
 	source ./maint.sh totem_config $2
@@ -459,9 +463,18 @@ startdbs.)
 	source ./maint.sh mysql start
 	source ./maint.sh neo4j start
 	;;
-	
-neo4j.)
 
+startapps.)
+	source ./maint.sh nodered start
+	source ./maint.sh cesium start
+	;;
+
+startme.)
+	source ./maint.sh startdbs
+	source ./maint.sh startapps
+	;;
+
+neo4j.)
 	case "$2." in
 	
 	start.)
@@ -471,9 +484,13 @@ neo4j.)
 	esac
 	;;
 
-jnb.)
-	cd /anaconda/bin
-	jupyter-notebook --ip 0.0.0.0 --port 8081
+jnotebook.)
+	case "$2". in
+	start.)
+		cd /anaconda/bin
+		jupyter-notebook --ip 0.0.0.0 --port 8081
+		;;
+	esac
 	;;
 
 readme.)
@@ -557,34 +574,45 @@ snap.)
 	source ./maint.sh snapmap
 	;;
 	
-start_cesium.)
-	if P=$(pgrep cesium); then
-		echo -e "cesium service running: \n$P"
-	else
-		#node $BASE/cesium/geonode/geocesium --port 8083 --public &
-		#node $BASE/cesium/server --port 8083 --public &
-		node $BASE/cesium/server.cjs --port 8083 --public &
-	fi
+cesium.)
+	case "$2." in
+	start.)
+		if P=$(pgrep cesium); then
+			echo -e "cesium service running: \n$P"
+		else
+			#node $BASE/cesium/geonode/geocesium --port 8083 --public &
+			#node $BASE/cesium/server --port 8083 --public &
+			node $CESIUM/server.cjs --port 8083 --public &
+		fi
+		;;
+	esac
 	;;
 
-start_nodered.)
-	if P=$(pgrep node-red); then
-		echo -e "nodered service running: \n$P"
-	else
-		#node $BASE/nodered/node_modules/node-red/red &
-		node $RED/red -s $RED/settings.js &
-	fi
+nodered.)
+	case "$2." in
+	start.)
+		if P=$(pgrep node-red); then
+			echo -e "nodered service running: \n$P"
+		else
+			#node $BASE/nodered/node_modules/node-red/red &
+			node $RED/red -s $RED/settings.js &
+		fi
+		;;
+	esac
 	;;
+	
+docker.)
+	case "$2." in
+	start.)
+		# probe to expose /dev/nvidia device drivers to docker
+		/base/nvidia/bin/x86_64/linux/release/deviceQuery
 
-start_docker.)
-	# docker
-	# probe to expose /dev/nvidia device drivers to docker
-	/base/nvidia/bin/x86_64/linux/release/deviceQuery
+		sudo systemctl start docker.service
 
-	sudo systemctl start docker.service
-
-	echo "docked containers"
-	docker ps -a
+		echo "docked containers"
+		docker ps -a
+		;;
+	esac
 	;;
 
 pubmake.)
