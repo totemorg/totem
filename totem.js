@@ -914,7 +914,6 @@ const
 			{ post } = req;
 
 		req.body = post ? post.parseJSON( post => {  // get parameters or yank files from body 
-			Trace("==================scan files");
 			const 
 				files = req.files = [], 
 				body = {};
@@ -953,7 +952,6 @@ const
 					Trace("POST FAILED", err);
 				}
 
-			//Trace("post body", body);
 			return body;
 		}) : {};		// get body parameters/files
 
@@ -1372,7 +1370,7 @@ const
 										cookie: Req.headers["cookie"] || "",
 										ipAddress: Req.connection.remoteAddress,
 										host: $master.protocol+"//"+Req.headers["host"],	// domain being requested
-										referer: Req.headers["referer"], 	// proto://domain used
+										referer: new URL(Req.headers["referer"] || master), 	// proto://domain used
 										agent: Req.headers["user-agent"] || "",	// requester info
 										post: post, // raw post body
 										method: Req.method,		// get,put, etc
@@ -2874,7 +2872,7 @@ switch (process.argv[2]) { //< unit tests
 		break;
 
 	case "T$":
-		Debug(TOTEM);
+		Debug();
 		break;
 
 	case "T1": 
