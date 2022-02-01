@@ -520,11 +520,10 @@ const
 		}
 		
 		const 
-			{ sql, cookie, encrypted, reqSocket, ipAddress } = req,
+			{ sql, cookie, encrypted, reqSocket, ipAddress, now} = req,
 			cookies = req.cookies = {},
 			{ Login, host } = SECLINK,
 			cert = (encrypted && reqSocket.getPeerCertificate) ? getCert(reqSocket) : null,
-			now = new Date(),
 			guest = `guest${ipAddress}@${host}`;
 
 		if ( cert ) {		// client on encrypted socket so has a pki cert
@@ -910,11 +909,12 @@ const
 					res( errors.noRoute );
 			});
 		}
-					
+
 		const 
 			{ post } = req;
 
-		req.body = post.parseJSON( post => {  // get parameters or yank files from body 
+		req.body = post ? post.parseJSON( post => {  // get parameters or yank files from body 
+			Trace("==================scan files");
 			const 
 				files = req.files = [], 
 				body = {};
@@ -924,7 +924,6 @@ const
 				
 			if (post)
 				try {
-					//Trace("post",post);
 					post.split("\r\n").forEach( (line,idx) => {	// parse file posting parms
 						if ( line.startsWith("-----------------------------") ) {
 						}
@@ -954,9 +953,9 @@ const
 					Trace("POST FAILED", err);
 				}
 
-			//Trace("body", body);
+			//Trace("post body", body);
 			return body;
-		});		// get body parameters/files
+		}) : {};		// get body parameters/files
 
 		route( req, res );
 	},
@@ -1330,7 +1329,7 @@ const
 						referer: "proto://domain:port/query"	//  url during a cross-site request
 						method: "GET|PUT|..." 			// http request method
 						action: "select|update| ..."	// corresponding crude name
-						started: date		// date stamp when requested started
+						now: date			// date stamp when requested started
 						encrypted: bool		// true if request on encrypted server
 						post: "..."			// raw body text
 						url	: "/query"		// requested url path
@@ -1377,7 +1376,7 @@ const
 										agent: Req.headers["user-agent"] || "",	// requester info
 										post: post, // raw post body
 										method: Req.method,		// get,put, etc
-										started: new Date(),  // Req.headers.Date,  // time client started request
+										now: new Date(),  // Req.headers.Date,  // time client started request
 										action: crudIF[Req.method],	// crud action being requested
 										reqSocket: Req.socket,   // use supplied request socket 
 										resSocket: getSocket,		// attach method to return a response socket
@@ -1498,7 +1497,7 @@ const
 
 												const
 													{ req } = Req,
-													{ sql } = req,
+													{ sql, now } = req,
 													mimes = MIME.types,
 													mime = mimes[ isError(data||0) ? "html" : req.type ] || mimes.html;
 
@@ -1561,7 +1560,7 @@ const
 												sql.query(addConnect, {
 													Client: client,
 													Message: "joined", //JSON.stringify(cert),
-													Joined: new Date()
+													Joined: now
 												});
 										}
 										
@@ -2185,9 +2184,18 @@ const
 		*/
 		select: (req, res) => {
 			const 
-				{ sql, flags, client, where, index, ds } = req;
+				{ sql, flags, client, where, index, table, ds, now } = req;
 
 			//Trace("selDS", ds, index);
+			sql.query(	// update db logs if it exits
+				"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1,?", [{
+					Op: "select",
+					Event: now,
+					Dataset: table,
+					Client: client
+				}, {
+					Event: now
+				}]);
 
 			sql.Select( ds, index, where, flags, (err,recs) => {
 				res( err || recs );
@@ -2202,10 +2210,10 @@ const
 		*/
 		update: (req, res) => {
 			const 
-				{ sql, flags, body, where, query, client, ds, table } = req,
+				{ sql, flags, body, where, query, client, ds, table, now } = req,
 				{ sio } = SECLINK;
 
-			//Log({w:where, q:query, b:body, t:table, ds: ds});
+			// Log({w:where, q:query, b:body, t:table, ds: ds});
 
 			if ( isEmpty(body) )
 				res( errors.noBody );
@@ -2215,12 +2223,15 @@ const
 				res( errors.noID );
 
 			else {
-				/*
 				sql.query(	// update db logs if it exits
-					"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1", {
-						Dataset: table,
+					"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1,?", [{
+						Op: "update",
+						Event: now,
+						Dataset: table+":"+(query.Name||query.name||query.ID),
 						Client: client
-					});*/
+					}, {
+						Event: now
+					}]);
 
 				sql.Update(ds, where, body, (err,info) => {
 
@@ -2246,13 +2257,23 @@ const
 		*/
 		delete: (req, res) => {
 			const 
-				{ sql, flags, where, query, body, client, ds, table } = req,
+				{ sql, flags, where, query, body, client, ds, table, now } = req,
 				{ sio } = SECLINK;
 
 			if ( isEmpty(query) )
 				res( errors.noID );
 
-			else
+			else {
+				sql.query(	// update db logs if it exits
+					"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1,?", [{
+						Op: "delete",
+						Event: now,
+						Dataset: table+":"+(query.Name||query.name||query.ID),
+						Client: client
+					}, {
+						Event: now
+					}]);
+
 				sql.Delete(ds, where, (err,info) => {
 					body.ID = query.ID;
 					res( err || body );
@@ -2266,6 +2287,7 @@ const
 						});	
 
 				});
+			}
 		},
 
 		/**
@@ -2276,9 +2298,19 @@ const
 		*/
 		insert: (req, res) => {
 			const 
-				{ sql, flags, body, client, ds,table } = req,
+				{ sql, flags, body, client, ds, table, now } = req,
 				{ sio } = SECLINK;
 
+			sql.query(	// update db logs if it exits
+				"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1,?", [{
+					Op: "insert",
+					Event: now,
+					Dataset: table+":"+(query.Name||query.name),
+					Client: client
+				}, {
+					Event: now
+				}]);
+			
 			sql.Insert(ds,body,(err,info) => {
 				res( err || {ID: info.insertId} );
 
