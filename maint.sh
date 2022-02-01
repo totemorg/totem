@@ -31,7 +31,7 @@ debe_config.)
 	export XLATE=$HERE/node_modules/i18n-abide/examples/express3/i18n	# I18N translation folder
 	export PATH=$PATH:$NODE/bin
 
-	export REPO=http://github.com:totemstan
+	export REPO=http://github.com/totemstan
 	export JIRA=http://jira.tbd
 	export RAS=http://ras.tbd
 	export BY=https://research.nga.ic.gov
