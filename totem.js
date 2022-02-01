@@ -2026,7 +2026,7 @@ const
 		worker:  worker, 
 		master:  master,
 		domain: $master.hostname,
-		host: 	$master.protocol + "//" + $master.host,
+		host: 	`${$master.protocol}//${$master.host}`,
 		
 		pocs: {
 			admin: "admin@tbd.org",
