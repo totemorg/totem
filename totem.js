@@ -2082,7 +2082,7 @@ const
 			if (type == "help")
 			return res("Send connection status");
 
-			res( `Welcome ${client} to ${nick}. ` + "site".link("/site.view") );
+			res( `Welcome ${client} to ` + nick.link("/site.view") );
 		},
 
 		/**
