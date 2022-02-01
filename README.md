@@ -962,7 +962,8 @@ Validate a client's session by attaching a log, profile, group, client,
 <a name="module_TOTEM.dsThread"></a>
 
 ### TOTEM.dsThread(req, cb)
-Start a dataset thread.
+Start a dataset thread.  In phase 3/3 of the session connection, append 
+	{query,index,flags,where} and {sql,table,area,path,type} to the request.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 
@@ -1037,7 +1038,7 @@ Configure and start the service with options and optional callback when started.
 Configure (create, start then initialize) a service that will handle its request-response 
 		sessions.
 
-		The session request is constructed in 3 phases: startRequest, startResponse, then routeRequest.
+		The session request is constructed in 3 phases: reqThread, resThread, then dsThread.
 		As these phases are performed, the request hash req is extended.
 
 **Kind**: inner method of [<code>config</code>](#module_TOTEM.config)  
