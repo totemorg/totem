@@ -1196,7 +1196,7 @@ const
 						CLUSTER.on('online', worker => Trace("WORKER CONNECTED"));
 
 						// create workers
-						//for (var core = 0; core < cores; core++) CLUSTER.fork();
+						for (var core = 0; core < cores; core++) CLUSTER.fork();
 						
 						const { modTimes, onFile, watchFile,secureIO } = TOTEM;
 
