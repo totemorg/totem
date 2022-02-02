@@ -1196,7 +1196,7 @@ const
 						CLUSTER.on('online', worker => Trace("WORKER CONNECTED"));
 
 						// create workers
-						for (var core = 0; core < cores; core++) CLUSTER.fork();
+						//for (var core = 0; core < cores; core++) CLUSTER.fork();
 						
 						const { modTimes, onFile, watchFile,secureIO } = TOTEM;
 
@@ -2859,6 +2859,7 @@ async function prime(cb) {
 	cb();
 }
 
+if ( CLUSTER.isMaster )
 switch (process.argv[2]) { //< unit tests
 	case "T?":
 	case "?":
@@ -3007,98 +3008,97 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 		}, sql => {				
 			Trace( "db maintenance" );
 
-			if (CLUSTER.isMaster)
-				switch (process.argv[3]) {
-					case 1: 
-						sql.query( "select voxels.id as voxelID, chips.id as chipID from openv.voxels left join openv.chips on voxels.Ring = chips.Ring", function (err,recs) {
-							recs.forEach( rec => {
-								sql.query("update openv.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
-									Log(err);
-								});
+			switch (process.argv[3]) {
+				case 1: 
+					sql.query( "select voxels.id as voxelID, chips.id as chipID from openv.voxels left join openv.chips on voxels.Ring = chips.Ring", function (err,recs) {
+						recs.forEach( rec => {
+							sql.query("update openv.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
+								Log(err);
 							});
 						});
-						break;
+					});
+					break;
 
-					case 2:
-						sql.query("select ID, Ring from openv.voxels", function (err, recs) {
-							recs.forEach( rec => {
+				case 2:
+					sql.query("select ID, Ring from openv.voxels", function (err, recs) {
+						recs.forEach( rec => {
+							sql.query(
+								"update openv.voxels set Point=geomFromText(?) where ?", 
+								[ `POINT(${rec.Ring[0][0].x} ${rec.Ring[0][0].y})` , {ID: rec.ID} ], 
+								err => {
+									Log(err);
+							});
+						});
+					});
+					break;
+
+				case 3:
+					sql.query( "select voxels.id as voxelID, cache.id as chipID from openv.voxels left join openv.cache on voxels.Ring = cache.geo1", function (err,recs) {
+						Log(err);
+						recs.forEach( rec => {
+							sql.query("update openv.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
+								Log(err);
+							});
+						});
+					});
+					break;
+
+				case 4:
+					sql.query("select ID, geo1 from openv.cache where bank='chip'", function (err, recs) {
+						recs.forEach( rec => {
+							if (rec.geo1)
 								sql.query(
-									"update openv.voxels set Point=geomFromText(?) where ?", 
-									[ `POINT(${rec.Ring[0][0].x} ${rec.Ring[0][0].y})` , {ID: rec.ID} ], 
+									"update openv.cache set x1=?, x2=? where ?", 
+									[ rec.geo1[0][0].x, rec.geo1[0][0].y, {ID: rec.ID} ], 
 									err => {
 										Log(err);
 								});
-							});
 						});
-						break;
+					});
+					break;
 
-					case 3:
-						sql.query( "select voxels.id as voxelID, cache.id as chipID from openv.voxels left join openv.cache on voxels.Ring = cache.geo1", function (err,recs) {
-							Log(err);
-							recs.forEach( rec => {
-								sql.query("update openv.voxels set chipID=? where ID=?", [rec.chipID, rec.voxelID], err => {
-									Log(err);
-								});
-							});
-						});
-						break;
-
-					case 4:
-						sql.query("select ID, geo1 from openv.cache where bank='chip'", function (err, recs) {
-							recs.forEach( rec => {
-								if (rec.geo1)
-									sql.query(
-										"update openv.cache set x1=?, x2=? where ?", 
-										[ rec.geo1[0][0].x, rec.geo1[0][0].y, {ID: rec.ID} ], 
-										err => {
-											Log(err);
-									});
-							});
-						});
-						break;
-
-					case 5: 
-						var parms = {
+				case 5: 
+					var parms = {
 ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on the earth's surface",
 "chip length": "[m] length of chip across an edge",
 "chip samples": "[pixels] number of pixels across edge of chip"
-						};
-						//get all tables and revise field comments with info data here -  archive parms - /parms in flex will
-						//use getfileds to get comments and return into
+					};
+					//get all tables and revise field comments with info data here -  archive parms - /parms in flex will
+					//use getfileds to get comments and return into
 
-					case 6:
-						var 
-							RAN = require("../randpr"),
-							ran = new RAN({
-								models: ["sinc"],
-								Mmax: 150,  // max coherence intervals
-								Mstep: 5 	// step intervals
-							});
-
-						ran.config( function (pc) {
-							var 
-								vals = pc.values,
-								vecs = pc.vectors,
-								N = vals.length, 
-								ref = vals[N-1];
-
-							vals.forEach( (val, idx) => {
-								var
-									save = {
-										correlation_model: pc.model,
-										coherence_intervals: pc.intervals,
-										eigen_value: val,
-										eigen_index: idx,
-										ref_value: ref,
-										max_intervals: ran.Mmax,
-										eigen_vector: JSON.stringify( vecs[idx] )
-									};
-
-								sql.query("INSERT INTO openv.pcs SET ? ON DUPLICATE KEY UPDATE ?", [save,save] );	
-							});
+				case 6:
+					var 
+						RAN = require("../randpr"),
+						ran = new RAN({
+							models: ["sinc"],
+							Mmax: 150,  // max coherence intervals
+							Mstep: 5 	// step intervals
 						});
-						break;	
-				}
+
+					ran.config( function (pc) {
+						var 
+							vals = pc.values,
+							vecs = pc.vectors,
+							N = vals.length, 
+							ref = vals[N-1];
+
+						vals.forEach( (val, idx) => {
+							var
+								save = {
+									correlation_model: pc.model,
+									coherence_intervals: pc.intervals,
+									eigen_value: val,
+									eigen_index: idx,
+									ref_value: ref,
+									max_intervals: ran.Mmax,
+									eigen_vector: JSON.stringify( vecs[idx] )
+								};
+
+							sql.query("INSERT INTO openv.pcs SET ? ON DUPLICATE KEY UPDATE ?", [save,save] );	
+						});
+					});
+					break;	
+			}
 		});		
 		break;
 		
