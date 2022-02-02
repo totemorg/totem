@@ -2859,7 +2859,6 @@ async function prime(cb) {
 	cb();
 }
 
-if ( CLUSTER.isMaster )
 switch (process.argv[2]) { //< unit tests
 	case "T?":
 	case "?":
@@ -2868,6 +2867,7 @@ switch (process.argv[2]) { //< unit tests
 		break;
 
 	case "T$":
+		if ( CLUSTER.isMaster )
 		Debug();
 		break;
 
