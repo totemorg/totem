@@ -64,9 +64,10 @@ base_config.)
 	export MYSQL=$BASE/mysql
 	export NEO4J=$BASE/neo4j
 	
-	# Servers
+	# Apps
 	export RED=$BASE/nodejs/lib/node_modules/node-red
 	export CESIUM=$BASE/cesium
+	export OSM=$BASE/osm
 
 	# R
 	export R_libs=/usr/lib64/R/library/
@@ -467,11 +468,29 @@ startdbs.)
 startapps.)
 	source ./maint.sh nodered start
 	source ./maint.sh cesium start
+	source ./maint.sh osm start
 	;;
 
 startme.)
 	source ./maint.sh startdbs
 	source ./maint.sh startapps
+	;;
+
+osm.)
+	case "$2." in
+	
+	start.)
+		cd $OSM
+		npm start
+		;;
+
+	install.)
+		mkdir $OSM
+		cd $OSM
+		npx create-ol-app
+		;;
+
+	esac
 	;;
 
 neo4j.)
