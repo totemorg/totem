@@ -77,7 +77,7 @@ Simply install and start its federated docker image (
 
 Require, configure and start **TOTEM**:
 	
-	const TOTEM = require("totem");
+	const TOTEM = require("./totem");
 
 	TOTEM.config({
 		key: value, 						// set key
