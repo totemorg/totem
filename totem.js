@@ -48,6 +48,97 @@ Copy({ //< String prototypes
 			cb( err ? null : json );
 		});
 	},
+
+	/**
+	*/
+	parsePost: function (content) {
+		const
+			[type,attr] = (content||"").split("; "),
+			body = {formType: type};
+			
+		//Log(this, this.constructor, [type, attr]);
+
+		if ( this )
+			switch (type) {
+				case "multipart/form-data":
+					const
+						conDisp = "Content-Disposition:",
+						conType = "Content-Type:",
+						conBdry = body.formBoundary = attr.split("=").pop().replace(/-/g,"");
+
+					var
+						key = "";
+
+					try {
+						this.split("\r\n").forEach( (line,idx) => {
+							if ( line.startsWith("--") && line.replace(/-/g,"") == conBdry) {	// "-----------------------------"
+								//console.log("**bdry>");
+							}
+
+							else
+							if ( line.startsWith(conDisp) ) {
+								//console.log("**disp>", line);
+								line.split("; ").forEach( (arg,idx) => {
+									if (idx) {
+										const
+											[pre,key,val] = arg.match( /(.*)=\"(.*)\"/ ) || ["",""];
+
+										body[key] = val;
+									}
+								});
+							}
+
+							else
+							if ( line.startsWith(conType) ) {
+								//console.log("**type>", line);
+								body.mimeType = line.split(" ").pop()
+							}
+
+							else
+							if (line) {
+								console.log("**data>", body.name, line.length, "str=", line.substr(0,8), "hex=", Buffer.from(line.substr(0,8)).toString("hex"));
+								body[ body.name ] = line;	
+							}
+						});
+					}
+					
+					catch (err) {
+						Trace("multipart post failed", err, this);
+					}
+					
+					break;
+
+				case "application/x-www-form-urlencoded":
+					body.name = "url";
+					body.url = unescape(this).replace(/\+/g," ");
+					//Log("app======>", body);
+					break;
+					
+				case "text/plain":
+					var
+						[key,text] = this.match(/(.*)=(.*)/) || [];
+					
+					if (key) {
+						body.name = key;
+						body[key] = text;
+					}
+					
+					//Log("txt======>", body);
+					break;
+					
+				default:
+					try {
+						Copy( JSON.parse(this), body );
+					}
+					
+					catch (err) {
+						body.name = "post";
+						body.post = this;
+					}
+			}
+
+		return body;
+	}
 }, String.prototype);
 
 /**
@@ -384,8 +475,8 @@ neoThread( neo => {
 */
 
 const 
-	worker = ENV.SERVICE_WORKER_URL || "http://localhost:8081", 
-	master = ENV.SERVICE_MASTER_URL || "http://localhost:8080",
+	worker = ENV.URL_WORKER || "http://localhost:8081", 
+	master = ENV.URL_MASTER || "http://localhost:8080",
 	$worker = new URL(worker),
 	$master = new URL(master),
 	  
@@ -393,12 +484,12 @@ const
 		byArea, byType, byAction, byTable, CORS,
 		defaultType, 
 	 	createCert, loginClient,
-		getBrick, routeRequest, setContext,
+		getBrick, routeRequest, setContext, readPost,
 		filterFlag, paths, sqls, errors, site, isEncrypted, behindProxy, admitRules,
 		filterType,tableRoutes, dsThread, startDogs, cache } = TOTEM = module.exports = {
 	
 	Trace: (msg, ...args) => `totem>>>${msg}`.trace( args ),	
-		
+	
 	/**
 	Enable to support cross-origin-scripting
 	*/
@@ -708,266 +799,217 @@ const
 	@param {Object} res session response
 	*/
 	routeRequest: (req,res) => {
-		function route(req, res) {	//< Parse and route the NODE = /DATASET.TYPE request
-			/*
-			Log session metrics, trace the current route, then callback route on the supplied 
-			request-response thread.
-			*/
-			function followRoute(route) {	//< route the request
+		/*
+		Log session metrics, trace the current route, then callback route on the supplied 
+		request-response thread.
+		*/
+		function followRoute(route) {	//< route the request
 
-				function logSession(sock) { //< log session metrics 
-					
-					sock._log = { 
-						Event: new Date(), 			// start time
-						Client: req.client
-					};	
+			function logSession(sock) { //< log session metrics 
 
-					/*
-					If maxlisteners is not set to infinity=0, the connection becomes sensitive to a sql 
-					connector t/o and there will be random memory leak warnings.
-					*/
+				sock._log = { 
+					Event: new Date(), 			// start time
+					Client: req.client
+				};	
 
-					sock.setMaxListeners(0);
-					
-					sock.on('close', () => { 		// cb when connection closed
-						const
-							{ _log } = sock;
-						
-						var 
-							started = _log.Event,
-							ended = new Date(),
-							secs = (ended.getTime() - started.getTime()) * 1e-3,
-							bytes = sock.bytesWritten;
+				/*
+				If maxlisteners is not set to infinity=0, the connection becomes sensitive to a sql 
+				connector t/o and there will be random memory leak warnings.
+				*/
 
-						sqlThread( sql => {
-							sql.query(logMetrics, [{
-								Delay: secs,
-								Transfer: bytes,
-								Event: started,
-								Dataset: "",
-								Actions: 1,
-								Client: _log.Client,
-							}, bytes, secs] );
-						});
-					});
-				}
+				sock.setMaxListeners(0);
 
-				const
-					{ logMetrics } = sqls,
-					{ area, table, path, flags } = req;
-				
-				Trace( route.name.toUpperCase(), path );
-				
-				if ( area || !table ) // routing a file or no endpoint 
-					/* trap for legacy socket.io 
-					if ( area == "socket.io" && !table)	// ignore keep-alives from legacy socket.io 
-						Trace("HUSH SOCKET.IO");
-
-					else	// send file
-					*/
-					route( req, txt => res(txt) );
-				
-				else {
-					//Trace("log check", req.area, req.reqSocket?true:false, req.log );
-					if ( logMetrics )
-						if ( sock = req.reqSocket ) 
-							logSession( sock );  
-
-					route(req, recs => {	// route request and capture records
-						if ( recs ) {
-							// Trace("route flags", flags);
-							/*
-							var call = null;
-							for ( var key in flags ) if ( !call ) {	// perform single data modifier
-								if ( key.startsWith("$") ) key = "$";
-								if ( call = filterFlag[key] ) {
-									call( recs, req, recs => res(req, recs) );
-									break;
-								}
-							}
-
-							if ( !call ) res(recs);  */
-							
-							var mod;
-							for ( var key in flags ) mod = filterFlag[key];
-							
-							if ( mod ) 
-								mod( recs, req, recs => res(recs) );
-							
-							else
-								res(recs);
-						}
-
-						else
-							res(null);
-					});
-				}
-			}
-			
-			/*
-			function checkAccess( cb ) {
-				
-				if ( true ) 
-					cb(true);
-				
-				else {
+				sock.on('close', () => { 		// cb when connection closed
 					const
-						power = {
-							guest: 1,
-							reporter: 2,
-							reviewer: 3,
-							developer: 4,
-							owner: 5
-						},
-						tx = {
-							pub: "reviewer",
-							publish: "reviewer",
-							exe: "reporter",
-							doc: "guest",
-							run: "guest",
-							exam: "guest",
-							brief: "guest",
-							browse: "guest",
-							export: "reviewer",
-							import: "reviewer",
-							mod: "developer",
-						};						  
+						{ _log } = sock;
 
-					sql.query("SELECT Access FROM openv.acl WHERE least(?) LIMIT 1", {
-					Client: client,
-					Resource: table
-				}, (err,recs) => {
-					const
-						{Access} = recs[0] || {Access:"guest"},
-						minPower = power[tx[type] || "guest"];
-					
-					Trace( "check "+type, Access, power[Access], minPower );
-					cb( power[Access] >= minPower );
+					var 
+						started = _log.Event,
+						ended = new Date(),
+						secs = (ended.getTime() - started.getTime()) * 1e-3,
+						bytes = sock.bytesWritten;
+
+					sqlThread( sql => {
+						sql.query(logMetrics, [{
+							Delay: secs,
+							Transfer: bytes,
+							Event: started,
+							Dataset: "",
+							Actions: 1,
+							Client: _log.Client,
+						}, bytes, secs] );
+					});
 				});
-				}
 			}
-			*/
-			
-			dsThread( req, req => {	// start a dataset thread
-				const
-					{area,table,action,path,ds} = req;
 
-				//Log({a:area, t:table, p: path, ds: ds, act: action});
-				
-				if ( area || !table ) 	// send file
-					followRoute( function send(req,res) {	// provide a route to send a file
-						const
-							{area,table,type,path} = req;
+			const
+				{ logMetrics } = sqls,
+				{ area, table, path, flags } = req;
 
-						//Log(area,path,type);
-						if ( path.endsWith("/") ) 		// requesting folder
-							if ( route = byArea[area] || byArea.all )
-								route(req,res);
+			Trace( route.name.toUpperCase(), path );
 
-							else
-								res( errors.noRoute );
-						
-						else {	// requesting file						
-							const
-								file = table+"."+type,
-								{ never } = cache,
-								neverCache = never[file] || never[area];
+			if ( area || !table ) // routing a file or no endpoint 
+				/* trap for legacy socket.io 
+				if ( area == "socket.io" && !table)	// ignore keep-alives from legacy socket.io 
+					Trace("HUSH SOCKET.IO");
 
-							//Trace("cache", file, "never=", neverCache, "cached=", path in cache);
+				else	// send file
+				*/
+				route( req, txt => res(txt) );
 
-							if ( path in cache )
-								res( cache[path] );
+			else {
+				//Trace("log check", req.area, req.reqSocket?true:false, req.log );
+				if ( logMetrics )
+					if ( sock = req.reqSocket ) 
+						logSession( sock );  
 
-							else
-								Fetch( "file:" + path, txt => {
-									if ( !neverCache ) cache[path] = txt; 
-									res(txt);
-								});
+				route(req, recs => {	// route request and capture records
+					if ( recs ) {
+						// Trace("route flags", flags);
+						/*
+						var call = null;
+						for ( var key in flags ) if ( !call ) {	// perform single data modifier
+							if ( key.startsWith("$") ) key = "$";
+							if ( call = filterFlag[key] ) {
+								call( recs, req, recs => res(req, recs) );
+								break;
+							}
 						}
-					});
 
-				else
-				if ( table ) {
-					if ( route = byTable[table] ) 	// route by endpoint name
-						followRoute( route );
+						if ( !call ) res(recs);  */
 
-					else  
-					if ( route = byType[req.type] ) // route by type
-						followRoute( route );
+						var mod;
+						for ( var key in flags ) mod = filterFlag[key];
 
-					/*
-					else
-					if ( route = byAction[action] ) {	// route by crud action
-						if ( route = route[table] )
-							followRoute( route );
+						if ( mod ) 
+							mod( recs, req, recs => res(recs) );
 
 						else
-						if ( route = TOTEM[action] )
-							followRoute( route );
+							res(recs);
+					}
+
+					else
+						res(null);
+				});
+			}
+		}
+
+		/*
+		function checkAccess( cb ) {
+
+			if ( true ) 
+				cb(true);
+
+			else {
+				const
+					power = {
+						guest: 1,
+						reporter: 2,
+						reviewer: 3,
+						developer: 4,
+						owner: 5
+					},
+					tx = {
+						pub: "reviewer",
+						publish: "reviewer",
+						exe: "reporter",
+						doc: "guest",
+						run: "guest",
+						exam: "guest",
+						brief: "guest",
+						browse: "guest",
+						export: "reviewer",
+						import: "reviewer",
+						mod: "developer",
+					};						  
+
+				sql.query("SELECT Access FROM openv.acl WHERE least(?) LIMIT 1", {
+				Client: client,
+				Resource: table
+			}, (err,recs) => {
+				const
+					{Access} = recs[0] || {Access:"guest"},
+					minPower = power[tx[type] || "guest"];
+
+				Trace( "check "+type, Access, power[Access], minPower );
+				cb( power[Access] >= minPower );
+			});
+			}
+		}
+		*/
+
+		dsThread( req, req => {	// start a dataset thread
+			const
+				{area,table,action,path,ds} = req;
+
+			//Log({a:area, t:table, p: path, ds: ds, act: action});
+
+			if ( area || !table ) 	// send file
+				followRoute( function send(req,res) {	// provide a route to send a file
+					const
+						{area,table,type,path} = req;
+
+					//Log(area,path,type);
+					if ( path.endsWith("/") ) 		// requesting folder
+						if ( route = byArea[area] || byArea.all )
+							route(req,res);
 
 						else
 							res( errors.noRoute );
-					}*/
 
-					else
-					if ( route = byAction[action] )	// route to database
+					else {	// requesting file						
+						const
+							file = table+"."+type,
+							{ never } = cache,
+							neverCache = never[file] || never[area];
+
+						//Trace("cache", file, "never=", neverCache, "cached=", path in cache);
+
+						if ( path in cache )
+							res( cache[path] );
+
+						else
+							Fetch( "file:" + path, txt => {
+								if ( !neverCache ) cache[path] = txt; 
+								res(txt);
+							});
+					}
+				});
+
+			else
+			if ( table ) {
+				if ( route = byTable[table] ) 	// route by endpoint name
+					followRoute( route );
+
+				else  
+				if ( route = byType[req.type] ) // route by type
+					followRoute( route );
+
+				/*
+				else
+				if ( route = byAction[action] ) {	// route by crud action
+					if ( route = route[table] )
 						followRoute( route );
 
-					else 
+					else
+					if ( route = TOTEM[action] )
+						followRoute( route );
+
+					else
 						res( errors.noRoute );
-				}
+				}*/
 
 				else
+				if ( route = byAction[action] )	// route to database
+					followRoute( route );
+
+				else 
 					res( errors.noRoute );
-			});
-		}
+			}
 
-		const 
-			{ post } = req;
-
-		req.body = post ? post.parseJSON( post => {  // get parameters or yank files from body 
-			const 
-				files = req.files = [], 
-				body = {};
-
-			var
-				key = "";
-				
-			if (post)
-				try {
-					post.split("\r\n").forEach( (line,idx) => {	// parse file posting parms
-						if ( line.startsWith("-----------------------------") ) {
-						}
-
-						else
-						if ( line.startsWith("Content-Disposition:") )
-							line.split("; ").forEach( (arg,idx) => {
-								if (idx) {
-									const
-										[pre,key,val] = arg.match( /(.*)=\"(.*)\"/ ) || ["",""];
-
-									body[key] = val;
-								}
-							});
-
-						else
-						if ( line.startsWith("Content-Type:") ) {
-						}
-
-						else
-						if (line)
-							body[ body.name ] = line;									
-					});
-				}
-				
-				catch (err) {
-					Trace("POST FAILED", err);
-				}
-
-			return body;
-		}) : {};		// get body parameters/files
-
-		route( req, res );
+			else
+				res( errors.noRoute );
+		});
 	},
 
 	/**
@@ -1062,7 +1104,7 @@ const
 		function docEndpoints(sql) {
 			
 			const 
-				host = ENV.SERVICE_MASTER_URL,
+				host = ENV.URL_MASTER,
 				docEditpoints = false,
 				docNotebooks = false;
 			
@@ -1370,21 +1412,22 @@ const
 							.on("end", () => cb( post ) );
 						}
 
-						switch ( Req.method ) {	// get post parms depending on request type being made
-							// CRUD interface
-							case "PUT":
-							case "GET":
-							case "POST":
-							case "DELETE":
-								//Trace("============ip", Req.connection.remoteAddress, Req.socket.remoteAddress, Req.headers['x-forwarded-for'] );
-								getPost( post => {							// prime session request
+						getPost( post => {							// prime session request
+							switch ( Req.method ) {	// get post parms depending on request type being made
+								// CRUD interface
+								case "PUT":
+								case "GET":
+								case "POST":
+								case "DELETE":
+									//Trace("============ip", Req.connection.remoteAddress, Req.socket.remoteAddress, Req.headers['x-forwarded-for'] );
+									//Log(["post=", post], Req.url, Req.method, Req.headers);
 									ses(null, {								// start the session
 										cookie: Req.headers["cookie"] || "",
 										ipAddress: Req.socket.remoteAddress,
 										host: $master.protocol+"//"+Req.headers["host"],		// domain being requested
 										referer: new URL(Req.headers["referer"] || master), 	// proto://domain used
 										agent: Req.headers["user-agent"] || "",	// requester info
-										post: post, 						// raw post body
+										body: post.parsePost(Req.headers["content-type"]), 			// body (parms, files, etc)
 										method: Req.method,					// get,put, etc
 										now: new Date(),  					// time client started request
 										action: crudIF[Req.method],			// crud action being requested
@@ -1399,29 +1442,29 @@ const
 										url: unescape( Req.url || "/" ),	// unescaped url
 										site: site							// site info
 									});
-								});
-								break;
+									break;
 
-							// client making cross-domain CORs request, so respond with valid methods
-							case "OPTIONS":  
-								//Req.method = Req.headers["access-control-request-method"];
-								//Trace(">>>>>>opts req", Req.headers);
-								Res.writeHead(200, {
-									"access-control-allow-origin": "*", 
-									"access-control-allow-methods": "POST, GET, DELETE, PUT, OPTIONS"
-								});
-								Res.end();
-								/*res.header = function () {
-									Res.writeHead(200);
-									Res.socket.write(Res._header);
-									Res.socket.write(Res._header);
-									Res._headerSent = true;
-								}; */
-								break;
+								// client making cross-domain CORs request, so respond with valid methods - dont start a session
+								case "OPTIONS":  
+									//Req.method = Req.headers["access-control-request-method"];
+									//Trace(">>>>>>opts req", Req.headers);
+									Res.writeHead(200, {
+										"access-control-allow-origin": "*", 
+										"access-control-allow-methods": "POST, GET, DELETE, PUT, OPTIONS"
+									});
+									Res.end();
+									/*res.header = function () {
+										Res.writeHead(200);
+										Res.socket.write(Res._header);
+										Res.socket.write(Res._header);
+										Res._headerSent = true;
+									}; */
+									break;
 
-							default:
-								ses( errors.badMethod );
-						}
+								default:		// signal session problem
+									ses( errors.badMethod );
+							}
+						});
 					}
 
 					if ( BUSY ? BUSY() : false )	// trap DNS attacks
@@ -2294,11 +2337,18 @@ const
 				{ sql, flags, body, client, ds, table, now } = req,
 				{ sio } = SECLINK;
 
+			//Log("insert", body);
+			Log("insert", {
+				type: body.formType,
+				startFrag: Buffer.from(body[ body.name ].substr(0,8)).toString("hex"),
+				endFrag: Buffer.from(body[ body.name ].substr(-8)).toString("hex")
+			});
+			
 			sql.query(	// update db logs if it exits
 				"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1,?", [{
 					Op: "insert",
 					Event: now,
-					Dataset: table+":"+(query.Name||query.name),
+					Dataset: table+":"+(body.Name||body.name),
 					Client: client
 				}, {
 					Event: now
@@ -2680,6 +2730,8 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 		parts = sinkPath.split("/"),
 		name = parts.pop() || "";
 	
+	Trace("uploading to", sinkPath);
+
 	getBrick(client, name, file => {
 		var 
 			sinkStream = FS.createWriteStream( sinkPath, "utf-8")
@@ -2701,8 +2753,6 @@ function uploadFile( client, srcStream, sinkPath, tags, cb ) {
 						}, {ID: file.ID} ] );
 					});
 				});
-
-		//Trace("uploading to", sinkPath);
 
 		if (cb) cb(file.ID);  // callback if provided
 		
