@@ -1,4 +1,6 @@
 #!/bin/bash
+# UNCLASSIFIED
+# save this files into _pass.sh when completed and revise classification
 
 export SERVICE_PASS=pass
 export ADMIN_PASS=pass
@@ -17,3 +19,4 @@ export KEY_NEO4J=user:pass
 export KEY_TXMAIL=user:pass
 export KEY_RXMAIL=user:pass
 export KEY_GIT=user:pass
+# UNCLASSIFIED
