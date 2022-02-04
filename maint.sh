@@ -20,11 +20,11 @@ debe_config.)
 	#export SCRIPTS=$HERE/clients/extjs/packages/ext-locale/build/ext-locale-
 	export THEMES=$HERE/clients/themes
 	
-	export TXMAIL_HOST=smtp.comcast.net:587
-	export TXMAIL_USER=brian.d.james:COMCASTsnivel1
-	export RXMAIL_HOST=
-	export RXMAIL_USER=
-
+	#export TXMAIL_HOST=smtp.comcast.net:587
+	#export TXMAIL_USER=brian.d.james:COMCASTsnivel1
+	#export RXMAIL_HOST=
+	#export RXMAIL_USER=
+	
 	export INDEX= #data/nlp.json  			# reader nlp indexing save path
 	export SCAN=$HERE/node_modules/reader/jquery-1.7.1.min.js 	# web site scanners
 
@@ -87,17 +87,17 @@ base_config.)
 	
 jsdb_config.)
 	# MYSQL
-	export PATH=$MYSQL/bin:$PATH
-	export MYSQL_USER=root
-	export MYSQL_NAME=app
-	export MYSQL_HOST=localhost
-	export ODBC_NAME=totem-app
-	export ODBC_USER=ileuser
+	#export PATH=$MYSQL/bin:$PATH
+	#export MYSQL_NAME=app
+	#export MYSQL_USER=root
+	#export MYSQL_HOST=localhost
+	#export ODBC_NAME=totem-app
+	#export ODBC_USER=ileuser
 
 	# NEO4J
-	export NEO4J_HOST="bolt://localhost" # "http://root:NGA@localhost:7474"
-	export NEO4J_USER="neo4j"
-	
+	#export NEO4J_HOST="bolt://localhost" # "http://root:NGA@localhost:7474"
+	#export NEO4J_USER="neo4j"
+	export URL_LEXNEX=https://services-api.lexisnexis.com/v1/
 	;;
 
 seclink_config.)
@@ -117,15 +117,20 @@ totem_config.)
 	#export RUN="run -it $GPU $VOL $NET"
 	#export RUND="$RUN -d"
 
-	# define service url
-	export SERVICE_MASTER_URL=http://localhost:8080
-	export SERVICE_WORKER_URL=https://localhost:8081
-
-	#export SERVICE_WORKER_URL=https://localhost:8443
-	#export SERVICE_WORKER_URL=http://localhost:8081  # in debug mode
-
-	# define passwords
+	# define user/password keys
 	source ./config/_pass.sh
+
+	# define service url
+	export URL_MASTER=http://localhost:8080
+	export URL_WORKER=https://localhost:8081
+	export URL_MYSQL=http://$KEY_MYSQL@localhost:3306
+	export URL_NEO4J=http://$KEY_NEO4J@localhost:7474
+	export URL_TXMAIL=http://$KEY_TXMAIL@smtp.comcast.net:587
+	export URL_RXMAIL=
+	export URL_LEXNEX=https:$KEY_LEXNEX//services-api.lexisnexis.com/v1/
+
+	#export URL_WORKER=https://localhost:8443
+	#export URL_WORKER=http://localhost:8081  # in debug mode
 
 	# define service urls
 	
@@ -184,10 +189,10 @@ totem_config.)
 	esac
 	
 	# define service url
-	export SERVICE_MASTER_URL=$PROTO://$DOMAIN:$PORT1
-	export SERVICE_WORKER_URL=$PROTO://$DOMAIN:$PORT2
+	export URL_MASTER=$PROTO://$DOMAIN:$PORT1
+	export URL_WORKER=$PROTO://$DOMAIN:$PORT2
 	
-	echo "$LINK_HOST at $SERVICE_MASTER_URL and $SERVICE_WORKER_URL"
+	echo "$LINK_HOST at $URL_MASTER and $URL_WORKER"
 	
 	# define task sharding urls
 	export SHARD0=$PROTO://$DOMAIN/task
