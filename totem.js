@@ -158,14 +158,7 @@ in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @module TOTEM
 @author [ACMESDS](https://totemstan.github.io)
 
-### Module Dependencies
-
-	**ENUMS** [WWW]    [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
-	**SECLINK** [WWW]  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
-	**SOCKETIO** [WWW]  [COE](https://sc.appdev.proj.coe/acmesds/socketio)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
-	**JSDB** [WWW]  [COE](https://sc.appdev.proj.coe/acmesds/jsdb)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
-
-@requires [enums](https://github.com/totemstan/enums) or [COE](https://sc.appdev.proj.coe/acmesds/enums)
+@requires [enums](https://github.com/totemstan/enums)
 @requires [jsdb](https://github.com/totemstan/jsdb)
 @requires [securelink](https://github.com/totemstan/securelink)
 @requires [socketio](https://github.com/totemstan/socketio)
