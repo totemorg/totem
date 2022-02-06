@@ -31,28 +31,11 @@ By default, **TOTEM** provides `db | xml | csv | json` *TYPE*s for converting *D
 `riddle | task | ping` *COMMAND*s for validating a session, sharding tasks,
 and the `stores | shares` areas for sharing static *FILE*s.
 
-## Local Installation
+## Installation
 
-Clone **TOTEM** from one of its repos:
-
-	git clone https://github.com/totemstan/totem
-	git clone https://sc.appdev.proj.coe/acmesds/totem
-	git clone https://gitlab.west.nga.ic.gov/acmesds/totem
-
-# Dependencies
-
-	**ENUMS** [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
-	**SECLINK** [WWW](https://github.com/totemstan/securelink)  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
-	**SOCKETIO** [WWW](https://github.com/totemstan/socketio)  [COE](https://sc.appdev.proj.coe/acmesds/socketio)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
-	**JSDB** [WWW](https://github.com/totemstan/jsdb)  [COE](https://sc.appdev.proj.coe/acmesds/jsdb)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
-
-## Federated Installation
-
-Simply install and start its federated docker image (
-[WWW](https://github.com/totemstan/dockify) 
-[COE](https://sc.appdev.proj.coe/acmesds/dockify)
-[SBU](https://gitlab.west.nga.ic.gov/acmesds/dockify)
-).
+Follow the desired [Forked || Federated installation](https://github.com/totemstan/acmesds)
+to install **TOTEM**, including OS upgrades (tools, compute frameworks, etc) and
+module dependencies.
 
 ## Setup
 
@@ -98,6 +81,8 @@ follow the ENUM deep copy conventions (
 [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
 ).
 
+
+## Program Reference
 ## Env Vars
 
 	SERVICE_PASS = passphrase to server pki cert
@@ -108,7 +93,12 @@ follow the ENUM deep copy conventions (
 	SHARD2 = PROTO://DOMAIN:PORT
 	SHARD3 = PROTO://DOMAIN:PORT
 
-## Program Reference
+# Module Dependencies
+
+	**ENUMS** [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
+	**SECLINK** [WWW](https://github.com/totemstan/securelink)  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
+	**SOCKETIO** [WWW](https://github.com/totemstan/socketio)  [COE](https://sc.appdev.proj.coe/acmesds/socketio)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
+	**JSDB** [WWW](https://github.com/totemstan/jsdb)  [COE](https://sc.appdev.proj.coe/acmesds/jsdb)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
 <details>
 <summary>
 <i>Open/Close</i>
