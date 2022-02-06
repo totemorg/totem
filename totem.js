@@ -145,8 +145,23 @@ Copy({ //< String prototypes
 Provides a [barebones web service]{@link https://github.com/totemstan/totem}.  This module documented 
 in accordance with [jsdoc]{@link https://jsdoc.app/}.
 
+### Env Dependencies
+
+	SERVICE_PASS = passphrase to server pki cert
+	URL_MASTER = URL to master totem service service
+	URL_WORKER = URL to worker totem service service
+	SHARD0 = PROTO://DOMAIN:PORT
+	SHARD1 = PROTO://DOMAIN:PORT
+	SHARD2 = PROTO://DOMAIN:PORT
+	SHARD3 = PROTO://DOMAIN:PORT
+
 @module TOTEM
 @author [ACMESDS](https://totemstan.github.io)
+
+@requires [enums](https://github.com/totemstan/enums)
+@requires [jsdb](https://github.com/totemstan/jsdb)
+@requires [securelink](https://github.com/totemstan/securelink)
+@requires [socketio](https://github.com/totemstan/socketio)
 
 @requires http
 @requires https
@@ -158,11 +173,6 @@ in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @requires stream
 @requires vm
 @requires crypto
-
-@requires enums
-@requires jsdb
-@requires securelink
-@requires socketio
 
 @requires mime
 @requires mysql
