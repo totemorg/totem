@@ -104,8 +104,6 @@ SHARD1 = PROTO://DOMAIN:PORT
 SHARD2 = PROTO://DOMAIN:PORT
 SHARD3 = PROTO://DOMAIN:PORT
 </code></pre>
-<h3 id="module-dependencies">Module Dependencies</h3>
-<p><em>ENUMS*</em> <a href="https://github.com/totemstan/enums">WWW</a>  <a href="https://sc.appdev.proj.coe/acmesds/enums">COE</a>  <a href="https://gitlab.west.nga.ic.gov/acmesds/enums">SBU</a><br><em>SECLINK*</em> <a href="https://github.com/totemstan/securelink">WWW</a>  <a href="https://sc.appdev.proj.coe/acmesds/securelink">COE</a>  <a href="https://gitlab.west.nga.ic.gov/acmesds/securelink">SBU</a><br><em>SOCKETIO*</em> <a href="https://github.com/totemstan/socketio">WWW</a>  <a href="https://sc.appdev.proj.coe/acmesds/socketio">COE</a>  <a href="https://gitlab.west.nga.ic.gov/acmesds/socketio">SBU</a><br><em>JSDB</em>* <a href="https://github.com/totemstan/jsdb">WWW</a>  <a href="https://sc.appdev.proj.coe/acmesds/jsdb">COE</a>  <a href="https://gitlab.west.nga.ic.gov/acmesds/jsdb">SBU</a></p>
 </dd>
 </dl>
 
@@ -149,14 +147,14 @@ in accordance with [jsdoc](https://jsdoc.app/).
 	SHARD2 = PROTO://DOMAIN:PORT
 	SHARD3 = PROTO://DOMAIN:PORT
 
-### Module Dependencies
-*ENUMS** [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
-*SECLINK** [WWW](https://github.com/totemstan/securelink)  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
-*SOCKETIO** [WWW](https://github.com/totemstan/socketio)  [COE](https://sc.appdev.proj.coe/acmesds/socketio)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
-*JSDB** [WWW](https://github.com/totemstan/jsdb)  [COE](https://sc.appdev.proj.coe/acmesds/jsdb)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)
+**Requires**: <code>module:[enums](https://github.com/totemstan/enums)</code>, <code>module:[jsdb](https://github.com/totemstan/jsdb)</code>, <code>module:[securelink](https://github.com/totemstan/securelink)</code>, <code>module:[socketio](https://github.com/totemstan/socketio)</code>, <code>module:http</code>, <code>module:https</code>, <code>module:fs</code>, <code>module:constants</code>, <code>module:cluster</code>, <code>module:child\_process</code>, <code>module:os</code>, <code>module:stream</code>, <code>module:vm</code>, <code>module:crypto</code>, <code>module:mime</code>, <code>module:mysql</code>, <code>module:xml2js</code>, <code>module:toobusy</code>, <code>module:json2csv</code>, <code>module:js2xmlparser</code>, <code>module:toobusy-js</code>, <code>module:cheerio</code>  
+**Author**: [ACMESDS](https://totemstan.github.io)
 
-**Requires**: <code>module:http</code>, <code>module:https</code>, <code>module:fs</code>, <code>module:constants</code>, <code>module:cluster</code>, <code>module:child\_process</code>, <code>module:os</code>, <code>module:stream</code>, <code>module:vm</code>, <code>module:crypto</code>, <code>module:enums</code>, <code>module:jsdb</code>, <code>module:securelink</code>, <code>module:socketio</code>, <code>module:mime</code>, <code>module:mysql</code>, <code>module:xml2js</code>, <code>module:toobusy</code>, <code>module:json2csv</code>, <code>module:js2xmlparser</code>, <code>module:toobusy-js</code>, <code>module:cheerio</code>  
-**Author**: [ACMESDS](https://totemstan.github.io)  
+### Module Dependencies
+*ENUMS** [WWW]    [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)  
+*SECLINK** [WWW]  [COE](https://sc.appdev.proj.coe/acmesds/securelink)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/securelink)  
+*SOCKETIO** [WWW]  [COE](https://sc.appdev.proj.coe/acmesds/socketio)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/socketio)  
+*JSDB** [WWW]  [COE](https://sc.appdev.proj.coe/acmesds/jsdb)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/jsdb)  
 **Example**  
 ```js
 // npm test T1
