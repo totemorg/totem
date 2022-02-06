@@ -1,4 +1,4 @@
-# TOTEM [WWW](https://github.com/totemstan/totem)  [COE](https://sc.appdev.proj.coe/acmesds/m)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/m)
+# TOTEM [WWW](https://github.com/totemstan/totem)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)
 
 **TOTEM** provides a barebones web service with the following customizable features:
 
