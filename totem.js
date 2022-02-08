@@ -29,9 +29,11 @@ const
 	  
 	// totem modules
 	{ testClient } = SECLINK = require("../securelink"),			// secure com and login
-	{ sqlThread, neoThread } = JSDB = require("../jsdb"),		// database agnosticator
+	JSDB = require("../jsdb"),		// database agnosticator
 	{ Copy,Each,Debug,Stream,Clock,Log,
-	 isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch } = require("../enums");
+	 sqlThread,neoThread,
+	 isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch 
+	} = require("../enums");
 
 /**
 @module TOTEM.String
@@ -47,98 +49,8 @@ Copy({ //< String prototypes
 		XML2JS.parseString(this, function (err,json) {				
 			cb( err ? null : json );
 		});
-	},
-
-	/**
-	*/
-	parsePost: function (content) {
-		const
-			[type,attr] = (content||"").split("; "),
-			body = {formType: type};
-			
-		//Log(this, this.constructor, [type, attr]);
-
-		if ( this )
-			switch (type) {
-				case "multipart/form-data":
-					const
-						conDisp = "Content-Disposition:",
-						conType = "Content-Type:",
-						conBdry = body.formBoundary = attr.split("=").pop().replace(/-/g,"");
-
-					var
-						key = "";
-
-					try {
-						this.split("\r\n").forEach( (line,idx) => {
-							if ( line.startsWith("--") && line.replace(/-/g,"") == conBdry) {	// "-----------------------------"
-								//console.log("**bdry>");
-							}
-
-							else
-							if ( line.startsWith(conDisp) ) {
-								//console.log("**disp>", line);
-								line.split("; ").forEach( (arg,idx) => {
-									if (idx) {
-										const
-											[pre,key,val] = arg.match( /(.*)=\"(.*)\"/ ) || ["",""];
-
-										body[key] = val;
-									}
-								});
-							}
-
-							else
-							if ( line.startsWith(conType) ) {
-								//console.log("**type>", line);
-								body.mimeType = line.split(" ").pop()
-							}
-
-							else
-							if (line) {
-								console.log("**data>", body.name, line.length, "str=", line.substr(0,8), "hex=", Buffer.from(line.substr(0,8)).toString("hex"));
-								body[ body.name ] = line;	
-							}
-						});
-					}
-					
-					catch (err) {
-						Trace("multipart post failed", err, this);
-					}
-					
-					break;
-
-				case "application/x-www-form-urlencoded":
-					body.name = "url";
-					body.url = unescape(this).replace(/\+/g," ");
-					//Log("app======>", body);
-					break;
-					
-				case "text/plain":
-					var
-						[key,text] = this.match(/(.*)=(.*)/) || [];
-					
-					if (key) {
-						body.name = key;
-						body[key] = text;
-					}
-					
-					//Log("txt======>", body);
-					break;
-					
-				default:
-					try {
-						Copy( JSON.parse(this), body );
-					}
-					
-					catch (err) {
-						body.name = "post";
-						body.post = this;
-					}
-			}
-
-		return body;
 	}
+
 }, String.prototype);
 
 /**
@@ -492,14 +404,339 @@ const
 	  
 	{ 	Trace,
 		byArea, byType, byAction, byTable, CORS,
-		defaultType, 
-	 	createCert, loginClient,
-		getBrick, routeRequest, setContext, readPost,
+		defaultType, startServer,
+	 	createCert, loginClient, crudIF,
+		getBrick, routeAgent, setContext, readPost,
 		filterFlag, paths, sqls, errors, site, isEncrypted, behindProxy, admitRules,
 		filterType,tableRoutes, dsThread, startDogs, cache } = TOTEM = module.exports = {
 	
 	Trace: (msg, ...args) => `totem>>>${msg}`.trace( args ),	
 	
+	/**
+	Start service and attach listener.  Established the secureIO if configured.  Establishes
+	server-busy tests to thwart deniel-of-service attackes and process guards to trap faults.  When
+	starting the master process, other configurations are completed.  Watchdogs and proxies are
+	also established.
+
+	@param {Object} server server being started
+	@param {Numeric} port port number to listen on
+	@param {Function,Object} agents callback agents(req,res) router or hash of agents
+	*/
+	startServer: (server,port,agents) => {
+		server
+		.listen( port, () => {  	// listen on specified port
+			console.log( `Listening on port ${port}` )
+		})
+		.on("request", (Req,Res) => {
+			function reqThread( ses ) { 		// start request and callback session cb
+				function getSocket() {  //< returns suitable response socket depending on cross/same domain session
+					if ( Req.headers.origin ) {  // cross domain session is in progress from master (on http) to its workers (on https)
+						Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
+						Res.socket.write(Res._header);
+						Res._headerSent = true;
+						return Res.socket;
+					}
+
+					else   // same domain (http-to-http or https-to-https) so must use the request socket
+						return Req.socket;
+				}
+
+				function getPost( cb ) { // Feed raw post to callback
+					var post = ""; 
+
+					Req
+					.on("data", chunk => post += chunk.toString() )
+					.on("end", () => cb( post ) );
+				}
+
+				function parsePost( post, content ) {
+					const
+						[type,attr] = (content||"").split("; "),
+						body = attr ? {formType: type} : {};
+
+					//Log(this, this.constructor, [type, attr]);
+
+					if ( post )
+						switch (type) {
+							case "multipart/form-data":
+								const
+									conDisp = "Content-Disposition:",
+									conType = "Content-Type:",
+									conBdry = body.formBoundary = attr.split("=").pop().replace(/-/g,"");
+
+								var
+									key = "";
+
+								try {
+									post.split("\r\n").forEach( (line,idx) => {
+										if ( line.startsWith("--") && line.replace(/-/g,"") == conBdry) {	// "-----------------------------"
+											//console.log("**bdry>");
+										}
+
+										else
+										if ( line.startsWith(conDisp) ) {
+											//console.log("**disp>", line);
+											line.split("; ").forEach( (arg,idx) => {
+												if (idx) {
+													const
+														[pre,key,val] = arg.match( /(.*)=\"(.*)\"/ ) || ["",""];
+
+													body[key] = val;
+												}
+											});
+										}
+
+										else
+										if ( line.startsWith(conType) ) {
+											//console.log("**type>", line);
+											body.mimeType = line.split(" ").pop()
+										}
+
+										else
+										if (line) {
+				Log("**data>>>>>", body.name, line.length, "str=", line.substr(0,8), "hex=", Buffer.from(line.substr(0,8)).toString("hex"));
+											body[ body.name ] = line;	
+										}
+									});
+								}
+
+								catch (err) {
+									body.error = "invalid multipart post";
+								}
+
+								break;
+
+							case "application/x-www-form-urlencoded":
+								body.name = "url";
+								body.url = unescape(this).replace(/\+/g," ");
+								//Log("app======>", body);
+								break;
+
+							case "text/plain":
+								var
+									[key,text] = this.match(/(.*)=(.*)/) || [];
+
+								if (key) {
+									body.name = key;
+									body[key] = text;
+								}
+
+								//Log("txt======>", body);
+								break;
+
+							default:
+								try {
+									body.name = "post";
+									body.post = JSON.parse(post);
+								}
+
+								catch (err) {
+									body.name = "post";
+									body.post = post;
+								}
+						}
+
+					return body;
+				}
+				
+				function getCert(sock, headers) {  //< Return cert presented on this socket (w or w/o proxy).
+					const 
+						cert = sock.getPeerCertificate();
+
+					// Log("getcert>>>>>>>>", cert, cert.subjectaltname);
+					if (headers) {  // behind proxy so update cert with originating cert info that was placed in header
+						const 					
+							NA = headers.ssl_client_notafter,
+							NB = headers.sll_client_notbefore,
+							DN = headers.ssl_client_s_dn;
+
+						if (NA) cert.valid_to = new Date(
+								[NA.substr(2,2),NA.substr(4,2),NA.substr(0,2)].join("/")+" "+
+								[NA.substr(6,2),NA.substr(8,2),NA.substr(10,2)].join(":")
+							);
+
+						if (NB) cert.valid_to = new Date(
+								[NB.substr(2,2),NB.substr(4,2),NB.substr(0,2)].join("/")+" "+
+								[NB.substr(6,2),NB.substr(8,2),NB.substr(10,2)].join(":")
+							);
+
+						if (DN)
+							Each(DN.split("/"), function (n,hdr) {
+								if (hdr) {
+									var sub = hdr.split("=");
+									cert.subject[sub[0]] += sub[1];
+								}
+							});
+
+						if ( CN = cert.subject.CN ) {
+							CN = CN.split(" ");
+							cert.subject.CN = CN[CN.length-1] + "@lost.org";
+						}
+					}
+
+					return cert;
+				}
+				
+				function getSocket( cb ) {
+					if ( false )
+						Res.end( "Error: busy" );					// end the session
+					
+					else
+					if ( reqSocket = Req.socket )
+						cb({								// start the session
+							cert: reqSocket.getPeerCertificate ? getCert(reqSocket) : null,
+							headers: Req.headers,
+							host: Req.headers["host"],
+							cookie: Req.headers["cookie"] || "",
+							ipAddress: Req.socket.remoteAddress,
+							referer: new URL(Req.headers["referer"] || "http://noreferer"), 	// proto://domain used
+							agent: Req.headers["user-agent"] || "",					// requester info
+							method: Req.method,					// get,put, etc
+							now: new Date(),  					// time client started request
+							reqSocket: reqSocket,   			// use supplied request socket 
+							resSocket: getSocket,				// attach method to return a response socket
+							/*
+							There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
+							embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
+							unescapes to /\\"ABC\\".  This is ok but can be confusing.
+							*/
+							url: unescape( Req.url || "/" )		// unescaped url
+						});
+					
+					else
+						Res.end( "Error: lost request socket" );
+				}
+				
+				getSocket( req => {
+					getPost( post => {							// prime session request
+						switch ( req.method ) {	// get post parms depending on request type being made
+							// CRUD interface
+							case "PUT":
+							case "GET":
+							case "POST":
+							case "DELETE":
+								//Trace("============ip", Req.connection.remoteAddress, Req.socket.remoteAddress, Req.headers['x-forwarded-for'] );
+								//Log(["post=", post], Req.url, Req.method, Req.headers);
+								req.body = parsePost(post, Req.headers["content-type"] );
+								ses(req);
+								break;
+
+							// client making cross-domain CORs request, so respond with valid methods - dont start a session
+							case "OPTIONS":  
+								//Req.method = Req.headers["access-control-request-method"];
+								//Trace(">>>>>>opts req", Req.headers);
+								Res.writeHead(200, {
+									"access-control-allow-origin": "*", 
+									"access-control-allow-methods": "POST, GET, DELETE, PUT, OPTIONS"
+								});
+								Res.end();
+								/*res.header = function () {
+									Res.writeHead(200);
+									Res.socket.write(Res._header);
+									Res.socket.write(Res._header);
+									Res._headerSent = true;
+								}; */
+								break;
+
+							default:		// signal session problem
+								Res.end( "error: bad method" );
+						}
+					});
+				});
+			}
+
+			reqThread( req => { 	// start request thread
+				function resThread( ses ) {  	// start response using this session callback								
+					ses( data => {  // Provide session response callback
+						try {  // set headers, handle CORs, then send data
+							if ( false ) {	// support CORS
+								Res.setHeader("Access-Control-Allow-Origin", "*");
+								Res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+								Res.setHeader("Access-Control-Allow-Headers", '*');
+								Res.setHeader("Status", "200 OK");
+								Res.setHeader("Vary", "Accept");
+							}
+
+							Res.setHeader("Content-Type", req.mime || "text/plain");
+							Res.statusCode = 200;
+			//Log(">>>>>>>>>send", data.constructor.name, req.mime);
+
+							if (data != null)
+								switch ( data.constructor.name ) {  // send based on its type
+									case "Error": 			// send error message
+										Res.end( data+"" );
+										break;
+
+									case "Buffer":
+										Res.end( data );
+										break;
+										
+									case "Number":
+									case "Date":
+									case "Object":
+									case "Array": 			// send data records 
+										try {
+											Res.end( JSON.stringify(data) );
+										}
+										catch (err) {  // infinite cycle
+											Res.end( "Error: cyclic data" );
+										}		
+										break;
+
+									case "String":  			// send message
+										Res.end( data );
+										break;
+									
+									case "Function":
+										data(req, txt => Res.end(txt) );
+										break;
+										
+									default: 					// send data record
+										Res.end("Error: bad data");
+										break;
+								}
+
+							else
+								Res.end( "null" );
+						}
+
+						catch (err) {
+							Res.end( "Error: bad data" );
+						}	
+					});	
+				}
+
+				resThread( res => {	// route the request on the provided response callback
+					const
+						{ url } = req,
+						query = req.query = {},
+						index = req.index = {},
+						flags = req.flags = {},
+						where = req.where = {},
+						[path,table,type,area] = url.parsePath(query, index, flags, where);
+
+					//Log("parsepath", [path,table,type,area]);
+
+					req.path = path;
+					req.area = area;
+					req.table = table || "ping";
+					req.type = type || "";
+					
+					if ( agents.constructor == Function ) 
+						agents( req, res );
+					
+					else 
+					if ( agent = agents[path] || agents[table] || agents[type] || agents[area] )
+						agent(req,res); 
+					
+					else
+						res( "Error: no agent" );
+				});
+			});
+		})
+		.on("error", err => console.log(err) );
+	},
+
 	/**
 	Enable to support cross-origin-scripting
 	*/
@@ -574,57 +811,18 @@ const
 
 	/**
 	Validate a client's session by attaching a log, profile, group, client, 
-	cert and joined info to this `req` request then callback `res`(error) with 
-	a null `error` if the session was sucessfully validated.  
+	cert and joined info to this request then callback(prof || null) with
+	recovered profile or null if the session could not be validated.  
 
 	@param {Object} req totem session request
 	@param {Function} res totem session responder
 	*/
 	loginClient: (req,cb) => {  
-
-		function getCert(sock) {  //< Return cert presented on this socket (w or w/o proxy).
-			const 
-				cert = sock.getPeerCertificate();
-
-			// Log("getcert>>>>>>>>", cert, cert.subjectaltname);
-			if (behindProxy) {  // update cert with originating cert info that was placed in header
-				const 
-					NA = Req.headers.ssl_client_notafter,
-					NB = Req.headers.sll_client_notbefore,
-					DN = Req.headers.ssl_client_s_dn;
-
-				if (NA) cert.valid_to = new Date(
-						[NA.substr(2,2),NA.substr(4,2),NA.substr(0,2)].join("/")+" "+
-						[NA.substr(6,2),NA.substr(8,2),NA.substr(10,2)].join(":")
-					);
-
-				if (NB) cert.valid_to = new Date(
-						[NB.substr(2,2),NB.substr(4,2),NB.substr(0,2)].join("/")+" "+
-						[NB.substr(6,2),NB.substr(8,2),NB.substr(10,2)].join(":")
-					);
-
-				if (DN)
-					Each(DN.split("/"), function (n,hdr) {
-						if (hdr) {
-							var sub = hdr.split("=");
-							cert.subject[sub[0]] += sub[1];
-						}
-					});
-
-				if ( CN = cert.subject.CN ) {
-					CN = CN.split(" ");
-					cert.subject.CN = CN[CN.length-1] + "@lost.org";
-				}
-			}
-
-			return cert;
-		}
 		
 		const 
-			{ sql, cookie, encrypted, reqSocket, ipAddress, now} = req,
+			{ cookie, encrypted, reqSocket, ipAddress, now, headers, cert} = req,
 			cookies = req.cookies = {},
 			{ Login, host } = SECLINK,
-			cert = (encrypted && reqSocket.getPeerCertificate) ? getCert(reqSocket) : null,
 			guest = `guest${ipAddress}@${host}`;
 
 		if ( cert ) {		// client on encrypted socket so has a pki cert
@@ -637,7 +835,7 @@ const
 				// Log("cert>>>", cert, admitRules);
 
 				if ( now < new Date(cert.valid_from) || now > new Date(cert.valid_to) )
-					cb( errors.badCert );
+					cb( null );
 
 				else
 				if ( check = cert.subject || cert.issuer ) {
@@ -652,12 +850,12 @@ const
 				}
 
 				Login( client, function guestSession(err,prof) { // no-authentication session
-					cb( err, prof );
+					cb( err ? null : prof );
 				});
 			}
 
 			else
-				cb( errors.badCert );
+				cb( null );
 		}
 		
 		else {
@@ -670,91 +868,68 @@ const
 			//Log(">>>>>>>>>>>>>>>>>>cookies", cookie, cookies);
 		
 			Login( cookies.session || guest, function guestSession(err,prof) { // no-authentication session
-				cb( err, prof );
+				cb( err ? null : prof );
 			});
 		}
 	},
 		
 	/**
-	Start a dataset thread.  In phase 3/3 of the session connection, append 
-	{query,index,flags,where} and {sql,table,area,path,type} to the request.
+	Start a dataset thread.  
+	
+	Provide a request hash req to the supplied session, or terminate the session 
+	if the service is too busy.
+
+	In phase 1/3 of session setup, the following is added to this req:
+
+		cookie: "...."		// client cookie string
+		agent: "..."		// client browser info
+		ipAddress: "..."	// client ip address
+		referer: "proto://domain:port/query"	//  url during a cross-site request
+		method: "GET|PUT|..." 			// http request method
+		now: date			// date stamp when requested started
+		post: "..."			// raw body text
+		url	: "/query"		// requested url path
+		reqSocket: socket	// socket to retrieve client cert 
+		resSocket: socket	// socket to accept response
+		cert: {...} 		// full client cert
+
+	In phase 2/3 of the session setup, the following is added to this req:
+
+		log: {...}			// info to trap socket stats
+		client: "..."		// name of client from cert or "guest"
+		profile: {...},		// client profile after login
+		host: "proto://domain:port"	// requested host 
+		action: "select|update| ..."	// corresponding crude name
+		encrypted: bool		// true if request on encrypted server
+		site: {...}			// site info
+	
+	In phase 3/3 of the session connection
+		
+		{query,index,flags,where} and {sql,table,area,path,type} 
+		
+	is appended to the request.
 	
 	@param {Object} req Totem endpoint request
 	@param {Function} cb callback(competed req)
 	*/
 	dsThread: (req,cb) => {
-		const
-			{ revSession } = sqls,
-			{ ipAddress, url, body, client } = req,
-			query = req.query = {},
-			index = req.index = {},
-			flags = req.flags = {},
-			where = req.where = {},
-			[path,table,type,area] = url.parsePath(query, index, flags, where);
-
-		const
-			{ strips, prefix, traps, id } = filterFlag;
-
-		for (var key in query) 		// strip or remap bogus keys
-			if ( key in strips )
-				delete query[key];
-
-		for (var key in flags) 	// trap special flags
-			if ( trap = traps[key] )
-				trap(req);
-
-		for (var key in body) 		// remap body flags
-			if ( key.startsWith(prefix) ) {  
-				flags[key.substr(1)] = body[key]+"";
-				delete body[key];
-			}
-
-		if (id in body) {  			// remap body record id
-			where["="][id] = query[id] = body[id]+""; 
-			delete body[id];
-		}
-
-		for (var key in query) 		// strip or remap bogus keys
-			if ( key in strips )
-				delete query[key];
-
-		for (var key in flags) 	// trap special flags
-			if ( trap = traps[key] )
-				trap(req);
-
-		for (var key in body) 		// remap body flags
-			if ( key.startsWith(prefix) ) {  
-				flags[key.substr(1)] = body[key]+"";
-				delete body[key];
-			}
-
-		if (id in body) {  			// remap body record id
-			where["="][id] = query[id] = body[id]+""; 
-			delete body[id];
-		}
-
-		//Log({u:url, f: flags, q:query, b:body, i:index, w:where});
-		//Log([path,table,type,area]);
-		
-		sqlThread( sql => {
+		sqlThread( sql => {	// start a sql thread for this dataset
+			const
+				{ logSession } = sqls,
+				{ ipAddress, method, client, table } = req;
 			
-			if ( revSession )	// optional logging of connections
-				sql.query(revSession, [{
+			//Log(ipAddress,method,client,table);
+			
+			if ( logSession )	// optional logging of connections
+				sql.query(logSession, [{
 					IPsession: ipAddress
 				}, {
 					Client: client
 				}] );
 
-			
-			req.ds = ( 
-				tableRoutes[flags.notebook || flags.nb || flags.project || flags.option || flags.task || table] 
-				|| (req => `app.${table}`)
-				) (req);
-			req.path = path;
-			req.area = area;
-			req.table = table || "ping";
-			req.type = type || ""; //defaultType;
+			req.ds = ( tableRoutes[table] || (req => `app.${table}`) ) (req);
 			req.sql = sql;
+			req.action = crudIF[method];			// crud action being requested
 			
 			cb(req);
 		});
@@ -808,7 +983,7 @@ const
 	@param {Object} req session request
 	@param {Object} res session response
 	*/
-	routeRequest: (req,res) => {
+	routeAgent: (req,res) => {
 		/*
 		Log session metrics, trace the current route, then callback route on the supplied 
 		request-response thread.
@@ -854,7 +1029,7 @@ const
 
 			const
 				{ logMetrics } = sqls,
-				{ area, table, path, flags } = req;
+				{ area, table, path, flags, type } = req;
 
 			Trace( route.name.toUpperCase(), path );
 
@@ -870,29 +1045,19 @@ const
 			else {
 				//Trace("log check", req.area, req.reqSocket?true:false, req.log );
 				if ( logMetrics )
-					if ( sock = req.reqSocket ) 
-						logSession( sock );  
+					logSession( req.reqSocket );  
 
 				route(req, recs => {	// route request and capture records
 					if ( recs ) {
-						// Trace("route flags", flags);
-						/*
-						var call = null;
-						for ( var key in flags ) if ( !call ) {	// perform single data modifier
-							if ( key.startsWith("$") ) key = "$";
-							if ( call = filterFlag[key] ) {
-								call( recs, req, recs => res(req, recs) );
-								break;
-							}
-						}
+						var filter;
+						//for ( var key in flags ) filter = filterFlag[key];
 
-						if ( !call ) res(recs);  */
+						if ( filter ) 
+							filter( recs, req, res );
 
-						var mod;
-						for ( var key in flags ) mod = filterFlag[key];
-
-						if ( mod ) 
-							mod( recs, req, recs => res(recs) );
+						else
+						if ( filter = filterType[type] )  // process record conversions
+							filter(recs, req, res);
 
 						else
 							res(recs);
@@ -948,10 +1113,66 @@ const
 		}
 		*/
 
-		dsThread( req, req => {	// start a dataset thread
+		function cleanParms() {	// cleanup the query and body parms
 			const
-				{area,table,action,path,ds} = req;
+				{ query, where, body, index, flags, client } = req,
+				{ queryStrip, flagPrefix, flagTrap, idKey } = filterFlag;
 
+			for (var key in query) 		// strip or remap bogus keys
+				if ( key in queryStrip )
+					delete query[key];
+
+			for (var key in flags) 	// trap special flags
+				if ( trap = flagTrap[key] )
+					trap(req);
+
+			if (flagPrefix)
+				for (var key in body) 		// remap body flags
+					if ( key.startsWith(flagPrefix) ) {  
+						flags[key.substr(1)] = body[key]+"";
+						delete body[key];
+					}
+
+			if (idKey in body) {  			// remap body record id
+				where["="][id] = query[id] = body[id]+""; 
+				delete body[id];
+			}
+
+			for (var key in query) 		// strip or remap bogus keys
+				if ( key in queryStrip )
+					delete query[key];
+
+			for (var key in flags) 	// trap special flags
+				if ( trap = flagTrap[key] )
+					trap(req);
+			
+			/*
+			for (var key in body) 		// remap body flags
+				if ( key.startsWith(flagPrefix) ) {  
+					flags[key.substr(1)] = body[key]+"";
+					delete body[key];
+				}*/
+
+			/*if (id in body) {  			// remap body record id
+				where["="][id] = query[id] = body[id]+""; 
+				delete body[id];
+			}*/
+
+			//Log({f: flags, q:query, b:body, i:index, w:where});
+		}
+		
+		dsThread( req, req => {	// start a dataset thread
+			const 
+				mimes = MIME.types,
+				{area,table,action,path,type,ds} = req;
+
+			//req.host: $master.protocol+"//"+Req.headers["host"];		// domain being requested
+			req.encrypted = isEncrypted();			// on encrypted worker
+			req.site = site;							// site info
+			req.mime = mimes[ type ] || mimes.html;
+			
+			cleanParms();
+			
 			//Log({a:area, t:table, p: path, ds: ds, act: action});
 
 			if ( area || !table ) 	// send file
@@ -959,7 +1180,6 @@ const
 					const
 						{area,table,type,path} = req;
 
-					//Log(area,path,type);
 					if ( path.endsWith("/") ) 		// requesting folder
 						if ( route = byArea[area] || byArea.all )
 							route(req,res);
@@ -1177,173 +1397,9 @@ const
 			*/
 			function createServer() {		//< create and start the server
 				
-				/**
-				Start service and attach listener.  Established the secureIO if configured.  Establishes
-				server-busy tests to thwart deniel-of-service attackes and process guards to trap faults.  When
-				starting the master process, other configurations are completed.  Watchdogs and proxies are
-				also established.
-				
-				@param {Object} server server being started
-				@param {Numeric} port port number to listen on
-				@param {Function} cb callback listener cb(Req,Res)
-				*/				
-				function startServer(server, port, agent) {	//< attach listener callback cb(Req,Res) to the specified port
-					const 
-						{ initialize, secureIO, dogs, guard, guards, proxy, proxies, cores, sendMail } = TOTEM;
-					
-					if ( secureIO )		// setup secure link sessions with a guest profile
-						sqlThread( sql => {
-							sql.query( "SELECT * FROM openv.profiles WHERE Client='Guest' LIMIT 1", [], (err,recs) => {
-								Trace( recs[0] 
-									? "Guest logins enabled"
-									: "Guest logins disabled" );
-								
-								SECLINK.config( Copy(secureIO, {
-									server: server,
-									sqlThread: sqlThread,
-									notify: sendMail,
-									guest: recs[0]
-								}) );
-								
-								secureIO.sio = SECLINK.sio;
-							});
-						});
-
-					/*
-					The BUSY interface provides a means to limit client connections that would lock the 
-					service (down deep in the tcp/icmp layer).  Busy thus helps to thwart denial of 
-					service attacks.  (Alas latest versions do not compile in latest NodeJS.)
-					*/
-
-					if (BUSY && TOTEM.busyTime) BUSY.maxLag(TOTEM.busyTime);
-
-					if (guard)  { // catch core faults
-						process.on("uncaughtException", err => Trace( "FAULTED" , err) );
-
-						process.on("exit", code => Trace( "HALTED", code ) );
-
-						for (var signal in guards)
-							process.on(signal, () => Trace( "SIGNALED", signal) );
-					}
-
-					server.on("request", agent);
-
-					server.listen( port, () => {  	// listen on specified port
-						Trace("LISTENING ON", port);
-						
-						if (sqlThread() )
-							sqlThread( sql => {
-								initialize( sql, sql => {
-									if (init) init(sql);	
-								});
-							});
-						
-						else
-							Trace( errors.noDB );
-					});
-
-					if (CLUSTER.isMaster)	{ // setup listener on master port
-						CLUSTER.on('exit', (worker, code, signal) =>  Trace("WORKER TERMINATED", code || errors.ok));
-
-						CLUSTER.on('online', worker => Trace("WORKER CONNECTED"));
-
-						// create workers
-						for (var core = 0; core < cores; core++) CLUSTER.fork();
-						
-						const { modTimes, onFile, watchFile,secureIO } = TOTEM;
-
-						Each(onFile, (area, cb) => {  // callback cb(sql,name,area) when file changed
-							FS.readdir( area, (err, files) => {
-								if (err) 
-									Log(err);
-
-								else
-									files.forEach( file => {
-										if ( !file.startsWith(".") && !file.startsWith("_") )
-											watchFile( area+file, cb );
-									});
-							});	
-						});
-
-						Log( [ // splash
-							"HOSTING " + site.nick,
-							"AT MASTER " + site.master,
-							"AT WORKER " + site.worker,
-							"FROM " + process.cwd(),
-							"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
-							"WITH "+ (secureIO ? secureIO.sio ? "SECURE" : "INSECURE" : "NO")+" LINKS",
-							"WITH " + (site.sessions||"UNLIMITED") + " CONNECTIONS",
-							"USING " + (cores ? cores + " WORKERS" : "NO WORKERS"),
-							"HAVING POCS " + JSON.stringify(site.pocs)
-						].join("\n- ") );
-
-						sqlThread( sql => {	// initialize file watcher, proxies, watchdog and endpoints
-							sql.query("UPDATE openv.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
-
-							if ( dogs )		// start watch dogs
-								startDogs( sql, dogs );
-
-							if ( proxies ) 	{ 	// setup rotating proxies
-								sql.query(	// out with the old
-									"DELETE FROM openv.proxies WHERE hour(timediff(now(),created)) >= 2");
-
-								proxies.forEach( (proxy,src) => {	// in with the new
-									Fetch( proxy, html => {
-										//Trace(">>>proxy", proxy, html.length);
-										var 
-											$ = SCRAPE.load(html),
-											now = new Date(),
-											recs = [];
-
-										switch (proxy) {
-											case "https://free-proxy-list.net":
-											case "https://sslproxies.org":
-												var cols = {
-													ip: 1,
-													port: 2,
-													org: 3,
-													type: 5,
-													proto: 6
-												};
-
-												$("table").each( (idx,tab) => {
-													//Trace("table",idx); 
-													if ( idx==0 )
-														for ( var key in cols ) {
-															if ( col = cols[key] )
-																$( `td:nth-child(${col})`, tab).each( (i,v) => {
-																	if ( col == 1 ) recs.push( Copy(cols, {
-																		source: src,
-																		created: now
-																	}) );
-																	var rec = recs[i];
-																	rec[ key ] = $(v).text();
-																}); 
-														}
-												}); 
-												break;
-
-											default:
-												Trace("ignoring proxy", proxy);
-										}
-
-										Trace("SET PROXIES", recs);
-										recs.forEach( rec => {
-											sql.query(
-												"INSERT INTO openv.proxies SET ? ON DUPLICATE KEY UPDATE ?", 
-												[rec, {created: now, source:src}]);
-										});
-									});
-								});
-							}
-
-							docEndpoints(sql);
-						});
-					}
-				}
-
 				const 
 					{ crudIF,name,cache,trustStore,certs } = TOTEM,
+					{ initialize, secureIO, dogs, guard, guards, proxy, proxies, cores, sendMail } = TOTEM,
 					port = parseInt( CLUSTER.isMaster ? $master.port : $worker.port );
 
 				//Trace( ">>start", isEncrypted(), $master, $worker );
@@ -1356,13 +1412,143 @@ const
 
 				//Trace("enc>>>", isEncrypted(), paths.certs+"truststore" );
 				
+				// Setup master only
+				
+				if (CLUSTER.isMaster) {
+					CLUSTER.on('exit', (worker, code, signal) =>  Trace("WORKER TERMINATED", code || errors.ok));
+
+					CLUSTER.on('online', worker => Trace("WORKER CONNECTED"));
+
+					// create workers
+					for (var core = 0; core < cores; core++) CLUSTER.fork();
+
+					const { modTimes, onFile, watchFile,secureIO } = TOTEM;
+
+					Each(onFile, (area, cb) => {  // callback cb(sql,name,area) when file changed
+						FS.readdir( area, (err, files) => {
+							if (err) 
+								Log(err);
+
+							else
+								files.forEach( file => {
+									if ( !file.startsWith(".") && !file.startsWith("_") )
+										watchFile( area+file, cb );
+								});
+						});	
+					});
+
+					Log( [ // splash
+						"HOSTING " + site.nick,
+						"AT MASTER " + site.master,
+						"AT WORKER " + site.worker,
+						"FROM " + process.cwd(),
+						"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
+						"WITH "+ (secureIO ? secureIO.sio ? "SECURE" : "INSECURE" : "NO")+" LINKS",
+						"WITH " + (site.sessions||"UNLIMITED") + " CONNECTIONS",
+						"USING " + (cores ? cores + " WORKERS" : "NO WORKERS"),
+						"HAVING POCS " + JSON.stringify(site.pocs)
+					].join("\n- ") );
+
+					sqlThread( sql => {	// initialize file watcher, proxies, watchdog and endpoints
+						sql.query("UPDATE openv.files SET State='watching' WHERE Area='uploads' AND State IS NULL");
+
+						if ( dogs )		// start watch dogs
+							startDogs( sql, dogs );
+
+						if ( proxies ) 	{ 	// setup rotating proxies
+							sql.query(	// out with the old
+								"DELETE FROM openv.proxies WHERE hour(timediff(now(),created)) >= 2");
+
+							proxies.forEach( (proxy,src) => {	// in with the new
+								Fetch( proxy, html => {
+									//Trace(">>>proxy", proxy, html.length);
+									var 
+										$ = SCRAPE.load(html),
+										now = new Date(),
+										recs = [];
+
+									switch (proxy) {
+										case "https://free-proxy-list.net":
+										case "https://sslproxies.org":
+											var cols = {
+												ip: 1,
+												port: 2,
+												org: 3,
+												type: 5,
+												proto: 6
+											};
+
+											$("table").each( (idx,tab) => {
+												//Trace("table",idx); 
+												if ( idx==0 )
+													for ( var key in cols ) {
+														if ( col = cols[key] )
+															$( `td:nth-child(${col})`, tab).each( (i,v) => {
+																if ( col == 1 ) recs.push( Copy(cols, {
+																	source: src,
+																	created: now
+																}) );
+																var rec = recs[i];
+																rec[ key ] = $(v).text();
+															}); 
+													}
+											}); 
+											break;
+
+										default:
+											Trace("ignoring proxy", proxy);
+									}
+
+									Trace("SET PROXIES", recs);
+									recs.forEach( rec => {
+										sql.query(
+											"INSERT INTO openv.proxies SET ? ON DUPLICATE KEY UPDATE ?", 
+											[rec, {created: now, source:src}]);
+									});
+								});
+							});
+						}
+
+						docEndpoints(sql);
+					});
+				}
+				
+				// Setup master and workers
+				
 				Each( FS.readdirSync(paths.certs+"truststore"), (n,file) => {
 					if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
-						Trace("TRUSTING ${name} WITH CA CHAIN", file);
+						Trace( "CA CHAIN", file);
 						trustStore.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf-8") );
 					}
 				});
 
+				if ( secureIO )		// setup secure link sessions with a guest profile
+					sqlThread( sql => {
+						sql.query( "SELECT * FROM openv.profiles WHERE Client='Guest' LIMIT 1", [], (err,recs) => {
+							Trace( recs[0] 
+								? "Guest logins enabled"
+								: "Guest logins disabled" );
+
+							SECLINK.config( Copy(secureIO, {
+								server: server,
+								sqlThread: sqlThread,
+								notify: sendMail,
+								guest: recs[0]
+							}) );
+
+							secureIO.sio = SECLINK.sio;
+						});
+					});
+
+				if (guard)  { // catch core faults
+					process.on("uncaughtException", err => Trace( "FAULTED" , err) );
+
+					process.on("exit", code => Trace( "HALTED", code ) );
+
+					for (var signal in guards)
+						process.on(signal, () => Trace( "SIGNALED", signal) );
+				}
+				
 				const
 					server = TOTEM.server = isEncrypted() 
 						? HTTPS.createServer({
@@ -1377,272 +1563,20 @@ const
 						})	// using encrypted services so use https 			
 						: HTTP.createServer();		  // using unencrpted services so use http 
 
-				startServer( server, port, (Req,Res) => {		// start server with provided req-res agent
-					/**
-					Provide a request hash req to the supplied session, or terminate the session 
-					if the service is too busy.
-
-					In phase 1/3 of session setup, the following is added to this req:
-
-						host: "proto://domain:port"	// requested host 
-						cookie: "...."		// client cookie string
-						agent: "..."		// client browser info
-						ipAddress: "..."	// client ip address
-						referer: "proto://domain:port/query"	//  url during a cross-site request
-						method: "GET|PUT|..." 			// http request method
-						action: "select|update| ..."	// corresponding crude name
-						now: date			// date stamp when requested started
-						encrypted: bool		// true if request on encrypted server
-						post: "..."			// raw body text
-						url	: "/query"		// requested url path
-						reqSocket: socket	// socket to retrieve client cert 
-						resSocket: socket	// socket to accept response
-						site: {...}			// site info
-
-					@param {Function} ses session(req) callback accepting the provided request
-					*/
-					function reqThread( ses ) { 		// start request and callback session cb
-						function getSocket() {  //< returns suitable response socket depending on cross/same domain session
-							if ( Req.headers.origin ) {  // cross domain session is in progress from master (on http) to its workers (on https)
-								Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
-								Res.socket.write(Res._header);
-								Res._headerSent = true;
-								return Res.socket;
-							}
-
-							else   // same domain (http-to-http or https-to-https) so must use the request socket
-								return Req.socket;
-						}
-
-						function getPost( cb ) { // Feed raw post to callback
-							var post = ""; 
-
-							Req
-							.on("data", chunk => post += chunk.toString() )
-							.on("end", () => cb( post ) );
-						}
-
-						getPost( post => {							// prime session request
-							switch ( Req.method ) {	// get post parms depending on request type being made
-								// CRUD interface
-								case "PUT":
-								case "GET":
-								case "POST":
-								case "DELETE":
-									//Trace("============ip", Req.connection.remoteAddress, Req.socket.remoteAddress, Req.headers['x-forwarded-for'] );
-									//Log(["post=", post], Req.url, Req.method, Req.headers);
-									ses(null, {								// start the session
-										cookie: Req.headers["cookie"] || "",
-										ipAddress: Req.socket.remoteAddress,
-										host: $master.protocol+"//"+Req.headers["host"],		// domain being requested
-										referer: new URL(Req.headers["referer"] || master), 	// proto://domain used
-										agent: Req.headers["user-agent"] || "",	// requester info
-										body: post.parsePost(Req.headers["content-type"]), 			// body (parms, files, etc)
-										method: Req.method,					// get,put, etc
-										now: new Date(),  					// time client started request
-										action: crudIF[Req.method],			// crud action being requested
-										reqSocket: Req.socket,   			// use supplied request socket 
-										resSocket: getSocket,				// attach method to return a response socket
-										encrypted: isEncrypted(),			// on encrypted worker
-										/*
-										There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
-										embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
-										unescapes to /\\"ABC\\".  This is ok but can be confusing.
-										*/
-										url: unescape( Req.url || "/" ),	// unescaped url
-										site: site							// site info
-									});
-									break;
-
-								// client making cross-domain CORs request, so respond with valid methods - dont start a session
-								case "OPTIONS":  
-									//Req.method = Req.headers["access-control-request-method"];
-									//Trace(">>>>>>opts req", Req.headers);
-									Res.writeHead(200, {
-										"access-control-allow-origin": "*", 
-										"access-control-allow-methods": "POST, GET, DELETE, PUT, OPTIONS"
-									});
-									Res.end();
-									/*res.header = function () {
-										Res.writeHead(200);
-										Res.socket.write(Res._header);
-										Res.socket.write(Res._header);
-										Res._headerSent = true;
-									}; */
-									break;
-
-								default:		// signal session problem
-									ses( errors.badMethod );
-							}
-						});
-					}
-
-					if ( BUSY ? BUSY() : false )	// trap DNS attacks
-						Res.end( errors.isBusy );
-
-					else
-						reqThread( (err,req) => {  // start request if service not busy
-							/**
-							Provide a response to a session after attaching cert, client, profile 
-							and session info to this request.  
-
-							In phase 2/3 of the session setup, the following is added to this req:
+				startServer( server, port, (req,res) => {
+					
+					loginClient(req, prof => {	// get client profile
+						if (prof) {			// client accepted so start session
+							req.client = prof.Client;
+							req.profile = prof;
 							
-								log: {...}			// info to trap socket stats
-								client: "..."		// name of client from cert or "guest"
-								cert: {...} 		// full client cert
+							routeAgent(req,res);
+						}
 
-							@param {Function} cb connection accepting the provided response callback
-							*/
-							function resThread( ses ) {  	// start response using this session callback								
-								if ( req.reqSocket )	// have a valid request socket so ....
-									loginClient(req, (err,prof) => {	// get client profile
-										if (prof) {			// client accepted so start session
-											req.client = prof.Client;
-											req.profile = prof;
-
-											const 
-												{ sql, client } = req;
-											
-											ses(null, data => {  // Provide session response callback
-
-												function sendString( data ) {  // Send string - terminate sql connection
-													Res.end( data );
-												}
-
-												function sendError(err) {  // Send pretty error message - terminate sql connection
-													switch ( req.type ) {
-														case "html":
-														case "db":
-															Res.end( errors.pretty(err) );
-															break;
-
-														default:
-															Res.end( err+"" );
-													}
-												}
-
-												function sendObject(obj) {
-													try {
-														sendString( JSON.stringify(obj) );
-													}
-													catch (err) {  // infinite cycle
-														sendError( errors.badReturn );
-													}		
-												}
-
-												function sendRecords(recs) { // Send records via converter
-													if ( route = filterType[req.type] )  // process record conversions
-														route(recs, req, recs => {
-															if (recs) 
-																switch ( typeOf(recs) ) {
-																	case "Error":
-																		sendError( recs );
-																		break;
-
-																	case "String":
-																		sendString( recs );
-																		break;
-
-																	case "Array":
-																	case "Object":
-																	default:
-																		sendObject( recs );
-																} 
-
-															else
-																sendError( errors.badReturn );
-														});
-
-													else 
-														sendObject( recs );
-												}
-
-												const
-													{ req } = Req,
-													{ now, ipAddress } = req,
-													mimes = MIME.types,
-													mime = mimes[ isError(data||0) ? "html" : req.type ] || mimes.html;
-
-												/*
-												// set appropriate headers to prevent http-parse errors when using master-worker proxy
-												if ( req.encrypted )
-													Res.setHeader("Set-Cookie", ["client="+req.client, "service="+TOTEM.name] );						
-												*/
-
-												try {  // set headers, handle CORs, then send data
-													Res.setHeader("Content-Type", mime);
-
-													if ( CORS ) {	// support CORS
-														Res.setHeader("Access-Control-Allow-Origin", "*");
-														Res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-														Res.setHeader("Access-Control-Allow-Headers", '*');
-														Res.setHeader("Status", "200 OK");
-														Res.setHeader("Vary", "Accept");
-													}
-
-													/*
-													Experimental:
-													self.send_header('Content-Type', 'application/octet-stream')
-													*/
-
-													Res.statusCode = 200;
-
-													if (data != null)
-														switch ( typeOf(data) ) {  // send based on its type
-															case "Error": 			// send error message
-																sendError( data );
-																break;
-
-															case "Array": 			// send data records 
-																sendRecords(data);
-																break;
-
-															case "String":  			// send message
-															case "Buffer":
-																sendString(data);
-																break;
-
-															case "Object":
-															default: 					// send data record
-																sendObject(data);
-																break;
-														}
-
-													else
-														sendError( errors.badReturn );
-												}
-
-												catch (err) {
-													Res.end();
-												}	
-											});	
-										}
-										
-										else
-											ses( err || errors.badLogin );
-									});
-
-								else 	// lost request socket for some reason so ...
-									res( errors.noSocket );
-							}
-
-							//Trace("startReq", err);
-
-							if (err)
-								Res.end( errors.pretty( err ) );
-
-							else {
-								Req.req = req;
-								resThread( (err,res) => {	// route the request on the provided response callback
-									if ( err ) 
-										Res.end( errors.pretty( err ) );
-
-									else
-										routeRequest(req,res); 
-								});
-							}
-						});
+						else
+							res( errors.badLogin );
+					});
+							
 				});
 			}
 
@@ -1977,7 +1911,8 @@ const
 	@cfg {Object} 
 	*/
 	filterFlag: {				//< Properties for request flags
-		traps: { //< cb(query) traps to reorganize query
+		flagTrap: { //< cb(query) flagTrap to reorganize query
+			/*
 			filters: req => {
 				var 
 					flags = req.flags,
@@ -1986,14 +1921,14 @@ const
 				
 				if (filters && filters.forEach )
 					filters.forEach( filter => where["="][ filter.property ] = filter.value || "" );
-			}
+			}*/
 		},
-		strips:	 			//< Flags to strips from request
+		queryStrip:	 			//< Flags to queryStrip from request
 			{"":1, "_":1, leaf:1, _dc:1}, 		
 
 		//ops: "<>!*$|%/^~",
-		id: "ID", 					//< db record id
-		prefix: "_"				//< Prefix that indicates a field is a flag
+		idKey: "ID", 					//< db record id
+		flagPrefix: "_"				//< Prefix that indicates a field is a flag
 		//trace: "_trace",		//< Echo flags before and after parse	
 		/*blog: function (recs, req, res) {  //< Default blogger
 			res(recs);
@@ -2113,6 +2048,28 @@ const
 	@cfg {Object} 
 	*/	
 	byTable: { 			  //< by-table routers	
+		/**
+		*/
+		agent: (req,res) => {
+			const
+				{ query, ipAddress } = req,
+				{ port } = query,
+				parsePath = "".parsePath+"";
+			
+			Trace("register agent", `${ipAddress}:${port}` );
+			
+			if (port)
+				res(`
+String.prototype.parsePath = ${parsePath};
+var 
+	Agent = ${startServer}, 
+	myAgent = agents => Agent(require("http").createServer(),${port},agents);
+`);
+			
+			else
+				res( "Error: missing port key" );
+		},
+		
 		/**
 		Endpoint to test connectivity.
 
@@ -2348,11 +2305,11 @@ const
 				{ sio } = SECLINK;
 
 			//Log("insert", body);
-			Log("insert", {
+			/*Log("insert", {
 				type: body.formType,
 				startFrag: Buffer.from(body[ body.name ].substr(0,8)).toString("hex"),
 				endFrag: Buffer.from(body[ body.name ].substr(-8)).toString("hex")
-			});
+			});*/
 			
 			sql.query(	// update db logs if it exits
 				"INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1,?", [{
@@ -2529,7 +2486,7 @@ const
 		//addSession: "INSERT INTO openv.sessions SET ?",
 		//addProfile: "INSERT INTO openv.profiles SET ?",
 		//getSession: "SELECT * FROM openv.sessions WHERE ? LIMIT 1",
-		revSession: "UPDATE openv.sessions SET ? WHERE ?",
+		logSession: "UPDATE openv.sessions SET ? WHERE ?",
 		//challenge: "SELECT *,concat(client,password) AS Passphrase FROM openv.profiles WHERE Client=? LIMIT 1",
 		//guest: "SELECT * FROM openv.profiles WHERE Client='guest@totem.org' LIMIT 1",
 		pocs: "SELECT admin,overlord, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Users FROM openv.profiles GROUP BY admin,overlord"
