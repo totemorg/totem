@@ -639,7 +639,7 @@ const
 								break;
 
 							default:		// signal session problem
-								Res.end( "error: bad method" );
+								Res.end( "Error: bad method" );
 						}
 					});
 				});
@@ -659,7 +659,7 @@ const
 
 							Res.setHeader("Content-Type", req.mime || "text/plain");
 							Res.statusCode = 200;
-			//Log(">>>>>>>>>send", data.constructor.name, req.mime);
+			// Log(">>>>>>>>>send", data.constructor.name, req.mime);
 
 							if (data != null)
 								switch ( data.constructor.name ) {  // send based on its type
@@ -2052,20 +2052,30 @@ const
 		*/
 		agent: (req,res) => {
 			const
-				{ query, ipAddress } = req,
+				{ query, ipAddress, sql } = req,
 				{ port } = query,
 				parsePath = "".parsePath+"";
 			
 			Trace("register agent", `${ipAddress}:${port}` );
 			
-			if (port)
+			if (port) {
 				res(`
 String.prototype.parsePath = ${parsePath};
+
 var 
 	Agent = ${startServer}, 
-	myAgent = agents => Agent(require("http").createServer(),${port},agents);
+	myAgent = agents => Agent(require("http").createServer(),${port},agents);	
 `);
-			
+				sql.query(
+					"INSERT INTO openv.agents SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1", [{
+						IP: ipAddress,
+						Port: port,
+						Connects: 0,
+						Uses: 0,
+						Util: 0
+					}], err => Log(err));
+			}
+
 			else
 				res( "Error: missing port key" );
 		},
