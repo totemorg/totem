@@ -420,7 +420,7 @@ const
 
 	@param {Object} server server being started
 	@param {Numeric} port port number to listen on
-	@param {Function,Object} agents callback agents(req,res) router or hash of agents
+	@param {Function|Object} agents callback agents(req,res) router or hash of agents
 	*/
 	startServer: (server,port,agents) => {
 		server
