@@ -33,9 +33,8 @@ and the `stores | shares` areas for sharing static *FILE*s.
 
 ## Installation
 
-Follow the desired [Forked || Federated installation](https://github.com/totemstan/acmesds)
-to install **TOTEM**, including OS upgrades (tools, compute frameworks, etc) and
-module dependencies.
+See [TOTEM installation](https://github.com/totemstan/acmesds)
+to install **TOTEM**.
 
 ## Setup
 
@@ -110,11 +109,6 @@ SHARD3 = PROTO://DOMAIN:PORT
 <a name="TOTEM.module_String"></a>
 
 ## String
-
-* [String](#TOTEM.module_String)
-    * [~parseXML(cb)](#TOTEM.module_String..parseXML) ⇐ <code>String</code>
-    * [~parsePost()](#TOTEM.module_String..parsePost)
-
 <a name="TOTEM.module_String..parseXML"></a>
 
 ### String~parseXML(cb) ⇐ <code>String</code>
@@ -127,10 +121,6 @@ Parse XML string into json and callback cb(json)
 | --- | --- | --- |
 | cb | <code>function</code> | callback( json || null if error ) |
 
-<a name="TOTEM.module_String..parsePost"></a>
-
-### String~parsePost()
-**Kind**: inner method of [<code>String</code>](#TOTEM.module_String)  
 <a name="module_TOTEM"></a>
 
 ## TOTEM
@@ -476,6 +466,7 @@ neoThread( neo => {
         * [.site](#module_TOTEM.site)
         * [.filterType](#module_TOTEM.filterType)
         * [.byTable](#module_TOTEM.byTable)
+            * [.agent()](#module_TOTEM.byTable.agent)
             * [.ping(req, res)](#module_TOTEM.byTable.ping)
             * [.task(req, res)](#module_TOTEM.byTable.task)
             * [.riddle(req, res)](#module_TOTEM.byTable.riddle)
@@ -499,14 +490,14 @@ neoThread( neo => {
         * [.uploadFile](#module_TOTEM.uploadFile)
         * [.busyTime](#module_TOTEM.busyTime)
         * [.cache](#module_TOTEM.cache)
+        * [.startServer(server, port, agents)](#module_TOTEM.startServer)
         * [.loginClient(req, res)](#module_TOTEM.loginClient)
         * [.dsThread(req, cb)](#module_TOTEM.dsThread)
-        * [.routeRequest(req, res)](#module_TOTEM.routeRequest)
+        * [.routeAgent(req, res)](#module_TOTEM.routeAgent)
         * [.startDogs()](#module_TOTEM.startDogs)
         * [.config(opts, cb)](#module_TOTEM.config)
             * [~configService(agent)](#module_TOTEM.config..configService)
                 * [~createServer()](#module_TOTEM.config..configService..createServer)
-                    * [~startServer(server, port, cb)](#module_TOTEM.config..configService..createServer..startServer)
         * [.initialize()](#module_TOTEM.initialize)
         * [.runTask(opts, task, cb)](#module_TOTEM.runTask)
         * [.watchFile(path, callback)](#module_TOTEM.watchFile)
@@ -720,10 +711,15 @@ By-table endpoint routers {table: method(req,res), ... } for data fetchers, syst
 **Cfg**: <code>Object</code>  
 
 * [.byTable](#module_TOTEM.byTable)
+    * [.agent()](#module_TOTEM.byTable.agent)
     * [.ping(req, res)](#module_TOTEM.byTable.ping)
     * [.task(req, res)](#module_TOTEM.byTable.task)
     * [.riddle(req, res)](#module_TOTEM.byTable.riddle)
 
+<a name="module_TOTEM.byTable.agent"></a>
+
+#### byTable.agent()
+**Kind**: static method of [<code>byTable</code>](#module_TOTEM.byTable)  
 <a name="module_TOTEM.byTable.ping"></a>
 
 #### byTable.ping(req, res)
@@ -937,12 +933,28 @@ File cache
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
+<a name="module_TOTEM.startServer"></a>
+
+### TOTEM.startServer(server, port, agents)
+Start service and attach listener.  Established the secureIO if configured.  Establishes
+	server-busy tests to thwart deniel-of-service attackes and process guards to trap faults.  When
+	starting the master process, other configurations are completed.  Watchdogs and proxies are
+	also established.
+
+**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| server | <code>Object</code> | server being started |
+| port | <code>Numeric</code> | port number to listen on |
+| agents | <code>function</code> \| <code>Object</code> | callback agents(req,res) router or hash of agents |
+
 <a name="module_TOTEM.loginClient"></a>
 
 ### TOTEM.loginClient(req, res)
 Validate a client's session by attaching a log, profile, group, client, 
-	cert and joined info to this `req` request then callback `res`(error) with 
-	a null `error` if the session was sucessfully validated.
+	cert and joined info to this request then callback(prof || null) with
+	recovered profile or null if the session could not be validated.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 
@@ -954,8 +966,40 @@ Validate a client's session by attaching a log, profile, group, client,
 <a name="module_TOTEM.dsThread"></a>
 
 ### TOTEM.dsThread(req, cb)
-Start a dataset thread.  In phase 3/3 of the session connection, append 
-	{query,index,flags,where} and {sql,table,area,path,type} to the request.
+Start a dataset thread.  
+	
+	Provide a request hash req to the supplied session, or terminate the session 
+	if the service is too busy.
+
+	In phase 1/3 of session setup, the following is added to this req:
+
+		cookie: "...."		// client cookie string
+		agent: "..."		// client browser info
+		ipAddress: "..."	// client ip address
+		referer: "proto://domain:port/query"	//  url during a cross-site request
+		method: "GET|PUT|..." 			// http request method
+		now: date			// date stamp when requested started
+		post: "..."			// raw body text
+		url	: "/query"		// requested url path
+		reqSocket: socket	// socket to retrieve client cert 
+		resSocket: socket	// socket to accept response
+		cert: {...} 		// full client cert
+
+	In phase 2/3 of the session setup, the following is added to this req:
+
+		log: {...}			// info to trap socket stats
+		client: "..."		// name of client from cert or "guest"
+		profile: {...},		// client profile after login
+		host: "proto://domain:port"	// requested host 
+		action: "select|update| ..."	// corresponding crude name
+		encrypted: bool		// true if request on encrypted server
+		site: {...}			// site info
+	
+	In phase 3/3 of the session connection
+		
+		{query,index,flags,where} and {sql,table,area,path,type} 
+		
+	is appended to the request.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 
@@ -964,9 +1008,9 @@ Start a dataset thread.  In phase 3/3 of the session connection, append
 | req | <code>Object</code> | Totem endpoint request |
 | cb | <code>function</code> | callback(competed req) |
 
-<a name="module_TOTEM.routeRequest"></a>
+<a name="module_TOTEM.routeAgent"></a>
 
-### TOTEM.routeRequest(req, res)
+### TOTEM.routeAgent(req, res)
 Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
 	byActionTable then byAction routers.	
 
@@ -1022,7 +1066,6 @@ Configure and start the service with options and optional callback when started.
 * [.config(opts, cb)](#module_TOTEM.config)
     * [~configService(agent)](#module_TOTEM.config..configService)
         * [~createServer()](#module_TOTEM.config..configService..createServer)
-            * [~startServer(server, port, cb)](#module_TOTEM.config..configService..createServer..startServer)
 
 <a name="module_TOTEM.config..configService"></a>
 
@@ -1039,11 +1082,6 @@ Configure (create, start then initialize) a service that will handle its request
 | --- | --- | --- |
 | agent | <code>function</code> | callback(req,res) to handle session request-response |
 
-
-* [~configService(agent)](#module_TOTEM.config..configService)
-    * [~createServer()](#module_TOTEM.config..configService..createServer)
-        * [~startServer(server, port, cb)](#module_TOTEM.config..configService..createServer..startServer)
-
 <a name="module_TOTEM.config..configService..createServer"></a>
 
 ##### configService~createServer()
@@ -1051,22 +1089,6 @@ Create and start the HTTP/HTTPS server.  If starting a HTTPS server, the trustst
 			is scanned for PKI certs.
 
 **Kind**: inner method of [<code>configService</code>](#module_TOTEM.config..configService)  
-<a name="module_TOTEM.config..configService..createServer..startServer"></a>
-
-###### createServer~startServer(server, port, cb)
-Start service and attach listener.  Established the secureIO if configured.  Establishes
-				server-busy tests to thwart deniel-of-service attackes and process guards to trap faults.  When
-				starting the master process, other configurations are completed.  Watchdogs and proxies are
-				also established.
-
-**Kind**: inner method of [<code>createServer</code>](#module_TOTEM.config..configService..createServer)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| server | <code>Object</code> | server being started |
-| port | <code>Numeric</code> | port number to listen on |
-| cb | <code>function</code> | callback listener cb(Req,Res) |
-
 <a name="module_TOTEM.initialize"></a>
 
 ### TOTEM.initialize()
