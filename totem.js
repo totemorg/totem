@@ -2054,12 +2054,12 @@ const
 		agent: (req,res) => {
 			const
 				{ query, ipAddress, sql } = req,
-				{ port, keys } = query,
+				{ port, keys, tasks } = query,
 				parsePath = "".parsePath+"";
 			
-			Trace("register agent", `${ipAddress}:${port}` , keys );
-			
 			if (port) {
+				Trace("register agent", `${ipAddress}:${port}` , keys );
+			
 				res(`
 String.prototype.parsePath = ${parsePath};
 
@@ -2081,11 +2081,27 @@ var
 							Util: 0
 						}]);
 				});
-				
 			}
 
 			else
-				res( "Error: missing port key" );
+			if (tasks) 
+				if (tasks == "all")
+					sql.query(
+						"SELECT Task,Funded,Classif,Priority,Age FROM openv.queues", [], 
+						(err,recs) => res( err ? [] : recs) 
+					);
+
+				else
+					sql.query(
+						"SELECT Task,Funded,Classif,Priority,Age FROM openv.queues WHERE least(?,1) LIMIT ?", [{
+							Finished: 0,
+							Client: ipAddress,
+							Class: 'system'
+						}, tasks], (err,recs) => res( err ? [] : recs) 
+					);
+					
+			else
+				res( "Error: missing port/jobs key" );
 		},
 		
 		/**
@@ -2929,7 +2945,8 @@ with 2 workers and the default endpoint routes` );
 		break;
 
 	case "T3":
-	case "start": 
+	case "start":
+	case "admin":
 
 		TOTEM.config(null, sql => {
 			Trace( 
