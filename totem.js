@@ -639,7 +639,7 @@ const
 								break;
 
 							default:		// signal session problem
-								Res.end( "error: bad method" );
+								Res.end( "Error: bad method" );
 						}
 					});
 				});
@@ -659,7 +659,7 @@ const
 
 							Res.setHeader("Content-Type", req.mime || "text/plain");
 							Res.statusCode = 200;
-			//Log(">>>>>>>>>send", data.constructor.name, req.mime);
+			// Log(">>>>>>>>>send", data.constructor.name, req.mime);
 
 							if (data != null)
 								switch ( data.constructor.name ) {  // send based on its type
@@ -715,7 +715,7 @@ const
 						where = req.where = {},
 						[path,table,type,area] = url.parsePath(query, index, flags, where);
 
-					//Log("parsepath", [path,table,type,area]);
+					//console.log("parsepath", [path,table,type,area]);
 
 					req.path = path;
 					req.area = area;
@@ -1525,6 +1525,7 @@ const
 				if ( secureIO )		// setup secure link sessions with a guest profile
 					sqlThread( sql => {
 						sql.query( "SELECT * FROM openv.profiles WHERE Client='Guest' LIMIT 1", [], (err,recs) => {
+							Log(err);
 							Trace( recs[0] 
 								? "Guest logins enabled"
 								: "Guest logins disabled" );
@@ -2052,20 +2053,37 @@ const
 		*/
 		agent: (req,res) => {
 			const
-				{ query, ipAddress } = req,
-				{ port } = query,
+				{ query, ipAddress, sql } = req,
+				{ port, keys } = query,
 				parsePath = "".parsePath+"";
 			
-			Trace("register agent", `${ipAddress}:${port}` );
+			Trace("register agent", `${ipAddress}:${port}` , keys );
 			
-			if (port)
+			if (port) {
 				res(`
 String.prototype.parsePath = ${parsePath};
+
 var 
-	Agent = ${startServer}, 
-	myAgent = agents => Agent(require("http").createServer(),${port},agents);
+	_agent = ${startServer}, 
+	_server = require("http").createServer(),
+	_port = ${port},
+	_myAgent = agents => _agent(_server,_port,agents);	
+	_myAgent(agents);
 `);
-			
+				keys.split(",").forEach( key => {
+					sql.query(
+						"INSERT INTO openv.agents SET ? ON DUPLICATE KEY UPDATE Connects=Connects+1", [{
+							Host: ipAddress,
+							Name: key,
+							Port: port,
+							Connects: 0,
+							Uses: 0,
+							Util: 0
+						}]);
+				});
+				
+			}
+
 			else
 				res( "Error: missing port key" );
 		},
