@@ -21,19 +21,24 @@ const
 	//AGENT = require("http-proxy-agent"),		// agent to access proxies
 	SCRAPE = require("cheerio"), 				// scraper to load proxies
 	MIME = require("mime"), 					// file mime types
-	{ escape, escapeId } = SQLDB = require("mysql"),	//< mysql conector
+	SQLDB = require("mysql"),					//< mysql conector
 	XML2JS = require("xml2js"),					// xml to json parser (*)
 	BUSY = require('toobusy-js'),  				// denial-of-service protector (cant install on NodeJS 5.x+)
 	JS2XML = require('js2xmlparser'), 			// JSON to XML parser
 	JS2CSV = require('json2csv'),				// JSON to CSV parser	
 	  
 	// totem modules
-	{ testClient } = SECLINK = require("../securelink"),			// secure com and login
-	JSDB = require("../jsdb"),		// database agnosticator
+	SECLINK = require("../securelink"),			// secure com and login
+	JSDB = require("../jsdb"),					// database agnosticator
+	ENUMS = require("../enums"),
+	
 	{ Copy,Each,Debug,Stream,Clock,Log,
 	 sqlThread,neoThread,
 	 isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch 
-	} = require("../enums");
+	} = ENUMS,  
+	{ escape, escapeId } = SQLDB,
+	{ testClient } = SECLINK,
+	{ isMaster } = CLUSTER;
 
 /**
 @module TOTEM.String
@@ -208,7 +213,7 @@ TOTEM.config({
 	"byTable.": {  // define endpoints
 		test: function (req,res) {
 			res(" here we go");  // endpoint must always repond to its client 
-			if (CLUSTER.isMaster)  // setup tasking examples on on master
+			if (isMaster)  // setup tasking examples on on master
 				switch (req.query.opt || 1) {  // test example runTask
 					case 1: 
 						T.runTask({  // setup tasking for loops over these keys
@@ -256,7 +261,7 @@ TOTEM.config({
 }, sql => {				
 	Log( "db maintenance" );
 
-	if (CLUSTER.isMaster)
+	if (isMaster)
 		switch (process.argv[3]) {
 			case 1: 
 				sql.query( "select voxels.id as voxelID, chips.id as chipID from openv.voxels left join openv.chips on voxels.Ring = chips.Ring", function (err,recs) {
@@ -422,10 +427,11 @@ const
 	@param {Numeric} port port number to listen on
 	@param {Function|Object} agents callback agents(req,res) router or hash of agents
 	*/
-	startServer: (server,port,agents) => {
+	startServer: (server,port,agents,init) => {
 		server
 		.listen( port, () => {  	// listen on specified port
-			console.log( `Listening on port ${port}` )
+			console.log( `Listening on port ${port}` );
+			if ( init ) init();
 		})
 		.on("request", (Req,Res) => {
 			function reqThread( ses ) { 		// start request and callback session cb
@@ -734,7 +740,7 @@ const
 				});
 			});
 		})
-		.on("error", err => console.log(err) );
+		.on("error", err => console.log("server failed", err) );
 	},
 
 	/**
@@ -938,22 +944,24 @@ const
 	tableRoutes: {	// setup default DataSet routes
 	},
 
-	/**
+	/* *
 	MySQL connection options
 	*/
+	/*
 	mysql: { 		// database connection or null to disable
 		host: ENV.MYSQL_HOST,
 		user: ENV.MYSQL_USER,
 		pass: ENV.MYSQL_PASS
-	},
-					
+	}, */
+	
+	/*
 	sql: (query,args,cb) => sqlThread(sql => {
 		//Log(sql);
 		sql.query(query,args,(err,recs) => { 
 			if (!err && cb) cb(recs); 
 			Log(err || errors.ok);
 		});
-	}),
+	}), */
 					
 	/**
 	Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
@@ -1399,10 +1407,10 @@ const
 				
 				const 
 					{ crudIF,name,cache,trustStore,certs } = TOTEM,
-					{ initialize, secureIO, dogs, guard, guards, proxy, proxies, cores, sendMail } = TOTEM,
-					port = parseInt( CLUSTER.isMaster ? $master.port : $worker.port );
+					{ secureIO, dogs, guard, guards, proxy, proxies, cores, sendMail } = TOTEM,
+					port = isMaster ? $master.port : $worker.port;
 
-				//Trace( ">>start", isEncrypted(), $master, $worker );
+				//Trace( "create server on", isMaster, port, $master, $worker );
 
 				certs.totem = {  // totem service certs
 					pfx: FS.readFileSync(`${paths.certs}${name}.pfx`),
@@ -1414,7 +1422,7 @@ const
 				
 				// Setup master only
 				
-				if (CLUSTER.isMaster) {
+				if (isMaster) {
 					CLUSTER.on('exit', (worker, code, signal) =>  Trace("WORKER TERMINATED", code || errors.ok));
 
 					CLUSTER.on('online', worker => Trace("WORKER CONNECTED"));
@@ -1525,7 +1533,6 @@ const
 				if ( secureIO )		// setup secure link sessions with a guest profile
 					sqlThread( sql => {
 						sql.query( "SELECT * FROM openv.profiles WHERE Client='Guest' LIMIT 1", [], (err,recs) => {
-							Log(err);
 							Trace( recs[0] 
 								? "Guest logins enabled"
 								: "Guest logins disabled" );
@@ -1551,6 +1558,7 @@ const
 				}
 				
 				const
+					{ initialize } = TOTEM,
 					server = TOTEM.server = isEncrypted() 
 						? HTTPS.createServer({
 							passphrase: TOTEM.certPass,		// passphrase for pfx
@@ -1578,7 +1586,7 @@ const
 							res( errors.badLogin );
 					});
 							
-				});
+				}, () => initialize(init) );
 			}
 
 			const
@@ -1624,21 +1632,15 @@ const
 				delete MIME.types[key];
 		});
 
-		JSDB.config(null, sql => {
-			if ( sql ) 
-				setContext(sql, () => {
-					configService(cb);
-				});
-			
-			else 
-				configService(cb);
+		sqlThread( sql => {
+			setContext(sql, () => configService(cb));
 		});	
 	},
 
 	/**
 	*/
-	initialize: (sql,init) => {
-		init(sql);
+	initialize: init => {
+		if ( init ) sqlThread( sql => init(sql) );
 	},
 	
 	queues: JSDB.queues, 	// pass along
@@ -1982,7 +1984,7 @@ const
 	*/
 	certPass: ENV.SERVICE_PASS || "",
 			
-	isEncrypted: () => ( CLUSTER.isMaster ? $master.protocol : $worker.protocol ) == "https:",
+	isEncrypted: () => ( isMaster ? $master.protocol : $worker.protocol ) == "https:",
 
 	/**
 	Host information: https encryption passphrase,
@@ -2136,7 +2138,7 @@ var
 
 			var 
 				$ = JSON.stringify({
-					worker: CLUSTER.isMaster ? 0 : CLUSTER.worker.id,
+					worker: isMaster ? 0 : CLUSTER.worker.id,
 					node: process.env.HOSTNAME
 				}),
 				engine = `(${cb})( (${task})(${$}) )`;
@@ -2918,7 +2920,7 @@ switch (process.argv[2]) { //< unit tests
 		break;
 
 	case "T$":
-		if ( CLUSTER.isMaster )
+		if ( isMaster )
 		Debug();
 		break;
 
@@ -2945,8 +2947,6 @@ with 2 workers and the default endpoint routes` );
 		break;
 
 	case "T3":
-	case "start":
-	case "admin":
 
 		TOTEM.config(null, sql => {
 			Trace( 
@@ -3015,7 +3015,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 			"byTable.": {  // define endpoints
 				test: function (req,res) {
 					res(" here we go");  // endpoint must always repond to its client 
-					if (CLUSTER.isMaster)  // setup tasking examples on on master
+					if (isMaster)  // setup tasking examples on on master
 						switch (req.query.opt || 1) {  // test example runTask
 							case 1: 
 								T.runTask({  // setup tasking for loops over these keys
