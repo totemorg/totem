@@ -409,7 +409,7 @@ const
 	  
 	{ 	Trace,
 		byArea, byType, byAction, byTable, CORS,
-		defaultType, startServer,
+		defaultType, attachAgent,
 	 	createCert, loginClient, crudIF,
 		getBrick, routeAgent, setContext, readPost,
 		filterFlag, paths, sqls, errors, site, isEncrypted, behindProxy, admitRules,
@@ -418,16 +418,14 @@ const
 	Trace: (msg, ...args) => `totem>>>${msg}`.trace( args ),	
 	
 	/**
-	Start service and attach listener.  Established the secureIO if configured.  Establishes
-	server-busy tests to thwart deniel-of-service attackes and process guards to trap faults.  When
-	starting the master process, other configurations are completed.  Watchdogs and proxies are
-	also established.
+	Attach (req,res)-agent(s) to `service` listening on specified `port`.  
 
-	@param {Object} server server being started
-	@param {Numeric} port port number to listen on
-	@param {Function|Object} agents callback agents(req,res) router or hash of agents
+	@param {Object} server Server being started
+	@param {Numeric} port Port number to listen for agent requests
+	@param {Function|Object} agents (req,res)-router or (req,res)-hash of agents
+	@param {Function} init Optional callback after server started
 	*/
-	startServer: (server,port,agents,init) => {
+	attachAgent: (server,port,agents,init) => {
 		server
 		.listen( port, () => {  	// listen on specified port
 			console.log( `Listening on port ${port}` );
@@ -584,8 +582,8 @@ const
 				}
 				
 				function getSocket( cb ) {
-					if ( false )
-						Res.end( "Error: busy" );					// end the session
+					if ( false )						// check is under DoS attack
+						Res.end( "Error: busy" );		// end the session
 					
 					else
 					if ( reqSocket = Req.socket )
@@ -882,10 +880,7 @@ const
 	/**
 	Start a dataset thread.  
 	
-	Provide a request hash req to the supplied session, or terminate the session 
-	if the service is too busy.
-
-	In phase 1/3 of session setup, the following is added to this req:
+	In phase 1/3 of the session setup, the following is added to this req:
 
 		cookie: "...."		// client cookie string
 		agent: "..."		// client browser info
@@ -909,7 +904,7 @@ const
 		encrypted: bool		// true if request on encrypted server
 		site: {...}			// site info
 	
-	In phase 3/3 of the session connection
+	In phase 3/3 of the the session setup
 		
 		{query,index,flags,where} and {sql,table,area,path,type} 
 		
@@ -1290,7 +1285,7 @@ const
 		noID: new Error("missing record id"),
 		badCert: new Error("invalid PKI credentials"),
 		badLogin: new Error("login failed"),
-		isBusy: "Too busy",
+		//isBusy: "Too busy",
 		noSocket: new Error("socket lost"),
 		noClient: new Error("missiing client credentials")
 		//noProtocol: new Error("no fetch protocol specified"),
@@ -1522,6 +1517,11 @@ const
 				}
 				
 				// Setup master and workers
+	
+				/*
+				Establishes a secureIO if enabled and process guards to 
+				trap master/worker process faults.  
+				*/
 				
 				Each( FS.readdirSync(paths.certs+"truststore"), (n,file) => {
 					if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
@@ -1572,7 +1572,7 @@ const
 						})	// using encrypted services so use https 			
 						: HTTP.createServer();		  // using unencrpted services so use http 
 
-				startServer( server, port, (req,res) => {
+				attachAgent( server, port, (req,res) => {	// attach this (req,res)-router
 					
 					loginClient(req, prof => {	// get client profile
 						if (prof) {			// client accepted so start session
@@ -2066,11 +2066,10 @@ const
 String.prototype.parsePath = ${parsePath};
 
 var 
-	_agent = ${startServer}, 
+	_attach = ${attachAgent}, 
 	_server = require("http").createServer(),
 	_port = ${port},
-	_myAgent = agents => _agent(_server,_port,agents);	
-	_myAgent(agents);
+	_attach(_server,_port,agents);	
 `);
 				keys.split(",").forEach( key => {
 					sql.query(
@@ -2902,7 +2901,7 @@ function simThread(sock) {
 				}
 			};
 				
-		startServer(Req,Res);
+		attachAgent(Req,Res);
 	});
 } */
 
