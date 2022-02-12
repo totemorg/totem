@@ -2899,16 +2899,15 @@ async function prime(cb) {
 	cb();
 }
 
-switch (process.argv[2]) { //< unit tests
-	case "T?":
+switch (process.argv[2].toUppwerCase()) { //< unit tests
+	case "THELP":
 	case "?":
 		Trace("unit test with 'node totem.js [T$ || T1 || T2 || ...]'");
 		Trace("SITE CONTEXT", site);
 		break;
 
-	case "T$":
-		if ( isMaster )
-		Debug();
+	case "TDEBUG":
+		if ( isMaster ) Debug();
 		break;
 
 	case "T1": 
