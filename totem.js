@@ -2899,7 +2899,7 @@ async function prime(cb) {
 	cb();
 }
 
-switch (process.argv[2].toUppwerCase()) { //< unit tests
+switch (process.argv[2].toUpperCase()) { //< unit tests
 	case "THELP":
 	case "?":
 		Trace("unit test with 'node totem.js [T$ || T1 || T2 || ...]'");
