@@ -417,14 +417,14 @@ const
 	
 	Trace: (msg, ...args) => `totem>>>${msg}`.trace( args ),	
 	
-	/**
-	Attach (req,res)-agent(s) to `service` listening on specified `port`.  
+/**
+Attach (req,res)-agent(s) to `service` listening on specified `port`.  
 
-	@param {Object} server Server being started
-	@param {Numeric} port Port number to listen for agent requests
-	@param {Function|Object} agents (req,res)-router or (req,res)-hash of agents
-	@param {Function} init Optional callback after server started
-	*/
+@param {Object} server Server being started
+@param {Numeric} port Port number to listen for agent requests
+@param {Function|Object} agents (req,res)-router or (req,res)-hash of agents
+@param {Function} init Optional callback after server started
+*/
 	attachAgent: (server,port,agents,init) => {
 		server
 		.listen( port, () => {  	// listen on specified port
@@ -741,20 +741,23 @@ const
 		.on("error", err => console.log("server failed", err) );
 	},
 
-	/**
-	Enable to support cross-origin-scripting
-	*/
+/**
+Enable to support cross-origin-scripting
+@cfg {Boolean} 
+*/
 			
 	CORS: false,	//< enable to support cross-origin-scripting
 		
-	/**
-	Default NODE type during a route
-	*/
+/**
+Default NODE type during a route
+@cfg {String}
+*/
 	defaultType: "run",
 
-	/**
-	SecureLink configuration settings.  Null to disable.
-	*/
+/**
+SecureLink configuration settings.  Null to disable.
+@cfg {Object}
+*/
 	secureIO: {
 		/**
 		Socketio i/f set on SECLINK config
@@ -813,14 +816,14 @@ const
 		}
 	},
 
-	/**
-	Validate a client's session by attaching a log, profile, group, client, 
-	cert and joined info to this request then callback(prof || null) with
-	recovered profile or null if the session could not be validated.  
+/**
+Validate a client's session by attaching a log, profile, group, client, 
+cert and joined info to this request then callback(prof || null) with
+recovered profile or null if the session could not be validated.  
 
-	@param {Object} req totem session request
-	@param {Function} res totem session responder
-	*/
+@param {Object} req totem session request
+@param {Function} res totem session responder
+*/
 	loginClient: (req,cb) => {  
 		
 		const 
@@ -877,42 +880,42 @@ const
 		}
 	},
 		
-	/**
-	Start a dataset thread.  
-	
-	In phase 1/3 of the session setup, the following is added to this req:
+/**
+Start a dataset thread.  
 
-		cookie: "...."		// client cookie string
-		agent: "..."		// client browser info
-		ipAddress: "..."	// client ip address
-		referer: "proto://domain:port/query"	//  url during a cross-site request
-		method: "GET|PUT|..." 			// http request method
-		now: date			// date stamp when requested started
-		post: "..."			// raw body text
-		url	: "/query"		// requested url path
-		reqSocket: socket	// socket to retrieve client cert 
-		resSocket: socket	// socket to accept response
-		cert: {...} 		// full client cert
+In phase 1/3 of the session setup, the following is added to this req:
 
-	In phase 2/3 of the session setup, the following is added to this req:
+	cookie: "...."		// client cookie string
+	agent: "..."		// client browser info
+	ipAddress: "..."	// client ip address
+	referer: "proto://domain:port/query"	//  url during a cross-site request
+	method: "GET|PUT|..." 			// http request method
+	now: date			// date stamp when requested started
+	post: "..."			// raw body text
+	url	: "/query"		// requested url path
+	reqSocket: socket	// socket to retrieve client cert 
+	resSocket: socket	// socket to accept response
+	cert: {...} 		// full client cert
 
-		log: {...}			// info to trap socket stats
-		client: "..."		// name of client from cert or "guest"
-		profile: {...},		// client profile after login
-		host: "proto://domain:port"	// requested host 
-		action: "select|update| ..."	// corresponding crude name
-		encrypted: bool		// true if request on encrypted server
-		site: {...}			// site info
-	
-	In phase 3/3 of the the session setup
-		
-		{query,index,flags,where} and {sql,table,area,path,type} 
-		
-	is appended to the request.
-	
-	@param {Object} req Totem endpoint request
-	@param {Function} cb callback(competed req)
-	*/
+In phase 2/3 of the session setup, the following is added to this req:
+
+	log: {...}			// info to trap socket stats
+	client: "..."		// name of client from cert or "guest"
+	profile: {...},		// client profile after login
+	host: "proto://domain:port"	// requested host 
+	action: "select|update| ..."	// corresponding crude name
+	encrypted: bool		// true if request on encrypted server
+	site: {...}			// site info
+
+In phase 3/3 of the the session setup
+
+	{query,index,flags,where} and {sql,table,area,path,type} 
+
+is appended to the request.
+
+@param {Object} req Totem endpoint request
+@param {Function} cb callback(competed req)
+*/
 	dsThread: (req,cb) => {
 		sqlThread( sql => {	// start a sql thread for this dataset
 			const
@@ -936,56 +939,39 @@ const
 		});
 	},
 
+/**
+*/
 	tableRoutes: {	// setup default DataSet routes
 	},
-
-	/* *
-	MySQL connection options
-	*/
-	/*
-	mysql: { 		// database connection or null to disable
-		host: ENV.MYSQL_HOST,
-		user: ENV.MYSQL_USER,
-		pass: ENV.MYSQL_PASS
-	}, */
 	
-	/*
-	sql: (query,args,cb) => sqlThread(sql => {
-		//Log(sql);
-		sql.query(query,args,(err,recs) => { 
-			if (!err && cb) cb(recs); 
-			Log(err || errors.ok);
-		});
-	}), */
-					
-	/**
-	Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
-	byActionTable then byAction routers.	
+/**
+Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
+byActionTable then byAction routers.	
 
-	The provided response method accepts a string, an objects, an array, an error, or 
-	a file-cache function and terminates the session's sql connection.  The client is 
-	validated and their session logged.
+The provided response method accepts a string, an objects, an array, an error, or 
+a file-cache function and terminates the session's sql connection.  The client is 
+validated and their session logged.
 
-	In phase3 of the session setup, the following is added to the req:
+In phase3 of the session setup, the following is added to the req:
 
-		files: [...]		// list of files being uploaded
-		//canvas: {...}		// canvas being uploaded
-		query: {...} 		// raw keys from url
-		where: {...} 		// sql-ized query keys from url
-		body: {...}			// body keys from request 
-		flags: {...} 		// flag keys from url
-		index: {...}		// sql-ized index keys from url
-		path: "/[area/...]name.type"			// requested resource
-		area: "name"		// file area being requested
-		table: "name"		// name of sql table being requested
-		ds:	"db.name"		// fully qualified sql table
-		body: {...}			// json parsed post
-		type: "type" 		// type part 
+	files: [...]		// list of files being uploaded
+	//canvas: {...}		// canvas being uploaded
+	query: {...} 		// raw keys from url
+	where: {...} 		// sql-ized query keys from url
+	body: {...}			// body keys from request 
+	flags: {...} 		// flag keys from url
+	index: {...}		// sql-ized index keys from url
+	path: "/[area/...]name.type"			// requested resource
+	area: "name"		// file area being requested
+	table: "name"		// name of sql table being requested
+	ds:	"db.name"		// fully qualified sql table
+	body: {...}			// json parsed post
+	type: "type" 		// type part 
 
-	@cfg {Function}
-	@param {Object} req session request
-	@param {Object} res session response
-	*/
+@cfg {Function}
+@param {Object} req session request
+@param {Object} res session response
+*/
 	routeAgent: (req,res) => {
 		/*
 		Log session metrics, trace the current route, then callback route on the supplied 
@@ -1245,9 +1231,9 @@ const
 		});
 	},
 
-	/**
-	Start watchdogs
-	*/
+/**
+Start watchdogs
+*/
 	startDogs: (sql,dogs) => {
 		sql.query(
 			"SELECT * FROM openv.dogs WHERE Enabled AND Every")
@@ -1269,10 +1255,10 @@ const
 		});
 	},
 
-	/**
-	Error messages
-	@cfg {Object} 
-	*/		
+/**
+Error messages
+@cfg {Object} 
+*/		
 	errors: {
 		ok: "ok",
 		pretty: err => (err+"").replace("Error:",""),
@@ -1309,13 +1295,13 @@ const
 
 	//api: { },
 
-	/**
-	Configure and start the service with options and optional callback when started.
-	Configure database, define site context, then protect, connect, start and initialize this server.
-	@cfg {Function}
-	@param {Object} opts configuration options following the Copy() conventions.
-	@param {Function} cb callback(err) after service configured
-	*/
+/**
+Configure and start the service with options and optional callback when started.
+Configure database, define site context, then protect, connect, start and initialize this server.
+@cfg {Function}
+@param {Object} opts configuration options following the Copy() conventions.
+@param {Function} cb callback(err) after service configured
+*/
 	config: (opts,cb) => {
 		function addEndpoints(pts) {
 			const
@@ -1637,18 +1623,18 @@ const
 		});	
 	},
 
-	/**
-	*/
+/**
+*/
 	initialize: init => {
 		if ( init ) sqlThread( sql => init(sql) );
 	},
 	
 	queues: JSDB.queues, 	// pass along
 		
-	/**
-	Common methods for task sharding
-	@cfg {Object}
-	*/
+/**
+Common methods for task sharding
+@cfg {Object}
+*/
 	tasking: {
 		console: console,
 		log: console.log
@@ -1656,32 +1642,32 @@ const
 	
 	onUpdate: null,
 		
-	/**
-	Shard one or more tasks to workers residing in a compute node cloud.
+/**
+Shard one or more tasks to workers residing in a compute node cloud.
 
-	@example
-	runTask({  		// example
-		keys: "i,j,k",  	// e.g. array indecies
-		i: [0,1,2,3],  		// domain of index i
-		j: [4,8],				// domain of index j
-		k: [0],					// domain of index k
-		qos: 0,				// regulation time in ms if not zero
-		local: false, 		// enable to run task local, i.e. w/o workers and nodes
-		workers: 4, 		// limit number of workers (aka cores) per node
-		nodes: 3 			// limit number of nodes (ala locales) in the cluster
-	}, 
-		// here, a simple task that returns a message 
-		$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
+@example
+runTask({  		// example
+	keys: "i,j,k",  	// e.g. array indecies
+	i: [0,1,2,3],  		// domain of index i
+	j: [4,8],				// domain of index j
+	k: [0],					// domain of index k
+	qos: 0,				// regulation time in ms if not zero
+	local: false, 		// enable to run task local, i.e. w/o workers and nodes
+	workers: 4, 		// limit number of workers (aka cores) per node
+	nodes: 3 			// limit number of nodes (ala locales) in the cluster
+}, 
+	// here, a simple task that returns a message 
+	$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
 
-		// here, a simple callback that displays the task results
-		msg => console.log(msg) 
-	);
+	// here, a simple callback that displays the task results
+	msg => console.log(msg) 
+);
 
-	@cfg {Function}
-	@param {Object} opts tasking options (see example)
-	@param {Function} task runTask of the form ($) => {return msg} where $ contains process info
-	@param {Function} cb callback of the form (msg) => {...} to process msg returned by task
-	*/				
+@cfg {Function}
+@param {Object} opts tasking options (see example)
+@param {Function} task runTask of the form ($) => {return msg} where $ contains process info
+@param {Function} cb callback of the form (msg) => {...} to process msg returned by task
+*/				
 	runTask: function (opts, task, cb) {
 
 		function genDomain(depth, keys, opts, index, lastIndex, cb) {
@@ -1759,20 +1745,20 @@ const
 			});
 	},
 					
-	/**
-	Watchdogs {name: dog(sql, lims), ... } run at intervals dog.cycle seconds usings its
-	dog.trace, dog.parms, sql connector and threshold parameters.
-	@cfg {Object}
-	*/		
+/**
+Watchdogs {name: dog(sql, lims), ... } run at intervals dog.cycle seconds usings its
+dog.trace, dog.parms, sql connector and threshold parameters.
+@cfg {Object}
+*/		
 	dogs: { //< watchdog functions(sql, lims)
 	},
 	
-	/**
-	Establish smart file watcher when file at area/name has changed.
-	@cfg {Function}
-	@param {String} path to file being watched
-	@param {Function} callback cb(sql, name, path) when file at path has changed
-	*/
+/**
+Establish smart file watcher when file at area/name has changed.
+@cfg {Function}
+@param {String} path to file being watched
+@param {Function} callback cb(sql, name, path) when file at path has changed
+*/
 	watchFile: function (path, cb) { 
 		const 
 			{ modTimes } = TOTEM;
@@ -1818,14 +1804,14 @@ const
 		}
 	},
 		
-	/**
-	Create a cert for the desired owner with the desired passphrase then 
-	callback cb() when complete.
+/**
+Create a cert for the desired owner with the desired passphrase then 
+callback cb() when complete.
 
-	@param {String} owner userID to own this cert
-	@param {String} password for this cert
-	@param {Function} cb callback when completed
-	*/
+@param {String} owner userID to own this cert
+@param {String} password for this cert
+@param {Function} cb callback when completed
+*/
 	createCert: (path,pass,cb) => { 
 
 		function traceExecute(cmd,cb) {
@@ -1878,30 +1864,30 @@ const
 
 	},
 	
-	/**
-	Stop the server.
-	@cfg {Function}
-	*/
+/**
+Stop the server.
+@cfg {Function}
+*/
 	stop: stopService,
 	
-	/**
-	Thread a new sql connection to a callback.  
-	@cfg {Function}
-	@param {Function} cb callback(sql connector)
-	*/
+/**
+Thread a new sql connection to a callback.  
+@cfg {Function}
+@param {Function} cb callback(sql connector)
+*/
 	sqlThread: sqlThread,
 
-	/**
-	Thread a new neo4j connection to a callback.  
-	@cfg {Function}
-	@param {Function} cb callback(sql connector)
-	*/
+/**
+Thread a new neo4j connection to a callback.  
+@cfg {Function}
+@param {Function} cb callback(sql connector)
+*/
 	neoThread: neoThread,
 			
-	/**
-	REST-to-CRUD translations
-	@cfg {Object}  
-	*/
+/**
+REST-to-CRUD translations
+@cfg {Object}  
+*/
 	crudIF: {
 		GET: "select",
 		DELETE: "delete",
@@ -1909,10 +1895,10 @@ const
 		PUT: "update"
 	},
 	
-	/**
-	Options to parse request flags
-	@cfg {Object} 
-	*/
+/**
+Options to parse request flags
+@cfg {Object} 
+*/
 	filterFlag: {				//< Properties for request flags
 		flagTrap: { //< cb(query) flagTrap to reorganize query
 			/*
@@ -1938,64 +1924,66 @@ const
 		} */
 	},
 
-	/**
-	Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
-	become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
-	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
-	workers via the masterport.	
-	@cfg {Number} [cores=0]
-	*/				
+/**
+Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
+become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
+encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
+workers via the masterport.	
+@cfg {Number} [cores=0]
+*/				
 	cores: 0,	//< Number of worker cores (0 for master-only)
 		
-	/**
-	Folder watching callbacks cb(path) 
-	@cfg {Object}
-	*/				
+/**
+Folder watching callbacks cb(path) 
+@cfg {Object}
+*/				
 	onFile: {		//< File folder watchers with callbacks cb(path) 
 	},
 	
-	/**
-	File mod-times tracked as OS will trigger multiple events when file changed
-	@cfg {Object}
-	*/
+/**
+File mod-times tracked as OS will trigger multiple events when file changed
+@cfg {Object}
+*/
 	modTimes: { 	//< File mod-times tracked as OS will trigger multiple events when file changed
 	},
 		
-	/**
-	Enable if https server being proxied
-	@cfg {Boolean} [behindProxy=false]
-	*/				
+/**
+Enable if https server being proxied
+@cfg {Boolean} [behindProxy=false]
+*/				
 	behindProxy: false,		//< Enable if https server being proxied
 
-	/**		
-	Service name used to
-		1) derive site parms from mysql openv.apps by Nick=name
-		2) set mysql name.table for guest clients,
-		3) identify server cert name.pfx file.
+/**		
+Service name used to
+	1) derive site parms from mysql openv.apps by Nick=name
+	2) set mysql name.table for guest clients,
+	3) identify server cert name.pfx file.
 
-	If the Nick=name is not located in openv.apps, the supplied	config() options 
-	are not overridden.
-	*/
+If the Nick=name is not located in openv.apps, the supplied	config() options 
+are not overridden.
+*/
 	name: "Totem",
 
-	/**
-	Enabled when master/workers on encrypted service
-	@cfg {Boolean}
-	*/
+/**
+Enabled when master/workers on encrypted service
+@cfg {Boolean}
+*/
 	certPass: ENV.SERVICE_PASS || "",
-			
+		
+/**
+*/
 	isEncrypted: () => ( isMaster ? $master.protocol : $worker.protocol ) == "https:",
 
-	/**
-	Host information: https encryption passphrase,
-	domain name of workers, domain name of master.
-	@cfg {String} [name="Totem"]
-	*/	
+/**
+Host information: https encryption passphrase,
+domain name of workers, domain name of master.
+@cfg {String} [name="Totem"]
+*/	
 
-	/**
-	Site context extended by the mysql derived query when service starts
-	@cfg {Object} 
-	*/
+/**
+Site context extended by the mysql derived query when service starts
+@cfg {Object} 
+*/
 	site: {  	//< reserved for derived context vars
 		nick: "totem",
 		socketio: 
@@ -2010,7 +1998,7 @@ const
 		worker:  worker, 
 		master:  master,
 		domain: $master.hostname,
-		host: 	`${$master.protocol}//${$master.host}`,
+		host: 	$master.host,
 		
 		pocs: {
 			admin: "admin@tbd.org",
@@ -2020,10 +2008,10 @@ const
 		}		
 	},
 
-	/**
-	Endpoint filterType cb(data data as string || error)
-	@cfg {Object} 
-	*/
+/**
+Endpoint filterType cb(data data as string || error)
+@cfg {Object} 
+*/
 	filterType: {  //< record data convertors
 		csv: (recs, req, res) => {
 			JS2CSV({ 
@@ -2046,10 +2034,10 @@ const
 		}		
 	},
 
-	/**
-	By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
-	@cfg {Object} 
-	*/	
+/**
+By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
+@cfg {Object} 
+*/	
 	byTable: { 			  //< by-table routers	
 		/**
 		*/
@@ -2209,17 +2197,17 @@ var
 		}	
 	},
 		
-	/**
-	By-action endpoint routers for accessing engines
-	@cfg {Object} 
-	*/				
+/**
+By-action endpoint routers for accessing engines
+@cfg {Object} 
+*/				
 	byAction: { //< by-action routers
-		/**
-		CRUD endpoint to respond to a select||GET request
-		@cfg {Function}
-		@param {Object} req Totem session request
-		@param {Function} res Totem session response
-		*/
+/**
+CRUD endpoint to respond to a select||GET request
+@cfg {Function}
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
 		select: (req, res) => {
 			const 
 				{ sql, flags, client, where, index, table, ds, now } = req;
@@ -2240,12 +2228,12 @@ var
 			});
 		},	
 
-		/**
-		CRUD endpoint to respond to a update||POST request
-		@cfg {Function}	
-		@param {Object} req Totem session request
-		@param {Function} res Totem session response
-		*/
+/**
+CRUD endpoint to respond to a update||POST request
+@cfg {Function}	
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
 		update: (req, res) => {
 			const 
 				{ sql, flags, body, where, query, client, ds, table, now } = req,
@@ -2287,12 +2275,12 @@ var
 			}
 		},
 
-		/**
-		CRUD endpoint to respond to a delete||DELETE request
-		@cfg {Function}	
-		@param {Object} req Totem session request
-		@param {Function} res Totem session response
-		*/
+/**
+CRUD endpoint to respond to a delete||DELETE request
+@cfg {Function}	
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
 		delete: (req, res) => {
 			const 
 				{ sql, flags, where, query, body, client, ds, table, now } = req,
@@ -2328,12 +2316,12 @@ var
 			}
 		},
 
-		/**
-		CRUD endpoint to respond to a insert||PUT request
-		@cfg {Function}
-		@param {Object} req Totem session request
-		@param {Function} res Totem session response
-		*/
+/**
+CRUD endpoint to respond to a insert||PUT request
+@cfg {Function}
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
 		insert: (req, res) => {
 			const 
 				{ sql, flags, body, client, ds, table, now } = req,
@@ -2369,34 +2357,34 @@ var
 			});
 		},
 
-		/**
-		CRUD endpoint to respond to a Totem request
-		@cfg {Function}
-		@param {Object} req Totem session request
-		@param {Function} res Totem session response
-		*/
+/**
+CRUD endpoint to respond to a Totem request
+@cfg {Function}
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
 		execute: (req,res) => {
 			res( errors.noEndpoint );
 		}
 	},
 
-	/**
-	By-type endpoint routers  {type: method(req,res), ... } for accessing dataset readers
-	@cfg {Object} 
-	*/				
+/**
+By-type endpoint routers  {type: method(req,res), ... } for accessing dataset readers
+@cfg {Object} 
+*/				
 	byType: {  //< by-type routers
 	},
 
-	/**
-	By-area endpoint routers {area: method(req,res), ... } for sending/cacheing/navigating files
-	@cfg {Object} 
-	*/		
+/**
+By-area endpoint routers {area: method(req,res), ... } for sending/cacheing/navigating files
+@cfg {Object} 
+*/		
 	byArea: {
-		/**
-		Default area navigator used for all areas.
-		@param {Object} req Totem session request
-		@param {Function} res Totem session response
-		*/
+/**
+Default area navigator used for all areas.
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
 		all: (req,res) => {
 			const
 				{client,path} = req;
@@ -2411,30 +2399,30 @@ var
 		}
 	},
 
-	/**
-	Trust store extened with certs in the certs.truststore folder when the service starts in encrypted mode
-	@cfg {Object} 
-	*/		
+/**
+Trust store extened with certs in the certs.truststore folder when the service starts in encrypted mode
+@cfg {Object} 
+*/		
 	trustStore: [ ],   //< reserved for trust store
 		
-	/**
-	CRUD endpoint to respond to Totem request
-	@cfg {Object} 
-	*/				
+/**
+CRUD endpoint to respond to Totem request
+@cfg {Object} 
+*/				
 	server: null,  //< established by TOTEM at config
 	
 	//====================================== MISC
 		
-	/**
-	Enable/disable service fault protection guards
-	@cfg {Boolean} 
-	*/
+/**
+Enable/disable service fault protection guards
+@cfg {Boolean} 
+*/
 	guard: false,  //< enable to use all defined guards
 		
-	/**
-	Service guard modes
-	@cfg {Object} 
-	*/
+/**
+Service guard modes
+@cfg {Object} 
+*/
 	guards: {	// faults to trap 
 		SIGUSR1:1,
 		SIGTERM:1,
@@ -2447,10 +2435,10 @@ var
 		SIGSTOP:1 
 	},	
 	
-	/**
-	Client admission rules
-	@cfg {Object} 
-	*/
+/**
+Client admission rules
+@cfg {Object} 
+*/
 	admitRules: {  // empty to disable rules
 		// CN: "james brian d jamesbd",
 		// O: "u.s. government",
@@ -2459,18 +2447,18 @@ var
 	},
 
 	sendMail: msg => { throw new Error("sendMail never configured"); },
-	/**
-	*/
+/**
+*/
 	proxies: null, /* [	// rotating proxy services
 		//"https://free-proxy-list.net",
 		//https://luminato.io
 		"https://sslproxies.org"
 	], */
 
-	/**
-	Default paths to service files
-	@cfg {Object} 
-	*/		
+/**
+Default paths to service files
+@cfg {Object} 
+*/		
 	paths: { 			
 		//fetch: "http://localhost:8081?return=${req.query.file}&opt=${plugin.ex1(req)+plugin.ex2}",
 		//default: "/gohome",
@@ -2501,8 +2489,8 @@ var
 	//lookups: {},
 	//Lookups: {},
 		
-	/**
-	*/
+/**
+*/
 	sqls: {	// sql queries
 		//getAccount:	"SELECT Trusted, validEmail, Banned, aes_decrypt(unhex(Password),?) AS Password, SecureCom FROM openv.profiles WHERE Client=? AND !Online", 
 		//addAccount:	"INSERT INTO openv.profiles SET ?,Password=hex(aes_encrypt(?,?)),SecureCom=if(?,concat(Client,Password),'')", 
@@ -2527,14 +2515,14 @@ var
 		pocs: "SELECT admin,overlord, group_concat( DISTINCT lower(Client) SEPARATOR ';' ) AS Users FROM openv.profiles GROUP BY admin,overlord"
 	},
 
-	/**
-	Get (or create if needed) a file with callback cb(fileID, sql) if no errors
+/**
+Get (or create if needed) a file with callback cb(fileID, sql) if no errors
 
-	@param {String} client owner of file
-	@param {String} name of file to get/make
-	@param {Function} cb callback(file, sql) if no errors
-	@cfg {Function}
-	*/
+@param {String} client owner of file
+@param {String} name of file to get/make
+@param {Function} cb callback(file, sql) if no errors
+@cfg {Function}
+*/
 
 	getBrick: (client, name, cb) => {  
 		sqlThread( sql => {
@@ -2570,22 +2558,22 @@ var
 		});
 	},
 
-	/**
-	File uploader 
-	@cfg {Function}
-	*/			
+/**
+File uploader 
+@cfg {Function}
+*/			
 	uploadFile: uploadFile,
 
-	/**
-	Server toobusy check period in seconds
-	@cfg {Number}
-	*/		
+/**
+Server toobusy check period in seconds
+@cfg {Number}
+*/		
 	busyTime: 5000,  //< site too-busy check interval [ms] (0 disables)
 
-	/**
-	Sets the site context parameters.
-	@cfg {Function}
-	*/		
+/**
+Sets the site context parameters.
+@cfg {Function}
+*/		
 	setContext: function (sql,cb) { 
 		Trace(`CONTEXTING ${TOTEM.name}`);
 	
@@ -2687,10 +2675,10 @@ var
 
 	certs: {}, 		// server and client cert cache (pfx, crt, and key)
 
-	/**
-	File cache
-	@cfg {Object} 
-	*/		
+/**
+File cache
+@cfg {Object} 
+*/		
 	cache: { 				//< file cacheing options
 		never: {	//< files to never cache - useful while debugging client side stuff
 			uis: 1,
