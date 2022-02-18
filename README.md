@@ -252,7 +252,7 @@ TOTEM.config({
 	"byTable.": {  // define endpoints
 		test: function (req,res) {
 			res(" here we go");  // endpoint must always repond to its client 
-			if (CLUSTER.isMaster)  // setup tasking examples on on master
+			if (isMaster)  // setup tasking examples on on master
 				switch (req.query.opt || 1) {  // test example runTask
 					case 1: 
 						T.runTask({  // setup tasking for loops over these keys
@@ -300,7 +300,7 @@ TOTEM.config({
 }, sql => {				
 	Log( "db maintenance" );
 
-	if (CLUSTER.isMaster)
+	if (isMaster)
 		switch (process.argv[3]) {
 			case 1: 
 				sql.query( "select voxels.id as voxelID, chips.id as chipID from openv.voxels left join openv.chips on voxels.Ring = chips.Ring", function (err,recs) {
@@ -448,7 +448,7 @@ neoThread( neo => {
             * [.challenge](#module_TOTEM.secureIO.challenge)
                 * [.extend](#module_TOTEM.secureIO.challenge.extend)
             * [.inspect()](#module_TOTEM.secureIO.inspect)
-        * [.mysql](#module_TOTEM.mysql)
+        * [.tableRoutes](#module_TOTEM.tableRoutes)
         * [.errors](#module_TOTEM.errors)
         * [.tasking](#module_TOTEM.tasking)
         * [.dogs](#module_TOTEM.dogs)
@@ -490,7 +490,7 @@ neoThread( neo => {
         * [.uploadFile](#module_TOTEM.uploadFile)
         * [.busyTime](#module_TOTEM.busyTime)
         * [.cache](#module_TOTEM.cache)
-        * [.startServer(server, port, agents)](#module_TOTEM.startServer)
+        * [.attachAgent(server, port, agents, init)](#module_TOTEM.attachAgent)
         * [.loginClient(req, res)](#module_TOTEM.loginClient)
         * [.dsThread(req, cb)](#module_TOTEM.dsThread)
         * [.routeAgent(req, res)](#module_TOTEM.routeAgent)
@@ -502,6 +502,7 @@ neoThread( neo => {
         * [.runTask(opts, task, cb)](#module_TOTEM.runTask)
         * [.watchFile(path, callback)](#module_TOTEM.watchFile)
         * [.createCert(owner, password, cb)](#module_TOTEM.createCert)
+        * [.isEncrypted()](#module_TOTEM.isEncrypted)
         * [.getBrick(client, name, cb)](#module_TOTEM.getBrick)
         * [.setContext()](#module_TOTEM.setContext)
     * _inner_
@@ -514,18 +515,21 @@ neoThread( neo => {
 Enable to support cross-origin-scripting
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
+**Cfg**: <code>Boolean</code>  
 <a name="module_TOTEM.defaultType"></a>
 
 ### TOTEM.defaultType
 Default NODE type during a route
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
+**Cfg**: <code>String</code>  
 <a name="module_TOTEM.secureIO"></a>
 
 ### TOTEM.secureIO
 SecureLink configuration settings.  Null to disable.
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
+**Cfg**: <code>Object</code>  
 
 * [.secureIO](#module_TOTEM.secureIO)
     * [.sio](#module_TOTEM.secureIO.sio)
@@ -565,11 +569,9 @@ Number of antibot riddles to extend
 Used to inspect unencrypted messages
 
 **Kind**: static method of [<code>secureIO</code>](#module_TOTEM.secureIO)  
-<a name="module_TOTEM.mysql"></a>
+<a name="module_TOTEM.tableRoutes"></a>
 
-### TOTEM.mysql
-MySQL connection options
-
+### TOTEM.tableRoutes
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.errors"></a>
 
@@ -589,7 +591,7 @@ Common methods for task sharding
 
 ### TOTEM.dogs
 Watchdogs {name: dog(sql, lims), ... } run at intervals dog.cycle seconds usings its
-	dog.trace, dog.parms, sql connector and threshold parameters.
+dog.trace, dog.parms, sql connector and threshold parameters.
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
@@ -642,9 +644,9 @@ Options to parse request flags
 
 ### TOTEM.cores
 Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
-	become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
-	encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
-	workers via the masterport.
+become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
+encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
+workers via the masterport.
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Number</code> [cores=0]  
@@ -673,12 +675,12 @@ Enable if https server being proxied
 
 ### TOTEM.name
 Service name used to
-		1) derive site parms from mysql openv.apps by Nick=name
-		2) set mysql name.table for guest clients,
-		3) identify server cert name.pfx file.
+	1) derive site parms from mysql openv.apps by Nick=name
+	2) set mysql name.table for guest clients,
+	3) identify server cert name.pfx file.
 
-	If the Nick=name is not located in openv.apps, the supplied	config() options 
-	are not overridden.
+If the Nick=name is not located in openv.apps, the supplied	config() options 
+are not overridden.
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.certPass"></a>
@@ -933,28 +935,26 @@ File cache
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="module_TOTEM.startServer"></a>
+<a name="module_TOTEM.attachAgent"></a>
 
-### TOTEM.startServer(server, port, agents)
-Start service and attach listener.  Established the secureIO if configured.  Establishes
-	server-busy tests to thwart deniel-of-service attackes and process guards to trap faults.  When
-	starting the master process, other configurations are completed.  Watchdogs and proxies are
-	also established.
+### TOTEM.attachAgent(server, port, agents, init)
+Attach (req,res)-agent(s) to `service` listening on specified `port`.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| server | <code>Object</code> | server being started |
-| port | <code>Numeric</code> | port number to listen on |
-| agents | <code>function</code> \| <code>Object</code> | callback agents(req,res) router or hash of agents |
+| server | <code>Object</code> | Server being started |
+| port | <code>Numeric</code> | Port number to listen for agent requests |
+| agents | <code>function</code> \| <code>Object</code> | (req,res)-router or (req,res)-hash of agents |
+| init | <code>function</code> | Optional callback after server started |
 
 <a name="module_TOTEM.loginClient"></a>
 
 ### TOTEM.loginClient(req, res)
 Validate a client's session by attaching a log, profile, group, client, 
-	cert and joined info to this request then callback(prof || null) with
-	recovered profile or null if the session could not be validated.
+cert and joined info to this request then callback(prof || null) with
+recovered profile or null if the session could not be validated.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 
@@ -967,39 +967,36 @@ Validate a client's session by attaching a log, profile, group, client,
 
 ### TOTEM.dsThread(req, cb)
 Start a dataset thread.  
-	
-	Provide a request hash req to the supplied session, or terminate the session 
-	if the service is too busy.
 
-	In phase 1/3 of session setup, the following is added to this req:
+In phase 1/3 of the session setup, the following is added to this req:
 
-		cookie: "...."		// client cookie string
-		agent: "..."		// client browser info
-		ipAddress: "..."	// client ip address
-		referer: "proto://domain:port/query"	//  url during a cross-site request
-		method: "GET|PUT|..." 			// http request method
-		now: date			// date stamp when requested started
-		post: "..."			// raw body text
-		url	: "/query"		// requested url path
-		reqSocket: socket	// socket to retrieve client cert 
-		resSocket: socket	// socket to accept response
-		cert: {...} 		// full client cert
+	cookie: "...."		// client cookie string
+	agent: "..."		// client browser info
+	ipAddress: "..."	// client ip address
+	referer: "proto://domain:port/query"	//  url during a cross-site request
+	method: "GET|PUT|..." 			// http request method
+	now: date			// date stamp when requested started
+	post: "..."			// raw body text
+	url	: "/query"		// requested url path
+	reqSocket: socket	// socket to retrieve client cert 
+	resSocket: socket	// socket to accept response
+	cert: {...} 		// full client cert
 
-	In phase 2/3 of the session setup, the following is added to this req:
+In phase 2/3 of the session setup, the following is added to this req:
 
-		log: {...}			// info to trap socket stats
-		client: "..."		// name of client from cert or "guest"
-		profile: {...},		// client profile after login
-		host: "proto://domain:port"	// requested host 
-		action: "select|update| ..."	// corresponding crude name
-		encrypted: bool		// true if request on encrypted server
-		site: {...}			// site info
-	
-	In phase 3/3 of the session connection
-		
-		{query,index,flags,where} and {sql,table,area,path,type} 
-		
-	is appended to the request.
+	log: {...}			// info to trap socket stats
+	client: "..."		// name of client from cert or "guest"
+	profile: {...},		// client profile after login
+	host: "proto://domain:port"	// requested host 
+	action: "select|update| ..."	// corresponding crude name
+	encrypted: bool		// true if request on encrypted server
+	site: {...}			// site info
+
+In phase 3/3 of the the session setup
+
+	{query,index,flags,where} and {sql,table,area,path,type} 
+
+is appended to the request.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 
@@ -1012,27 +1009,27 @@ Start a dataset thread.
 
 ### TOTEM.routeAgent(req, res)
 Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
-	byActionTable then byAction routers.	
+byActionTable then byAction routers.	
 
-	The provided response method accepts a string, an objects, an array, an error, or 
-	a file-cache function and terminates the session's sql connection.  The client is 
-	validated and their session logged.
+The provided response method accepts a string, an objects, an array, an error, or 
+a file-cache function and terminates the session's sql connection.  The client is 
+validated and their session logged.
 
-	In phase3 of the session setup, the following is added to the req:
+In phase3 of the session setup, the following is added to the req:
 
-		files: [...]		// list of files being uploaded
-		//canvas: {...}		// canvas being uploaded
-		query: {...} 		// raw keys from url
-		where: {...} 		// sql-ized query keys from url
-		body: {...}			// body keys from request 
-		flags: {...} 		// flag keys from url
-		index: {...}		// sql-ized index keys from url
-		path: "/[area/...]name.type"			// requested resource
-		area: "name"		// file area being requested
-		table: "name"		// name of sql table being requested
-		ds:	"db.name"		// fully qualified sql table
-		body: {...}			// json parsed post
-		type: "type" 		// type part
+	files: [...]		// list of files being uploaded
+	//canvas: {...}		// canvas being uploaded
+	query: {...} 		// raw keys from url
+	where: {...} 		// sql-ized query keys from url
+	body: {...}			// body keys from request 
+	flags: {...} 		// flag keys from url
+	index: {...}		// sql-ized index keys from url
+	path: "/[area/...]name.type"			// requested resource
+	area: "name"		// file area being requested
+	table: "name"		// name of sql table being requested
+	ds:	"db.name"		// fully qualified sql table
+	body: {...}			// json parsed post
+	type: "type" 		// type part
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
@@ -1052,7 +1049,7 @@ Start watchdogs
 
 ### TOTEM.config(opts, cb)
 Configure and start the service with options and optional callback when started.
-	Configure database, define site context, then protect, connect, start and initialize this server.
+Configure database, define site context, then protect, connect, start and initialize this server.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
@@ -1110,23 +1107,21 @@ Shard one or more tasks to workers residing in a compute node cloud.
 **Example**  
 ```js
 runTask({  		// example
-		keys: "i,j,k",  	// e.g. array indecies
-		i: [0,1,2,3],  		// domain of index i
-		j: [4,8],				// domain of index j
-		k: [0],					// domain of index k
-		qos: 0,				// regulation time in ms if not zero
-		local: false, 		// enable to run task local, i.e. w/o workers and nodes
-		workers: 4, 		// limit number of workers (aka cores) per node
-		nodes: 3 			// limit number of nodes (ala locales) in the cluster
-	}, 
-		// here, a simple task that returns a message 
-		$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
+	keys: "i,j,k",  	// e.g. array indecies
+	i: [0,1,2,3],  		// domain of index i
+	j: [4,8],				// domain of index j
+	k: [0],					// domain of index k
+	qos: 0,				// regulation time in ms if not zero
+	local: false, 		// enable to run task local, i.e. w/o workers and nodes
+	workers: 4, 		// limit number of workers (aka cores) per node
+	nodes: 3 			// limit number of nodes (ala locales) in the cluster
+}, 
+	// here, a simple task that returns a message 
+	$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
 
-		// here, a simple callback that displays the task results
-		msg => console.log(msg) 
-	);
-
-	
+	// here, a simple callback that displays the task results
+	msg => console.log(msg) 
+);
 ```
 <a name="module_TOTEM.watchFile"></a>
 
@@ -1145,7 +1140,7 @@ Establish smart file watcher when file at area/name has changed.
 
 ### TOTEM.createCert(owner, password, cb)
 Create a cert for the desired owner with the desired passphrase then 
-	callback cb() when complete.
+callback cb() when complete.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 
@@ -1155,6 +1150,10 @@ Create a cert for the desired owner with the desired passphrase then
 | password | <code>String</code> | for this cert |
 | cb | <code>function</code> | callback when completed |
 
+<a name="module_TOTEM.isEncrypted"></a>
+
+### TOTEM.isEncrypted()
+**Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.getBrick"></a>
 
 ### TOTEM.getBrick(client, name, cb)
