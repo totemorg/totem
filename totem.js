@@ -1579,7 +1579,7 @@ Configure database, define site context, then protect, connect, start and initia
 				{name} = TOTEM,
 				pfx = `${paths.certs}${name}.pfx` ;
 
-			Trace( `PROTECTING ${name} USING CERT ${pfx}` );
+			Trace( isEncrypted() ? `STARTING ${name} USING CERT ${pfx}` : `STARTING ${name}` );
 
 			if ( isEncrypted() )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
@@ -2899,14 +2899,14 @@ async function prime(cb) {
 	cb();
 }
 
-switch (process.argv[2].toUpperCase()) { //< unit tests
-	case "THELP":
+switch ( process.argv[2] ) { //< unit tests
+	case "T?":
 	case "?":
-		Trace("unit test with 'node totem.js [T$ || T1 || T2 || ...]'");
+		Trace("node totem.js [T$ || T1 || T2 || ...]");
 		Trace("SITE CONTEXT", site);
 		break;
 
-	case "TDEBUG":
+	case "T$":
 		if ( isMaster ) Debug();
 		break;
 
