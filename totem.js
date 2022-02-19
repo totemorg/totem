@@ -1431,8 +1431,8 @@ Configure database, define site context, then protect, connect, start and initia
 						"AT MASTER " + site.master,
 						"AT WORKER " + site.worker,
 						"FROM " + process.cwd(),
-						"WITH " + (guard?"GUARDED":"UNGUARDED")+" THREADS",
-						"WITH "+ (secureIO ? secureIO.sio ? "SECURE" : "INSECURE" : "NO")+" LINKS",
+						"WITH " + (guard?"GUARDED":"UNGUARDED") + " THREADS",
+						"WITH "+ (secureIO ? "SECURE" : "INSECURE") + " LINKS",
 						"WITH " + (site.sessions||"UNLIMITED") + " CONNECTIONS",
 						"USING " + (cores ? cores + " WORKERS" : "NO WORKERS"),
 						"HAVING POCS " + JSON.stringify(site.pocs)
@@ -1531,8 +1531,12 @@ Configure database, define site context, then protect, connect, start and initia
 							}) );
 
 							secureIO.sio = SECLINK.sio;
+							Trace("SecureLink "+(secureIO.sio ? "started" : "failed"));
 						});
 					});
+				
+				else
+					Trace("SecureLink disabled");
 
 				if (guard)  { // catch core faults
 					process.on("uncaughtException", err => Trace( "FAULTED" , err) );
@@ -2107,7 +2111,7 @@ var
 			if (type == "help")
 			return res("Send connection status");
 
-			res( `Welcome ${client} to ` + nick.link("/site.view") );
+			res( `Welcome ${client} to ` + nick.link("/site.view") + " on " + "root".link("/root/") );
 		},
 
 		/**
