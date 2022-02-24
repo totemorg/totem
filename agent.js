@@ -1,25 +1,12 @@
 // UNCLASSIFIED
-/**
-To add your compute agents to TOTEM's compute cloud, simply register your agents
-using the following `nodejs` code pattern below
-
-which listens for `add`, `cat`, `/me.js`, `dft`, `python`, `R` and `opencv` agent requests 
-on port 3333.  Here
-
-+ the last 5 agents require you pass a "$" process flag
-to make the [nodejs fs](https://nodejs.org/api/fs.html) 
-and [totem man](/github.com/totemstan/man) modules available.   
-+ the last 3 agents demonstrate R-opencv-python support (assummed installed 
-on your host).
-*/
 
 // revise as needed
 const 
-	need$ = process.argv[2] ? true : false,
-	$ = need$ ? require("./man") : null, // "/mnt/repo/man",
-	$fs = need$ ? require("fs") : null,
+	need$ = false,
+	needFetch = false,
 	totems = {
-		RLE: "https://RLENET.126:8443",
+		RLEU: "https://RLENET.126:8443",
+		RLEC: "https://RLENET.216:8443",
 		WWW: "http://totem.hopto.org",
 		SBU: "https://totem.nga.mil:8443",
 		COE: "https://totem.coe.nga.mil",
@@ -35,6 +22,7 @@ const
 
 			res( calc(x,y) );
 		},
+		
 		cat: (req,res) => {	// an agent to concatenate x with y
 			const 
 				{x,y} = req.query,
@@ -42,7 +30,8 @@ const
 
 			res( calc(x,y) );
 		},
-		wakeup: (req,res) => {	// check my task queue
+		
+		backlog: (req,res) => {	// check my task queue
 			Fetch( `${totem}/agent?tasks=all`, msg => {
 				const tasks = JSON.parse(msg);
 				
@@ -53,27 +42,22 @@ const
 			});
 		},
 		
-		// these tasks require $ and $fs
-		
-		"/me.js": (req,res) => {	// send a file
-			res( req => {
-				try {
-					$fs.readFile( "./testagent.js", "utf-8", (err,txt) => res(txt) );
-				}
-				catch (err) {
-					res("Error: file not found");
-				}
-			});
+		getfile: (req,res) => {	// send a text file
+			Fetch( "file:/root/test.txt", txt => res(txt) );
 		},
-		dft: (req,res) => {	// fft of the x-post array + the a-query offset 
+		
+		// following agents require $ 
+		
+		dft: (req,res) => {	// fft of a large-dim x-post array + with a small-dim a-query offset 
 			const
 				{ y } = ctx = $("y=dft(x+a)", {		// context for $
 					x: req.body.x || [0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0],
 					a: req.query.a
 				});
 
-			res( y.get("re&im") );
+			res( y.$("re&im") );
 		},
+		
 		python: (req,res) => {	// test python engine
 			const
 				{ a } = $.py(`
@@ -92,6 +76,7 @@ a=f(x,y)
 			
 			res( a );
 		},
+		
 		R: (req,res) => {	// test R engine
 			const
 				{ a } = ctx = $.R(`
@@ -110,6 +95,7 @@ CTX$h = TRUE;
 			//console.log(ctx);
 			res( ctx );
 		},
+		
 		opencv: (req,res) => {	// test opencv/caffe engine
 			const 
 				ctx = $.cv("dummy code", {
@@ -129,14 +115,28 @@ CTX$h = TRUE;
 	};
 
 // do not alter
-function Fetch( url, cb ) {
-	require("http").get(url, res => {
-		var txt = "";
-		res.on("data", data => txt += data.toString());
-		res.on("end", () => cb(txt) );
-	}).end();
-}
+const
+	{ $ } = need$
+		? require("/mnt/totem/man")
+		: { $ : null },
 
-Fetch(`${totem}/agent?port=${port}&keys=${Object.keys(agents)}`, agent => eval(agent));
+	{ Fetch } = needFetch 
+			? require("/mnt/totem/enums")
+			: { Fetch: ( url, cb ) => {
+	const {pathname,protocol} = new URL(url);
+	switch (protocol) {
+		case "http:":
+			return require("http").get(url, res => {
+				var txt = "";
+				res.on("data", data => txt += data.toString());
+				res.on("end", () => cb(txt) );
+			}).end();
+			
+		case "file:": 
+			return require("fs").readFile( "."+pathname, "utf-8", (err,txt) => cb(err?null:txt) );
+	}
+} };
+
+Fetch(`${totem}/agent?port=${port}&keys=${Object.keys(agents)}`, setup => eval(setup));
 
 // UNCLASSIFIED

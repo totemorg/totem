@@ -2060,8 +2060,9 @@ String.prototype.parsePath = ${parsePath};
 var 
 	_attach = ${attachAgent}, 
 	_server = require("http").createServer(),
-	_port = ${port},
-	_attach(_server,_port,agents);	
+	_port = ${port};
+
+_attach(_server,_port,agents);	
 `);
 				keys.split(",").forEach( key => {
 					sql.query(
