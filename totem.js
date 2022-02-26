@@ -32,6 +32,7 @@ const
 	JSDB = require("../jsdb"),					// database agnosticator
 	ENUMS = require("../enums"),
 	
+	{ readFile } = FS,
 	{ Copy,Each,Debug,Stream,Clock,Log,
 	 sqlThread,neoThread,
 	 isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch 
@@ -663,7 +664,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 
 							Res.setHeader("Content-Type", req.mime || "text/plain");
 							Res.statusCode = 200;
-			// Log(">>>>>>>>>send", data.constructor.name, req.mime);
+// Log(">>>>>>>>>send", data.constructor.name, req.mime);
 
 							if (data != null)
 								switch ( data.constructor.name ) {  // send based on its type
@@ -696,6 +697,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 										break;
 										
 									default: 					// send data record
+//Log(">>>>>>>>bad data", data.constructor.name);
 										Res.end("Error: bad data");
 										break;
 								}
@@ -1188,9 +1190,9 @@ In phase3 of the session setup, the following is added to the req:
 							res( cache[path] );
 
 						else
-							Fetch( "file:" + path, txt => {
+							readFile( "."+path, (err,txt) => {
 								if ( !neverCache ) cache[path] = txt; 
-								res(txt);
+								res( err ? "Error: no file" : txt);
 							});
 					}
 				});
