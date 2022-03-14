@@ -33,7 +33,7 @@ const
 	ENUMS = require("../enums"),
 	
 	{ readFile } = FS,
-	{ Copy,Each,Debug,Stream,Clock,Log,
+	{ Copy,Each,Debug,Clock,Log,
 	 sqlThread,neoThread,
 	 isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch 
 	} = ENUMS,  
@@ -414,7 +414,7 @@ const
 	 	createCert, loginClient, crudIF,
 		getBrick, routeAgent, setContext, readPost,
 		filterFlag, paths, sqls, errors, site, isEncrypted, behindProxy, admitRules,
-		filterType,tableRoutes, dsThread, startDogs, cache } = TOTEM = module.exports = {
+		filters,tableRoutes, dsThread, startDogs, cache } = TOTEM = module.exports = {
 	
 	Trace: (msg, ...args) => `totem>>>${msg}`.trace( args ),	
 	
@@ -1039,20 +1039,16 @@ In phase3 of the session setup, the following is added to the req:
 					logSession( req.reqSocket );  
 
 				route(req, recs => {	// route request and capture records
-					if ( recs ) {
-						var filter;
-						//for ( var key in flags ) filter = filterFlag[key];
-
-						if ( filter ) 
-							filter( recs, req, res );
-
-						else
-						if ( filter = filterType[type] )  // process record conversions
-							filter(recs, req, res);
-
+					if ( recs ) 
+						if ( filter = filters[type] )  // process record conversions
+							if ( recs.forEach )
+								filter(recs, req, res);
+					
+							else
+								res(recs);
+						
 						else
 							res(recs);
-					}
 
 					else
 						res(null);
@@ -1106,16 +1102,27 @@ In phase3 of the session setup, the following is added to the req:
 
 		function cleanParms() {	// cleanup the query and body parms
 			const
-				{ query, where, body, index, flags, client } = req,
-				{ queryStrip, flagPrefix, flagTrap, idKey } = filterFlag;
+				{ query, where, body, index, flags, client } = req,				  
+				queryStrip = {	 			//< Flags to queryStrip from request
+					"":1, 
+					"_":1, 
+					leaf:1, 
+					_dc:1
+				}, 		
+				idKey = "ID", 					//< db record id
+				flagPrefix = "_";			//< Prefix that indicates a field is a flag
+				  
+				//{ queryStrip, flagPrefix, flagTrap, idKey } = filterFlag;
 
 			for (var key in query) 		// strip or remap bogus keys
 				if ( key in queryStrip )
 					delete query[key];
 
+			/*
 			for (var key in flags) 	// trap special flags
 				if ( trap = flagTrap[key] )
 					trap(req);
+			*/
 
 			if (flagPrefix)
 				for (var key in body) 		// remap body flags
@@ -1133,9 +1140,11 @@ In phase3 of the session setup, the following is added to the req:
 				if ( key in queryStrip )
 					delete query[key];
 
+			/*
 			for (var key in flags) 	// trap special flags
 				if ( trap = flagTrap[key] )
 					trap(req);
+			*/
 			
 			/*
 			for (var key in body) 		// remap body flags
@@ -1329,8 +1338,13 @@ Configure database, define site context, then protect, connect, start and initia
 				docEditpoints = false,
 				docNotebooks = false;
 			
-			if ( docEditpoints ) // build endpoint docs			
-				Stream(byTable, {}, (val,skey,cb) => {	// system endpoints
+			if ( docEditpoints ) // document endpoints			
+				//Stream(byTable, {}, (val,skey,cb) => {	// system endpoints
+				Object.keys(byTable).stream( (vkey,skey,cb) => {
+					const val = byTable[vkey];
+					
+					Log("docendpt", vkey, val);
+					
 					//Trace("build doc", host, cb?"stream":"end", skey);
 					
 					if ( cb ) // streaming ... scan endpoint
@@ -1902,35 +1916,6 @@ REST-to-CRUD translations
 	},
 	
 /**
-Options to parse request flags
-@cfg {Object} 
-*/
-	filterFlag: {				//< Properties for request flags
-		flagTrap: { //< cb(query) flagTrap to reorganize query
-			/*
-			filters: req => {
-				var 
-					flags = req.flags,
-					where = req.where,
-					filters = flags.filters;
-				
-				if (filters && filters.forEach )
-					filters.forEach( filter => where["="][ filter.property ] = filter.value || "" );
-			}*/
-		},
-		queryStrip:	 			//< Flags to queryStrip from request
-			{"":1, "_":1, leaf:1, _dc:1}, 		
-
-		//ops: "<>!*$|%/^~",
-		idKey: "ID", 					//< db record id
-		flagPrefix: "_"				//< Prefix that indicates a field is a flag
-		//trace: "_trace",		//< Echo flags before and after parse	
-		/*blog: function (recs, req, res) {  //< Default blogger
-			res(recs);
-		} */
-	},
-
-/**
 Number of worker cores (0 for master-only).  If cores>0, masterport should != workPort, master becomes HTTP server, and workers
 become HTTP/HTTPS depending on encrypt option.  In the coreless configuration, master become HTTP/HTTPS depending on 
 encrypt option, and there are no workers.  In this way, a client can access stateless workers on the workerport, and stateful 
@@ -2015,10 +2000,10 @@ Site context extended by the mysql derived query when service starts
 	},
 
 /**
-Endpoint filterType cb(data data as string || error)
+Endpoint filters cb(data data as string || error)
 @cfg {Object} 
 */
-	filterType: {  //< record data convertors
+	filters: {  //< record data convertors
 		csv: (recs, req, res) => {
 			JS2CSV({ 
 				recs: recs, 

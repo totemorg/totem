@@ -456,7 +456,6 @@ neoThread( neo => {
         * [.sqlThread](#module_TOTEM.sqlThread)
         * [.neoThread](#module_TOTEM.neoThread)
         * [.crudIF](#module_TOTEM.crudIF)
-        * [.filterFlag](#module_TOTEM.filterFlag)
         * [.cores](#module_TOTEM.cores)
         * [.onFile](#module_TOTEM.onFile)
         * [.modTimes](#module_TOTEM.modTimes)
@@ -464,7 +463,7 @@ neoThread( neo => {
         * [.name](#module_TOTEM.name)
         * [.certPass](#module_TOTEM.certPass)
         * [.site](#module_TOTEM.site)
-        * [.filterType](#module_TOTEM.filterType)
+        * [.filters](#module_TOTEM.filters)
         * [.byTable](#module_TOTEM.byTable)
             * [.agent()](#module_TOTEM.byTable.agent)
             * [.ping(req, res)](#module_TOTEM.byTable.ping)
@@ -633,13 +632,6 @@ REST-to-CRUD translations
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="module_TOTEM.filterFlag"></a>
-
-### TOTEM.filterFlag
-Options to parse request flags
-
-**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
-**Cfg**: <code>Object</code>  
 <a name="module_TOTEM.cores"></a>
 
 ### TOTEM.cores
@@ -697,10 +689,10 @@ Site context extended by the mysql derived query when service starts
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="module_TOTEM.filterType"></a>
+<a name="module_TOTEM.filters"></a>
 
-### TOTEM.filterType
-Endpoint filterType cb(data data as string || error)
+### TOTEM.filters
+Endpoint filters cb(data data as string || error)
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
