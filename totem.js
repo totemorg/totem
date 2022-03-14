@@ -1343,7 +1343,7 @@ Configure database, define site context, then protect, connect, start and initia
 				Object.keys(byTable).stream( (vkey,skey,cb) => {
 					const val = byTable[vkey];
 					
-					Log("docendpt", vkey, val);
+					//Log("docendpt", vkey, val);
 					
 					//Trace("build doc", host, cb?"stream":"end", skey);
 					
