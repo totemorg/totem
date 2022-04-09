@@ -459,86 +459,86 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 						[type,attr] = (content||"").split("; "),
 						body = attr ? {formType: type} : {};
 
-					//Log(this, this.constructor, [type, attr]);
+//Log("parsepost", this, this.constructor, [type, attr]);
 
 					if ( post )
-						switch (type) {
-							case "multipart/form-data":
-								const
-									conDisp = "Content-Disposition:",
-									conType = "Content-Type:",
-									conBdry = body.formBoundary = attr.split("=").pop().replace(/-/g,"");
+						try {
+							body.name = "post";
+							body.post = JSON.parse(post);
+						}
 
-								var
-									key = "";
+						catch (err) {						
+							switch (type) {
+								case "multipart/form-data":
+									const
+										conDisp = "Content-Disposition:",
+										conType = "Content-Type:",
+										conBdry = body.formBoundary = attr.split("=").pop().replace(/-/g,"");
 
-								try {
-									post.split("\r\n").forEach( (line,idx) => {
-										if ( line.startsWith("--") && line.replace(/-/g,"") == conBdry) {	// "-----------------------------"
-											//console.log("**bdry>");
-										}
+									var
+										key = "";
 
-										else
-										if ( line.startsWith(conDisp) ) {
-											//console.log("**disp>", line);
-											line.split("; ").forEach( (arg,idx) => {
-												if (idx) {
-													const
-														[pre,key,val] = arg.match( /(.*)=\"(.*)\"/ ) || ["",""];
+									try {
+										post.split("\r\n").forEach( (line,idx) => {
+											if ( line.startsWith("--") && line.replace(/-/g,"") == conBdry) {	// "-----------------------------"
+												//console.log("**bdry>");
+											}
 
-													body[key] = val;
-												}
-											});
-										}
+											else
+											if ( line.startsWith(conDisp) ) {
+												//console.log("**disp>", line);
+												line.split("; ").forEach( (arg,idx) => {
+													if (idx) {
+														const
+															[pre,key,val] = arg.match( /(.*)=\"(.*)\"/ ) || ["",""];
 
-										else
-										if ( line.startsWith(conType) ) {
-											//console.log("**type>", line);
-											body.mimeType = line.split(" ").pop()
-										}
+														body[key] = val;
+													}
+												});
+											}
 
-										else
-										if (line) {
-				Log("**data>>>>>", body.name, line.length, "str=", line.substr(0,8), "hex=", Buffer.from(line.substr(0,8)).toString("hex"));
-											body[ body.name ] = line;	
-										}
-									});
-								}
+											else
+											if ( line.startsWith(conType) ) {
+												//console.log("**type>", line);
+												body.mimeType = line.split(" ").pop()
+											}
 
-								catch (err) {
-									body.error = "invalid multipart post";
-								}
+											else
+											if (line) {
+					Log("**data>>>>>", body.name, line.length, "str=", line.substr(0,8), "hex=", Buffer.from(line.substr(0,8)).toString("hex"));
+												body[ body.name ] = line;	
+											}
+										});
+									}
 
-								break;
+									catch (err) {
+										body.error = "invalid multipart post";
+									}
 
-							case "application/x-www-form-urlencoded":
-								body.name = "url";
-								body.url = unescape(this).replace(/\+/g," ");
-								//Log("app======>", body);
-								break;
+									break;
 
-							case "text/plain":
-								var
-									[key,text] = this.match(/(.*)=(.*)/) || [];
+								case "application/x-www-form-urlencoded":
+									body.name = "url";
+									body.url = unescape(this).replace(/\+/g," ");
+									//Log("app======>", body);
+									break;
 
-								if (key) {
-									body.name = key;
-									body[key] = text;
-								}
+								case "text/plain":
+									var
+										[key,text] = this.match(/(.*)=(.*)/) || [];
 
-								//Log("txt======>", body);
-								break;
+									if (key) {
+										body.name = key;
+										body[key] = text;
+									}
 
-							default:
-								try {
-									body.name = "post";
-									body.post = JSON.parse(post);
-								}
+									//Log("txt======>", body);
+									break;
 
-								catch (err) {
+								default:
 									body.name = "post";
 									body.post = post;
-								}
+							}
 						}
 
 					return body;
@@ -614,14 +614,14 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 				
 				getSocket( req => {
 					getPost( post => {							// prime session request
+//Log("getpost", post); 
 						switch ( req.method ) {	// get post parms depending on request type being made
 							// CRUD interface
 							case "PUT":
 							case "GET":
 							case "POST":
 							case "DELETE":
-								//Trace("============ip", Req.connection.remoteAddress, Req.socket.remoteAddress, Req.headers['x-forwarded-for'] );
-								//Log(["post=", post], Req.url, Req.method, Req.headers);
+//Log("dopost", Req.url, Req.method, Req.headers["content-type"]);
 								req.body = parsePost(post, Req.headers["content-type"] );
 								ses(req);
 								break;
@@ -1273,7 +1273,7 @@ Error messages
 	errors: {
 		ok: "ok",
 		pretty: err => (err+"").replace("Error:",""),
-		noBody: new Error("no body keys"),
+		noPost: new Error("missing post keys"),
 		badMethod: new Error("unsupported request method"),
 		noRoute: new Error("no route found"),
 		noDB: new Error("database unavailable"),
@@ -2229,12 +2229,13 @@ CRUD endpoint to respond to a update||POST request
 		update: (req, res) => {
 			const 
 				{ sql, flags, body, where, query, client, ds, table, now } = req,
+				post = body[body.name] || {},
 				{ sio } = SECLINK;
 
-			// Log({w:where, q:query, b:body, t:table, ds: ds});
+//Log("update", {w:where, q:query, p:post, t:table, ds: ds});
 
-			if ( isEmpty(body) )
-				res( errors.noBody );
+			if ( isEmpty(post) )
+				res( errors.noPost );
 
 			else
 			if ( isEmpty(query) )
@@ -2251,10 +2252,12 @@ CRUD endpoint to respond to a update||POST request
 						Event: now
 					}]);
 
-				sql.Update(ds, where, body, (err,info) => {
+				sql.Update(ds, where, post, (err,info) => {
 
-					body.ID = query.ID;
-					res( err || body );
+//Log("updated", err, info);
+					
+					//body.ID = query.ID;
+					res( err || post );
 
 					if ( sio && !err ) // Notify other clients of change
 						sio.emit( "update", {
@@ -2276,6 +2279,7 @@ CRUD endpoint to respond to a delete||DELETE request
 		delete: (req, res) => {
 			const 
 				{ sql, flags, where, query, body, client, ds, table, now } = req,
+				post = body[body.name] || {},
 				{ sio } = SECLINK;
 
 			if ( isEmpty(query) )
@@ -2293,8 +2297,8 @@ CRUD endpoint to respond to a delete||DELETE request
 					}]);
 
 				sql.Delete(ds, where, (err,info) => {
-					body.ID = query.ID;
-					res( err || body );
+					//body.ID = query.ID;
+					res( err || post );
 
 					if ( sio && !err ) // Notify other clients of change
 						sio.emit( "delete", {
@@ -2317,9 +2321,10 @@ CRUD endpoint to respond to a insert||PUT request
 		insert: (req, res) => {
 			const 
 				{ sql, flags, body, client, ds, table, now } = req,
+				post = body[body.name] || {},				  
 				{ sio } = SECLINK;
 
-			//Log("insert", body);
+Log("insert", post);
 			/*Log("insert", {
 				type: body.formType,
 				startFrag: Buffer.from(body[ body.name ].substr(0,8)).toString("hex"),
@@ -2336,7 +2341,7 @@ CRUD endpoint to respond to a insert||PUT request
 					Event: now
 				}]);
 			
-			sql.Insert(ds,body,(err,info) => {
+			sql.Insert(ds,post,(err,info) => {
 				res( err || {ID: info.insertId} );
 
 				if ( sio && !err ) // Notify other clients of change
