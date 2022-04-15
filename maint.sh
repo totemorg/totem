@@ -229,7 +229,7 @@ totem_config.)
 	# define service urls
 	
 	case "$(hostname)." in
-		wsn3303.)
+		wsn3303.|RLNCWUPWAP202886.)
 			DOMAIN=totem.nga.mil
 			;;
 
@@ -254,27 +254,22 @@ totem_config.)
 	esac
 	
 	case "$2." in 
-		prod.)	# multi core production
+		oper.|operational.)
+			export SERVICE_MODE=operational
 			PROTO=https
-			PORT1=8080
-			PORT2=443
+			PORT1=443
+			PORT2=80
 			;;
-
-		prot.)	# single core
+		
+		prod.|production.)
+			export SERVICE_MODE=non-operational
 			PROTO=https
 			PORT1=8443
 			PORT2=8080
 			;;
 
-		oper.)
-			export SERVICE_OPER=yes
-			DOMAIN=localhost
-			PROTO=https
-			PORT1=80
-			PORT2=443
-			;;
-		
 		*)
+			export SERVICE_MODE=non-operational
 			DOMAIN=localhost
 			PROTO=http
 			PORT1=8080
@@ -1307,12 +1302,15 @@ start_net.)
 	;;
 
 admin.|lab.)  	# start totem
-	case "$SERVICE_OPER." in 
-		yes.)
+	cd $SERVICE/debe
+	case "$SERVICE_MODE." in 
+		operational.)
+			echo "Starting in operational mode"
 			sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o debe.log start debe.js $1 $2 $3 $4 $5
 			;;
 		
 		*)
+			echo "Starting in non-operational mode"
 			node debe.js $1 $2 $3 $4 $5 
 			;;
 	esac

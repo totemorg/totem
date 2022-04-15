@@ -209,22 +209,28 @@ https://customsearch.googleapis.com/customsearch/v1?key=AIzaSyBp56CJJA0FE5enebW5
 
 # NGA cert creation process:
 #
-# 1. On the machine that will run the service, create a private key:
-#		openssl req-new -newkey rsa:2048 -nodes -keyout totem.nga.mil.key totem.-out totem.nga.mil.csr
+# 1. On the machine that will run the service, create a private key (key) and a request (csr):
+#		openssl req -newkey rsa:2048 -nodes -keyout totem.nga.mil.key -out totem.nga.mil.csr
 # 
 # Retain passphrase for step4.
 #
 # 2. Submit the csr to the disa pki team at https://npe-portal.csd.disa.mil
 # They say that their site is cac accessibile with your email cert, but it will
-# only work for those having admin priv.  At this site, make a request
+# only work for those having admin priv (those with RA).  At this site, make a request
 # for a "TLS Server" type cert.  DISA will respond with 3 certs at their site:
 #
-#			a public cert:	totem.nga.mil.cer
-#			a min ca chain:		ca_certificate_chain.p7b
-#			a private key:	totem.nga.mil.key
+#			public cert:	totem.nga.mil.cer
+#			ca chain:		ca_certificate_chain.p7b
+#			private key:	totem.nga.mil.key
+#
+# While the provided ca_chain (totem.nga.mil, DOD SW CA-60, DoD Root CA 3) will suffice at the time issued, 
+# but DISA routinely revises the chain and/or CA certs within the chain. If the chain gets revised, we typically 
+# export the certs from a browser, then concat all certs to make our own ca_chain.  This ca_chain is then placed
+# under /etc/pki/ca-trust/source/anchors and bound into the OS using "update -catrust -extract" (approx cmd); 
+# this binding is usually done by admins when system created, but may have to rebind when DISA changes the chain.
 #
 # 3. prep ca chain cert for service by converting/extracting all
-# certs within the supplied ca chain to a standalone pem:
+# certs within the supplied ca_chain to a standalone pem:
 #
 #		openssl pkcs7 -print_certs -in ca_Certificate_Chain.p7b -out ca_Certificate_Chain.crt
 #

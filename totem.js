@@ -1527,7 +1527,7 @@ Configure database, define site context, then protect, connect, start and initia
 				
 				Each( FS.readdirSync(paths.certs+"truststore"), (n,file) => {
 					if (file.indexOf(".crt") >= 0 || file.indexOf(".cer") >= 0) {
-						Trace( "CA CHAIN", file);
+						Trace( "TRUST", file);
 						trustStore.push( FS.readFileSync( `${paths.certs}truststore/${file}`, "utf-8") );
 					}
 				});
@@ -1563,6 +1563,9 @@ Configure database, define site context, then protect, connect, start and initia
 						process.on(signal, () => Trace( "SIGNALED", signal) );
 				}
 				
+				if ( isEncrypted() )
+				Log( "SERVER CERTS", certs);
+
 				const
 					{ initialize } = TOTEM,
 					server = TOTEM.server = isEncrypted() 
@@ -2639,6 +2642,7 @@ Sets the site context parameters.
 		.on("end", () => {
 		
 			sql.query(pocs, [], (err,recs) => {
+				Log("getpocs", err,recs);
 				recs.forEach( rec => {
 					if ( rec.admin ) site.pocs.admin = rec.Users.toLowerCase();
 					if ( rec.overlord ) site.pocs.overlord = rec.Users.toLowerCase();
