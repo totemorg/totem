@@ -1306,7 +1306,8 @@ admin.|lab.)  	# start totem
 	case "$SERVICE_MODE." in 
 		operational.)
 			echo "Starting in operational mode"
-			sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o debe.log start debe.js $1 $2 $3 $4 $5
+			#sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o debe.log start debe.js $1 $2 $3 $4 $5
+			sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" node debe.js $1 $2 $3 $4 $5 
 			;;
 		
 		*)

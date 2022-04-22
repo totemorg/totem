@@ -427,6 +427,9 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 @param {Function} init Optional callback after server started
 */
 	attachAgent: (server,port,agents,init) => {
+
+		Log("listening on", port);
+
 		server
 		.listen( port, () => {  	// listen on specified port
 			console.log( `Listening on port ${port}` );
@@ -834,10 +837,12 @@ recovered profile or null if the session could not be validated.
 			{ Login, host } = SECLINK,
 			guest = `guest${ipAddress}@${host}`;
 
+		Log("cert", cert);
 		if ( cert ) {		// client on encrypted socket so has a pki cert
 			const
 				[x,client] = (cert.subjectaltname||"").toLowerCase().split(",")[0].match(/email:(.*)/) || [];
 
+			Log("client", client);
 			if ( client ) {		// found a client
 				// Log("CHECKCERT", account, cookie, cookies);
 
@@ -859,6 +864,7 @@ recovered profile or null if the session could not be validated.
 				}
 
 				Login( client, function guestSession(err,prof) { // no-authentication session
+					Log("login", err, prof);
 					cb( err ? null : prof );
 				});
 			}
@@ -1405,7 +1411,7 @@ Configure database, define site context, then protect, connect, start and initia
 				const 
 					{ crudIF,name,cache,trustStore,certs } = TOTEM,
 					{ secureIO, dogs, guard, guards, proxy, proxies, cores, sendMail } = TOTEM,
-					port = isMaster ? $master.port : $worker.port;
+					port = (isMaster ? $master.port : $worker.port) || 443;
 
 				//Trace( "create server on", isMaster, port, $master, $worker );
 
@@ -1564,7 +1570,7 @@ Configure database, define site context, then protect, connect, start and initia
 				}
 				
 				if ( isEncrypted() )
-				Log( "SERVER CERTS", certs);
+				Log( "SERVER CERTS", certs, "SERVER PORT", port);
 
 				const
 					{ initialize } = TOTEM,

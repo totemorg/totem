@@ -1,7 +1,7 @@
 #!/bin/bash
 # CONFIDENTIAL
 
-export SERVICE_PASS=
+export SERVICE_PASS=Research*2020
 #export MYSQL_PASS=root
 #export SERVICE_PASS=test
 export ADMIN_PASS=junk
