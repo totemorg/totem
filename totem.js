@@ -1023,7 +1023,7 @@ New Certs
 			const
 				[x,client] = (cert.subjectaltname||"").toLowerCase().split(",")[0].match(/email:(.*)/) || [];
 
-			Log("client", client);
+			//Log("client", client);
 			if ( client ) {		// found a client
 				// Log("CHECKCERT", account, cookie, cookies);
 
@@ -1045,7 +1045,7 @@ New Certs
 				}
 
 				Login( client, function guestSession(err,prof) { // no-authentication session
-					Log("login", err, prof);
+					//Log("login", err, prof);
 					cb( err ? null : prof );
 				});
 			}
