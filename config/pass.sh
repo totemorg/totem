@@ -1,22 +1,28 @@
 #!/bin/bash
-# UNCLASSIFIED
-# save this files into _pass.sh when completed and revise classification
+# CONFIDENTIAL
 
-export SERVICE_PASS=pass
-export ADMIN_PASS=pass
-export DECODE_PASS=pass
-export LOGIN_PASS=pass
-export ODBC_PASS=pass
-export FETCH_PASS=pass
-export ZIP_PASS=pass
-export GIT_PASS=pass
-export GOOGLEUSE=user:pass
+export SERVICE_PASS=
+#export MYSQL_PASS=root
+#export SERVICE_PASS=test
+export ADMIN_PASS=junk
+export DECODE_PASS=junk
+export LOGIN_PASS=totem
+export ODBC_PASS=junk
+export FETCH_PASS=junk
+export ZIP_PASS=booboo
+#export GIT_USER=totemstan
+export GIT_PASS=GITsnivel8194#1
+#export LEXISNEXIS=VQNMQCR3CWMKKXMNPDTGMHWDNSPWKD:1CJKRZCVTRMXRFRHPHWXQGNXCQQJGWXBFMVFTNDP
+export GOOGLEUSE=017944666033550212559:c1vclesecjc
+#export GOOGLEKEY=AIzaSyBp56CJJA0FE5enebW5_4mTssTGaYzGqz8
+#export NEO4J_PASS=root
+#export LINK_PASS=totempass
 
-export KEY_LEXNEX=user:pass
-export KEY_GOOGLE=user:pass
-export KEY_MYSQL=user:pass
-export KEY_NEO4J=user:pass
-export KEY_TXMAIL=user:pass
-export KEY_RXMAIL=user:pass
-export KEY_GIT=user:pass
-# UNCLASSIFIED
+export KEY_LEXNEX=VQNMQCR3CWMKKXMNPDTGMHWDNSPWKD:1CJKRZCVTRMXRFRHPHWXQGNXCQQJGWXBFMVFTNDP
+export KEY_GOOGLE=017944666033550212559:c1vclesecjc
+export KEY_MYSQL=root:root
+export KEY_NEO4J=neo4j:root
+export KEY_TXMAIL=brian.d.james:COMCASTsnivel1
+export KEY_RXMAIL=
+export KEY_GIT=totemstan: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
+# CONFIDENTIAL

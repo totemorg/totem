@@ -1,0 +1,3 @@
+[submodule "jsdb"]
+	path = jsdb
+	url = git@github.com:totemstan/jsdb
