@@ -1,24 +1,24 @@
 # TOTEM [WWW](https://github.com/totemstan/totem)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)
 
-**TOTEM** provides a barebones web service with the following customizable features:
+**TOTEM** provides a barebones web service with features:
 
-	+ endpoint routing
-	+ http/https service
-	+ denial-of-service protection
-	+ secure link providing encrypted inter-client communications with antibot guard
-	+ client profiles 
-	+ PKI encryption and authentication
-	+ fault protected run states
-	+ indexing, uploading, downloading and cacheing static files
-	+ crud interface
-	+ mysql- and neo4j-database agnosticator
-	+ task queuing and regulation
-	+ file polling and services
-	+ automattic server cert generation
-	+ task sharding
-	+ file stream and ingest
-	+ data fetching with various protocols
-	+ smartcard reader
++ endpoint routing
++ http/https service
++ denial-of-service protection
++ secure link providing encrypted inter-client communications with antibot guard
++ client profiles 
++ PKI encryption and authentication
++ fault protected run states
++ indexing, uploading, downloading and cacheing static files
++ crud interface
++ mysql- and neo4j-database agnosticator
++ task queuing and regulation
++ file polling and services
++ automattic server cert generation
++ task sharding
++ file stream and ingest
++ data fetching with various protocols
++ smartcard reader
   
 **TOTEM** defines CRUD (POST, GET, PUT, DELETE) endpoints (aka *NODE*s) to access *DATASET*s, 
 *FILE*s or *COMMAND*s:
