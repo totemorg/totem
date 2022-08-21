@@ -82,7 +82,7 @@ follow the ENUM deep copy conventions (
 [COE](https://sc.appdev.proj.coe/acmesds/enum) 
 [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
 ).
-See the Program Reference for usage samples.
+See the Program Reference for sample usages.
 
 
 ## Program Reference
