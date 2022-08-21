@@ -76,13 +76,11 @@ in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @module TOTEM
 @author [ACMESDS](https://totemstan.github.io)
 
-Totemstan requirements:  
 @requires [enums](https://github.com/totemstan/enums)
 @requires [jsdb](https://github.com/totemstan/jsdb)
 @requires [securelink](https://github.com/totemstan/securelink)
 @requires [socketio](https://github.com/totemstan/socketio)
 
-Nodejs requirements:  
 @requires [http](https://nodejs.org/docs/latest/api/)
 @requires [https](https://nodejs.org/docs/latest/api/)
 @requires [fs](https://nodejs.org/docs/latest/api/)
@@ -94,7 +92,6 @@ Nodejs requirements:
 @requires [vm](https://nodejs.org/docs/latest/api/)
 @requires [crypto](https://nodejs.org/docs/latest/api/)
 
-3rd party requirements:  
 @requires [mime](https://www.npmjs.com/package/mime)
 @requires [mysql](https://www.npmjs.com/package/mysql)
 @requires [xml2js](https://www.npmjs.com/package/xml2js)

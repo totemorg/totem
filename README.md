@@ -84,6 +84,7 @@ follow the ENUM deep copy conventions (
 [COE](https://sc.appdev.proj.coe/acmesds/enum) 
 [SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
 ).
+See the Program Reference for usage samples.
 
 
 ## Program Reference
@@ -143,9 +144,7 @@ in accordance with [jsdoc](https://jsdoc.app/).
 	SHARD3 = PROTO://DOMAIN:PORT
 
 **Requires**: <code>module:[enums](https://github.com/totemstan/enums)</code>, <code>module:[jsdb](https://github.com/totemstan/jsdb)</code>, <code>module:[securelink](https://github.com/totemstan/securelink)</code>, <code>module:[socketio](https://github.com/totemstan/socketio)</code>, <code>module:[http](https://nodejs.org/docs/latest/api/)</code>, <code>module:[https](https://nodejs.org/docs/latest/api/)</code>, <code>module:[fs](https://nodejs.org/docs/latest/api/)</code>, <code>module:[constants](https://nodejs.org/docs/latest/api/)</code>, <code>module:[cluster](https://nodejs.org/docs/latest/api/)</code>, <code>module:[child\_process](https://nodejs.org/docs/latest/api/)</code>, <code>module:[os](https://nodejs.org/docs/latest/api/)</code>, <code>module:[stream](https://nodejs.org/docs/latest/api/)</code>, <code>module:[vm](https://nodejs.org/docs/latest/api/)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>, <code>module:[mime](https://www.npmjs.com/package/mime)</code>, <code>module:[mysql](https://www.npmjs.com/package/mysql)</code>, <code>module:[xml2js](https://www.npmjs.com/package/xml2js)</code>, <code>module:[toobusy-js](https://www.npmjs.com/package/toobusy-js)</code>, <code>module:[json2csv](https://www.npmjs.com/package/json2csv)</code>, <code>module:[js2xmlparser](https://www.npmjs.com/package/js2xmlparser)</code>, <code>module:[cheerio](https://www.npmjs.com/search?q&#x3D;cheerio)</code>  
-**Author**: [ACMESDS](https://totemstan.github.io)
-
-Totemstan requirements:  
+**Author**: [ACMESDS](https://totemstan.github.io)  
 **Example**  
 ```js
 // npm test T1
