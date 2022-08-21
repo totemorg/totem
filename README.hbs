@@ -33,7 +33,7 @@ and the `stores | shares` areas for sharing static *FILE*s.
 
 ## Installation
 
-Clone **JSDB** from one of its REPOs:
+Clone **TOTEM** and its dependencies from one of its REPOs:
 
 	cd MYPROJECT
 	git clone REPO/totemstan/totem
@@ -41,20 +41,18 @@ Clone **JSDB** from one of its REPOs:
 	git clone REPO/totemstan/enums
 	git clone REPO/totemstan/jsdb
 
-## Setup
+To start **TOTEM**: 
 
+	npm run	startdbs					# Start required database servers
+	npm run	start						# Start totem
+
+To configure and maintain **TOTEM**:
+	
 	npm run setprot						# Configure for protected mode
 	npm run setdebug					# Configure for debugging mode
 	npm run setoper						# Configure for operational mode
 	npm run setprod						# Configure for production mode
 
-## Start
-
-	npm run	startdbs					# Start required database servers
-	npm run	start						# Start totem
-
-## Maintenance
-	
 	npm run redoc						# Update repo
 	npm run verminor					# Roll version
 	npm run vermajor					# Roll version
