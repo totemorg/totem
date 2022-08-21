@@ -81,16 +81,16 @@ in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @requires [securelink](https://github.com/totemstan/securelink)
 @requires [socketio](https://github.com/totemstan/socketio)
 
-@requires http
-@requires https
-@requires fs
-@requires constants
-@requires cluster
-@requires child_process
-@requires os
-@requires stream
-@requires vm
-@requires crypto
+@requires [http](https://nodejs.org/docs/latest/api/)
+@requires [https](https://nodejs.org/docs/latest/api/)
+@requires [fs](https://nodejs.org/docs/latest/api/)
+@requires [constants](https://nodejs.org/docs/latest/api/)
+@requires [cluster](https://nodejs.org/docs/latest/api/)
+@requires [child_process](https://nodejs.org/docs/latest/api/)
+@requires [os](https://nodejs.org/docs/latest/api/)
+@requires [stream](https://nodejs.org/docs/latest/api/)
+@requires [vm](https://nodejs.org/docs/latest/api/)
+@requires [crypto](https://nodejs.org/docs/latest/api/)
 
 @requires mime
 @requires mysql
