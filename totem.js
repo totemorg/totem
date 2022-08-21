@@ -23,7 +23,7 @@ const
 	MIME = require("mime"), 					// file mime types
 	SQLDB = require("mysql"),					//< mysql conector
 	XML2JS = require("xml2js"),					// xml to json parser (*)
-	BUSY = require('toobusy-js'),  				// denial-of-service protector (cant install on NodeJS 5.x+)
+	BUSY = require('toobusy-js'),  				// denial-of-service protector
 	JS2XML = require('js2xmlparser'), 			// JSON to XML parser
 	JS2CSV = require('json2csv'),				// JSON to CSV parser	
 	  
@@ -76,11 +76,13 @@ in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @module TOTEM
 @author [ACMESDS](https://totemstan.github.io)
 
+Totemstan requirements:  
 @requires [enums](https://github.com/totemstan/enums)
 @requires [jsdb](https://github.com/totemstan/jsdb)
 @requires [securelink](https://github.com/totemstan/securelink)
 @requires [socketio](https://github.com/totemstan/socketio)
 
+Nodejs requirements:  
 @requires [http](https://nodejs.org/docs/latest/api/)
 @requires [https](https://nodejs.org/docs/latest/api/)
 @requires [fs](https://nodejs.org/docs/latest/api/)
@@ -92,14 +94,14 @@ in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @requires [vm](https://nodejs.org/docs/latest/api/)
 @requires [crypto](https://nodejs.org/docs/latest/api/)
 
-@requires mime
-@requires mysql
-@requires xml2js
-@requires toobusy
-@requires json2csv
-@requires js2xmlparser
-@requires toobusy-js
-@requires cheerio
+3rd party requirements:  
+@requires [mime](https://www.npmjs.com/package/mime)
+@requires [mysql](https://www.npmjs.com/package/mysql)
+@requires [xml2js](https://www.npmjs.com/package/xml2js)
+@requires [toobusy-js](https://www.npmjs.com/package/toobusy-js)
+@requires [json2csv](https://www.npmjs.com/package/json2csv)
+@requires [js2xmlparser](https://www.npmjs.com/package/js2xmlparser)
+@requires [cheerio](https://www.npmjs.com/search?q=cheerio)
 
 @example
 
