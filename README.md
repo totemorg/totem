@@ -33,8 +33,13 @@ and the `stores | shares` areas for sharing static *FILE*s.
 
 ## Installation
 
-See [TOTEM installation](https://github.com/totemstan/acmesds)
-to install **TOTEM**.
+Clone **JSDB** from one of its REPOs:
+
+	cd MYPROJECT
+	git clone REPO/totemstan/totem
+	git clone REPO/totemstan/securelink
+	git clone REPO/totemstan/enums
+	git clone REPO/totemstan/jsdb
 
 ## Setup
 
@@ -955,6 +960,352 @@ recovered profile or null if the session could not be validated.
 | req | <code>Object</code> | totem session request |
 | res | <code>function</code> | totem session responder |
 
+**Example**  
+```js
+Old certs
+
+cert {
+  subject: [Object: null prototype] {
+    C: 'US',
+    O: 'U.S. Government',
+    OU: [ 'DoD', 'PKI', 'OSD' ],
+    CN: 'JAMES.BRIAN.D.1411932300'
+  },
+  issuer: [Object: null prototype] {
+    C: 'US',
+    O: 'U.S. Government',
+    OU: [ 'DoD', 'PKI' ],
+    CN: 'DOD EMAIL CA-59'
+  },
+  subjectaltname: 'email:BRIAN.D.JAMES@NGA.MIL, othername:<unsupported>',
+  infoAccess: [Object: null prototype] {
+    'CA Issuers - URI': [ 'http://crl.disa.mil/sign/DODEMAILCA_59.cer' ],
+    'OCSP - URI': [ 'http://ocsp.disa.mil' ]
+  },
+  modulus: 'C409110403DFA25C9856BF76C4B3C83005CEE6CEE6A121F077295727AA69513770D8CEC707623D3FC83C39C7A9C976EBD1DD8BAA851249ACE8E423B1EEE73AD7EAD88B256B757B696BE60566A1110512E58562C27CE7E917652A3212F49FFE497A2EA294C2D3A10B07ADB337E29800D54B022E736CD651EE50177455546A7A15D326BFDB04107485F6F66ED0B27F4F2F7FC21EA212C1B6D62E0E283510D8B447CA7395D94076A0E961E03773A41DAEDD6D2492AA9276097587ABCDE4CC2A6E991137A70B558EBDFB3C96CDE1E38FEFCCB32A39B75BBF349045DDBA18400A2CA74FA538F7B7997FCB6825C3CD3FF7BAFF2902F8D9BA99D50325D6741B763B7669',
+  bits: 2048,
+  exponent: '0x10001',
+  pubkey: <Buffer 30 82 01 22 30 0d 06 09 2a 86 48 86 f7 0d 01 01 01 05 00 03 82 01 0f 00 30 82 01 0a 02 82 01 01 00 c4 09 11 04 03 df a2 5c 98 56 bf 76 c4 b3 c8 30 05 ... 244 more bytes>,
+  valid_from: 'Jun  8 00:00:00 2020 GMT',
+  valid_to: 'Jun  7 23:59:59 2023 GMT',
+  fingerprint: '4C:4E:16:C4:4B:5A:B6:11:D0:95:48:99:1A:D9:9D:F5:7A:D8:96:03',
+  fingerprint256: '3C:1C:67:DA:E3:7B:E8:03:1F:F8:83:4D:DF:70:B4:D9:23:9E:54:41:B2:88:3C:A1:62:D8:49:49:8C:60:8E:AC',
+  ext_key_usage: [
+    '1.3.6.1.4.1.311.20.2.2',
+    '1.3.6.1.5.5.7.3.2',
+    '1.3.6.1.5.5.7.3.4'
+  ],
+  serialNumber: '03D389',
+  raw: <Buffer 30 82 04 f1 30 82 03 d9 a0 03 02 01 02 02 03 03 d3 89 30 0d 06 09 2a 86 48 86 f7 0d 01 01 0b 05 00 30 5d 31 0b 30 09 06 03 55 04 06 13 02 55 53 31 18 ... 1219 more bytes>
+}
+client brian.d.james@nga.mil
+```
+**Example**  
+```js
+old certs
+cert {
+  subject: [Object: null prototype] {
+    C: 'US',
+    O: 'U.S. Government',
+    OU: [ 'DoD', 'PKI', 'OSD' ],
+    CN: 'JAMES.BRIAN.D.1411932300'
+  },
+  issuer: [Object: null prototype] {
+    C: 'US',
+    O: 'U.S. Government',
+    OU: [ 'DoD', 'PKI' ],
+    CN: 'DOD EMAIL CA-59'
+  },
+  subjectaltname: 'email:BRIAN.D.JAMES@NGA.MIL, othername:<unsupported>',
+  infoAccess: [Object: null prototype] {
+    'CA Issuers - URI': [ 'http://crl.disa.mil/sign/DODEMAILCA_59.cer' ],
+    'OCSP - URI': [ 'http://ocsp.disa.mil' ]
+  },
+  modulus: 'C409110403DFA25C9856BF76C4B3C83005CEE6CEE6A121F077295727AA69513770D8CEC707623D3FC83C39C7A9C976EBD1DD8BAA851249ACE8E423B1EEE73AD7EAD88B256B757B696BE60566A1110512E58562C27CE7E917652A3212F49FFE497A2EA294C2D3A10B07ADB337E29800D54B022E736CD651EE50177455546A7A15D326BFDB04107485F6F66ED0B27F4F2F7FC21EA212C1B6D62E0E283510D8B447CA7395D94076A0E961E03773A41DAEDD6D2492AA9276097587ABCDE4CC2A6E991137A70B558EBDFB3C96CDE1E38FEFCCB32A39B75BBF349045DDBA18400A2CA74FA538F7B7997FCB6825C3CD3FF7BAFF2902F8D9BA99D50325D6741B763B7669',
+  bits: 2048,
+  exponent: '0x10001',
+  pubkey: <Buffer 30 82 01 22 30 0d 06 09 2a 86 48 86 f7 0d 01 01 01 05 00 03 82 01 0f 00 30 82 01 0a 02 82 01 01 00 c4 09 11 04 03 df a2 5c 98 56 bf 76 c4 b3 c8 30 05 ... 244 more bytes>,
+  valid_from: 'Jun  8 00:00:00 2020 GMT',
+  valid_to: 'Jun  7 23:59:59 2023 GMT',
+  fingerprint: '4C:4E:16:C4:4B:5A:B6:11:D0:95:48:99:1A:D9:9D:F5:7A:D8:96:03',
+  fingerprint256: '3C:1C:67:DA:E3:7B:E8:03:1F:F8:83:4D:DF:70:B4:D9:23:9E:54:41:B2:88:3C:A1:62:D8:49:49:8C:60:8E:AC',
+  ext_key_usage: [
+    '1.3.6.1.4.1.311.20.2.2',
+    '1.3.6.1.5.5.7.3.2',
+    '1.3.6.1.5.5.7.3.4'
+  ],
+  serialNumber: '03D389',
+  raw: <Buffer 30 82 04 f1 30 82 03 d9 a0 03 02 01 02 02 03 03 d3 89 30 0d 06 09 2a 86 48 86 f7 0d 01 01 0b 05 00 30 5d 31 0b 30 09 06 03 55 04 06 13 02 55 53 31 18 ... 1219 more bytes>
+}
+```
+**Example**  
+```js
+CA chain
+0>>>TOTEM>>>CA CHAIN [ 'ca_Certificate_Chain.crt' ]
+certs Research*2020 {
+  totem: {
+    pfx: <Buffer 30 82 0a d1 02 01 03 30 82 0a 97 06 09 2a 86 48 86 f7 0d 01 07 01 a0 82 0a 88 04 82 0a 84 30 82 0a 80 30 82 05 37 06 09 2a 86 48 86 f7 0d 01 07 06 a0 ... 2723 more bytes>
+  }
+} [
+  'subject=C = US, O = U.S. Government, OU = DoD, OU = PKI, OU = NGA, CN = totem.nga.mil\n' +
+    '\n' +
+    'issuer=C = US, O = U.S. Government, OU = DoD, OU = PKI, CN = DOD SW CA-60\n' +
+    '\n' +
+    '-----BEGIN CERTIFICATE-----\n' +
+    'MIIEijCCA3KgAwIBAgIEAwAa1zANBgkqhkiG9w0BAQsFADBaMQswCQYDVQQGEwJV\n' +
+    'UzEYMBYGA1UEChMPVS5TLiBHb3Zlcm5tZW50MQwwCgYDVQQLEwNEb0QxDDAKBgNV\n' +
+    'BAsTA1BLSTEVMBMGA1UEAxMMRE9EIFNXIENBLTYwMB4XDTIwMDcwMjE4MzcxM1oX\n' +
+    'DTIzMDcwMjE4MzcxM1owaTELMAkGA1UEBhMCVVMxGDAWBgNVBAoMD1UuUy4gR292\n' +
+    'ZXJubWVudDEMMAoGA1UECwwDRG9EMQwwCgYDVQQLDANQS0kxDDAKBgNVBAsMA05H\n' +
+    'QTEWMBQGA1UEAwwNdG90ZW0ubmdhLm1pbDCCASIwDQYJKoZIhvcNAQEBBQADggEP\n' +
+    'ADCCAQoCggEBAMwtPgp7qqRG+jKHdIHBAoWSEGO5TqGF/SHgPJMdwAAMh//5wwWA\n' +
+    '3NZ+tm4yWT7QWCrnELwIq+0RfdaNGUxi/SIKv8/d8z+is/7bv9aTYFqDIP3NrGL7\n' +
+    '6RyOPNoJBCXafJx4vSXnlKMTH8uI8DLKG5umQZzgaZewIowzKd3dF8+/vwQd0HyS\n' +
+    'DIAi4CFvGGWtJqQHvnOVcptcM3sqZCanJIpuAhF5ywBMMHfzxQNI1SZs5GrUA4i9\n' +
+    'yghYuop3oknDozjNIOI33E3spvWesNv6M8t5RFlu9a++Iltoz6fBnom6LwceH20u\n' +
+    'Dxa72sdDc+vDHsVzcWMw8U3N1ot4Q7yNdecCAwEAAaOCAUcwggFDMB8GA1UdIwQY\n' +
+    'MBaAFH3+8BAXOb/TcoT9rSlw+OI9mfMYMGUGCCsGAQUFBwEBBFkwVzAzBggrBgEF\n' +
+    'BQcwAoYnaHR0cDovL2NybC5kaXNhLm1pbC9zaWduL0RPRFNXQ0FfNjAuY2VyMCAG\n' +
+    'CCsGAQUFBzABhhRodHRwOi8vb2NzcC5kaXNhLm1pbDAOBgNVHQ8BAf8EBAMCBaAw\n' +
+    'FgYDVR0lAQH/BAwwCgYIKwYBBQUHAwQwGAYDVR0RBBEwD4YNdG90ZW0ubmdhLm1p\n' +
+    'bDAdBgNVHQ4EFgQUbArdvuuW48ajejBJysUUkD8gpGswQAYDVR0fBDkwNzA1oDOg\n' +
+    'MYYvaHR0cDovL2NybC5kaXNhLm1pbC9jcmwvRE9EU1dDQV82MF9OUEVFTUFJTC5j\n' +
+    'cmwwFgYDVR0gBA8wDTALBglghkgBZQIBCyQwDQYJKoZIhvcNAQELBQADggEBADJX\n' +
+    'EWQGtP1ujiUrwDps/eMqXikLjdqbFX0jYtbAa2cfl9PzVtsAiBeOGKhp5B8KRGG/\n' +
+    'XgPDH3DdT6CJsBezqKzXFVAmmql7Zw+XaUqSGgn73On+Bzq2NFATWk64NHUjuaF+\n' +
+    'nH2r31OpqZDnTMm9ZPfiQ9F/AzPBw4I6OxA2eEdmwo3Ek906AXeijaLmneXPkC7r\n' +
+    '2T2Bpt1l9wBnxyRnbNB8/N5jtt5GEH6ADbfNOMnc4gEYTXUFKJBip3HaKjtYUS5h\n' +
+    '/YjwxVTgv5jwwBx6NwkA2Lhe5KKEMnePfMos7njSGVtLaR/jXVuvFgOWBe2ROFt6\n' +
+    'H3c0ER47IHRMJg5i9Wc=\n' +
+    '-----END CERTIFICATE-----\n' +
+    '\n' +
+    'subject=C = US, O = U.S. Government, OU = DoD, OU = PKI, CN = DoD Root CA 3\n' +
+    '\n' +
+    'issuer=C = US, O = U.S. Government, OU = DoD, OU = PKI, CN = DoD Root CA 3\n' +
+    '\n' +
+    '-----BEGIN CERTIFICATE-----\n' +
+    'MIIDczCCAlugAwIBAgIBATANBgkqhkiG9w0BAQsFADBbMQswCQYDVQQGEwJVUzEY\n' +
+    'MBYGA1UEChMPVS5TLiBHb3Zlcm5tZW50MQwwCgYDVQQLEwNEb0QxDDAKBgNVBAsT\n' +
+    'A1BLSTEWMBQGA1UEAxMNRG9EIFJvb3QgQ0EgMzAeFw0xMjAzMjAxODQ2NDFaFw0y\n' +
+    'OTEyMzAxODQ2NDFaMFsxCzAJBgNVBAYTAlVTMRgwFgYDVQQKEw9VLlMuIEdvdmVy\n' +
+    'bm1lbnQxDDAKBgNVBAsTA0RvRDEMMAoGA1UECxMDUEtJMRYwFAYDVQQDEw1Eb0Qg\n' +
+    'Um9vdCBDQSAzMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqewUcoro\n' +
+    'S3Cj2hADhKb7pzYNKjpSFr8wFVKGBUcgz6qmzXXEZG7v8WAjywpmQK60yGgqAFFo\n' +
+    'STfpWTJNlbxDJ+lAjToQzhS8Qxih+d7M54V2c14YGiNbvT8f8u2NGcwD0UCkj6cg\n' +
+    'AkwnWnk29qM3IY4AWgYWytNVlm8xKbtyDsviSFHy1DekNdZv7hezsQarCxmG6CNt\n' +
+    'MRsoeGXF3mJSvMF96+6gXVQE+7LLK7IjVJGCTPC/unRAOwwERYBnXMXrolfDGn8K\n' +
+    'Lb1/udzBmbDIB+QMhjaUOiUv8n3mlzwblLSXWQbJOuQL2erp/DtzNG/955jk86HC\n' +
+    'kF8c9T8u1xnTfwIDAQABo0IwQDAdBgNVHQ4EFgQUbIqUonexgHIdgXoWqvLczmbu\n' +
+    'RcAwDgYDVR0PAQH/BAQDAgGGMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQEL\n' +
+    'BQADggEBAJ9xpMC2ltKAQ6BI6R92BPnFPK1mGFhjm8O26GiKhVpCZhK00uaLiH+H\n' +
+    '9Jj1qMYJyR/wLB/sgrj0pUc4wTMr30x+mr4LC7HLD3xQKBDPio2i6bqshtfUsZNf\n' +
+    'Io+WBbRODHWRfdPy55TClBR2T48MqxCHWDKFB3WGEgte6lO0CshMhJIf6+hBhjy6\n' +
+    '9E5BStFsWEdBw4Za8u7p8pgnguouNtb4Bl6C8aBSk0QJutKpGVpYo6hdIG1PZPgw\n' +
+    'hxuQE0iBzcqQxw3B1Jg/jvIOV2gzEo6ZCbHw5PYQ9DbySb3qozjIVkEjg5rfoRs1\n' +
+    'fOs/QbP1b0s6Xq5vk3aY0vGZnUXEjnI=\n' +
+    '-----END CERTIFICATE-----\n' +
+    '\n' +
+    'subject=C = US, O = U.S. Government, OU = DoD, OU = PKI, CN = DOD SW CA-60\n' +
+    '\n' +
+    'issuer=C = US, O = U.S. Government, OU = DoD, OU = PKI, CN = DoD Root CA 3\n' +
+    '\n' +
+    '-----BEGIN CERTIFICATE-----\n' +
+    'MIIEjzCCA3egAwIBAgICAwMwDQYJKoZIhvcNAQELBQAwWzELMAkGA1UEBhMCVVMx\n' +
+    'GDAWBgNVBAoTD1UuUy4gR292ZXJubWVudDEMMAoGA1UECxMDRG9EMQwwCgYDVQQL\n' +
+    'EwNQS0kxFjAUBgNVBAMTDURvRCBSb290IENBIDMwHhcNMTkwNDAyMTMzNDQ5WhcN\n' +
+    'MjUwNDAyMTMzNDQ5WjBaMQswCQYDVQQGEwJVUzEYMBYGA1UEChMPVS5TLiBHb3Zl\n' +
+    'cm5tZW50MQwwCgYDVQQLEwNEb0QxDDAKBgNVBAsTA1BLSTEVMBMGA1UEAxMMRE9E\n' +
+    'IFNXIENBLTYwMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA/MzAiiVC\n' +
+    'G61CNrHuJ+6kXRAlG9ppLKXje1S3mw0LXOynYAyX7OIyFXkeNj54DV/4HTvK4eHd\n' +
+    'G8XTfiUr8cqWki2nHPJivaZOKu/jObshywNZ3UAKmtz8bPDO+wJ8QrAxKaQYH4CM\n' +
+    'mHlEjetmM7CMRznfMDqjwB9us5Y1FwKPlh+2Y6rdDfU1xR/dGD2iQk4laduxCCr4\n' +
+    'ULI7eFFToxnr5rUt95FBi5DlIPs3XETIywIWJ7Z59m0JBrReqKnFZr1NR06DGCOO\n' +
+    'YULORCXiZFJlbRMjwvd3BPu+auP39/qq6aKLmTy0iTPflGum94W4bkvupB3r6Vkb\n' +
+    'ptNsZrFq0IYZkQIDAQABo4IBXDCCAVgwHwYDVR0jBBgwFoAUbIqUonexgHIdgXoW\n' +
+    'qvLczmbuRcAwHQYDVR0OBBYEFH3+8BAXOb/TcoT9rSlw+OI9mfMYMA4GA1UdDwEB\n' +
+    '/wQEAwIBhjA9BgNVHSAENjA0MAsGCWCGSAFlAgELJDALBglghkgBZQIBCycwCwYJ\n' +
+    'YIZIAWUCAQsqMAsGCWCGSAFlAgELOzASBgNVHRMBAf8ECDAGAQH/AgEAMAwGA1Ud\n' +
+    'JAQFMAOAAQAwNwYDVR0fBDAwLjAsoCqgKIYmaHR0cDovL2NybC5kaXNhLm1pbC9j\n' +
+    'cmwvRE9EUk9PVENBMy5jcmwwbAYIKwYBBQUHAQEEYDBeMDoGCCsGAQUFBzAChi5o\n' +
+    'dHRwOi8vY3JsLmRpc2EubWlsL2lzc3VlZHRvL0RPRFJPT1RDQTNfSVQucDdjMCAG\n' +
+    'CCsGAQUFBzABhhRodHRwOi8vb2NzcC5kaXNhLm1pbDANBgkqhkiG9w0BAQsFAAOC\n' +
+    'AQEAn4OSx5FWM4e2vd2Igv63CCpfvrQqv5bjuoyQhoIJbEpjx6xtof1SNSwtPDjD\n' +
+    'tSawzhabKYTgSajw28zIyJ4TpFUiABOSNkA4aYWvtjjHPKPrIjVTck0DArWH2Lr9\n' +
+    'x0dvpCIInDyfIib9dcE0cdGVlEpeAEMQFjpUbmCNpTlKUtSroY8CfZCOmi+Rp/fT\n' +
+    '0N9PoO/Izxl1UvHb9xxfu4vasVjt3L/Fu8PIw8GJ70u/Ws+mg3ga8uDOluYn+VDq\n' +
+    'O1Le2QJvSK0J9dS21rwV6SCtf+en2Razi0/S44tzOFa4fRdJLHTYPutu69p6+YMh\n' +
+    'Sul++7G14BLwhmWa2iRcjw+AlQ==\n' +
+    '-----END CERTIFICATE-----\n' +
+    '\n'
+]
+```
+**Example**  
+```js
+Old email Cert
+cert {
+  subject: [Object: null prototype] {
+    C: 'US',
+    O: 'U.S. Government',
+    OU: [ 'DoD', 'PKI', 'OSD' ],
+    CN: 'JAMES.BRIAN.D.1411932300'
+  },
+  issuer: [Object: null prototype] {
+    C: 'US',
+    O: 'U.S. Government',
+    OU: [ 'DoD', 'PKI' ],
+    CN: 'DOD EMAIL CA-59'
+  },
+  subjectaltname: 'email:BRIAN.D.JAMES@NGA.MIL, othername:<unsupported>',
+  infoAccess: [Object: null prototype] {
+    'CA Issuers - URI': [ 'http://crl.disa.mil/sign/DODEMAILCA_59.cer' ],
+    'OCSP - URI': [ 'http://ocsp.disa.mil' ]
+  },
+  modulus: 'C409110403DFA25C9856BF76C4B3C83005CEE6CEE6A121F077295727AA69513770D8CEC707623D3FC83C39C7A9C976EBD1DD8BAA851249ACE8E423B1EEE73AD7EAD88B256B757B696BE60566A1110512E58562C27CE7E917652A3212F49FFE497A2EA294C2D3A10B07ADB337E29800D54B022E736CD651EE50177455546A7A15D326BFDB04107485F6F66ED0B27F4F2F7FC21EA212C1B6D62E0E283510D8B447CA7395D94076A0E961E03773A41DAEDD6D2492AA9276097587ABCDE4CC2A6E991137A70B558EBDFB3C96CDE1E38FEFCCB32A39B75BBF349045DDBA18400A2CA74FA538F7B7997FCB6825C3CD3FF7BAFF2902F8D9BA99D50325D6741B763B7669',
+  bits: 2048,
+  exponent: '0x10001',
+  pubkey: <Buffer 30 82 01 22 30 0d 06 09 2a 86 48 86 f7 0d 01 01 01 05 00 03 82 01 0f 00 30 82 01 0a 02 82 01 01 00 c4 09 11 04 03 df a2 5c 98 56 bf 76 c4 b3 c8 30 05 ... 244 more bytes>,
+  valid_from: 'Jun  8 00:00:00 2020 GMT',
+  valid_to: 'Jun  7 23:59:59 2023 GMT',
+  fingerprint: '4C:4E:16:C4:4B:5A:B6:11:D0:95:48:99:1A:D9:9D:F5:7A:D8:96:03',
+  fingerprint256: '3C:1C:67:DA:E3:7B:E8:03:1F:F8:83:4D:DF:70:B4:D9:23:9E:54:41:B2:88:3C:A1:62:D8:49:49:8C:60:8E:AC',
+  ext_key_usage: [
+    '1.3.6.1.4.1.311.20.2.2',
+    '1.3.6.1.5.5.7.3.2',
+    '1.3.6.1.5.5.7.3.4'
+  ],
+  serialNumber: '03D389',
+  raw: <Buffer 30 82 04 f1 30 82 03 d9 a0 03 02 01 02 02 03 03 d3 89 30 0d 06 09 2a 86 48 86 f7 0d 01 01 0b 05 00 30 5d 31 0b 30 09 06 03 55 04 06 13 02 55 53 31 18 ... 1219 more bytes>
+}
+```
+**Example**  
+```js
+Old ID Cert
+cert {
+  subject: [Object: null prototype] {
+    C: 'US',
+    O: 'U.S. Government',
+    OU: [ 'DoD', 'PKI', 'OSD' ],
+    CN: 'JAMES.BRIAN.D.1411932300'
+  },
+  issuer: [Object: null prototype] {
+    C: 'US',
+    O: 'U.S. Government',
+    OU: [ 'DoD', 'PKI' ],
+    CN: 'DOD ID CA-59'
+  },
+  subjectaltname: 'othername:<unsupported>, othername:<unsupported>, URI:urn:uuid:31F35A98-F93C-4941-B41F-F05C3E843401',
+  infoAccess: [Object: null prototype] {
+    'CA Issuers - URI': [ 'http://crl.disa.mil/sign/DODIDCA_59.cer' ],
+    'OCSP - URI': [ 'http://ocsp.disa.mil' ]
+  },
+  modulus: 'C433E67C902C14EBD7A3CFF2DB307908057AA905156DCC39583FCC486445B33109F66DD947B2B6C4DF8046E86BF8F21582ACC2AD964F83F8ED187B8A0194CD0A1063F2F4D325C1668BC4A85B3F0FD19D6106EF217AEC91F7847B1BA46CE28448C2B0E7D9843F74FA26937EEBA47F2E733179EA10EBC44FAF55A34ADAAECDECA39374705912A73C74D4D80B4238D217885DD4AAB252A5B349961DA8E55CFE3E29D88A4838ECFEAEC50EF07E25E8E2FE75906BB4882187C42A3D2F4C74AFC7A55A009651F262AD44491485C8E034462196C566B8EBC16B197625EBEA3F839745A96BBD5C6EA8C3546B9C1752093CB4EE46D586FBB3C15F0E392FA52AE6A66709B1',
+  bits: 2048,
+  exponent: '0x10001',
+  pubkey: <Buffer 30 82 01 22 30 0d 06 09 2a 86 48 86 f7 0d 01 01 01 05 00 03 82 01 0f 00 30 82 01 0a 02 82 01 01 00 c4 33 e6 7c 90 2c 14 eb d7 a3 cf f2 db 30 79 08 05 ... 244 more bytes>,
+  valid_from: 'Jun  8 00:00:00 2020 GMT',
+  valid_to: 'Jun  7 23:59:59 2023 GMT',
+  fingerprint: '3F:E7:1B:1C:70:16:9A:EC:E3:C6:25:C5:A6:83:6A:3D:D9:A4:50:E4',
+  fingerprint256: '23:F5:DA:7C:EC:A1:33:94:16:BA:63:7F:3A:DC:21:68:D9:72:C3:E1:16:EC:D0:AF:2B:53:67:AB:5A:7E:FD:1B',
+  ext_key_usage: [ '1.3.6.1.4.1.311.20.2.2', '1.3.6.1.5.5.7.3.2' ],
+  serialNumber: '03000D8D',
+  raw: <Buffer 30 82 05 35 30 82 04 1d a0 03 02 01 02 02 04 03 00 0d 8d 30 0d 06 09 2a 86 48 86 f7 0d 01 01 0b 05 00 30 5a 31 0b 30 09 06 03 55 04 06 13 02 55 53 31 ... 1287 more bytes>
+}
+cert {
+  subject: [Object: null prototype] {
+    C: 'US',
+    O: 'U.S. Government',
+    OU: [ 'DoD', 'PKI', 'OSD' ],
+    CN: 'JAMES.BRIAN.D.1411932300'
+  },
+  issuer: [Object: null prototype] {
+    C: 'US',
+    O: 'U.S. Government',
+    OU: [ 'DoD', 'PKI' ],
+    CN: 'DOD ID CA-59'
+  },
+  subjectaltname: 'othername:<unsupported>, othername:<unsupported>, URI:urn:uuid:31F35A98-F93C-4941-B41F-F05C3E843401',
+  infoAccess: [Object: null prototype] {
+    'CA Issuers - URI': [ 'http://crl.disa.mil/sign/DODIDCA_59.cer' ],
+    'OCSP - URI': [ 'http://ocsp.disa.mil' ]
+  },
+  modulus: 'C433E67C902C14EBD7A3CFF2DB307908057AA905156DCC39583FCC486445B33109F66DD947B2B6C4DF8046E86BF8F21582ACC2AD964F83F8ED187B8A0194CD0A1063F2F4D325C1668BC4A85B3F0FD19D6106EF217AEC91F7847B1BA46CE28448C2B0E7D9843F74FA26937EEBA47F2E733179EA10EBC44FAF55A34ADAAECDECA39374705912A73C74D4D80B4238D217885DD4AAB252A5B349961DA8E55CFE3E29D88A4838ECFEAEC50EF07E25E8E2FE75906BB4882187C42A3D2F4C74AFC7A55A009651F262AD44491485C8E034462196C566B8EBC16B197625EBEA3F839745A96BBD5C6EA8C3546B9C1752093CB4EE46D586FBB3C15F0E392FA52AE6A66709B1',
+  bits: 2048,
+  exponent: '0x10001',
+  pubkey: <Buffer 30 82 01 22 30 0d 06 09 2a 86 48 86 f7 0d 01 01 01 05 00 03 82 01 0f 00 30 82 01 0a 02 82 01 01 00 c4 33 e6 7c 90 2c 14 eb d7 a3 cf f2 db 30 79 08 05 ... 244 more bytes>,
+  valid_from: 'Jun  8 00:00:00 2020 GMT',
+  valid_to: 'Jun  7 23:59:59 2023 GMT',
+  fingerprint: '3F:E7:1B:1C:70:16:9A:EC:E3:C6:25:C5:A6:83:6A:3D:D9:A4:50:E4',
+  fingerprint256: '23:F5:DA:7C:EC:A1:33:94:16:BA:63:7F:3A:DC:21:68:D9:72:C3:E1:16:EC:D0:AF:2B:53:67:AB:5A:7E:FD:1B',
+  ext_key_usage: [ '1.3.6.1.4.1.311.20.2.2', '1.3.6.1.5.5.7.3.2' ],
+  serialNumber: '03000D8D',
+  raw: <Buffer 30 82 05 35 30 82 04 1d a0 03 02 01 02 02 04 03 00 0d 8d 30 0d 06 09 2a 86 48 86 f7 0d 01 01 0b 05 00 30 5a 31 0b 30 09 06 03 55 04 06 13 02 55 53 31 ... 1287 more bytes>
+}
+```
+**Example**  
+```js
+New ID Cert
+
+cert {
+  subject: [Object: null prototype] {
+    C: 'US',
+    O: 'U.S. Government',
+    OU: [ 'DoD', 'PKI', 'CONTRACTOR' ],
+    CN: 'SCHERER.DALE.JOSEPH.1273353794'
+  },
+  issuer: [Object: null prototype] {
+    C: 'US',
+    O: 'U.S. Government',
+    OU: [ 'DoD', 'PKI' ],
+    CN: 'DOD ID CA-59'
+  },
+  subjectaltname: 'othername:<unsupported>, othername:<unsupported>, URI:urn:uuid:7F87A37D-88D5-44DC-8E63-B60A2B5E10DE',
+  infoAccess: [Object: null prototype] {
+    'CA Issuers - URI': [ 'http://crl.disa.mil/sign/DODIDCA_59.cer' ],
+    'OCSP - URI': [ 'http://ocsp.disa.mil' ]
+  },
+  modulus: 'A368B7FCC19FC346616F315718378A894BD96DC6036C6111033F868B4CBB21B6558E6F3B9999F548F4F82EB2BC3935E98F295C70504F23C97D849B9078ED7F2C2315BA4D8E69F7FF740FF5A28BD9A697D709904C35B0DE7DDBC90B658FAF337D79D78874E887B5D86C96CF2E47D75B1F466191CCC73A85E19ADF3C0FF1F63707054819BEC2C616F2A114E9E8AFB7823A463B637F010B5E044DDF87439BB3D04FAEF69E1C60512A8D3B3E82604B8A6968B8848BFA9766140A729D7E02EC7148873E31DA7B215C8E37CF3C045434D1C9115BA69C9EA6370614F20EF3D7A408692EACAF86ED82825C10126083A20242B78BBD8E1A798B84016D59E2BF525C973EF3',
+  bits: 2048,
+  exponent: '0x10001',
+  pubkey: <Buffer 30 82 01 22 30 0d 06 09 2a 86 48 86 f7 0d 01 01 01 05 00 03 82 01 0f 00 30 82 01 0a 02 82 01 01 00 a3 68 b7 fc c1 9f c3 46 61 6f 31 57 18 37 8a 89 4b ... 244 more bytes>,
+  valid_from: 'Nov 24 00:00:00 2021 GMT',
+  valid_to: 'Aug 31 23:59:59 2023 GMT',
+  fingerprint: '27:AF:BC:AA:14:48:03:E2:56:38:04:33:05:CB:72:57:C6:87:9F:C7',
+  fingerprint256: '80:E1:CE:64:49:33:24:AA:17:8B:AC:FD:53:52:31:64:64:D6:B4:6C:F7:69:62:4C:A8:03:10:74:68:84:A4:24',
+  ext_key_usage: [ '1.3.6.1.4.1.311.20.2.2', '1.3.6.1.5.5.7.3.2' ],
+  serialNumber: '011CFEF4',
+  raw: <Buffer 30 82 05 43 30 82 04 2b a0 03 02 01 02 02 04 01 1c fe f4 30 0d 06 09 2a 86 48 86 f7 0d 01 01 0b 05 00 30 5a 31 0b 30 09 06 03 55 04 06 13 02 55 53 31 ... 1301 more bytes>
+}
+cert {
+  subject: [Object: null prototype] {
+    C: 'US',
+    O: 'U.S. Government',
+    OU: [ 'DoD', 'PKI', 'CONTRACTOR' ],
+    CN: 'SCHERER.DALE.JOSEPH.1273353794'
+  },
+  issuer: [Object: null prototype] {
+    C: 'US',
+    O: 'U.S. Government',
+    OU: [ 'DoD', 'PKI' ],
+    CN: 'DOD ID CA-59'
+  },
+  subjectaltname: 'othername:<unsupported>, othername:<unsupported>, URI:urn:uuid:7F87A37D-88D5-44DC-8E63-B60A2B5E10DE',
+  infoAccess: [Object: null prototype] {
+    'CA Issuers - URI': [ 'http://crl.disa.mil/sign/DODIDCA_59.cer' ],
+    'OCSP - URI': [ 'http://ocsp.disa.mil' ]
+  },
+  modulus: 'A368B7FCC19FC346616F315718378A894BD96DC6036C6111033F868B4CBB21B6558E6F3B9999F548F4F82EB2BC3935E98F295C70504F23C97D849B9078ED7F2C2315BA4D8E69F7FF740FF5A28BD9A697D709904C35B0DE7DDBC90B658FAF337D79D78874E887B5D86C96CF2E47D75B1F466191CCC73A85E19ADF3C0FF1F63707054819BEC2C616F2A114E9E8AFB7823A463B637F010B5E044DDF87439BB3D04FAEF69E1C60512A8D3B3E82604B8A6968B8848BFA9766140A729D7E02EC7148873E31DA7B215C8E37CF3C045434D1C9115BA69C9EA6370614F20EF3D7A408692EACAF86ED82825C10126083A20242B78BBD8E1A798B84016D59E2BF525C973EF3',
+  bits: 2048,
+  exponent: '0x10001',
+  pubkey: <Buffer 30 82 01 22 30 0d 06 09 2a 86 48 86 f7 0d 01 01 01 05 00 03 82 01 0f 00 30 82 01 0a 02 82 01 01 00 a3 68 b7 fc c1 9f c3 46 61 6f 31 57 18 37 8a 89 4b ... 244 more bytes>,
+  valid_from: 'Nov 24 00:00:00 2021 GMT',
+  valid_to: 'Aug 31 23:59:59 2023 GMT',
+  fingerprint: '27:AF:BC:AA:14:48:03:E2:56:38:04:33:05:CB:72:57:C6:87:9F:C7',
+  fingerprint256: '80:E1:CE:64:49:33:24:AA:17:8B:AC:FD:53:52:31:64:64:D6:B4:6C:F7:69:62:4C:A8:03:10:74:68:84:A4:24',
+  ext_key_usage: [ '1.3.6.1.4.1.311.20.2.2', '1.3.6.1.5.5.7.3.2' ],
+  serialNumber: '011CFEF4',
+  raw: <Buffer 30 82 05 43 30 82 04 2b a0 03 02 01 02 02 04 01 1c fe f4 30 0d 06 09 2a 86 48 86 f7 0d 01 01 0b 05 00 30 5a 31 0b 30 09 06 03 55 04 06 13 02 55 53 31 ... 1301 more bytes>
+}
+```
 <a name="module_TOTEM.dsThread"></a>
 
 ### TOTEM.dsThread(req, cb)

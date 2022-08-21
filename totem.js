@@ -3248,13 +3248,12 @@ async function prime(cb) {
 }
 
 switch ( process.argv[2] ) { //< unit tests
-	case "T?":
-	case "?":
-		Trace("node totem.js [T$ || T1 || T2 || ...]");
-		Trace("SITE CONTEXT", site);
-		break;
-
+	case "$":
 	case "T$":
+		Trace("$", {
+			usage: "node totem.js [T$ || T1 || T2 || ...]",
+			siteContext: site
+		});
 		if ( isMaster ) Debug();
 		break;
 
