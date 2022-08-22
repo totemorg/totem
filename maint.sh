@@ -6,17 +6,13 @@
 
 HERE=`pwd`
 TOTEM_MODULES=(totem enums jsdb securelink socketio)
-DEBE_MODULES=(${TOTEM_MODULES[@]} debe atomic geohack reader blog skin randpr liegroup)
-MODULES=(${DEBE_MODULES[@]})
+DEBE_MODULES=(${TOTEM_MODULES[@]} debe atomic geohack ocr reader pipe randpr liegroup)
+MODULES=DEBE_MODULES
+# MODULES=(debe totem atomic geohack ocr enums reader pipe jsdb man randpr liegroup securelink socketio)
 MODULE=`basename $HERE`
-BASE=/local
-SERVICE=$BASE/service
-ARCHIVE=$BASE/archive
-REPO=https://github.com/totemstan
+SNAPSHOTS=/mnt/snapshots
+GITREPO=https://github.com/totemstan
 INSTALL=$BASE/service/installs
-MYSQL_USER=root
-MYSQL_PASS=root
-MYSQL_HOST=localhost
 
 case "$1." in
 
@@ -58,11 +54,9 @@ config.)
 	# env setup
 	############################
 	cd $BASE/service
-	source ./totem/config/_pass.sh
-
 	source ./maint.sh base_config
 	source ./maint.sh seclink_config
-	source ./maint.sh jsdb_config
+	source ./maint.sh db_config
 	source ./maint.sh totem_config $2
 	
 	source ./maint.sh atomic_config
@@ -88,7 +82,7 @@ start.)
 	############################
 	bash maint.sh start_dbs
 	bash maint.sh start_apps
-	bash maint.sh start_docker
+	#bash maint.sh start_docker
 	;;
 
 init.)
@@ -125,7 +119,7 @@ debe_config.)
 
 	export XLATE=$HERE/node_modules/i18n-abide/examples/express3/i18n	# I18N translation folder
 
-	export REPO=http://github.com/totemstan
+	export GITREPO=$GITREPO
 	export JIRA=http://jira.tbd
 	export RAS=http://ras.tbd
 	export BY=https://research.nga.ic.gov
@@ -140,12 +134,17 @@ geohack_config.)
 	;;
 	
 base_config.)
+	export BASE=/local
+	
+	# define global db and service pass keys
+	source $BASE/service/totem/config/pass.sh
+	
 	# initialize dev/prod paths
 	export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin:/local/cmake/bin
 	export LD_LIBRARY_PATH=
 	
 	#export GITUSER=totemstan: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
-	#export REPO=https://$GITUSER@github.com/totemstan
+	#export GITREPO=https://$GITUSER@github.com/totemstan
 
 	# doc and dev tools
 	#export PATH=/opt/cmake:$PATH 			# latest cmake
@@ -181,9 +180,9 @@ base_config.)
 	
 	;;
 	
-jsdb_config.)
+db_config.)
 	# MYSQL
-	#export PATH=$MYSQL/bin:$PATH
+	export PATH=$MYSQL/bin:$PATH
 	#export MYSQL_NAME=app
 	#export MYSQL_USER=root
 	#export MYSQL_HOST=localhost
@@ -194,14 +193,19 @@ jsdb_config.)
 	#export NEO4J_HOST="bolt://localhost" # "http://root:NGA@localhost:7474"
 	#export NEO4J_USER="neo4j"
 	#export URL_LEXNEX=https://services-api.lexisnexis.com/v1/
+
+	# service locations
+	
 	export URL_MYSQL=http://$KEY_MYSQL@localhost:3306
-	export URL_NEO4J=http://$KEY_NEO4J@localhost:8082
+	export URL_NEO4J=http://$KEY_NEO4J@localhost:7474
 	export URL_TXMAIL=http://$KEY_TXMAIL@smtp.comcast.net:587
 	export URL_RXMAIL=
 	# may not need key on the lexnex GETDOC url
 	export URL_LEXNEX_GETDOC=https:$KEY_LEXNEX@services-api.lexisnexis.com/v1/
 	export URL_LEXNEX_TOKEN=https:$KEY_LEXNEX@auth-api.lexisnexis.com/oauth/v2/token
+
 	;;
+
 seclink_config.)
 	export LINK_HOST=totem
 	;;
@@ -229,7 +233,7 @@ totem_config.)
 	# define service urls
 	
 	case "$(hostname)." in
-		wsn3303.|RLNCWUPWAP202886.)
+		wsn3303.)
 			DOMAIN=totem.nga.mil
 			;;
 
@@ -254,22 +258,27 @@ totem_config.)
 	esac
 	
 	case "$2." in 
-		oper.|operational.)
-			export SERVICE_MODE=operational
+		prod.)	# multi core production
 			PROTO=https
-			PORT1=443
-			PORT2=80
+			PORT1=8080
+			PORT2=443
 			;;
-		
-		prod.|production.)
-			export SERVICE_MODE=non-operational
+
+		prot.)	# single core
 			PROTO=https
 			PORT1=8443
 			PORT2=8080
 			;;
 
+		oper.)
+			export SERVICE_OPER=yes
+			DOMAIN=localhost
+			PROTO=https
+			PORT1=80
+			PORT2=443
+			;;
+		
 		*)
-			export SERVICE_MODE=non-operational
 			DOMAIN=localhost
 			PROTO=http
 			PORT1=8080
@@ -470,7 +479,7 @@ _all.)
 
 	for mod in "${MODULES[@]}"; do
 
-		cd $SERVICE/$mod
+		cd /local/service/$mod
 			if test -f maint.sh; then
 				echo ">>>> $mod"
 				bash ./maint.sh "$2" "$3" "$4"
@@ -601,7 +610,7 @@ totem.)
 			mkdir -p $BASE/service; cd $BASE/service
 			for mod in "${TOTEM_MODULES[@]}"; do
 				echo "installing $mod"
-				git clone $REPO/$mod
+				git clone $GITREPO/$mod
 			done
 			echo "Save revised account:password keys to config/_pass.sh" 
 			vi totem/pass.sh &
@@ -642,7 +651,7 @@ debe.)
 			mkdir -p $BASE/service; cd $BASE/service
 			for mod in "${DEBE_MODULES[@]}"; do
 				echo "installing $mod"
-				git clone $REPO/$mod
+				git clone $GITREPO/$mod
 			done
 			echo "Save revised account:password keys to config/_pass.sh" 
 			vi totem/pass.sh &
@@ -1030,23 +1039,23 @@ snap.)
 	############################
 	case "$2." in
 		db.)
-			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >$ARCHIVE/dbs/openv.sql
-			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app --ignore-table=app.gtd >$ARCHIVE/dbs/app.sql
-			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -ndtR app >$ARCHIVE/dbs/funcs.sql
+			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST openv >$SNAPSHOTS/sqldbs/openv.sql
+			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -R app --ignore-table=app.gtd >$SNAPSHOTS/sqldbs/app.sql
+			mysqldump -u$MYSQL_USER -p$MYSQL_PASS -h$MYSQL_HOST -ndtR app >$SNAPSHOTS/sqldbs/funcs.sql
 			;;
 
 		srv.)
-			cd $BASE/service
+			cd /$BASE/service
 			for mod in "${MODULES[@]}"; do
 				echo "snapping $map"
-				zip -ry $ARCHIVE/service/totem.zip $mod -x $mod/config\* $mod/node_modules/\* $mod/.git/\* $mod/\*/.git/\* $mod/_\* $mod/~\* $mod/math/\* $mod/mljs/\* $mod/prm/\*
+				zip -ry $SNAPSHOTS/totem.zip $mod -x $mod/node_modules/\* $mod/.git/\* $mod/\*/.git/\* $mod/_\* $mod/~\* $mod/math/\* $mod/mljs/\* $mod/prm/\*
 			done
 			#zip $MAP/archives/snap.zip */*.js */README* */*.sh debe/uis/* debe/admins/*/* debe/public/*/* totem/certs/* atomic/ifs/*.cpp atomic/ifs/*/*.cpp atomic/ifs/*/*.h
 			;;
 
 		map.) 
-			cd $BASE
-			zip $ARCHIVE/local_map.zip include/* include/R/* lib64/* lib64/R/*
+			cd /$BASE
+			zip $SNAPSHOTS/local_map.zip include/* include/R/* lib64/* lib64/R/*
 			;;
 
 		all.)
@@ -1111,11 +1120,12 @@ _nodered.)
 	esac
 	;;
 
-install_docker.)
+_install_docker.)
 	mkdir -p $BASE/temp; cd $BASE/temp
 	# download and execute install script from the Docker team
 	wget -qO- https://get.docker.com/ | sh
 	# add your user to the docker group
+	sudo groupadd docker
 	sudo usermod -aG docker $(whoami)
 	# Set Docker to start automatically at boot time
 	sudo systemctl enable docker.service
@@ -1123,7 +1133,7 @@ install_docker.)
 	bash doc.sh docker start
 	;;
 
-start_docker.)
+_start_docker.)
 	# probe to expose /dev/nvidia device drivers to docker
 	# $BASE/nvidia/bin/x86_64/linux/release/deviceQuery
 
@@ -1132,7 +1142,7 @@ start_docker.)
 	docker ps -a
 	;;
 
-docker.)
+_docker.)
 	############################
 	# docker
 	# https://docker-curriculum.com/
@@ -1252,11 +1262,11 @@ _bind.) 	# rebind atomic engines
 	;;
 _archive.) 	# archive service to archive area
 
-	echo "Archiving to $MAP/ARCHIVE"
+	echo "Archiving to $MAP/snapshots"
 	
-	#rm $MAP/ARCHIVE/totem.zip
-	#zip -ry $MAP/ARCHIVE/totem.zip * -x */node_modules/\* */.git/\* _\* ~\*
-	#zip -ry $MAP/ARCHIVE/totem.zip atomic -x atomic/.git/\* atomic/node_modules/\*	
+	#rm $MAP/snapshots/totem.zip
+	#zip -ry $MAP/snapshots/totem.zip * -x */node_modules/\* */.git/\* _\* ~\*
+	#zip -ry $MAP/snapshots/totem.zip atomic -x atomic/.git/\* atomic/node_modules/\*	
 	;;
 
 git.)
@@ -1270,7 +1280,7 @@ git.)
 
 		genkey.) 		# make pub-pri key for git auto-password agent 
 			echo "store keys under .ssh/git_totemstan_rsa and upload git_totemstan_rsa.pub key to git account." 
-			echo "git remote add agent git@github.com:totemstan/REPO"
+			echo "git remote add agent git@github.com:totemstan/GITREPO"
 			ssh-keygen -t rsa -b 4096 -C "brian.d.james@comcast.com"
 			;;
 
@@ -1302,16 +1312,12 @@ start_net.)
 	;;
 
 admin.|lab.)  	# start totem
-	cd $SERVICE/debe
-	case "$SERVICE_MODE." in 
-		operational.)
-			echo "Starting in operational mode"
-			#sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o debe.log start debe.js $1 $2 $3 $4 $5
-			sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" node debe.js $1 $2 $3 $4 $5 
+	case "$SERVICE_OPER." in 
+		yes.)
+			sudo -E env "PATH=$PATH" env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" forever -o debe.log start debe.js $1 $2 $3 $4 $5
 			;;
 		
 		*)
-			echo "Starting in non-operational mode"
 			node debe.js $1 $2 $3 $4 $5 
 			;;
 	esac

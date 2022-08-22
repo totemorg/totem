@@ -21,7 +21,6 @@ const
 	//AGENT = require("http-proxy-agent"),		// agent to access proxies
 	SCRAPE = require("cheerio"), 				// scraper to load proxies
 	MIME = require("mime"), 					// file mime types
-	SQLDB = require("mysql"),					//< mysql conector
 	XML2JS = require("xml2js"),					// xml to json parser (*)
 	BUSY = require('toobusy-js'),  				// denial-of-service protector
 	JS2XML = require('js2xmlparser'), 			// JSON to XML parser
@@ -33,11 +32,10 @@ const
 	ENUMS = require("./enums"),
 	
 	{ readFile } = FS,
-	{ Copy,Each,Debug,Clock,Log,
+	{ Copy,Each,Start,Clock,Log,
 	 sqlThread,neoThread,
 	 isError,isArray,isString,isFunction,isEmpty,typeOf,isObject,Fetch 
 	} = ENUMS,  
-	{ escape, escapeId } = SQLDB,
 	{ testClient } = SECLINK,
 	{ isMaster } = CLUSTER;
 
@@ -93,7 +91,6 @@ in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @requires [crypto](https://nodejs.org/docs/latest/api/)
 
 @requires [mime](https://www.npmjs.com/package/mime)
-@requires [mysql](https://www.npmjs.com/package/mysql)
 @requires [xml2js](https://www.npmjs.com/package/xml2js)
 @requires [toobusy-js](https://www.npmjs.com/package/toobusy-js)
 @requires [json2csv](https://www.npmjs.com/package/json2csv)
@@ -1990,6 +1987,8 @@ Configure database, define site context, then protect, connect, start and initia
 		sqlThread( sql => {
 			setContext(sql, () => configService(cb));
 		});	
+		
+		return TOTEM;
 	},
 
 /**
@@ -3246,25 +3245,18 @@ async function prime(cb) {
 	cb();
 }
 
-switch ( process.argv[2] ) { //< unit tests
-	case "$":
-	case "T$":
-		Trace("$", {
-			usage: "node totem.js [T$ || T1 || T2 || ...]",
-			siteContext: site
-		});
-		if ( isMaster ) Debug();
-		break;
-
-	case "T1": 
+Start("totem", {
+	"??": () =>
+		Trace("$", site),
+	
+	T1: () => 
 		Trace("Im simply a Totem interface so Im not even running as a service", {
 			default_fetcher_endpts: TOTEM.byTable,
 			default_protect_mode: TOTEM.guard,
 			default_cores_used: TOTEM.cores
-		});
-		break;
-
-	case "T2": 
+		}),
+	
+	T2: () =>
 		TOTEM.config({
 			mysql: null,
 			guard: true,
@@ -3275,11 +3267,9 @@ switch ( process.argv[2] ) { //< unit tests
 `I'm a Totem service running in fault protection mode, no database, no UI; but I am running
 with 2 workers and the default endpoint routes` );
 
-		});
-		break;
-
-	case "T3":
-
+		}),
+		
+	T3: () =>
 		TOTEM.config(null, sql => {
 			Trace( 
 `I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
@@ -3287,10 +3277,9 @@ my startup options (see the openv.apps table for the Nick="Totem1").
 No endpoints to speak off (execept for the standard wget, riddle, etc) but you can hit "/files/" to index 
 these files. `
 			);
-		});
-		break;
-
-	case "T4": 
+		}),
+	
+	T4: () =>
 		TOTEM.config({
 			byTable: {
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
@@ -3324,10 +3313,9 @@ aka core), Im running unprotected, and have a mysql database.
 associated public NICK.crt and private NICK.key certs it creates.`, {
 				my_endpoints: T.byTable
 			});
-		});
-		break;
-
-	case "T5": 
+		}),
+		
+	T5: () =>
 		TOTEM.config({
 			"secureIO.challenge.extend": 20
 		}, sql => {
@@ -3336,10 +3324,9 @@ associated public NICK.crt and private NICK.key certs it creates.`, {
 shields require a Encrypted service, and a UI (like that provided by DEBE) to be of any use.`, {
 				mysql_derived_parms: T.site
 			});
-		});
-		break;
-
-	case "T6":
+		}),
+		
+	T6: () =>
 		TOTEM.config({
 			guard: false,	// ex override default 
 			cores: 3,		// ex override default
@@ -3384,10 +3371,9 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 
 		}, sql => {
 			Trace( "Testing runTask with database and 3 cores at /test endpoint" );
-		});
-		break;
+		}),
 		
-	case "T7":
+	T7: () =>
 		TOTEM.config({
 		}, sql => {				
 			Trace( "db maintenance" );
@@ -3483,50 +3469,49 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 					});
 					break;	
 			}
-		});		
-		break;
-		
-	case "T8":
-		const $ = require("../man/man.js");
-		TOTEM.config();
-		neoThread( neo => {
-			neo.cypher( "MATCH (n:gtd) RETURN n", {}, (err,nodes) => {
-				Trace("nodes",err,nodes.length,nodes[0]);
-				var map = {};
-				nodes.forEach( (node,idx) => map[node.n.name] = idx );
-				//Log(">map",map);
-				
-				neo.cypher( "MATCH (a:gtd)-[r]->(b:gtd) RETURN r", {}, (err,edges) => {
-					Trace("edges",err,edges.length,edges[0]);
-					var 
-						N = nodes.length,	
-						cap = $([N,N], (u,v,C) => C[u][v] = 0 ),
-						lambda = $([N,N], (u,v,L) => L[u][v] = 0),
-						lamlist = $(N, (n,L) => L[n] = [] );
-					
-					edges.forEach( edge => cap[map[edge.r.srcId]][map[edge.r.tarId]] = 1 );
-					
-					//Trace(">cap",cap);
-					
-					for (var s=0; s<N; s++)
-						for (var t=s+1; t<N; t++) {
-							var 
-								{cutset} = $.MaxFlowMinCut(cap,s,t),
-								cut = lambda[s][t] = lambda[t][s] = cutset.length;
-							
-							lamlist[cut].push([s,t]);
-						}
-					
-					lamlist.forEach( (list,r) => {
-						if ( r && list.length ) Trace(r,list);
+		}),
+	
+	T8: () => 
+		TOTEM.config({}, sql => {
+			neoThread( neo => {
+				const $ = require("./man/man.js");
+				neo.cypher( "MATCH (n:gtd) RETURN n", {}, (err,nodes) => {
+					Trace("nodes",err,nodes.length,nodes[0]);
+					var map = {};
+					nodes.forEach( (node,idx) => map[node.n.name] = idx );
+					//Log(">map",map);
+
+					neo.cypher( "MATCH (a:gtd)-[r]->(b:gtd) RETURN r", {}, (err,edges) => {
+						Trace("edges",err,edges.length,edges[0]);
+						var 
+							N = nodes.length,	
+							cap = $([N,N], (u,v,C) => C[u][v] = 0 ),
+							lambda = $([N,N], (u,v,L) => L[u][v] = 0),
+							lamlist = $(N, (n,L) => L[n] = [] );
+
+						edges.forEach( edge => cap[map[edge.r.srcId]][map[edge.r.tarId]] = 1 );
+
+						//Trace(">cap",cap);
+
+						for (var s=0; s<N; s++)
+							for (var t=s+1; t<N; t++) {
+								var 
+									{cutset} = $.MaxFlowMinCut(cap,s,t),
+									cut = lambda[s][t] = lambda[t][s] = cutset.length;
+
+								lamlist[cut].push([s,t]);
+							}
+
+						lamlist.forEach( (list,r) => {
+							if ( r && list.length ) Trace(r,list);
+						});
+
 					});
-						
 				});
 			});
-		});
-		break;
-		
-	case "INGTD":
+		}),
+			
+	INGTD: () =>
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
 				sql.ingestFile("./config/stores/_noarch/gtd.csv", {
@@ -3560,10 +3545,9 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 					]
 				});
 			});
-		});
-		break;
+		}),
 		
-	case "INGTDSCITE":
+	INGTDSCITE: () =>
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
 				sql.ingestFile("./config/stores/_noarch/gtdscite.csv", {
@@ -3576,10 +3560,9 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 					]
 				});
 			});
-		});
-		break;
+		}),
 		
-	case "INMEX":
+	INMEX: () =>
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
 				sql.ingestFile("./config/stores/_noarch/centam.csv", {
@@ -3588,50 +3571,45 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 					//limit: 1000
 				}, 'Country == "Mexico"' );
 			});
-		});
-		break;
+		}),
 		
-	case "T11":
+	T11: () =>
 		TOTEM.config({name:""}, sql => {
 			sql.batch( "gtd", {batch:100}, recs => {
 				Trace("streamed", recs.length);
 			});
-		});
-		break;
-			
-	case "T12":
+		}),
+		
+	T12: () =>
 		prime( () => {
 			TOTEM.config({name:""}, sql => {
 				var q = sql.query("SELECT * FROM gtd where(?) LIMIT 1",{"a<":1}, err => Log(err));
 				Log(q.sql);
 			});
-		});
-		break;
+		}),
 		
-	case "G1":
-		var 
-			apiKey = "AIzaSyBp56CJJA0FE5enebW5_4mTssTGaYzGqz8", // "nowhere stan" / nowhere1234 / mepila7915@lege4h.com
-			searchEngine = "017944666033550212559:c1vclesecjc", // full web engine
-			query = "walmart",
-			url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngine}&gl=us&q=${query}`;
-			
+	G1: () =>
 		prime( () => {
+			var 
+				apiKey = "AIzaSyBp56CJJA0FE5enebW5_4mTssTGaYzGqz8", // "nowhere stan" / nowhere1234 / mepila7915@lege4h.com
+				searchEngine = "017944666033550212559:c1vclesecjc", // full web engine
+				query = "walmart",
+				url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngine}&gl=us&q=${query}`;
+
 			TOTEM.config({name:""}, sql => {
 				Fetch( url , txt => {
 					Log(txt);
 				});
 			});
-		});
-		break;
-			
-	case "G2":
+		}),
+		
+	G2: () =>
 		TOTEM.config({name:""}, sql => {
 			for (var n=0,N=2000; n<N; n++)
 				Fetch("mask://www.drudgereport.com", txt => Log(txt.length));
-		});
-		break;
-			
-	case"SC":
+		}),
+		
+	SC: () => {
 		const smartcard = require('smartcard');
 		const Devices = smartcard.Devices;
 		const Iso7816Application = smartcard.Iso7816Application;
@@ -3698,9 +3676,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 			});	
 
 		});
-
-		break;
-
-}
+	}
+});
 
 // UNCLASSIFIED
