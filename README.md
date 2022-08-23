@@ -1,6 +1,6 @@
 # TOTEM [WWW](https://github.com/totemstan/totem)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)
 
-**TOTEM** provides a barebones web service with features:
+**TOTEM** provides a barebones web service with the following features:
 
 + endpoint routing
 + http/https service
@@ -41,26 +41,22 @@ Clone **TOTEM** and its dependencies from one of its REPOs:
 	git clone REPO/totemstan/enums
 	git clone REPO/totemstan/jsdb
 
-To start **TOTEM**: 
+To start and manage **TOTEM**:
 
-	npm run	startdbs					# Start required database servers
-	npm run	start						# Start totem
+	npm run start [ ? | $ | ...]	# Unit test
+	npm run verminor				# Roll minor version
+	npm run vermajor				# Roll major version
+	npm run redoc					# Regen documentation
 
-To configure and maintain **TOTEM**:
-	
-	npm run setprot						# Configure for protected mode
-	npm run setdebug					# Configure for debugging mode
-	npm run setoper						# Configure for operational mode
-	npm run setprod						# Configure for production mode
-
-	npm run redoc						# Update repo
-	npm run verminor					# Roll version
-	npm run vermajor					# Roll version
-	rpm run	relink						# Relink dependent TOTEM modules
+	npm run	startdbs				# Start required database servers
+	npm run setprot					# Configure for protected mode
+	npm run setdebug				# Configure for debugging mode
+	npm run setoper					# Configure for operational mode
+	npm run setprod					# Configure for production mode
 
 ## Usage
 
-Require, configure and start a **TOTEM** server:
+Acquire, otionally configure and start a **TOTEM** server:
 	
 	const TOTEM = require("totem").config({
 		key: value, 						// set key
@@ -584,7 +580,7 @@ Error messages
 <a name="module_TOTEM.tasking"></a>
 
 ### TOTEM.tasking
-Common methods for task sharding
+Methods available when Task Sharding
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  

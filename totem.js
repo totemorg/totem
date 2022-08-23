@@ -2000,7 +2000,7 @@ Configure database, define site context, then protect, connect, start and initia
 	queues: JSDB.queues, 	// pass along
 		
 /**
-Common methods for task sharding
+Methods available when Task Sharding 
 @cfg {Object}
 */
 	tasking: {
