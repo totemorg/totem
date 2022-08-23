@@ -1,6 +1,6 @@
 {
   "name": "totem",
-  "version": "1.32.0",
+  "version": "1.33.0",
   "description": "bare essentials web service",
   "main": "totem.js",
   "scripts": {
@@ -11,8 +11,7 @@
     "setprod": "source ./maint.sh config prod",
     "verminor": "npm version minor -f",
     "vermajor": "npm version major -f",
-    "start": "node totem.js start",
-    "relink": "cd node_modules; for f in enums jsdb securelink; do ln -s ../../$f $f; done",
+    "start": "node totem.js",
     "redoc": "jsdoc2md --template README.hbs --files totem.js >README.md; git commit -am 'redoc'; git  push agent master"
   },
   "author": "ACME SDS",
