@@ -114,7 +114,7 @@ Log({
 // Totem service running in fault protection mode, no database, no UI; but I am running
 // with 2 workers and the default endpoint routes.
 
-TOTEM.config({
+config({
 	mysql: null,
 	guard: true,
 	cores: 2
@@ -131,7 +131,7 @@ with 2 workers and the default endpoint routes` );
 // npm test T3
 // A Totem service with no workers.
 
-TOTEM.config({
+config({
 }, sql => {
 	Log( 
 `I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
@@ -146,7 +146,7 @@ these files. `
 // npm test T4
 // Only 1 worker, unprotected, a mysql database, and two endpoints.
 
-TOTEM.config({
+config({
 	byTable: {
 		dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 			res( "123" );
@@ -187,7 +187,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 // npm test T5
 // no cores but a mysql database and an anti-bot shield
 
-TOTEM.config({
+config({
 	"secureIO.challenge.extend": 20
 }, sql => {
 	Log("", {
@@ -203,7 +203,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 // npm test T6
 // Testing tasker with database, 3 cores and an additional /test endpoint.
 
-TOTEM.config({
+config({
 	guard: false,	// ex override default 
 	cores: 3,		// ex override default
 
@@ -254,7 +254,7 @@ TOTEM.config({
 // npm test T7
 // Conduct db maintenance
 
-TOTEM.config({
+config({
 }, sql => {				
 	Log( "db maintenance" );
 
@@ -358,7 +358,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 // Conduct neo4j database maintenance
 
 const $ = require("../man/man.js");
-TOTEM.config();
+config();
 neoThread( neo => {
 	neo.cypher( "MATCH (n:gtd) RETURN n", {}, (err,nodes) => {
 		Log("nodes",err,nodes.length,nodes[0]);
@@ -406,7 +406,7 @@ const
 	  
 	{ 	Trace,
 		byArea, byType, byAction, byTable, CORS,
-		defaultType, attachAgent,
+		defaultType, attachAgent, config,
 	 	createCert, loginClient, crudIF,
 		getBrick, routeAgent, setContext, readPost,
 		filterFlag, paths, sqls, errors, site, isEncrypted, behindProxy, admitRules,
@@ -3257,7 +3257,7 @@ Start("totem", {
 		}),
 	
 	T2: () =>
-		TOTEM.config({
+		config({
 			mysql: null,
 			guard: true,
 			cores: 2
@@ -3270,7 +3270,7 @@ with 2 workers and the default endpoint routes` );
 		}),
 		
 	T3: () =>
-		TOTEM.config(null, sql => {
+		config(null, sql => {
 			Trace( 
 `I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
 my startup options (see the openv.apps table for the Nick="Totem1").  
@@ -3280,7 +3280,7 @@ these files. `
 		}),
 	
 	T4: () =>
-		TOTEM.config({
+		config({
 			byTable: {
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 					res( "123" );
@@ -3316,7 +3316,7 @@ associated public NICK.crt and private NICK.key certs it creates.`, {
 		}),
 		
 	T5: () =>
-		TOTEM.config({
+		config({
 			"secureIO.challenge.extend": 20
 		}, sql => {
 			Trace(
@@ -3327,7 +3327,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 		}),
 		
 	T6: () =>
-		TOTEM.config({
+		config({
 			guard: false,	// ex override default 
 			cores: 3,		// ex override default
 
@@ -3374,7 +3374,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 		}),
 		
 	T7: () =>
-		TOTEM.config({
+		config({
 		}, sql => {				
 			Trace( "db maintenance" );
 
@@ -3472,7 +3472,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		}),
 	
 	T8: () => 
-		TOTEM.config({}, sql => {
+		config({}, sql => {
 			neoThread( neo => {
 				const $ = require("./man/man.js");
 				neo.cypher( "MATCH (n:gtd) RETURN n", {}, (err,nodes) => {
@@ -3513,7 +3513,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 			
 	INGTD: () =>
 		prime( () => {
-			TOTEM.config({name:""}, sql => {
+			config({name:""}, sql => {
 				sql.ingestFile("./config/stores/_noarch/gtd.csv", {
 					target: "gtd",
 					//limit: 10,
@@ -3549,7 +3549,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		
 	INGTDSCITE: () =>
 		prime( () => {
-			TOTEM.config({name:""}, sql => {
+			config({name:""}, sql => {
 				sql.ingestFile("./config/stores/_noarch/gtdscite.csv", {
 					target: "gtd",
 					//limit: 10,
@@ -3564,7 +3564,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		
 	INMEX: () =>
 		prime( () => {
-			TOTEM.config({name:""}, sql => {
+			config({name:""}, sql => {
 				sql.ingestFile("./config/stores/_noarch/centam.csv", {
 					keys: "Criminal_group varchar(32),_Year int(11),Outlet_name varchar(32),Event varchar(32),Rival_group varchar(32),_Eventid varchar(8)",
 					batch: 500,
@@ -3574,7 +3574,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		}),
 		
 	T11: () =>
-		TOTEM.config({name:""}, sql => {
+		config({name:""}, sql => {
 			sql.batch( "gtd", {batch:100}, recs => {
 				Trace("streamed", recs.length);
 			});
@@ -3582,7 +3582,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		
 	T12: () =>
 		prime( () => {
-			TOTEM.config({name:""}, sql => {
+			config({name:""}, sql => {
 				var q = sql.query("SELECT * FROM gtd where(?) LIMIT 1",{"a<":1}, err => Log(err));
 				Log(q.sql);
 			});
@@ -3596,7 +3596,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 				query = "walmart",
 				url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngine}&gl=us&q=${query}`;
 
-			TOTEM.config({name:""}, sql => {
+			config({name:""}, sql => {
 				Fetch( url , txt => {
 					Log(txt);
 				});
@@ -3604,7 +3604,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 		}),
 		
 	G2: () =>
-		TOTEM.config({name:""}, sql => {
+		config({name:""}, sql => {
 			for (var n=0,N=2000; n<N; n++)
 				Fetch("mask://www.drudgereport.com", txt => Log(txt.length));
 		}),

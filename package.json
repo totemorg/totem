@@ -4,7 +4,7 @@
   "description": "bare essentials web service",
   "main": "totem.js",
   "scripts": {
-    "startdbs": "source ./maint.sh startdbs",
+    "startdbs": "source ./maint.sh start_dbs",
     "setdebug": "source ./maint.sh config debug",
     "setoper": "source ./maint.sh config oper",
     "setprot": "source ./maint.sh config prot",
