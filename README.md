@@ -1,4 +1,4 @@
-# TOTEM [WWW](https://github.com/totemstan/totem)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)
+# [TOTEM](https://github.com/totem-man/totem)
 
 **TOTEM** provides a barebones web service with the following features:
 
@@ -36,10 +36,10 @@ and the `stores | shares` areas for sharing static *FILE*s.
 Clone **TOTEM** and its dependencies from one of its REPOs:
 
 	cd MYPROJECT
-	git clone REPO/totemstan/totem
-	git clone REPO/totemstan/securelink
-	git clone REPO/totemstan/enums
-	git clone REPO/totemstan/jsdb
+	git clone REPO/totem-man/totem
+	git clone REPO/totem-man/securelink
+	git clone REPO/totem-man/enums
+	git clone REPO/totem-man/jsdb
 
 To start and manage **TOTEM**:
 
@@ -66,17 +66,7 @@ Acquire, otionally configure and start a **TOTEM** server:
 		console.log( sql ? "look mom - Im running!" : "something evil is lurking" );
 	});
 
-where its configuration keys (
-[WWW](http://totem.zapto.org/shares/prm/totem/index.html) 
-[COE](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) 
-[SBU](https://totem.nga.mil/shares/prm/totem/index.html)
-)
-follow the ENUM deep copy conventions (
-[WWW](https://github.com/totemstan/enum) 
-[COE](https://sc.appdev.proj.coe/acmesds/enum) 
-[SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
-).
-See the Program Reference for examples.
+where configuration keys follow **ENUMS** [deep copy conventions](https://github.com/totem-man/enums## Program Reference)
 
 
 ## Program Reference
@@ -154,7 +144,7 @@ Log({
 // Totem service running in fault protection mode, no database, no UI; but I am running
 // with 2 workers and the default endpoint routes.
 
-TOTEM.config({
+config({
 	mysql: null,
 	guard: true,
 	cores: 2
@@ -171,7 +161,7 @@ with 2 workers and the default endpoint routes` );
 // npm test T3
 // A Totem service with no workers.
 
-TOTEM.config({
+config({
 }, sql => {
 	Log( 
 `I'm a Totem service with no workers. I do, however, have a mysql database from which I've derived 
@@ -186,7 +176,7 @@ these files. `
 // npm test T4
 // Only 1 worker, unprotected, a mysql database, and two endpoints.
 
-TOTEM.config({
+config({
 	byTable: {
 		dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 			res( "123" );
@@ -227,7 +217,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 // npm test T5
 // no cores but a mysql database and an anti-bot shield
 
-TOTEM.config({
+config({
 	"secureIO.challenge.extend": 20
 }, sql => {
 	Log("", {
@@ -243,7 +233,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 // npm test T6
 // Testing tasker with database, 3 cores and an additional /test endpoint.
 
-TOTEM.config({
+config({
 	guard: false,	// ex override default 
 	cores: 3,		// ex override default
 
@@ -294,7 +284,7 @@ TOTEM.config({
 // npm test T7
 // Conduct db maintenance
 
-TOTEM.config({
+config({
 }, sql => {				
 	Log( "db maintenance" );
 
@@ -398,7 +388,7 @@ ring: "[degs] closed ring [lon, lon], ... ]  specifying an area of interest on t
 // Conduct neo4j database maintenance
 
 const $ = require("../man/man.js");
-TOTEM.config();
+config();
 neoThread( neo => {
 	neo.cypher( "MATCH (n:gtd) RETURN n", {}, (err,nodes) => {
 		Log("nodes",err,nodes.length,nodes[0]);
@@ -1539,31 +1529,12 @@ specified `client`; optional `tags` are tagged to the upload and the callback
 ## Contacting, Contributing, Following
 
 Feel free to 
-* submit and status **TOTEM** issues (
-[WWW](http://totem.zapto.org/issues.view) 
-[COE](https://totem.west.ile.nga.ic.gov/issues.view) 
-[SBU](https://totem.nga.mil/issues.view)
-)  
-* contribute to **TOTEM** notebooks (
-[WWW](http://totem.zapto.org/shares/notebooks/) 
-[COE](https://totem.west.ile.nga.ic.gov/shares/notebooks/) 
-[SBU](https://totem.nga.mil/shares/notebooks/)
-)  
-* revise **TOTEM** requirements (
-[WWW](http://totem.zapto.org/reqts.view) 
-[COE](https://totem.west.ile.nga.ic.gov/reqts.view) 
-[SBU](https://totem.nga.mil/reqts.view), 
-)  
-* browse **TOTEM** holdings (
-[WWW](http://totem.zapto.org/) 
-[COE](https://totem.west.ile.nga.ic.gov/) 
-[SBU](https://totem.nga.mil/)
-)  
-* or follow **TOTEM** milestones (
-[WWW](http://totem.zapto.org/milestones.view) 
-[COE](https://totem.west.ile.nga.ic.gov/milestones.view) 
-[SBU](https://totem.nga.mil/milestones.view)
-).
+* submit and status [TOTEM issues](http://totem.hopto.org/issues.view) 
+* contribute to [TOTEM notebooks](http://totem.hopto.org/shares/notebooks/) 
+* revise [TOTEM requirements](http://totem.hopto.org/reqts.view) 
+* browse [TOTEM holdings](http://totem.hopto.org/) 
+* or follow [TOTEM milestones](http://totem.hopto.org/milestones.view) 
+
 
 ## License
 
