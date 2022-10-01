@@ -12,7 +12,7 @@
     "verminor": "npm version minor -f",
     "vermajor": "npm version major -f",
     "start": "node totem.js",
-    "redoc": "jsdoc2md --template README.hbs --files totem.js >README.md; git commit -am 'redoc'; git  push man master"
+    "redoc": "jsdoc2md --template README.hbs --files totem.js >README.md; git commit -am 'redoc'; git  push agent master"
   },
   "author": "ACME SDS",
   "license": "ISC",

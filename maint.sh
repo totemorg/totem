@@ -7,17 +7,18 @@
 HERE=`pwd`
 TOTEM_MODULES=(totem enums jsdb securelink socketio)
 DEBE_MODULES=(${TOTEM_MODULES[@]} debe atomic geohack ocr reader pipe randpr liegroup)
-MODULES=DEBE_MODULES
-# MODULES=(debe totem atomic geohack ocr enums reader pipe jsdb man randpr liegroup securelink socketio)
+# MODULES=DEBE_MODULES
+MODULES=(debe totem atomic geohack enums reader blog skin jsdb man randpr liegroup securelink socketio)
 MODULE=`basename $HERE`
+BASE=/local
+INSTALL=/mnt/repo
 SNAPSHOTS=/mnt/snapshots
-GITREPO=https://github.com/totemstan
-INSTALL=$BASE/service/installs
+SERVICE=~/service
 
 case "$1." in
 
 sync.)
-	cd $BASE/service
+	cd $SERVICE
 	for mod in man enums; do
 		echo "syncing $mod"
 		rsync -av --progress ./$mod /mnt/totem/ --exclude ".git*" --exclude "_*" --exclude "package*"  --exclude "README*"
@@ -53,7 +54,7 @@ config.)
 	############################
 	# env setup
 	############################
-	cd $BASE/service
+	cd $SERVICE
 	source ./maint.sh base_config
 	source ./maint.sh seclink_config
 	source ./maint.sh db_config
@@ -134,18 +135,26 @@ geohack_config.)
 	;;
 	
 base_config.)
-	export BASE=/local
-	
 	# define global db and service pass keys
-	source $BASE/service/totem/config/pass.sh
+	source $SERVICE/pass.sh
+	
+	# GIT repo
+	export GITREPO=https://github.com/$GIT_USER
+	#export GITREPO=https://$GIT_USER@github.com/$GIT_USER
+	for mod in "${MODULES[@]}"; do
+		echo "GIT repo set $mod"
+		cd $SERVICE/$mod
+		git remote rm agent
+		git remote add agent git@github.com:$GIT_USER/$mod
+		git remote rm origin
+		git remote add origin https://github.com/$GIT_USER/$mod
+	done
+	cd $SERVICE
 	
 	# initialize dev/prod paths
 	export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin:/local/cmake/bin
 	export LD_LIBRARY_PATH=
 	
-	#export GITUSER=totemstan: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
-	#export GITREPO=https://$GITUSER@github.com/totemstan
-
 	# doc and dev tools
 	#export PATH=/opt/cmake:$PATH 			# latest cmake
 	#export PATH=$BASE/oxygen/bin:$PATH    	# doxygen code documenter if needed (jsduck used)
@@ -176,7 +185,7 @@ base_config.)
 	# Python
 	export CONDA=$BASE/anaconda
 	export PYTHONHOME=$CONDA
-	export PYTHONPATH=$BASE/caffe/python:$PYTHON/:$PYTHON/site-packages:$BASE/service/atomic
+	export PYTHONPATH=$BASE/caffe/python:$PYTHON/:$PYTHON/site-packages:$SERVICE/atomic
 	
 	;;
 	
@@ -607,27 +616,25 @@ totem.)
 	case "$2." in
 		# Install Totem and its dependencies
 		install.)
-			mkdir -p $BASE/service; cd $BASE/service
+			mkdir -p $SERVICE; cd $SERVICE
 			for mod in "${TOTEM_MODULES[@]}"; do
 				echo "installing $mod"
 				git clone $GITREPO/$mod
 			done
-			echo "Save revised account:password keys to config/_pass.sh" 
-			vi totem/pass.sh &
 			;;
 
 		# Update all Totem dependencies
 		resync.)
 			for mod in "${TOTEM_MODULES[@]}"; do
 				echo "updating $mod"
-				cd $BASE/service/$mod
+				cd $SERVICE/$mod
 				git pull agent master
 			done
 			;;
 
 		# Nodejs C bindings to Python,R,opencv,etc
 		rebuild.)
-			IFS=$BASE/service/atomic/ifs
+			IFS=$SERVICE/atomic/ifs
 			cd $IFS/opencv; $REBUILD
 			cd $IFS/python; $REBUILD
 			cd $IFS/mac; $REBUILD
@@ -648,27 +655,25 @@ debe.)
 	case "$2." in
 		# Install Debe and its dependencies
 		install.)
-			mkdir -p $BASE/service; cd $BASE/service
+			mkdir -p $SERVICE; cd $SERVICE
 			for mod in "${DEBE_MODULES[@]}"; do
 				echo "installing $mod"
 				git clone $GITREPO/$mod
 			done
-			echo "Save revised account:password keys to config/_pass.sh" 
-			vi totem/pass.sh &
 			;;
 
 		# Update all Debe dependencies
 		resync.)
 			for mod in "${DEBE_MODULES[@]}"; do
 				echo "updating $mod"
-				cd $BASE/service/$mod
+				cd $SERVICE/$mod
 				git pull agent master
 			done
 			;;
 
 		# Nodejs C bindings to Python,R,opencv,etc
 		rebuild.)
-			IFS=$BASE/service/atomic/ifs
+			IFS=$SERVICE/atomic/ifs
 			cd $IFS/opencv; $REBUILD
 			cd $IFS/python; $REBUILD
 			cd $IFS/mac; $REBUILD
@@ -1045,7 +1050,7 @@ snap.)
 			;;
 
 		srv.)
-			cd /$BASE/service
+			cd /$SERVICE
 			for mod in "${MODULES[@]}"; do
 				echo "snapping $map"
 				zip -ry $SNAPSHOTS/totem.zip $mod -x $mod/node_modules/\* $mod/.git/\* $mod/\*/.git/\* $mod/_\* $mod/~\* $mod/math/\* $mod/mljs/\* $mod/prm/\*
@@ -1065,14 +1070,14 @@ snap.)
 			;;
 			
 		minback.)
-			cd $BASE/service
+			cd $SERVICE
 			for mod in "${MODULES[@]}"; do
 				zip -ry /local/archive/totem/$mod.zip ./$mod/* -x \*/_\* /debe/captcha\* /debe/clients\* /debe/config/stores\* \*/.git* \*/node_modules/\*
 			done
 			;;
 
 		nogitarch.)
-			cd $BASE/service
+			cd $SERVICE
 			for mod in "${MODULES[@]}"; do
 				echo "ziping $mod"
 				zip -ry /local/archive/snapshot/$mod ./$mod/* -x \*/_\* /debe/captcha\* /debe/clients\* /debe/config/stores\* \*/.git* 
@@ -1281,12 +1286,13 @@ git.)
 		genkey.) 		# make pub-pri key for git auto-password agent 
 			echo "store keys under .ssh/git_totemstan_rsa and upload git_totemstan_rsa.pub key to git account." 
 			echo "git remote add agent git@github.com:totemstan/GITREPO"
-			ssh-keygen -t rsa -b 4096 -C "brian.d.james@comcast.com"
+			#ssh-keygen -t rsa -b 4096 -C "$GIT_EMAIL"
+			ssh-keygen -t ed25519 -C "$GIT_EMAIL"
 			;;
 
 		agent.)		# start ssh agent
 			eval $(ssh-agent -s)
-			ssh-add ~/.ssh/git_totemstan_rsa
+			ssh-add ~/.ssh/git_$GIT_USER$_rsa
 			;;
 
 		config.)

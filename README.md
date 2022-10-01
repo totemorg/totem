@@ -66,7 +66,7 @@ Acquire, otionally configure and start a **TOTEM** server:
 		console.log( sql ? "look mom - Im running!" : "something evil is lurking" );
 	});
 
-where configuration keys follow **ENUMS** [deep copy conventions](https://github.com/totem-man/enums## Program Reference)
+where configuration keys follow [ENUMS deep copy conventions](https://github.com/totem-man/enums)
 
 
 ## Program Reference
