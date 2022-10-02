@@ -1284,7 +1284,7 @@ git.)
 
 		agent.)		# start ssh agent
 			eval $(ssh-agent -s)
-			ssh-add ~/.ssh/git_$GIT_USER$_rsa
+			ssh-add ~/.ssh/git_"$GIT_USER"_rsa
 			;;
 
 		config.)
