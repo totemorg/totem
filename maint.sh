@@ -6,9 +6,9 @@
 
 HERE=`pwd`
 TOTEM_MODULES=(totem enums jsdb securelink socketio)
-DEBE_MODULES=(${TOTEM_MODULES[@]} debe atomic geohack ocr reader pipe randpr liegroup)
+DEBE_MODULES=(${TOTEM_MODULES[@]} debe atomic dockify home geohack ocr reader blog skin man dogs randpr liegroup)
 # MODULES=DEBE_MODULES
-MODULES=(debe totem atomic geohack enums reader blog skin jsdb man randpr liegroup securelink socketio)
+# MODULES=(debe totem atomic geohack dockify ocr home enums reader blog skin jsdb man randpr liegroup securelink socketio dogs)
 MODULE=`basename $HERE`
 BASE=/local
 INSTALL=/mnt/repo
@@ -141,15 +141,6 @@ base_config.)
 	# GIT repo
 	export GITREPO=https://github.com/$GIT_USER
 	#export GITREPO=https://$GIT_USER@github.com/$GIT_USER
-	for mod in "${MODULES[@]}"; do
-		echo "GIT repo set $mod"
-		cd $SERVICE/$mod
-		git remote rm agent
-		git remote add agent git@github.com:$GIT_USER/$mod
-		git remote rm origin
-		git remote add origin https://github.com/$GIT_USER/$mod
-	done
-	cd $SERVICE
 	
 	# initialize dev/prod paths
 	export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin:/local/cmake/bin
@@ -1281,6 +1272,7 @@ git.)
 	case "$2." in
 		install.)
 			sudo yum install git
+			git config --global http.sslVerify false			
 			;;
 
 		genkey.) 		# make pub-pri key for git auto-password agent 
@@ -1296,7 +1288,18 @@ git.)
 			;;
 
 		config.)
-			git config --global http.sslVerify false
+			for mod in "${DEBE_MODULES[@]}"; do
+				echo "GIT repo set $mod"
+				cd $SERVICE/$mod
+				git remote rm gsmil
+				git remote rm man
+				git remote rm origin
+				git remote rm agent
+				git remote add gsmil git@gitlab.gs.mil:totem/socketio
+				git remote add agent git@github.com:$GIT_USER/$mod
+				git remote add origin https://github.com/$GIT_USER/$mod
+			done
+			cd $SERVICE
 			;;
 
 		_gitzip.)
