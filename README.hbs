@@ -31,18 +31,9 @@ By default, **TOTEM** provides `db | xml | csv | json` *TYPE*s for converting *D
 `riddle | task | ping` *COMMAND*s for validating a session, sharding tasks,
 and the `stores | shares` areas for sharing static *FILE*s.
 
-## Installation
+## Manage
 
-Clone **TOTEM** and its dependencies from one of its REPOs:
-
-	cd MYPROJECT
-	git clone REPO/totem-man/totem
-	git clone REPO/totem-man/securelink
-	git clone REPO/totem-man/enums
-	git clone REPO/totem-man/jsdb
-
-To start and manage **TOTEM**:
-
+	npm install @totemstan/totem	# Install
 	npm run start [ ? | $ | ...]	# Unit test
 	npm run verminor				# Roll minor version
 	npm run vermajor				# Roll major version

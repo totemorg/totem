@@ -27,9 +27,9 @@ const
 	JS2CSV = require('json2csv'),				// JSON to CSV parser	
 	  
 	// totem modules
-	SECLINK = require("./securelink"),			// secure com and login
-	JSDB = require("./jsdb"),					// database agnosticator
-	ENUMS = require("./enums"),
+	SECLINK = require("@totemstan/securelink"),			// secure com and login
+	JSDB = require("@totemstan/jsdb"),					// database agnosticator
+	ENUMS = require(".@totemstan/enums"),
 	
 	{ readFile } = FS,
 	{ Copy,Each,Start,Clock,Log,

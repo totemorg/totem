@@ -991,6 +991,7 @@ start_mysql.)
 		$MYSQL/bin/mysqld_safe --defaults-file=$MYSQL/my.cnf --sql-mode="" --max_allowed_packet=64000000 &
 	fi
 	;;
+	
 mysql.)
 	############################
 	# mysql database
@@ -1029,6 +1030,11 @@ mysql.)
 	esac
 	;;
 
+startdbs.)
+	bash ./maint.sh start_mysql
+	bash ./maint.sh start_neo4j
+	;;
+	
 snap.)
 	############################
 	# Archival
