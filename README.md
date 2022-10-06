@@ -49,7 +49,7 @@ and the `stores | shares` areas for sharing static *FILE*s.
 
 Acquire, otionally configure and start a **TOTEM** server:
 	
-	const TOTEM = require("totem").config({
+	const TOTEM = require("@totemstan/totem").config({
 		key: value, 						// set key
 		"key.key": value, 					// indexed set
 		"key.key.": value					// indexed append
@@ -57,7 +57,7 @@ Acquire, otionally configure and start a **TOTEM** server:
 		console.log( sql ? "look mom - Im running!" : "something evil is lurking" );
 	});
 
-where configuration keys follow [ENUMS deep copy conventions](https://github.com/totem-man/enums)
+where configuration keys follow [ENUMS deep copy conventions](https://github.com/totem-man/enums).
 
 
 ## Program Reference
