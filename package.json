@@ -1,7 +1,7 @@
 {
   "name": "@totemstan/totem",
-  "version": "1.39.0",
-  "description": "bare essentials web service",
+  "version": "1.40.0",
+  "description": "barebones web service",
   "main": "totem.js",
   "scripts": {
     "startdbs": "source ./maint.sh start_dbs",
@@ -22,17 +22,13 @@
     "@totemstan/securelink": "^1.14.0",
     "@totemstan/socketio": "^1.7.0",
     "cheerio": "^1.0.0-rc.3",
-    "enums": "^1.0.1",
     "http-proxy-agent": "^4.0.1",
     "js2xmlparser": "^3.0.0",
-    "jsdb": "^1.1.0",
     "json2csv": "^3.11.5",
     "mime": "^1.0.0",
     "mysql": "^2.17.1",
     "pcsclite": "^1.0.0",
-    "securelink": "^1.1.0",
     "smartcard": "^1.0.37",
-    "socketio": "^1.1.0",
     "toobusy-js": "^0.5.1",
     "xml2js": "^0.4.23",
     "xml2json": "^0.11.2"
