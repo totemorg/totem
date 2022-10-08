@@ -29,7 +29,7 @@ const
 	// totem modules
 	SECLINK = require("@totemstan/securelink"),			// secure com and login
 	JSDB = require("@totemstan/jsdb"),					// database agnosticator
-	ENUMS = require(".@totemstan/enums"),
+	ENUMS = require("@totemstan/enums"),
 	
 	{ readFile } = FS,
 	{ Copy,Each,Start,Clock,Log,
