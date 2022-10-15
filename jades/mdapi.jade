@@ -1,0 +1,63 @@
+extends base
+append base_parms
+	- tech = "layout"
+append base_body
+	:markdown
+		# Notebook Markdown
+		
+		Document your notebook's usecase using [markdown](/api.view):
+
+			$PLOT{ SRC ? w=WIDTH & h=HEIGHT & x=KEY||STORE$KEY & y=KEY||STORE$KEY ... }
+			$ { KEY }
+			[ LINK ] ( URL )
+			$$ inline TeX $$ || n$$ break TeX $$ || a$$ AsciiMath $$ || m$$ MathML $$
+			TeX := TeX || #VAR || VAR#KEY#KEY...
+			| GRID | ... |
+			# SECTION
+			ESCAPE || $with || $for || $if:
+				BLOCK
+
+		Available PLOTs include: 
+		[line plot](/plot.view?help), 
+		[circle pack](/pack.view?help), 
+		[nodal tree](/tree.view?help), 
+		[c force graph](/cforce.view?help), 
+		[force graph](/force.view?help), 
+		[chordal plot](/chords.view?help), 
+		[bar plot](/barplot.view?help), 
+		[bouncy balls](/bounce.view?help), 
+		[burst chart](/burst.view?help), 
+		[c tree fan](/ctree.view?help), 
+		[tree fan](/tree.view?help), 
+		[delvoi](/delvoi.view?help),
+		[dendro](/dendro?help), 
+		[fan](/fan.view?help), 
+		[gears](/gears.view?help),
+		[sankey diagram](/sankey.view?help),
+		[tidy chart](/tidy.view?help),
+		[us map](/usmap.view?help), 
+		[world map](/worldmap.view?help), 
+		[wordcloud](/wordcloud.view?help), 
+		[anaglyph](/anaglyph.view?help)
+		[tipsheet](/tipsheet.view?help), 
+		[nodal graph](/graph.view?help) and
+		[polygon](/poly.view?help).
+
+		This markdown, for example:
+
+			$plot{regress&name=test1?w=600&h=400&x=Save_train$.x[$chan]&y=Save_train$.y[$chan]}
+			$plot{?w=600&h=400&x=Save_train$.x&y=Save_train$.y}
+			[go home](home.view?w=500&h=100)
+			[go here grasshopper](https://here.gov/test.txt)
+			$force{w=100&h=100&src=/queues?_pivots=class}
+			$$ \alpha = 1 + \beta $$ impressive ''eh
+
+		will embed:
+		(1) a [d3 plot](/plot.view) of the x,y data from regress **usecase** "test1" using the 
+		chan indexing widget, 
+		(2) a [d3 plot](/plot.view) of the x,y data from this **usecase**,  
+		(3) a link to the [home.view](/home.view), 
+		(4) a link to [the url](https://here.gov/test.txt), 
+		(5) the [image](/shares/a1.jpg), 
+		(6) a [d3 force](/force.view) of the queues **dataset** pivoted by class, 
+		(7) an inline TeX equation. 					

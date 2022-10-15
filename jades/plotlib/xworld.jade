@@ -1,0 +1,114 @@
+// UNCLASSIFIED
+
+extends base
+append base_parms
+	- tech = "d3"
+	- map = "world"
+
+append base_help
+	:markdown
+		Provides a map chart:
+
+			src = path to map data [ {Name, Info, Code, ...}, ...]
+			debug = debugging level
+			node,nodes,value,size,parent,code,info = key names
+
+append base_head
+	style.
+		div {
+			width: 500px;
+			height: 300px;
+		}
+
+	script.
+		var opts = {
+			ds: "/!{query.src}",
+			raw: true,
+			dims: {
+				margin: {top: 20, right: 90, bottom: 30, left: 90},
+				width: parseInt("#{query.w}") || 1200,
+				height: parseInt("#{query.h}") || 500
+			},
+			debug: parseInt("#{query.debug}"),
+			INFO: "#{query.details}" || "Info",
+			CODE: "#{query.fill}" || "Code",
+			NODE: "#{query.node}" || "Name",
+			NODES: "#{query.children}" || "children",
+			VALUE: "#{query.value}" || "value",
+			PARENT: "#{query.parent}" || "parent",
+			SIZE: "#{query.size}" || "size"										
+		};
+		
+		const {NODE, CODE, INFO} = opts;
+		//const {NODE, NODES, VALUE, SIZE, PARENT, DOC} = opts;
+		const {isString,isArray,Fetch,Log} = BASE;
+
+append base_body
+	script.
+		//var map = new Datamap({element: document.getElementById('content')});
+		d3.json("/countries").then( ctries => {
+			var cmap = {}, vmap = [];
+			ctries.forEach( function (ctry) {
+				cmap[ctry[NODE].toUpperCase()] = {
+					fillKey: ctry[CODE].toUpperCase(),
+					info: ctry[INFO]
+				}
+			});
+
+			Fetch(opts, recs => {
+				
+				recs.forEach( function (rec) {
+					vmap.push({
+						name: rec.Source,
+						radius: rec.Radius,
+						longitude: rec.Location.x,
+						latitude: rec.Location.y,
+						fillKey: "VOXEL"
+					});	
+				});
+				
+				var map = new Datamap({
+					//responsive: true,
+					
+					//bubbles: vmap,
+					
+					element: document.getElementById('content'),
+
+					geographyConfig: {
+						popupTemplate: function (geo,data) {
+							return [
+								geo ? geo.properties.name : "",
+								data ? data.info : "nada"
+							].join("<br>").tag("div",{class:"hoverinfo"});
+						}
+					},
+					
+					fills: {
+						HIGH: '#afafaf',
+						LOW: '#123456',
+						MEDIUM: 'blue',
+						VOXEL: 'red', //'rgb(1,0,0)',
+						defaultFill: 'green'
+					},
+
+					data: cmap
+				});
+
+				map.bubbles(vmap, {
+					popupTemplate: function (geo,data) {
+						return [
+							//geo ? geo.properties.name : "",
+							data ? JSON.stringify(data) : "nada"
+						].join("<br>").tag("div",{class:"hoverinfo"});
+					}});
+				
+				map.legend();
+				
+				d3.select(window).on("resize", function () {
+					map.resize();
+				});
+				
+			});
+		});	
+
+// UNCLASSIFIED

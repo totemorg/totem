@@ -1,0 +1,85 @@
+/* alt
+.AL {text-align:left;}
+.AR {text-align:right;}
+.AC {text-align:center;}
+.LG {font-size:15px;}
+.SM {font-size:10px;}
+.IN {text-indent:50px;}
+.BY {background-color:yellow;}
+*/
+
+li { text-align:left;text-indent:50; position:relative;top:-100; }
+iframe { width:1000; height:500; }
+footer { position:absolute; top:700; }
+table { border-spacing: 5px;border-collapse: separate;width:150%; }
+p { font-size:20px !important;color:white; }
+.lg, .hd { font-size:40px !important; }
+.sm { font-size:15px !important; }
+.in { text-indent:50px !important; }
+a { color:red; }
+.al, .hd { text-align:left !important; }
+.ar { text-align:right !important; }
+.ac { margin-left:auto !important;margin-right:auto !important; }
+img.ic { display:block;margin-left:auto;margin-right:auto; }
+img.ir { display:block;margin-left:auto; }
+img.xx { position:relative;top:-200; }
+td { vertical-align:middle !important;color:white; }
+td.G { background-color:green;color:white; }
+td.R { background-color:red;color:white; }
+td.B { background-color:blue;color:white; }
+h1 { position:relative;top:0; font-size: 40 !important;}
+h2 { position:relative;top:10; font-size: 35 !important;}
+h3 { position:relative;top:20; font-size: 30 !important;}
+h4 { position:relative;top:30; font-size: 25 !important;}
+h5 { position:relative;top:40; font-size: 20 !important;}
+h6 { position:relative;top:50; font-size: 15 !important;}
+.R { color:red; }
+.B { color:blue; }
+.G { color:green; }
+h1.R, h2.R, h3.R, h4.R { color:red; }
+h1.G, h2.G, h3.G, h4.G { color:green; }
+h1.B, h2.B, h3.B, h4.B { color:blue; }
+iframe.R { background-color: red; }
+.container {
+	position: relative;
+	width: 50%;
+}
+.image {
+	display: block;
+	width: 100%;
+	height: 80%;
+}
+.overlay {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	background-color: #008CBA;
+	overflow: hidden;
+	width: 100%;
+	height: 0;
+	transition: .5s ease;
+}
+.container:hover .overlay {
+	height: 100%;
+}
+.text {
+	white-space: nowrap; 
+	color: white;
+	font-size: 20px;
+	position: absolute;
+	overflow: hidden;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	-ms-transform: translate(-50%, -50%);
+}
+.middle {
+	transition: .5s ease;
+	opacity: 0;
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	-ms-transform: translate(-50%, -50%)
+}

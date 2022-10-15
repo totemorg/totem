@@ -1,0 +1,23 @@
+/* sites */
+.ui-banner {
+	text-align: center;
+	background-color: yellow;
+	border-width:1px;
+}
+
+/* Notebooks */
+
+.ui-button-retired:hover 	{ background-color: pink; }
+.ui-button-broken:hover 	{ background-color: red; }
+.ui-button-started:hover 	{ background-color: orange; }
+.ui-button-policed:hover 	{ background-color: yellow; }
+.ui-button-unfunded:hover 	{ background-color: green; }
+.ui-button-ready:hover 		{ background-color: blue; }
+
+.ui-header-retired 			{ background-color: pink; 	border-width:1px;border-style:solid;border-color:black;text-align:center; }
+.ui-header-broken 			{ background-color: red; 	border-width:1px;border-style:solid;border-color:black;text-align:center; }
+.ui-header-started 			{ background-color: orange; border-width:1px;border-style:solid;border-color:black;text-align:center; }
+.ui-header-policed 			{ background-color: yellow; border-width:1px;border-style:solid;border-color:black;text-align:center; }
+.ui-header-unfunded 		{ background-color: green; 	border-width:1px;border-style:solid;border-color:black;text-align:center; }
+.ui-header-ready 			{ background-color: blue; 	border-width:1px;border-style:solid;border-color:black;text-align:center; }										
+

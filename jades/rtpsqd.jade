@@ -1,0 +1,28 @@
+extends base
+append base_help
+	:markdown
+		# rtpsqd
+		Provides a project RTP with options:
+
+			- project = project project (!{project})
+			- client = client viewing this RTP (!{client})
+
+		[nets sample](/nets.help?src=/nets.run&project=gtdcsv)  
+		[nets example](/nets.rtp)
+
+append base_body
+	- project = flags.project || table
+	- title = `${project} Research Technology Plan`
+	- folder = `/shares/${project}`
+	- secs = {1: "Heilmeirs", 2: "Security", 3: "Risks"}
+
+	h1= title
+	img(src="#{folder}/logo.jpg")
+	iframe(src='/barplot.view',width=600,height=200)
+
+	:markdown
+		This is my RTP doc for project #{project}
+
+	each i in [1,2,3]
+		h1!= `${i}.${secs[i]}`.link( `/faqs.view?Seq=${i}` )
+		iframe(src="/faqs.html?Num:=Seq&Question:=Q&Answer:=A&Seq=#{i}",width=1200,height=200,style="border:none")

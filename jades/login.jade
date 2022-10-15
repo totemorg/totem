@@ -1,0 +1,38 @@
+//- UNCLASSIFIED
+
+extends layout
+append layout_body
+
+	:markdown
+		## Account Request & Login
+		
+		**#{nick}** accounts are needed to avoid bot captcha's, to submit jobs, to manage job queues, and to 
+		use its [secureLink](/site.view).
+		
+		Accounts are of the form `USER@DOMAIN.mil` || `USER@totem.org` || `USER@DOMAIN.OTHER`.  
+		Request a random `@totem.org` account by typing "!rand" for your account.  Random accounts,
+		though temporary, are **the most secure** way to communicate with other **#{nick}** users.  
+		
+		While **#{nick}**'s [**SecureLink**](/site.view) provides end-to-end encryption between US
+		gov clients, you **MUST** insure 
+		that your **#{nick}** correspondents **NEVER** reveal your **#{nick}** account name, for example, by 
+		accidently exposing their open-internet contact list.  
+		
+		Again - to denying adversaries the opportunity to associate **#{nick}** users with open-internet 
+		users, **#{nick}** users should **NEVER** add other **#{nick}** users to their open-internet contact lists.
+		
+		Passwords must be at least 8 characters in length.  You will receive an email at your account
+		containing a 3 letter code to append to your password.  
+		
+	form.w3-container(action="/login.html",method="get",id="collect")
+		label(for="account") Account:
+		input.w3-input.w3-hover-blue(type="text",name="account",subit:1)
+		br
+		br
+		label(for="password") Password: 
+		input.w3-input.w3-hover-blue(type="password",name="password",submit:1)
+		br
+		br
+		input(type="submit", value="Submit", onclick=`Admit( 'collect', {client:'${ioClient}'} )` )
+
+//- UNCLASSIFIED

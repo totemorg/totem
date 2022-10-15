@@ -1,0 +1,427 @@
+//- UNCLASSIFIED
+extends base
+
+append base_help
+	block site_help
+	:markdown
+		# site
+		Provides a skinning framework with options:
+
+			- etc = side bar links (!{etc})
+			- dock = folder docking style = left || right || top || bottom (!{dock})
+			- dims = width,height frame dimensions (!{dims})
+			- view = skinning style = home || kiss || min || basic || simple ... (!{view})
+			- secureLink = enable the secureLink (!{secureLink})
+			- explore = url to explore (!{explore})
+			- northedit = place editor in north paine (!{northedit})
+			- project = name of project (!{project})
+
+append base_parms
+	- tech = "layout"
+	
+	block site_parms
+		- etc = "links || status || pocs"
+		- dock = "top"
+		- dims = "100%,100%"
+		- explore = flags.explore || ""
+		- project = flags.project || table
+		- view = flags.view || "tabbed"
+		- secureLink = !explore
+		- northedit = false
+		- Explore = {}
+		- ref = {hostname:$referer.hostname,port:$worker.port,domain:$referer.hostname}
+		- Object.keys(explorer).forEach( key => Explore[key] = key.linkify( (explorer[key].startsWith("/") ? "" : "http://${hostname}:${port}")+"/site.view".tag("?",{_project:key,_explore: explorer[key]}) ).parse$(ref) )
+
+append base_head
+	block site_head
+
+append base_body
+	- rand = Math.floor( Math.random() * 20 )
+	- logo = `/icons/banners/${domain}/header${rand}.jpg`
+	- credit = ((profile.Credit*1e-3).toFixed(0)+"$ "+profile.QoS+"qos")
+	- button = name => "".tag("img",{src:`/icons/actions/${name}.png`,width:10,height:10}).tag("button",{id:name,text:name,value:"on",class:"btn",onclick:`secure_${name}()`})
+	- up1 = "upload".tag("label",{for:"uploadInput"})
+	- up2 = "".tag("input", {id:"uploadInput",name:"bodyKey",class:"inputfile",type:"file",size:10})
+	- up3 = button("insert")
+	- upload = (up1+up2+up3) //.tag("form",{enctype:"multipart/form-data",action:"/upload",method:"post"})
+	- toolbar = explore ? "" : `${upload} || ${credit} || ${uses}`.tag("span").tag("form",{enctype:"multipart/form-data",action:"/upload",method:"post"})
+
+	if secureLink
+		script(type="text/javascript",src="/clients/openpgp.min.js")
+		script(type="text/javascript",src="/uis/uilink.js")
+		link(rel='stylesheet',href='/uis/uilink.css')
+
+		- users = "".tag("select").tag("span",{id:"users"})
+		//- rooms = "".tag("select").tag("span",{id:"rooms"})
+		- tips = {save:"passphrase",load:"passphrase",login:"account/password"}
+		- scroll = "".tag("input",{id:"scroll",type:"number",value:1,min:0,max:0,onclick:"secure_scroll()"})
+		- button = name => "".tag("img",{src:`/icons/actions/${name}.png`,width:15,height:15}).tag("button",{id:name,text:name,value:"on",class:"btn",onclick:`secure_${name}()`})
+		- ctrl = name => (button(name)+tips[name].tag("span",{class:"w3-text"})).tag("span",{class:"w3-tooltip"})
+		- ctrls = ctrl("save")+ctrl("load")+ctrl("login")+scroll
+		- notice = "".tag("input", {id:"notice",type:"text",autocomplete:"on",size:75,value:"hello",onchange:"secure_signal()"})
+		- tick = "".tag("input", {id:"tick",type:"text",size:1, class:"infoBox", value:timeout,	disabled: 1, style:"display:none"}),
+		- tries = "".tag("input", {id:"tries",	type:"text",size:1, class:"infoBox", value:retries,	disabled: 1, style:"display:none" }),
+		- probe = "".tag("span",{id:"probe",class:"w3-text"})
+		- toolbar += [users, ctrls, tick + tries, probe, notice].join("")
+
+	p.ui-banner= banner
+
+	case view
+		when "tabbed"
+			border#xSite(
+				crush, splash=true,
+				head="Prefs(Locales,Themes),Files(Manage,Uploads,$uploads,Stores,$stores),Options,LikeUs,Help",
+				LikeUs="/likeus.db",
+				Manage="/files.view" )
+
+				p some info
+				tab#center(class=project.link( explore || url ))
+					if explore
+						iframe(src=explore.tag("?",{_view:"kiss"}),width="100%",height="100%",style="border:none")
+						block site_body
+
+					else
+						folder#xFolder(dock=dock)
+							block site_body
+
+				tab#north(class=toolbar)
+					img(src=logo,width="100%",height="80px")
+					if northedit
+						- button = name => "".tag("img",{src:`/icons/actions/${name}.png`,width:15,height:15}).tag("button",{id:name,text:name,value:"on",class:"btn",onclick:`edit_${name}()`})
+						- tools = button("save") + button("find") + button("replace") + button("show") 
+						//-
+						style.
+							#aceEdit {
+								position: relative;
+								top: 0;
+								right: 0;
+								bottom: 0;
+								left: 0;
+								height: 200px;
+								width: 100%;
+							}
+							.app_editor {
+								height: 300px;
+							}
+							.app_editor_wrapper {
+								background-color: #cccccc;
+								border-bottom: 1px solid #222222;
+							}
+							.app_editor_dragbar {
+								background-color: #222222;
+								width: 100%;
+								height: 4px;
+								cursor: row-resize;
+								opacity: 1;
+							}
+
+						//-
+						script(type="text/javascript",src="/clients/acemin/ace.js")
+						//script(type="text/javascript",src="/clients/acemin/ext-linking.js")
+						script(type="text/javascript",src="/clients/acemin/ext-language_tools.js")
+
+						span!= tools
+
+						//-
+						#aceEdit_wrapper.app_editor_wrapper
+							#aceEdit.app_editor
+							#aceEdit_dragbar.app_editor_dragbar
+
+						//-
+						script.
+							function edit_save() {
+								Ajax({
+									code: ed.getValue()
+								}, "put", `/engines?name=#{table}`, res => {
+									alert("save #{table}");
+									//alert(res);
+								});
+							}
+							function edit_find() {
+								alert("find");
+							}
+							function edit_replace() {
+								alert("replace");
+							}
+							function edit_show() {
+								const 
+									ctx_editor = document.getElementById("aceEdit"),
+									rect = ctx_editor.getBoundingClientRect();
+
+								ctx_editor.style.height = "10px";
+								ctx_editor.style.opacity = 1;
+								ed.resize();
+							}
+
+							const ed = ace.edit("aceEdit", {
+								value: unescape("#{escape(skin)}"), 	// escape to avoid jade bug
+								newLineMode: "linux",
+								mode: "ace/mode/coffee",
+								//mode: "ace/mode/javascript",
+								//mode: "ace/mode/asciidoc",
+								theme: "ace/theme/chaos",
+								selectionStyle: "text",
+								autoScrollEditorIntoView: true,
+								copyWithEmptySelection: true,
+								fontSize: 16,
+								highlightActiveLine: true,
+								hScrollBarAlwaysVisible: true,
+								vScrollBarAlwaysVisible: true,
+
+								// auto complete requires ext-language scripts
+								//enableBasicAutocompletion: true,	
+								//enableLiveAutocompletion: true,
+
+								// code folding
+								foldStyle: "markbegin",
+								showGutter: true,
+								showLineNumbers: true,
+								showFoldWidgets: true 
+
+								// text linking requires ext-linking scripts
+								// https://ourcodeworld.com/articles/read/994/how-to-make-an-ace-editor-instance-resizable-by-the-user-dinamically-with-a-drag-and-drop-bar
+								// https://ourcodeworld.com/articles/read/994/how-to-make-an-ace-editor-instance-resizable-by-the-user-dinamically-with-a-drag-and-drop-bar
+								//enableLinking: true
+							}); 
+
+							ed.on("linkClick", data => {	// text-linking
+								console.log("CLICK", data); 
+								if (data && data.token && data.token.type == "link") 
+									window.open(data.token.value, "_blank");
+
+								function GetWordByPos(str, pos) {	// get only one word from the whole string
+									var left = str.substr(0, pos);
+									var right = str.substr(pos);
+
+									left = left.replace(/^.+ /g, "");
+									right = right.replace(/ .+$/g, "");
+
+									alert("get="+ left + right);
+									return left + right;
+								}
+
+								var pos = data.position.column;
+								var token = data.token.value;
+								var url = GetWordByPos(token,pos);
+								alert('You clicked on '+url);
+							});
+
+							// Global variable to store the ids of the status of the current dragged ace editor.
+							window.draggingAceEditor = {};
+
+							function makeAceEditorResizable(editor) {
+								var id_editor = editor.container.id;
+								var id_dragbar = id_editor + '_dragbar';
+								var id_wrapper =  id_editor + '_wrapper';
+								var wpoffset = 0;
+								window.draggingAceEditor[id_editor] = false;
+
+								var action_mousedown = function(e) {
+									e.preventDefault();
+
+									window.draggingAceEditor[id_editor] = true;
+
+									// Set editor opacity to 0 to make transparent so our wrapper div shows
+									document.getElementById(id_editor).style.opacity = 0;
+
+									document.addEventListener("mousemove", action_document_mousemove);
+								};
+
+								var action_document_mousemove = function(e) {
+									e.preventDefault();
+									var _editor = document.getElementById(id_editor);
+									var rect = _editor.getBoundingClientRect();
+
+									var rsl = {
+										top: rect.top + document.body.scrollTop
+									};
+
+									var top_offset = rsl.top - wpoffset;
+
+									var actualY = e.pageY - wpoffset;
+
+									// editor height
+									var eheight = actualY - top_offset;
+
+									// Set wrapper height
+									document.getElementById(id_wrapper).style.height = eheight;
+
+									// Set dragbar opacity while dragging (set to 0 to not show)
+									document.getElementById(id_dragbar).style.opacity =  0.15;
+								};
+
+								document.getElementById(id_dragbar).addEventListener("mousedown", action_mousedown);
+
+								var action_mouseup = function(e) {
+									if (window.draggingAceEditor[id_editor]) {
+										var ctx_editor = document.getElementById(id_editor);
+
+										var rect = ctx_editor.getBoundingClientRect();
+
+										var rsl = {
+											top: rect.top + document.body.scrollTop
+										};
+
+										var actualY = e.pageY - wpoffset;
+										var top_offset = rsl.top - wpoffset;
+										var eheight = actualY - top_offset;
+
+										document.removeEventListener("mousemove", action_document_mousemove);
+
+										// Set dragbar opacity back to 1
+										document.getElementById(id_dragbar).style.opacity = 1;
+
+										// Set height on actual editor element, and opacity back to 1
+										ctx_editor.style.height = eheight + "px";
+										ctx_editor.style.opacity = 1;
+
+										// Trigger ace editor resize()
+										editor.resize();
+
+										window.draggingAceEditor[id_editor] = true;
+									}
+
+									else {
+										//editor.resize();
+									}
+								};
+
+								document.addEventListener("mouseup", action_mouseup);
+							}
+
+							makeAceEditorResizable(ed);
+
+				tab#south
+					p!= sitemap
+
+				tab#west(class=etc)
+					:markdown
+						!{Explore.Totem}  
+						!{Explore.Notebooks}  
+						!{Explore.API}  
+						!{Explore.SkinGuide}  
+						!{Explore.JIRA}  
+						!{Explore.RAS}  
+						!{Explore.Root}  
+						!{Explore.Earth}  
+						!{Explore.Streets}  
+						!{Explore.Process}  
+						!{Explore.Graph}  
+						!{Explore.Repo}  
+						!{Explore.Survey}  
+						!{Explore.Calendar}  
+
+		when "test"
+			folder#Fold
+				tab.One
+					p tab1 content
+					grid#test1(path="/demo.db",cols="ID...hide,Name,Counter.n.careful,Source,Description.x,Start")
+
+				tab.Two
+					p tab2 content
+
+		when "min"
+			border#xSite(
+				crush, splash=true,
+				head="Prefs(Locales,Themes),Files(Manage,Uploads,$uploads,Stores,$stores),Options,LikeUs,Help",
+				LikeUs="/likeus.db",
+				Manage="/files.view" )
+
+				block site_help
+				tab#center
+					block site_body
+
+				tab#north(class=toolbar)
+					img(src=logo,width="100%",height="80px")
+
+				tab#west(class=etc)
+					:markdown
+						!{Explore.Totem}  
+						!{Explore.Notebooks}  
+						!{Explore.API}  
+						!{Explore.SkinGuide}  
+						!{Explore.JIRA}  
+						!{Explore.RAS}  
+						!{Explore.Root}  
+						!{Explore.Earth}  
+						!{Explore.Streets}  
+						!{Explore.Process}  
+						!{Explore.Graph} 
+						!{Explore.Repo}  
+						!{Explore.Survey}  
+		when "basic"
+			folder#xSite(dock=dock)
+				block site_body
+
+		when "insert"
+			border#xSite(head="Options,Help",crush)
+
+				block site_help
+				#folder(class=project,center,dock=dock)
+					block site_body
+
+		when "home"
+			border#xSite(
+				title=toolbar,crush,dims=dims,
+				head="Health,Users,Themes,Capture,Links,Options,Likeus,Help",
+				LikeUs="/likeus.db" )
+
+				block site_help
+				// #post.xBrief(path="/briefs.view?notebook=#{project}",dims="600,300")
+
+				tab#center(class=project)
+					block site_body
+
+		when "monster"
+			border#xSite(
+				title=toolbar,crush,
+				head="More(Health,Users,Links,Themes),Uploads,$uploads,Stores,$stores,Views,Options,LikeUs,Help",
+				LikeUs="/likeus.db")
+
+				block site_help
+				// #post.xBrief(path="/briefs.view?notebook=#{name}",dims="600,300")
+
+				//
+					#pivot.Helpful.Links(
+					west,crush,dims="200,600",
+					path="/sidebars.db",
+					cols="Pivot(NodeID,Topic),Special")
+
+				tab#center(class=project)
+					block site_body
+
+		when "kiss"
+		when "simple"
+			if explore
+				span!= flags.nomenu ? "" : "Open".link( explore )
+				iframe(src=explore.tag("?",{_view:"kiss"}),width="100%",height="100%",style="border:none")
+
+		when "search"
+			border#xSite(
+				crush,
+				head="Comfort,Prefs(Locales,Themes),Files(Manage,Uploads,$uploads,Stores,$stores),Options,Likeus,Help",
+				LikeUs="/likeus.db",
+				Manage="/files.view",
+				title=toolbar)
+
+				grid#Search(
+					path="/catalog.db",center,crush,
+					head="Search,Execute,Print,Refresh",
+					cols="Ref,Name,Link.h,Dated.d,Quality")
+
+				tab#center.home
+					block site_body
+
+		default
+			border#xSite(
+				title=toolbar,
+				crush,
+				head="System(Health,Users,Links,Notebooks,Tasks),Prefs(Locales,Themes),Files(Manage,Uploads,$uploads,Stores,$stores),Options,LikeUs,Capture,Help",
+				LikeUs="/likeus.db",
+				Manage="/files.view")
+
+				block site_help
+				// #post.xBrief(path="/briefs.view?notebook=#{name}",dims="600,300")
+
+				tab#center.home
+					block site_body

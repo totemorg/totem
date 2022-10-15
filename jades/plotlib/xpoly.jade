@@ -1,0 +1,163 @@
+// UNCLASSIFIED 
+extends base
+append base_help
+	:markdown
+		 Produce d3 polytope with parameters:  
+
+			src = /ds?query source-x-y providing [{name:"",points:{x,y}},... ] data
+			w = drawing width
+			h = drawing height
+			debug = level send debugging alerts
+			grid = X,Y axes grid
+			styles = color,color, ... line color
+			markers = style,style, ... line markers
+			label = X,Y labels
+			min = X,Y axis minimums
+			max = X,Y axis maximums
+			details = show xy locations
+			chan = widget "min:max:step" on x,y channels
+			x,y,fill,line = src keys
+
+append base_parms
+	- tech = "d3v3"
+
+append base_head
+
+	style.
+		body {
+			font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+			margin: auto;
+			position: relative;
+			width: 960px;
+		}
+ 
+	script.
+		var
+			tagInfo = window.open( 
+				"click", 
+				"_blank",
+				`left=10px,top=10px,width=200,height=100,location=0,menubar=0,status=0,titlebar=0,toolbar=0` ),
+
+			opts = {  // define plot options
+				ds: "!{query.src}" || "/stores/polytopes.json",
+				
+				dims: {
+					margin: {top: 5, right: 20, bottom: 20, left: 10},
+					width: parseInt("#{query.w}") || 1200,
+					height: parseInt("#{query.h}") || 500
+				},
+				debug: "#{query.debug}".eval("0"),
+				markers: "#{query.markers}".eval( "circle,square,diamond" ),
+				styles: "#{query.styles}".eval( "black,greem,red,yellow,orange" ),
+				radius: "#{query.radius}".eval( "10" ),
+				//grid: "#{query.grid}".eval("1,1"),
+				//label: ( "#{query.label}" || "x,y" ).option(),
+				//min: ("#{query.min}" || "0,0").split(","),
+				//max: ("#{query.max}" || "1,1").split(","),
+				//extra: null, //"#{query.extra}".option(),
+				//details: "#{query.details}",
+				//index: "#{query.index}".option(),
+				//keys: ("#{query.keys}" || "x,y,details").option(),
+
+				url: "#{url}",
+				family: "plot",
+				keys: {
+					X: "!{query.x}" || "x",
+					Y: "!{query.y}" || "y",
+					FILL: "!{query.fill}" || "fill",
+					LINE: "!{query.line}" || "line"
+				},					
+				widgets: {
+					chan: "#{query.chan}".eval( "0,255,1"),
+					a: "#{query.a}".eval( "0.5" ),
+					b: "#{query.b}".eval( "0.5" ),
+					xxsave: false 
+						? () => {
+								alert("reserved");
+								return;
+								var 
+									a = document.getElementById("_a").value,
+									b = document.getElementById("_b").value,
+									name = `gen-${a}-${b}`,
+									beta = `/beta?Name=${name}`;
+
+								Ajax("put", true, beta, res => {
+									alert(res);
+								}, {
+									snr: 1,
+									gain: 1,
+									density: 1
+								});
+							}
+						: null
+				}
+			};
+
+append base_body
+	if !query.help
+		script.
+			Fetch( opts, (data,svg) => {
+				var 
+					{radius} = opts;
+			
+				var 
+					width = svg.attr("width"),
+					height = svg.attr("height"),			
+					margin = opts.dims.margin,
+					svg = svg.append("g")
+							.attr("transform", "translate(" + margin.left + "," + margin.top + ")"),
+
+					body = d3.select("body");
+				
+				var 
+					xScale = d3.scale.linear()
+						.domain([-radius,radius]) //Give appropriate range in the scale
+						.range([0,width]),
+				
+					yScale = d3.scale.linear()
+						.domain([-radius,radius]) //Give appropriate range in the scale
+						.range([height,0]);
+
+				//console.log(data);
+			
+				svg.selectAll("polygon")
+					.data(data)
+					.enter().append("polygon")
+					.attr("points", d => d.points.map( 
+									d => [xScale(d.x),yScale(d.y)].join(",")
+								).join(" "))
+					.attr("fill","none")
+					.attr("stroke","black")
+					.attr("stroke-width",2); 
+
+				data.forEach( poly => {
+					svg.append("g")
+						.selectAll( "circle" )
+							.data(poly.points)
+							.enter()
+								.append( "circle" )
+									//.attr("class", "marker")
+									.attr("r", 4)
+									.attr("cx", d => xScale(d.x))  
+									.attr("cy", d => yScale(d.y))
+									.on("click", d => {
+										//tagInfo.document.clear();
+										tagInfo.document.write( "<br>"+d.tag );
+									})
+									.style("fill", d => "red" );
+					
+					/*
+					svg.selectAll("text")
+						.data(poly.points)
+						.enter()
+							.append("text")
+								.text( d => d.tag )
+								.attr("x", d => xScale(d.x) )
+								.attr("y", d => yScale(d.y) )
+								.attr("dy", ".35em")
+								.attr("font-family", "sans-serif")
+								.attr("font-size", "11px")
+								.attr("fill", "black"); 		*/			
+				});
+			
+			});

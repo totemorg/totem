@@ -1,0 +1,144 @@
+//- UNCLASSIFIED
+
+extends base
+append base_help
+	:markdown
+		Display d3 gear chart using parameters:
+
+			src = source returning [ [...], ... ]
+			w = drawing width
+			h = drawing height
+			debug = level of debugging alerts
+
+append base_parms
+	- tech = "d3v5"
+
+append base_head
+	style.
+		.group text {
+			font: 11px sans-serif;
+			pointer-events: none;
+		}
+		.group path {
+			stroke: #000;
+		}
+		path.chord {
+			stroke-width: .75;
+			fill-opacity: .75;
+		}
+		.group-tick line {
+			stroke: #000;
+		}
+		.ribbons {
+			fill-opacity: 0.67;
+		}																						  
+		body {
+			font-family: 'Open Sans', sans-serif;
+			font-size: 12px;
+			font-weight: 400;
+			background-color: #fff;
+			width: 960px;
+			height: 700px;
+			margin-top: 10px;
+		}
+		svg {
+			width: "100%";
+			height: auto;
+		}
+
+	script.
+		var opts = {
+			ds: "!{query.src}" || "/stores/matrix.json", 
+
+			url: "#{url}",
+			family: "chords,bundle",
+																								 
+			dims: {
+				margin: {top: 20, right: 90, bottom: 30, left: 90},
+				width: parseInt("#{query.w}") || 1200,
+				height: parseInt("#{query.h}") || 500
+			},
+			debug: parseInt("#{query.debug}" || "0"),
+
+			keys: {
+				NODE: "#{query.node}" || "name",
+				CHILDREN: "#{query.children}" || "children",
+				VALUE: "#{query.value}" || "value",
+				DOC: "#{query.doc}" || "doc"
+			}
+		};
+
+append base_body
+	script.
+		Fetch( opts, (data,svg) => {
+			function graphic(svg) {
+				svg // = d3.create("svg")
+						.attr("viewBox", [-0.53, -0.53, 1.06, 1.06])
+						.attr("stroke", "black")
+						.attr("stroke-width", 1 / 640)
+						.style("max-width", "640px")
+						.style("display", "block")
+						.style("margin", "auto");
+
+				const frame = svg.append("g");
+
+				const path = frame.selectAll("path")
+					.data(gears)
+					.join("path")
+						.attr("fill", d => d.fill)
+						.attr("d", gear);
+
+				return Object.assign(svg.node(), {
+					update(angle, frameAngle) {
+						path.attr("transform", d => `translate(${d.origin}) rotate(${(angle / d.radius) % 360})`);
+						frame.attr("transform", `rotate(${frameAngle % 360})`);
+					}
+				});
+			}
+
+			function gear({teeth, radius, annulus}) {
+				const n = teeth;
+				let r2 = Math.abs(radius);
+				let r0 = r2 - toothRadius;
+				let r1 = r2 + toothRadius;
+				let r3 = holeRadius;
+				if (annulus) r3 = r0, r0 = r1, r1 = r3, r3 = r2 + toothRadius * 3;
+				const da = Math.PI / n;
+				let a0 = -Math.PI / 2 + (annulus ? Math.PI / n : 0);
+				const path = ["M", r0 * Math.cos(a0), ",", r0 * Math.sin(a0)];
+				let i = -1;
+				while (++i < n) {
+					path.push(
+						"A", r0, ",", r0, " 0 0,1 ", r0 * Math.cos(a0 += da), ",", r0 * Math.sin(a0),
+						"L", r2 * Math.cos(a0), ",", r2 * Math.sin(a0),
+						"L", r1 * Math.cos(a0 += da / 3), ",", r1 * Math.sin(a0),
+						"A", r1, ",", r1, " 0 0,1 ", r1 * Math.cos(a0 += da / 3), ",", r1 * Math.sin(a0),
+						"L", r2 * Math.cos(a0 += da / 3), ",", r2 * Math.sin(a0),
+						"L", r0 * Math.cos(a0), ",", r0 * Math.sin(a0)
+					);
+				}
+				path.push("M0,", -r3, "A", r3, ",", r3, " 0 0,0 0,", r3, "A", r3, ",", r3, " 0 0,0 0,", -r3, "Z");
+				return path.join("");
+			}
+
+			var
+				width = svg.attr("width"),
+				height = svg.attr("height");
+
+			var
+				speed = 0.08,
+				holeRadius = 0.02,
+				toothRadius = 0.008;
+					
+			mutable angle = 0;
+			mutable frameAngle = 0;
+			while (true) {
+				yield graphic.update(
+					mutable angle += speed,
+					mutable frameAngle += speed / frameRadius
+				);
+			}
+
+		});
+
+// UNCLASSIFIED

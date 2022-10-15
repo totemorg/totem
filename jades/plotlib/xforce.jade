@@ -1,0 +1,212 @@
+//- UNCLASSIFIED
+extends base
+append base_help
+	:markdown
+		Display d3 force graph:
+
+			src = source returning NODES = [ { name: "...", value: N, doc: "...", children: NODES }, ... ]
+			pivots = key,key,...
+			w = drawing width
+			h = drawing height
+			debug = debugging level
+			node,children,value,doc = src keys
+
+		with nodes sized to node.weight + length(node[CHILDREN]).
+
+append base_parms
+	- tech = "d3v5"
+
+append base_head
+	style.
+		circle.node {
+			cursor: pointer;
+			stroke: #000;
+			stroke-width: .5px;
+		}
+		line.link {
+			fill: none;
+			stroke: #9ecae1;
+			stroke-width: 1.5px;
+		}
+
+	script.
+		var opts = {
+			ds: "!{query.src}" || "/stores/flare.json",
+			
+			url: "#{url}",
+			family: "cluster",
+
+			dims: {
+				margin: {top: 20, right: 90, bottom: 30, left: 90},
+				width: parseInt("#{query.w}") || 1200,
+				height: parseInt("#{query.h}") || 500
+			},
+			debug: parseInt("#{query.debug}" || "0"),
+			
+			keys: {
+				NODE: "#{query.node}" || "name",
+				CHILDREN: "#{query.children}" || "children",
+				DOC: "#{query.doc}" || "doc",
+				VALUE : "#{query.size}" || "size"	
+			}
+		};
+
+		const {NODE, CHILDREN, VALUE , DOC} = opts.keys;
+										
+append base_body
+	script.
+		Fetch( opts, (data,svg) => {
+			function update() {
+				function flatten(root) {	// Returns a list of all nodes under the root.
+					var nodes = [], links = [], id = 0;
+
+					function recurse(node) {
+						if (!node.id) node.id = ++id;
+
+						nodes.push(node);
+
+						return node[VALUE ] = (children = node[CHILDREN]) 
+							? children.reduce( (weight, child) => {
+								links.push({
+									source: node,
+									target: child
+								});						
+								return weight + recurse(child);
+							}, 2)
+							:  2;
+					}
+
+					root[VALUE ] = recurse(root);
+					return {
+						nodes: nodes,
+						links: links
+					};
+				}
+
+				function details(d) {
+					var isView = d.doc.constructor == String;
+
+					var doc = window.open(
+						isView ? d.doc : "",
+						"_blank",
+						"left="+d.x+"px,"
+						+ "top="+d.y+"px,"
+						+ "width=50,height=50,location=0,menubar=0,status=0,titlebar=0,toolbar=0");
+
+					if ( !isView )
+						doc.document.write(JSON.stringify( d.doc ));
+
+					//var g = d3.select(this); // the node
+
+					/*var add = d3.select("body")
+						.append("iframe")
+						.attr("src", "/home.body")
+						.attr("width",100)
+						.attr("height",100);*/
+
+					/*var div = d3.select("body")
+							.append("div")
+							.attr("pointer-events","none")
+							.attr("class","tooltip")
+							.style("opacity",1)
+							.html("hello<br>there")
+							.style("left", (d.x+50))
+							.style("top", (d.y));*/
+				}
+
+				// Color leaf nodes orange, and packages white or blue.
+				function color(d) {
+					return d._children ? "#3182bd" : d[CHILDREN] ? "#c6dbef" : "#fd8d3c";
+				}
+
+				var 
+					graph = flatten(root),
+					nodes = graph.nodes,
+					links = graph.links; 
+
+				//Log("nodes", nodes);
+				var sim = d3.forceSimulation( nodes )
+					.on("tick", () => {
+						xlink
+							.attr("x1", d => d.source.x )
+							.attr("y1", d => d.source.y )
+							.attr("x2", d => d.target.x )
+							.attr("y2", d => d.target.y );
+
+						xnode
+							.attr("cx", d => d.x )
+							.attr("cy", d => d.y );
+					})
+					.force( "charge", d3.forceManyBody().strength( d => d._children ? -d[VALUE ] / 100 : -30 ))
+					.force( "link", d3.forceLink( links ).distance( d => d.target._children ? 80 : 30 ))
+					.force( "center", d3.forceCenter() );
+
+				// Restart the force layout.
+				/*sim
+					.nodes(nodes)
+					.links(links)
+					.start();  */
+
+				// Update the links
+				var	xlink = svg.selectAll("line.link")
+					.data(links, d => d.target.id );
+
+				// Enter any new links.
+				xlink.enter().insert("line", ".node")
+					.attr("class", "link")
+					.attr("x1", d => d.source.x )
+					.attr("y1", d => d.source.y )
+					.attr("x2", d => d.target.x )
+					.attr("y2", d => d.target.y );
+
+				// Exit any old links.
+				xlink.exit().remove();
+
+				// Update the nodes
+				var xnode = svg.selectAll("circle.node")
+					.data(nodes, d => d.id )
+					.style("fill", color);
+
+				xnode.transition()
+					.attr("r", d => 5 );
+
+				// Enter any new nodes.
+				xnode.enter().append("circle")
+					.attr("class", "node")
+					.attr("cx", d => d.x )
+					.attr("cy", d => d.y )
+					.attr("r", d => 2 )
+					.style("fill", color)
+					.on("click", d => {		// Toggle children on click.
+						if (d[CHILDREN]) {
+							d._children = d[CHILDREN];
+							d[CHILDREN] = null;
+						} else {
+							d[CHILDREN] = d._children;
+							d._children = null;
+						}
+
+						if (d.doc) details(d);
+						update();
+					});
+					//.call(force.drag);
+
+				// Exit any old nodes.
+				xnode.exit().remove();
+			}
+
+			var
+				width = svg.attr("width"),
+				height = svg.attr("height"),
+				root = data[0] || data;				
+
+			svg.attr("transform", "translate(" + width/2 + "," + height/2 + ")");
+
+			root.fixed = true;
+			root.x = width / 2;
+			root.y = height / 2;
+			
+			update();
+		});
+
+//- UNCLASSIFIED

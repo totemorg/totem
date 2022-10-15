@@ -1,0 +1,177 @@
+//- UNCLASSIFIED
+extends base
+append base_help
+	:markdown
+		Display d3 circle-pack chart using parameters:
+
+			src = source returning NODES = [ { name: "...", value: N, doc: "...", children: NODES }, ... ]
+			name = "name" || "name%..." || "" of source record(s)
+			pivots = "key,key,..." || "" source record grouping keys
+			w = drawing width
+			h = drawing height
+			debug = level of debugging alerts
+			node,children,value,doc = src keys
+
+append base_parms
+	- tech = "d3v5"
+
+append base_head
+	style.
+		.node {
+			cursor: pointer;
+		}
+
+		.node:hover {
+			stroke: #000;
+			stroke-width: 1.5px;
+		}
+
+		.node--leaf {
+			fill: white;
+		}
+
+		.label {
+			font: 11px "Helvetica Neue", Helvetica, Arial, sans-serif;
+			text-anchor: middle;
+			text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff;
+		}
+
+		.label,
+		.node--root,
+		.node--leaf {
+			pointer-events: none;
+		}
+
+	script.
+		var opts = {
+			ds: "!{query.src}" || "/stores/flare.json",
+			
+				/* "#{query.pivots}"
+				? "!{query.src}.tree?name=#{query.name}&_sort=#{query.pivots}"
+				: "#{query.name}"
+							? "!{query.src}.schema?name=#{query.name}"
+							: "!{query.src}" || "/stores/flare.json", */
+
+			url: "#{url}",
+			family: "cluster",
+
+			dims: {
+				margin: {top: 20, right: 90, bottom: 30, left: 90},
+				width: parseInt("#{query.w}") || 1200,
+				height: parseInt("#{query.h}") || 500
+			},
+			debug: parseInt("#{query.debug}" || "0"),
+
+			keys: {
+				NODE: "#{query.node}" || "name",
+				CHILDREN: "#{query.children}" || "children",
+				VALUE: "#{query.value}" || "value",
+				DOC: "#{query.doc}" || "doc"
+			}
+		};
+
+		const {NODE, CHILDREN, VALUE, DOC} = opts.keys;
+
+append base_body
+	script.
+		var focus;
+		var view;
+		Fetch( opts, (data,svg) => {
+		
+			var
+				width = svg.attr("width"),
+				height = svg.attr("height"),
+				margin = opts.dims.margin.left;
+					
+			var
+				diameter = width,
+				radius = diameter / 2;
+
+			const
+				format = d3.format(",d"),
+					
+				pack = data => d3.pack()
+				.size([width, height])
+				.padding(3)
+				(d3.hierarchy(data)
+				.sum(d => d[VALUE] )
+				.sort((a, b) => b[VALUE] - a[VALUE])),
+	
+				color = d3.scaleLinear()
+					.domain([0, 5])
+					.range(["hsl(152,80%,80%)", "hsl(228,30%,40%)"])
+					.interpolate(d3.interpolateHcl);
+		
+			const 
+				root = pack(data);
+			
+			focus = root;
+
+			svg //= d3.create("svg")
+					.attr("viewBox", `-${width / 2} -${height / 2} ${width} ${height}`)
+					.style("display", "block")
+					.style("margin", "0 -14px")
+					.style("background", color(1))
+					.style("cursor", "pointer")
+					.on("click", () => zoom(root));
+			
+			const 
+				node = svg.append("g")
+				.selectAll("circle")
+				.data(root.descendants()) //.slice(1))
+				.join("circle")
+					.attr("fill", d => d.children ? color(d.depth) : "white")
+					.attr("pointer-events", d => !d.children ? "none" : null)
+					.on("mouseover", function() { d3.select(this).attr("stroke", "#000"); })
+					.on("mouseout", function() { d3.select(this).attr("stroke", null); })
+					.on("click", d => focus !== d && (zoom(d), d3.event.stopPropagation()));
+			
+			const 
+				label = svg.append("g")
+				.style("font", "10px sans-serif")
+				.attr("pointer-events", "none")
+				.attr("text-anchor", "middle")
+					.selectAll("text")
+					.data(root.descendants())
+					.join("text")
+						.style("fill-opacity", d => d.parent === root ? 1 : 0)
+						.style("display", d => d.parent === root ? "inline" : "none")
+						.text(d => {
+							//console.log(d.data);
+							return d.data[NODE];
+							});
+			
+			zoomTo([root.x, root.y, root.r * 2]);
+
+			function zoomTo(v) {
+				const k = width / v[2];
+
+				view = v;
+				label.attr("transform", d => `translate(${(d.x - v[0]) * k},${(d.y - v[1]) * k})`);
+				node.attr("transform",  d => `translate(${(d.x - v[0]) * k},${(d.y - v[1]) * k})`);
+				node.attr("r", d => d.r * k );
+			}
+
+			function zoom(d) {
+				const focus0 = focus;
+
+				focus = d;
+
+				const transition = svg.transition()
+						.duration(d3.event.altKey ? 7500 : 750)
+						.tween("zoom", d => {
+							const i = d3.interpolateZoom(view, [focus.x, focus.y, focus.r * 2]);
+							return t => zoomTo(i(t));
+						});
+
+				label
+					.filter(function(d) { return d.parent === focus || this.style.display === "inline"; })
+					.transition(transition)
+						.style("fill-opacity", d => d.parent === focus ? 1 : 0)
+						.on("start", function(d) { if (d.parent === focus) this.style.display = "inline"; })
+						.on("end", function(d) { if (d.parent !== focus) this.style.display = "none"; });
+			}
+
+		});
+
+// UNCLASSIFIED

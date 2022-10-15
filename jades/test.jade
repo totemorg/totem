@@ -1,0 +1,89 @@
+extends base
+append base_help
+	:markdown
+		# calendar
+		Provides a calendar for booking events
+
+append base_parms
+	- tech = "pick"
+
+append base_body
+	script.
+		const
+			calendar = "http://localhost:8080/events",
+			freeslot = "Reserved",
+			caltype = "Guitar";
+
+		var 
+			now = new Date();
+
+		function getAvail( cb ) {
+			function availHours(data) {
+				const
+					myHours = [ [], [], [], [], [], [], [] ];
+					/*myHours = [
+						['1:30', '2:30', '3:30', '4:30', '5:30', '6:30'],
+						['2:00'],
+						['3:00'],
+						['4:00'],
+						['5:00']
+					];*/
+
+				//console.log(data);
+				data.forEach( ev => {
+					ev.Date = new Date(ev.Date);
+					myHours[ ev.Date.getDay() ].push( ev.Date.getHours() + ":00" );
+				});
+				return myHours;
+			}
+
+			const 
+				yr = now.getFullYear(),
+				mth = now.getMonth(),
+				date = now.getDate(),
+				day = now.getDay(),
+				startDate = (new Date(yr, mth, date - day)).toISOString(),
+				endDate = (new Date(yr, mth, date - day + 6)).toISOString(),
+				query = { Client: freeslot, Type: caltype, "Date_in": `${startDate},${endDate}` };
+
+			Ajax( query, "get", calendar, res => cb( availHours(JSON.parse(res)) ) );
+		}
+
+		getAvail( hours => {
+			$("#content").markyourcalendar({
+				availability: hours,
+				isMultiple: false,
+				months: ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'],
+				weekdays: ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
+				startDate: new Date("09/oct/2022"),
+				//selectedDates: ["12/oct/2022"],
+				onClick: (ev, data) => {
+					//console.log("click", data);
+					var html = ``;
+					data.forEach( datetime => {
+						const [d,t] = datetime.split(' ');
+						html += `${ioClient} reserved ${d} at ${t} for a ${caltype} lesson`.tag("span");
+						Ajax( {Client: ioClient}, "put", calendar.tag("?",{ Date: datetime}), res => alert(res) );
+					});
+					$('#status').html(html);
+				},
+				onClickNavigator: (ev, instance) => {
+					//console.log(ev);
+					const offset = (ev.target.id == "myc-prev-week") ? -7 : +7;
+
+					now.setDate( now.getDate() + offset );
+					//console.log(now);
+					getAvail( hours => {
+						instance.setAvailability(hours);
+					});
+				}
+			});
+		});
+
+//
+blog.
+	Hello my name is ${name} 
+	end and <br>
+	only ${name} run at ${run}.  Below is a regression plot <br>
+	$plot{?w=500&h=500&min=0,0&max=1,1&x=Save_qda$cls[0].colRate&y=Save_qda$cls[0].hitRate&label=PrCollision,PrHit&sort=Save_qda$cls[0].nsigma&label=PrCollision,PrHit&grid=1,1&debug=0&src=/regress?name=test4d4m-*}
+	<br> and $embed{/regress.suitors} are my suitors.

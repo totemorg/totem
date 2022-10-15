@@ -1,0 +1,275 @@
+//- UNCLASSIFIED
+extends base
+append base_help
+	:markdown
+		# Display a graph network with parameters:
+
+			- src = path to {nodes:LIST, links:LIST} (!{src})
+			- w = drawing width (!{w})
+			- h = drawing height (!{h})
+			- debug = dump derived options (!{debug})
+			- chan = override ^chan ds channel spec (!{chan})
+			- NODES,LINKS = nodes,links = network keys
+			- ID,SIZE,GROUP,NAME = id,size,group = node keys 
+			- SID,TID,VALUE = source,target,value = link keys 
+
+		[sample](/graph.help?w=1800&h=1200&debug=2&src=/graph.json?name=nets_gtdpub_anet)  
+		[example](/graph.view?w=1800&h=1200&debug=2&src=/graph.json?name=nets_gtdpub_anet)
+
+append base_parms
+	- tech = "d3v5"
+
+append base_head
+	style.
+		.links line {
+		  stroke: #999;
+		  stroke-opacity: 0.6;
+		}
+
+		.nodes circle {
+		  stroke: #fff;
+		  stroke-width: 1.5px;
+		}
+
+		text {
+		  font-family: sans-serif;
+		  font-size: 10px;
+		}	
+
+		svg:not(.active):not(.ctrl) {
+			cursor: crosshair;
+		}
+
+		path.link {
+			fill: none;
+			stroke: #000;
+			stroke-width: 4px;
+			cursor: default;
+		}
+
+		svg:not(.active):not(.ctrl) path.link {
+			cursor: pointer;
+		}
+
+		path.link.selected {
+			stroke-dasharray: 10,2;
+		}
+
+		path.link.dragline {
+			pointer-events: none;
+		}
+
+		path.link.hidden {
+			stroke-width: 0;
+		}
+
+		circle.node {
+			stroke-width: 1.5px;
+			cursor: pointer;
+		}
+
+		circle.node.reflexive {
+			stroke: #000 !important;
+			stroke-width: 2.5px;
+		}
+
+		text {
+			font: 12px sans-serif;
+			pointer-events: none;
+		}
+
+		text.id {
+			text-anchor: middle;
+			font-weight: bold;
+		}
+
+	script.
+		//alert("src=#{query.src} debug=#{query.debug}");
+		var opts = {
+			ds: "!{query.src}" || "/stores/graph2.json",
+			dims: {
+				margin: {top: 10, right: 10, bottom: 10, left: 10},
+				width: parseInt("#{query.w}") || 1200,
+				height: parseInt("#{query.h}") || 500
+			},
+			debug: parseInt("#{query.debug}" || "0"),
+			keys: {
+				NODES: "!{query.NODES}" || "nodes",
+				LINKS: "!{query.LINKS}" || "links",
+				ID: "!{query.ID}" || "id",
+				SID: "!{query.SID}" || "source",
+				TID: "!{query.TID}" || "target",
+				SIZE: "!{query.SIZE}" || "size",
+				GROUP: "!{query.GROUP}" || "group",
+				NAME: "!{query.NAME}" || "name",
+				VALUE: "!{query.GROUP}" || "value"
+			},
+			widgets: {
+				chan: "#{query.chan}".eval( "0,255,1")
+			}
+		};
+
+		//console.log(opts);
+		const {ID,SID,TID,SIZE,VALUE,GROUP,NODES,LINKS,NAME} = opts.keys;
+
+append base_body
+	script.
+		// https://www.d3-graph-gallery.com/graph/network_basic.html
+		// https://bl.ocks.org/heybignick/3faf257bbbbc7743bb72310d03b86ee8
+		var color = d3.scaleOrdinal(d3.schemeCategory10);
+		color.domain( d3.range(0,10) );
+
+		Fetch( opts, (data,svg) => {
+			//console.log(data);
+			var
+				//svg = d3.select("svg"),
+				width = svg.attr("width"),
+				height = svg.attr("height");
+
+			//const { nodes, links } = data;
+			var
+				nodes = data[NODES] || [],
+				links = data[LINKS] || [];
+
+			if (0)
+				if ( node = nodes[0] )
+					if ( !("id" in node) )	// tag nodes with id if unspecified
+						nodes.forEach( (node,n) => nodes[n].id = n ); 
+
+			// Initialize the links
+
+			//console.log(links,nodes,VALUE);
+			var 
+				linksvg = svg.append("g")	// Initialize the links
+					.attr("class", "links")
+					.selectAll(".line")
+					.data(links)
+					.enter()
+						.append("line")
+						.attr("stroke-width", d => 4) 
+						.attr('marker-end','url(#arrowhead)')
+						.style("stroke", d => d[VALUE] || "#aaa");
+
+			var						
+				nodesvg = svg.append("g")		// Initialize the nodes
+					.attr("class", "nodes")
+					.selectAll("g")
+					.data(nodes)
+					.enter()
+						.append("g")
+						.attr("transform", d => "translate("+d.x+",80)" );
+
+			var
+				linkPaths = svg.append("g")
+					.selectAll(".linkpath")
+					.data(links)
+					.enter()
+						.append('path')
+						.style("pointer-events", "none")
+						.attrs({
+							'd': d => 'M '+d[SID].x+' '+d[SID].y+' L '+ d[TID].x +' '+d[TID].y,
+							'class':'linkpath',
+							'fill-opacity':0,
+							'stroke-opacity':0,
+							'fill':'blue',
+							'stroke':'red',
+							'id': (d,i) => 'linkpath' + i
+						}); 
+			var			
+				linkLabels = svg.append("g")
+					.selectAll(".linklabel")
+					.data(links)
+					.enter()
+						.append('text')
+						.style("pointer-events", "none")
+						.attrs({
+							'class': 'linklabel',
+							'id': (d, i) => 'linklabel' + i,
+							'dx': 80,
+							'dy': 0,
+							'font-size': 10,
+							'fill': 'black' // '#aaa'
+						}),
+
+				nodeMarkers = nodesvg
+					.append("circle")
+					.attr("r", d => 30) //SIZE] || 5)
+					.attr("fill", d => d[GROUP] || "black" ) // color(d[GROUP] ) )
+					.call(
+						d3.drag()
+							.on("start", d => {
+								 if (!d3.event.active) sim.alphaTarget(0.3).restart();
+								 d.fx = d.x;
+								 d.fy = d.y;
+							})
+							.on("drag", d => {
+									d.fx = d3.event.x;
+									d.fy = d3.event.y;							
+							})
+							.on("end", d => {
+									if (!d3.event.active) sim.alphaTarget(0);
+									d.fx = null;
+									d.fy = null;							
+							})
+					),
+
+				nodeLabels = nodesvg
+					.append("text")
+					.attr("dx", d => -20)
+					.text( d => d[ID] ); 
+
+			linkLabels.append('textPath')
+				.attr('xlink:href', (d,i) => '#linkpath' + i)
+				.style("text-anchor", "middle")
+				.style("pointer-events", "none")
+				.attr("startOffset", "50%")
+				.text( d => d[ID] );
+
+			// Let's list the force we wanna apply on the network
+
+			var sim = d3.forceSimulation() 	// Force algorithm is applied to data.nodes
+				.force("link", d3.forceLink()                      // This force provides links between nodes
+					.id( (d,i) => d[ID] || i )               // This provides the id of a node
+				)
+				//.distance(100).strength(1))
+				.force("charge", d3.forceManyBody().strength(-500))         // This adds repulsion between nodes. Play with the -400 for the repulsion strength
+				.force("center", d3.forceCenter(width / 2, height / 2));     // This force attracts nodes to the center of the svg area
+
+			sim
+				.nodes(nodes)
+				.on("tick",   () => {  // run at each iteration of the force algorithm, updating the nodes position.
+					linksvg
+						.attr("x1", d => d[SID].x )
+						.attr("y1", d => d[SID].y )
+						.attr("x2", d => d[TID].x )
+						.attr("y2", d => d[TID].y );
+
+					/*nodesvg
+						.attr("cx", d => d.x+6 )
+						.attr("cy", d => d.y-6 );					*/
+					nodesvg
+						.attr("transform", d => "translate(" + d.x + "," + d.y + ")" );
+
+					linkPaths.attr('d', d => 'M ' + d[SID].x + ' ' + d[SID].y + ' L ' + d[TID].x + ' ' + d[TID].y );
+
+					linkLabels.attr('transform', d => {
+							return 'rotate(0)';
+						/*
+							if (d[TID].x < d[SID].x) {
+									var bbox = this.getBBox();
+
+									rx = bbox.x + bbox.width / 2;
+									ry = bbox.y + bbox.height / 2;
+									return 'rotate(180 ' + rx + ' ' + ry + ')';
+							}
+							else {
+									return 'rotate(0)';
+							} */
+					});					
+				})
+				.force("link")
+				.links(links);                 // and this the list of links
+
+		});
+		
+//- UNCLASSIFIED

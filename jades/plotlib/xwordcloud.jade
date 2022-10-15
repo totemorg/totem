@@ -1,0 +1,138 @@
+extends base
+append base_help
+	:markdown
+		Produces a d3 word cloud with parameters:
+
+			src = path to free text file
+			w = drawing width
+			h = drawing height
+			debug = dump derived options
+
+append base_parms
+	- tech = "d3v4"
+
+append base_head
+	script(src="/clients/d3v4.wordcloud.js")
+	script.
+		var
+			opts = {  // define plot options
+				ds: "!{query.keys}" 
+						? "/words?src=!{query.src}&keys=!{query.keys}&N=!{query.N}"
+						: "!{query.src}",
+	
+				dims: {
+					margin: {top: 5, right: 20, bottom: 20, left: 10},
+					width: parseInt("#{query.w}") || 1200,
+					height: parseInt("#{query.h}") || 600
+				},
+				debug: parseInt("#{query.debug}"),
+
+				url: "#{url}",
+				family: "word",
+				widgets: {
+				}
+			};
+
+append base_body
+	script.
+		Fetch( opts, (data,svg) => {
+			const
+				{random,trunc,log10,min} = Math,
+				rots = [-45, 45, 90, -90],
+				sizes = [100, 80, 60, 40],
+				randrot = () => rots[trunc(random() * rots.length)],
+				scale = x => 
+					//200*x;
+					sizes[min(sizes.length-1,trunc(-log10(x)))];	
+			
+			var
+				//width = svg.attr("width"),
+				//height = svg.attr("height"),
+				{ keys,dims } = opts,
+				{ margin,width,height } = dims,
+				cnts = {};
+	
+			//Log(width,height,margin);
+			// append the svg object to the body of the page
+			//var svg = d3.select("#my_dataviz").append("svg")
+			svg.append("g")
+					.attr("width", width + margin.left + margin.right)
+					.attr("height", height + margin.top + margin.bottom)
+				.append("g")
+					.attr("transform",
+								"translate(" + margin.left + "," + margin.top + ")");
+
+			if ( data.forEach ) {
+				var
+					thres = 1,
+					[vocab,words] = data;
+															 
+				//Log(vocab);
+				for (var s in vocab) cnts[s] = 0;
+				words.forEach( s => {
+					if ( s in vocab ) cnts[s]++;	
+				});
+			}
+
+			else {
+				var 
+					strip = /[\.\;\:\"\,\(\)\-\'\n\r]/g,
+					hack = x => x.replace(strip,"").toLowerCase().split(" "),
+					thres = 0.01;
+			
+				hack(data).forEach( w => {
+					if (w in cnts) cnts[w]++; else cnts[w]=1;
+				});
+			}
+
+			var 
+				N = 0,
+				a = 100 / thres,
+				myWords = [];
+					//[{word: "Running", size: "10"}, {word: "Surfing", size: "20"}, {word: "Climbing", size: "50"}, {word: "Kiting", size: "30"}, {word: "Sailing", size: "20"}, {word: "Snowboarding", size: "60"} ]
+
+			for ( var w in cnts ) N += cnts[w];
+			for ( var w in cnts ) cnts[w] /= N;
+			
+			Log(cnts,vocab);
+			
+			for (var w in cnts) 
+				myWords.push({word: vocab[w], pr: cnts[w]  });
+			
+			// Constructs a new cloud layout instance
+			
+			//Log(myWords);
+			
+			var 
+				layout = d3.layout.cloud()
+					.size([width, height])
+					.words(myWords.map( d => { 
+						return {
+							text: d.word, 
+							size: d.pr ? scale(d.pr) : 0, 
+							color: d.pr ? "blue" : "red" 
+						}; 
+					} ))
+					.padding(10)        //space between words
+					.rotate( d => d.size ? randrot() : 0 )
+					.fontSize( d => d.size || 20 )      // font size of words
+					.on("end", words => {
+						//Log("words", words);
+						svg
+							.append("g")
+								.attr("transform", "translate(" + layout.size()[0] / 2 + "," + layout.size()[1] / 2 + ")")
+								.selectAll("text")
+									.data(words)
+								.enter()
+									.append("text")
+									.style("font-size", d => d.size )
+									//.style("fill", "#69b3a2")
+									.style("fill", d => d.color )
+									.attr("text-anchor", "middle")
+									.style("font-family", "Impact")
+									.attr("transform", d => "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")" )
+									.text( d => d.text );
+					});
+
+			layout.start();
+		});

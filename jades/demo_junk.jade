@@ -1,0 +1,485 @@
+//- UNCLASSIFIED
+
+extends base
+append base_parms
+	- tech = "reveal"
+	- classif = "(U) Unclassified"
+append base_body
+
+	section#title
+		p.lg= name
+		p.lg= proj.Title
+		a(href=run) Notebook
+		|  | 
+		a(href=rtp) RTP
+		|  | 
+		a(href=jira)= "JIRA-"+proj.JIRA
+		|  | 
+		a(href=ras)= "RAS-"+proj.RAS
+		|  | 
+		a(href="/milestones.view?name=#{name}") Milestones
+		p.al!= `https://${domain}/briefs.view?notebook=${name}`
+		p.al!= proj.Lead
+		p.al!= now
+		p.al!= RUN
+		p.al!= Run
+		p.al!= $Run
+		p.al!= $run
+
+	case name
+		when "demo"
+			section
+				h2 Title Mutations
+				a(href="/demo.blog?key=Description&name=google%20search") Demo
+				a(href="/demo.view?name=Google%20Search") Notebook
+			section
+				h2 Dead Links
+				a(href="/conf.blog?key=Description&name=family&subs=true") Demo
+				a(href="/conf.view?name=family") Notebook
+			section
+				h2 Google Backdoor Traps
+				a(href="/proxies.html") Demo
+				a(href="/proxies.view") Notebook
+			section
+				h2 Scrape Validations
+				a(href="/demo.blog?key=Description&name=moderate%20worldcloud&subs=false") Demo
+				a(href="/demo.view?name=moderate%20worldcloud") Notebook
+
+		when "?"
+			section
+				iframe(src="/fan.view?src=info&w=4000&h=800",width=2000,height=800)
+
+		when "xthresher"
+		when "xtt"
+		when "xairspace"
+			section#intro
+				p.lg AirSpace
+				p.al https:/totem.west.ile.nga.ic.gov/briefs?notebook=airspace
+				p.al brian.d.james@nga.mil
+
+			section#results
+				each file in files
+					section
+						if file.type == "jpg"
+							h2= file.title
+							img(src=file.path)
+						else
+							a(href=file.path)= file.title
+
+		when "cluster"
+			section#intro
+				p.al.
+					NGA/R CLUSTER users may, for example, compare their
+				
+				a(href="/regress.run")= "ROC metrics"
+
+				p.al.
+					results from feature vectors of different lengths, to decide how large their vectors must be to 
+					catch their competitors ROC.  Here, 
+					$$ t_{catch} = t_{lead} \quad { \frac {1 + \gamma} { \gamma } } $$
+					provides the catch up time given your competitors lead time and the gain factor 
+					$$ \gamma = \frac { V_{faster} - V_{slower} } {V_{slower}} = \frac { HitRate_{larger} - HitRate_{smaller} } { HitRate_{smaller} } $$
+					between your feature vectors. For example, 
+					at 10 % false alarm rates, it would take $ t_{catch} = 85 years $ to catch up 
+					to a competitor with a $ t_{lead} = 15 year $ lead, since
+					$ \gamma = \frac {85 \text{%} - 70 \text{%}} {70 \text{%}} $;
+					at 20 % false alarms, a 178 years closure time, since 
+					$ \gamma = \frac {95 \text{%} - 87 \text{%}} {87 \text{%}} $. 
+		
+		when "totem"
+			section#intro
+
+				p.lg TOTEM
+				p.al https:/totem.west.ile.nga.ic.gov/briefs?notebook=totem
+				p.al brian.d.james@nga.mil
+
+			section#results
+				h3.hd Your TOTEM interface can be as easy as ...
+
+				//iframe(src="/swag.view?zone=SWAGometer")
+
+			section#progress
+				h3.hd Recent Progress
+
+				section
+					p.al.fragment.grow Transitioned GeoHub -> AWS -> ILE
+					p.al.fragment.grow Briefed to STL GIAT
+					p.al.fragment.grow Integrated Digital Globe Source
+					p.al.fragment.grow Automated ROC with Different Forecasting Models
+					p.al.fragment.grow Completed Shallow + Deep Learning Experiments
+					p.al.fragment.grow Added 0,45,90 Degree Training
+					p.al.fragment.grow Updated Tutorial 
+					p.al.fragment.grow Added Caffe Placeholder
+					p.al.fragment.grow Improved Web Service
+
+			section#home
+				h3.hd 
+					a(href="#back") Background
+					|  | 
+					a(href="#ideas") R&D
+					|  | 
+					a(href="#expt") Experiments
+					|  | 
+					a(href="#service") Service
+					|  | 
+					a(href="#arch") Architecture
+
+				section#background
+					h2.hd Background
+						a World Views
+						|  || 
+						a Players
+						|  || 
+						a Framework
+						|  || 
+						a Derisking Acquisition
+
+					h1.hd Machine Learning in the News
+					//iframe(src="/layout.view?area=shares&inline=concept3.jpg&w=800&h=400")
+
+				section
+					h2.hd Background
+						a World Views
+						|  || 
+						a Players
+						|  || 
+						a Framework
+						|  || 
+						a Derisking Acquisition
+
+					h1.hd Which of your children are redundant ?
+					//iframe(src="/layout.view?area=shares&inline=concept2.jpg&w=800&h=400")
+
+				section
+					h2.hd Background
+						a World Views
+						|  || 
+						a Players
+						|  || 
+						a Framework
+						|  || 
+						a Derisking Acquisition
+
+					h1.hd SWAG = Framework
+					//iframe(src="/layout.view?area=shares&inline=concept1.jpg&w=800&h=400")
+
+				section
+					h2.hd Background
+						a World Views
+						|  || 
+						a Players
+						|  || 
+						a Framework
+						|  || 
+						a Derisking Acquisition
+
+					h1.hd The Supply Chain
+					//iframe(src="/layout.view?area=shares&inline=arch2.jpg&w=800&h=400")
+
+			section#service
+				h3.hd Service
+					a Use Cases
+					| ||
+					a Content Mgt
+
+				section
+					h2.hd Use Cases
+
+					table
+						tr
+							th: p Doc
+							th: p Generic
+							th: p Specific
+						tr
+							td: a(href="/api.view") API
+							td: a(href="/engines.view") Engines
+							td: a(href="/swag.view") Dashboard
+						tr
+							td: a(href="/tutorial.view") Tutorial
+							td: a(href="/workflow.view") Workflows
+							td: a(href="/files.view") Positives 
+						tr
+							td: a(href="/skinguide.view") Skin Guide
+							td: a(href="/issues.view") Issues	
+							td: a(href="/files.view") Negatives
+						tr
+							td: a(href="/project.view?goto=ASP Reqts") Requirements
+							td: a(href="/home.view") Home
+							td: a(href="/project.view?goto=Roadmap") Roadmap
+
+				//
+					section#cm
+						h2.hd Content Management - Wiki on Steriods
+
+						table
+							tr
+								td: a(href="#cm.briefs") Briefings
+								td: a(href="#cm.blogs") Blogs
+							tr
+								td: a(href="#cm.finders") Finders
+								td: a(href="#cm.nav") Navigators
+							tr
+								td: a(href="#cm.engines") Engines
+								td: a(href="#cm.workflows") Workflows
+							tr
+								td: p.lg Pubs
+									a(href="#cm.inline") Inlined
+									a(href="#cm.papers") Sourced
+								td: a(href="#cm.dash") Dashboards
+
+							tr
+								td: a(href="#cm.immersive") Immersive
+								td: a(href="#cm.analytics") Analytics
+
+					section#cm.briefs
+						h2.hd Briefing Skins
+						pre
+							code.mysql.
+								extends brief
+								append briefparms
+									- Classif = "(U) Unclassified"
+								append briefarea
+
+									section#cm
+										h4.hd Content Mgt
+
+											section#cm.engines
+												h4.hd Engines: Interface or End Points
+												iframe(src="/exsite.view?option=engines&view=Kiss")
+
+										etc
+										etc
+
+					section#cm.nav
+						iframe(src="/exsite.view?option=navigators&view=Nada&holdoff=Navigation Skins")
+
+					section#cm.engines
+						iframe(src="/exsite.view?option=engines&view=Kiss&holdoff=Engine as Skin or End Point")
+
+					section#cm.workflows
+						iframe(src="/exsite.view?option=workflows&view=Kiss&holdoff=Engines in Stateless-Stateful Workflows")
+
+					section#cm.dash
+						iframe(src="/swag.view?holdoff=SWAG Dashboard")
+
+					section#cm.inline
+						h2.hd Mathjax Skins
+						table
+							tr
+								pre
+									code.html.
+										p.al The Lorenz Equations
+										p.
+											\[
+											\begin{align}
+											\dot{x} & = \sigma(y-x) \\
+											\dot{y} & = \rho x - y - xz \\
+											\dot{z} & = -\beta z + xy
+											\end{align}
+											\]
+										br
+										p.al.lg.rd Impressive 'eh
+										p.
+											\[
+											J_\alpha(x) = \sum\limits_{m=0}^\infty \frac{(-1)^m}{m! \, \Gamma(m + \alpha + 1)}{\left({\frac{x}{2}}\right)}^{2 m + \alpha}
+											\]
+
+							tr
+								p.al The Lorenz Equations
+								p.
+									\[
+									\begin{align}
+									\dot{x} & = \sigma(y-x) \\
+									\dot{y} & = \rho x - y - xz \\
+									\dot{z} & = -\beta z + xy
+									\end{align}
+									\]
+								br
+								p.al.lg.rd Impressive 'eh
+								p.
+									\[
+									J_\alpha(x) = \sum\limits_{m=0}^\infty \frac{(-1)^m}{m! \, \Gamma(m + \alpha + 1)}{\left({\frac{x}{2}}\right)}^{2 m + \alpha}
+									\]
+
+					section#cm.immersive
+						img(src="/shares.construction.jpg",width="20px",height="20px")
+						iframe(src="/exsite.view?option=immersion&view=Nada&holdoff=Gaming Skins")
+
+				section#cm.blogs
+					//iframe(src="/exsite.view?option=blogs&view=Nada&holdoff=Skins are Printable")
+
+				section#cm.papers
+					//iframe(src="/exsite.view?option=papers&view=Nada&holdoff=Tech Pub Skins")
+
+				section#cm.finders
+					//iframe(src="/exsite.view?option=finders&view=Nada&holdoff=Data Finding Skins")
+
+				section#cm.analytics
+					//iframe(src="/exsite.view?option=visuals&view=Nada&holdoff=Data Analytic Skins")
+
+			section#arch
+				h3.hd Architecture
+					a System
+					|  || 
+					a Supply
+					|  || 
+					a Cloud
+					|  || 
+					a Interface
+					|  || 
+					a States
+
+				section
+					h2.hd System
+					//iframe(src="/layout.view?area=shares&inline=arch1.jpg&w=800&h=400")
+
+				section
+					h2.hd Supply Chain
+					//iframe(src="/layout.view?area=shares&inline=arch2.jpg&w=800&h=400")
+
+				section
+					h2.hd Cloud Compute
+					//iframe(src="/layout.view?area=shares&inline=arch3.jpg&w=800&h=400")
+
+				section 
+					h2.hd Interface = Restful CRUD+E
+					//iframe(src="/layout.view?area=shares&inline=arch4.jpg&w=800&h=400")
+
+				section 
+					h2.hd Programmable State Machine
+					//iframe(src="/layout.view?area=shares&inline=arch5.jpg&w=800&h=400")
+
+				section 
+					h2.hd QoS Model = Google Business Model
+					//iframe(src="/layout.view?area=shares&inline=arch6.jpg&w=800&h=400")
+
+			section#roadmap
+				h3.hd Roadmap
+				//iframe(src="/project.view?goto=Roadmap&w=800&h=400")
+
+		when "briefs"
+			section
+				h3.hd
+				a(href="/briefs.view?notebook=totem") Totem
+				|  | 
+				a(href="/briefs.view?notebook=airspace") Airspace
+				|  | 
+				a(href="/briefs.view?notebook=regress") Regress
+				|  | 
+				a(href="/briefs.view?notebook=genpr") GenProc
+				|  | 
+				a(href="/briefs.view?notebook=swag") SWAG
+				|  | 
+				a(href="/briefs.view?notebook=itar") ITAR
+				|  | 
+				a(href="/briefs.view?notebook=whaci") WHaci
+				|  | 
+				a(href="/briefs.view?notebook=fats") FATs
+
+		when "unfunded"
+		when "ops"
+		when "ideas"
+			section#ideas
+				h3.hd R&D
+				h2.hd Unfunded Research Opportunities (Acquisition Vehicle Outreach)
+				table
+					tr
+						td: p.fragment.highlight-red Low-Light Imaging 
+						td: p.fragment.highlight-red HSI - CNN | Rotational Forest
+					tr
+						td: p.fragment.highlight-red ITAR Actor Patterns
+						td: p.fragment.highlight-red Semantic - Full CNN | Cascade
+					tr
+						td: p.fragment.highlight-red GIS Integration
+						td: p.fragment.highlight-red Assist Recall of Latent Brain Images
+					tr
+						td: p.fragment.highlight-red Engineered ROC / AI
+						td: p.fragment.highlight-red Infer Backgroundfrom ROC Stats?
+					tr
+						td: p.fragment.highlight-red Break Captcha Codes 
+						td: p.fragment.highlight-red Sync Neural Networks
+					tr
+						td: p.fragment.highlight-red Bi-Static Tripline
+						td: p.fragment.highlight-red Solid Models
+						
+
+			section#bluf
+				h3.hd BLUF
+
+				p.lg.al Has NGA testified about making "___" part of its mission ?
+				p.lg.al Development of "___" already internationally funded - so need we invest ?
+				p.lg.al "___" market using same business model as .com bust
+				p.lg.al Consider funding small (2 gov 1 vm) effort to evaluate "___"
+						
+
+		when "xswag"
+			section#intro
+
+				p.lg SWAG
+				p.al https:/totem.west.ile.nga.ic.gov/briefs?notebook=swag
+				p.al brian.d.james@nga.mil
+				
+			section#results
+				h3.hd Experments
+					a(href="#shallow") Shallow
+					|  | 
+					a(href="#deep") Deep
+
+				each ex in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]
+					section#expt
+						h2.hd= "Shallow Learning " + ex + ":17"
+						iframe(src="/layout.view?area=shares&inline=expa#{ex}.jpg&w=800&h=400")
+
+				each ex in [1,2,3,4]
+					section#expt
+						h2.hd Experments
+						h1.hd= "< Deep Learning " + ex + ":4"
+						iframe(src="/layout.view?area=shares&inline=expb#{ex}.jpg&w=800&h=400")
+
+				each ex in [1,2,3]
+					section#expt
+						h2.hd Experments
+						h1.hd= "< Deep Learning " + ex + ":4"
+						iframe(src="/layout.view?area=shares&inline=expc#{ex}.jpg&w=800&h=400")
+
+			section#tracking
+
+		when "whaci"
+		when "itar"
+		when "fats"
+
+	
+	each deck in files.deck
+		each deck in files.deck
+		section#deck
+			each file in deck
+				section
+					h2= `${file.classif} ${file.title}`
+					img.xx(src=file.path)
+
+	section#embeds
+		//
+			each file in files.live
+			section
+				h2=  `${file.classif} ${file.title}`
+				iframe(src=file.path, width=1200, height=600)
+
+	section#artifacts
+		h2 artifacts
+		p!= gridify( get( files.artifact, {keys:{ a:"link"}} ), true )
+
+	section#if
+		h2= `${run} Interface`
+		//iframe(src=run,width=1000,height=600)
+
+	- sets ={ 1: [1,2,3], 2: [1,2,3,4,5,6,7,8,9], 3: [] }
+	//
+		each mod in [1,2,3]
+		each set in sets[mod]
+			section#quiz(lesson="machines.#{mod}.#{set}", modules=3, pass=60)
+				h2= `Test Your Knowledge (${mod}-${set})`
+				#quiz.quiz
+				button.quiz F1 Start|Submit|Next
+				#results.quiz
+
+//- UNCLASSIFIED

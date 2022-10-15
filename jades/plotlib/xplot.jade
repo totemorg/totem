@@ -1,0 +1,533 @@
+// UNCLASSIFIED 
+extends base
+append base_help
+	:markdown
+		# plot
+		Generate xy-plot with parameters:  
+
+			- src = path to data (#{query.src})
+			- x = key (#{query.x})
+			- y = key,key,...	(#{query.y})
+			- xy = key,key,... (#{query.xy})
+			- it = key,key,... (#{query.it})
+			- sort = key for sorting returned src data (#{query.sort})
+			- w = drawing width (#{query.w})
+			- h = drawing height (#{query.h})
+			- debug = level send debugging alerts (#{query.debug})
+			- styles = color,color, ... line color (#{query.styles})
+			- markers = style,style, ... line markers (#{query.markers})
+			- xlabel = label (#{query.xlabel})
+			- ylabel = label (#{query.ylabel})
+			- xmin = min,min,... (#{query.xmin})
+			- xmax = max,max,... (#{query.xmax})
+			- ymin = min,min,... (#{query.ymin})
+			- ymax = max,max,... (#{query.ymax})
+			- xget = key,... for indexing xy src (#{qyery.xget})
+			- yget = key,... for indexing xy src (#{query.yget})
+			- details = show xy locations (#{query.degtails})
+			- ref = beta || cost || ... reference curve (#{query.ref})
+			- chan = override ^chan widget (#{query.chan})
+			- a = override ^a widget (#{query.a})
+			- b = override ^b widget (#{query.b})
+
+		`src` returns a LIST = [ [X,Y], ... ] || [ {x:X, y:Y, xy:[X,Y], it:LIST, sort:VAL},... ].  
+		[sample](/plot.help?w=800&h=600&it=Save_baseline$&ymin=0,0.25&xmin=0-0&xmax=0-0&ymax=0,0.75&debug=0&src=/nets.json?name=gtdcsv)  
+		[example](/plot.view?w=800&h=600&it=Save_baseline$&ymin=0,0.25&xmin=0-0&xmax=0-0&ymax=0,0.75&debug=0&src=/nets.json?name=gtdcsv)
+
+append base_parms
+	- tech = "d3v5"
+
+append base_head
+
+	style.
+		.line {
+			fill: none;
+			stroke: #ffab00;
+			stroke-width: 3;
+		}
+
+		.overlay {
+		  fill: none;
+		  pointer-events: all;
+		}
+
+		.dot {
+			fill: #ffab00;
+			stroke: #fff;
+		}
+
+		.focus circle {
+			fill: none;
+			stroke: steelblue;
+		}
+		
+		body { font: 18px sans-serif; }
+
+		.axis path, .axis line {
+		  fill: none;
+		  stroke: #000;
+		  shape-rendering: crispEdges;
+		}
+
+		.axis text {
+		  font: 10px sans-serif;
+		}
+
+		.marker { stroke: #000; }
+
+		.legend { }
+
+		.text {}
+
+	script.
+		const
+			refs = {
+				//beta: "/beta?name=gen-$a-$b&x:=Save$[0].x&y:=Save$[0].y"
+				//beta: "/beta?name=gen-$a-$b&xy:=Save$[0].x,[0].y&_calc=xy"
+				none: "[x,y]",
+				beta: "/beta.exe".tag("?", {
+					alpha: "^a",
+					beta: "^b",
+					N: 20
+					//"_$.Save": "list(x,y)"
+				}),
+				cost: "".tag("&", {
+					"_$[0].y": 
+					"{x:t,BKL:queue/150e3,PRO:proc/100e3,LAB:lab/150e3,ACQ:acq/50e6,CYC:cycles/50,GAP:-deficit/1e3 }"
+				})
+			},
+			stash = {},
+			opts = {  // define plot options
+				ds: "!{query.src}"
+					? [].concat( 
+						"!{query.it}"
+						? "!{query.it}".list( it => "!{query.src}".tag("&", {"it:": it, "sort:": "#{query.sort}"}) )
+						: [],
+
+						"#{query.xy}"
+						? "#{query.xy}".list( xy => "!{query.src}".tag("&", {"xy:": xy, "sort:": "#{query.sort}"}) )
+						: [],
+
+						"#{query.y}"
+						? "#{query.y}".list( y => "!{query.src}".tag("&", {"y:":y, "x:":"#{query.x}", "sort:" : "#{query.sort}"}) )
+						: []
+					)
+
+					   //refs["#{query.ref}"] 
+
+					:  "/regress?x:=Save_train$.x[^chan]&y:=Save_train$.y[^chan]&name=test2",
+				
+				dims: {
+					margin: {top: 25, right: 5, bottom: 25, left: 25},
+					width: parseInt("#{query.w}") || 1200,
+					height: parseInt("#{query.h}") || 500
+				},
+				sort: "#{query.sort}" ? true : false,
+				debug: parseInt("#{query.debug}") || 0,
+				markers: "#{query.markers}".eval( "CIrcle,SQuare,CRoss,Diamond,Triangle-Up,Triangle-Down,STar,WYE", stash ),
+				styles: "#{query.styles}".eval( "blacK,Red,Green,Yellow,Blue,Orange,Pink,HotPink,DeepPink,IndianRed,DarkRed,Violet,Purple,SlateBlue,DarkBlue,skYBlue,ForestGreen,PerU", stash ),
+				xLabel: "#{query.xlabel}" || "x",
+				yLabel: "#{query.ylabel}" || "y",
+				yMax: "#{query.ymax}".list( a => (a.indexOf("-")>=0) ? new Date(a) : parseFloat(a) ), 
+				yMin: "#{query.ymin}".list( a => (a.indexOf("-")>=0) ? new Date(a) : parseFloat(a) ), 
+				xMax: "#{query.xmax}".list( a => (a.indexOf("-")>=0) ? new Date(a) : parseFloat(a) ), 
+				xMin: "#{query.xmin}".list( a => (a.indexOf("-")>=0) ? new Date(a) : parseFloat(a) ), 
+				xGet: ("#{query.xget}" || "x").split(","), 
+				yGet: ("#{query.yget}" || "y").split(","), 
+				details: "#{query.details}",
+				
+				// legacy
+				//extra: null, //"#{query.extra}".option(),
+				//index: "#{query.index}".option(),
+				//keys: ("#{query.keys}" || "x,y,details").option(),
+
+				url: "#{url}",
+				family: "plot",
+				keys: {
+					x: "!{query.x}" || "x",
+					y: "!{query.y}" || "y",
+					fill: "!{query.fill}" || "fill",
+					line: "!{query.line}" || "line"
+				},					
+				widgets: {
+					chan: "#{query.chan}".eval( "0,255,1" ),
+					a: "#{query.a}".eval( "0.5" ),
+					b: "#{query.b}".eval( "0.5" ),
+					xxsave: false 
+						? () => {
+							alert("reserved");
+							if (0) {
+								var 
+									a = document.getElementById("_a").value,
+									b = document.getElementById("_b").value,
+									name = `gen-${a}-${b}`,
+									beta = `/beta?Name=${name}`;
+
+								Ajax("put", true, beta, res => {
+									alert(res);
+								}, {
+									snr: 1,
+									gain: 1,
+									density: 1
+								});
+							}
+						}
+						: null
+				} 
+			};
+
+append base_body
+	script.
+		Fetch( opts, (data,svg) => {
+			function plotData(data, name) {
+				function plotXY(xy, name, cb) {
+					//console.log(">>>plot", name);
+					
+					if ( opts.debug>2 ) alert( "plot>>> "+JSON.stringify(xy) );
+
+					const
+						isEq = (x,y) => (x+"") == (y+""),
+						xDomain = isEq(xmin,xmax) ? d3.extent(xy, d => d.x) : [xmin, xmax],
+						yDomain = isEq(ymin,ymax) ? d3.extent(xy, d => d.y) : [ymin, ymax],
+						xSame = isEq(xDomain[0], xPrev[0]) && isEq(xDomain[1], xPrev[1]),
+						ySame = isEq(yDomain[0], yPrev[0]) && isEq(yDomain[1], yPrev[1]);
+
+					xPrev = xDomain;
+					yPrev = yDomain;
+
+					console.log(">>>extent", 
+						{xDom: xDomain, yDom: yDomain}, 
+						{xLim: [xmin,xmax], yLim: [ymin,ymax]},
+						{xMin: xMin, yMin: yMin},
+						{xMax: xMax, yMax: yMax}
+						//{xPre: xPrev, yPre: yPrev},
+						//{xSame: xSame, ySame: ySame},
+						//{xEq: isEq(xmin,xmax), yEq: isEq(ymin,ymax) },
+					);
+
+					const 
+						[m,s,t] = (name||"circle4:blue2").pick(stash),
+						[marker,msize] = mUse = m || [markers[0],4],
+						[style,ssize] = sUse = s || [styles[0],2],
+						[title,tsize] = tUse = t || [name,16];
+
+					console.log(">>>mark", plots, name, [tUse,mUse,sUse] );
+
+					//d3.select("svg").remove();
+
+					if ( !xSame || !plots ) {
+						xScale = xDate 
+							? d3.scaleTime().domain( xDomain ).range( xRange )
+							: d3.scaleLinear().domain( xDomain ).range( xRange );
+
+						//console.log(">>>xscale", xScale, xDate, xDomain, xRange, xGrid);
+						xAxis = d3.axisBottom(xScale);
+
+						if ( xDate ) xAxis.tickFormat(d3.timeFormat( dateFormat ));
+
+						var axis = svg.append("g")
+								.attr("class", "xaxis")
+								.attr('stroke', style )
+								.attr("transform", `translate(0,${xGrid})`)
+								.call(xAxis);
+
+						// d3.time.months, 1).tickFormat(d3.timeFormat('%b');  		// v3
+						// d3.timeMonths, 1).tickFormat(d3.timeFormat('%b');  		// v4
+						// d3.tickFormat(d3.timeFormat("%Y-%m-%d"))); 				// v5
+
+						if ( xDate ) 
+							axis
+							.selectAll("text")  
+								.attr("transform", function (d)  {
+									return "translate(" + this.getBBox().height*-2 + "," + this.getBBox().height + ")rotate(-45)";
+								});								
+
+						svg.append("text")
+							//.attr("class", "xaxis")
+							.attr("x", width/2)
+							.attr("y", 0)
+							.attr("dy", "1em")
+							.style("fill",style)
+							.style("font-size", "16px")
+							.style("text-anchor", "middle")
+							.text( xLabel );
+
+						xGrid += 0.05*height;
+					}
+
+					if ( !ySame || !plots ) {
+						yScale = yDate
+							? d3.scaleTime().domain( yDomain ).range( yRange )
+							: d3.scaleLinear().domain( yDomain ).range( yRange );
+
+						//console.log(">>>yscale", yScale, yDate, yDomain, yRange, yGrid);
+						yAxis = d3.axisLeft(yScale);
+
+						if ( yDate ) yAxis.tickFormat(d3.timeFormat( dateFormat ));
+
+						var axis = svg.append("g")
+								.attr("class", "yaxis")
+								.attr('stroke', style )
+								.attr("transform", `translate(${yGrid},0)` )
+								.call(yAxis);
+
+						if ( yDate ) 
+							axis
+							.selectAll("text")  
+								.attr("transform", function (d)  {
+									return "translate(" + this.getBBox().height*-2 + "," + this.getBBox().height + ")rotate(-45)";
+								});
+
+						svg.append("text")
+							//.attr("class", "yaxis")
+							.attr("transform", "rotate(-90)")
+							.attr("x", 10)
+							.attr("y", width)
+							.attr("dy", "1em")
+							.style("fill","black")
+							.style("font-size", "16px")									
+							.style("text-anchor", "end")
+							.text( yLabel ); 
+
+						yGrid -= 0.05*width;
+					}
+
+					if ( marker ) {  // add markers
+						svg.append("g")
+							.selectAll( marker )
+								.data(xy)
+								.enter()
+									.append( marker )
+										//.attr("class", "marker")
+										.attr("r", msize)
+										.attr("cx", d => xScale(d.x))  
+										.attr("cy", d => yScale(d.y))
+										.on("click", d => {
+											var doc = window.open( "click", "_blank",
+												`left=${d.x}px,top=${d.y}px,width=200,height=100,location=0,menubar=0,status=0,titlebar=0,toolbar=0`);
+
+											doc.document.write( (d.d || "") + `(${d.x},${d.y})` );
+										})
+										.style("fill", d => style );		// cats[d.f]
+					}
+
+					if ( style ) { // add lines
+						svg
+							.append('path')
+								.data([xy])
+								.attr('d', d3.line()
+												.x( d => xScale(d.x) )
+												.y( d => yScale(d.y) )
+												//.interpolate('linear')
+												//.curve(d3.curveMonotoneX)
+								)
+								//.attr('class', "line" )
+								//.attr( "data-legend", name )
+								.attr('stroke', style )
+								.attr('stroke-width', ssize)
+								.attr('fill', 'none');
+					}
+
+					if ( details = opts.details ) {  // add label details
+						svg.selectAll("text")
+							.data(xy)
+							.enter()
+								.append("text")
+									.text( d => details+":"+d.x.toFixed(2)+" , "+d.y.toFixed(2) )
+									.attr("x", d => xScale(d.x) )
+									.attr("y", d => yScale(d.y) )
+									.attr("dy", ".35em")
+									.attr("font-family", "sans-serif")
+									.attr("font-size", "11px")
+									.attr("fill", "red"); 
+					}
+
+					if (cb) cb( [tUse,mUse,sUse] );
+					plots++;
+				}
+
+				function addLegend([t,m,s]) {		// add legend
+					const 
+						x0 = 30,
+						y0 = 20+20*(plots-1),
+						r0 = 5;
+
+					//console.log(">>>picks", plots, t,m,s);
+
+					svg.append(m[0]).attr("cx",x0).attr("cy",y0).attr("r", m[1]).style("fill", "black");
+					svg.append("text").attr("x", x0+10).attr("y", y0).text(t[0]).style("fill",s[0]).style("font-size", "15px").attr("alignment-baseline","middle");
+				}
+			
+				const 
+					XY = [],
+					sorts = [],
+					data0 = data[0] || [];
+
+				[xmin,xmax] = [xMin[plots] || xmin, xMax[plots] || xmax];
+				[ymin,ymax] = [yMin[plots] || ymin, yMax[plots] || ymax];
+
+				xDate = isDate( xmin ) || isDate( xmax );
+				yDate = isDate( ymin ) || isDate( ymax );
+
+				// console.log(">>>dates?", {x:xDate, y: yDate} );
+				
+				if ( opts.sort ) {
+					data.forEach( (rec,idx) => {
+						sorts.push( {x: rec.x, y: rec.y, sort: rec.sort} );
+					});
+					
+					sorts.sort( (u,v) => (u.sort > v.sort) ? u : v );
+					
+					sorts.forEach( rec => {
+						XY.push( {x:rec.x, y:rec.y} );
+					});
+				}
+				
+				else
+					data.forEach( (rec,idx) => {
+						if ( rec.forEach ) {
+							const [x,y,f,d] = rec;
+							XY.push( {x: xDate ? new Date(x) : x||0, y:y||0, f:f||"", d:d||"" } );
+						}
+
+						else {
+							var {x,y,xy,it} = rec;
+
+							if (it) 
+								Object.keys(it).forEach( key => {
+									plotData( it[key], name+"/"+key ); 
+								});
+
+							else
+							if ( xy ) {
+								const
+									{xGet,yGet} = opts;
+
+								//console.log(">>>get", {x:xGet, y:yGet}, stash);
+
+								xGet.forEach( (xKey,xIdx) => {
+								yGet.forEach( (yKey,yIdx) => {
+									var
+										XY = [];
+
+									xy.forEach( rec => {
+										XY.push({x: rec[xKey], y: rec[yKey]});
+									});
+
+									//console.log(">>>dump", XY, name, `/${xKey} vs ${yKey}`);
+
+									plotXY( XY, `${markers[xIdx]}4:${styles[yIdx]}2:${xKey} vs ${yKey}`, addLegend );
+								});
+								});
+							}
+
+							else
+								x.forEach( (x,i) => 
+									XY.push( {x:x, y:y[i]} ) 
+								);
+						}
+					});
+
+				if ( extra = opts.extra )	// append extra xy data
+					for (var N=extra.length, n=0; n<N; n++)
+						XY.push( {x: extra[n], y: extra[n] } ); 
+
+				//console.log(">>>xy", XY);
+
+				if ( XY.length ) 
+					plotXY( XY, name, addLegend); 
+			} 
+
+			const
+				/*
+					https://github.com/d3/d3-time-format				  
+					%a - abbreviated weekday name.
+					%A - full weekday name.
+					%b - abbreviated month name.
+					%B - full month name.
+					%c - the locale’s date and time, such as %x, %X.
+					%d - zero-padded day of the month as a decimal number [01,31].
+					%e - space-padded day of the month as a decimal number [ 1,31]; equivalent to %_d.
+					%f - microseconds as a decimal number [000000, 999999].
+					%g - ISO 8601 week-based year without century as a decimal number [00,99].
+					%G - ISO 8601 week-based year with century as a decimal number.
+					%H - hour (24-hour clock) as a decimal number [00,23].
+					%I - hour (12-hour clock) as a decimal number [01,12].
+					%j - day of the year as a decimal number [001,366].
+					%m - month as a decimal number [01,12].
+					%M - minute as a decimal number [00,59].
+					%L - milliseconds as a decimal number [000, 999].
+					%p - either AM or PM.
+					%q - quarter of the year as a decimal number [1,4].
+					%Q - milliseconds since UNIX epoch.
+					%s - seconds since UNIX epoch.
+					%S - second as a decimal number [00,61].
+					%u - Monday-based (ISO 8601) weekday as a decimal number [1,7].
+					%U - Sunday-based week of the year as a decimal number [00,53].
+					%V - ISO 8601 week of the year as a decimal number [01, 53].
+					%w - Sunday-based weekday as a decimal number [0,6].
+					%W - Monday-based week of the year as a decimal number [00,53].
+					%x - the locale’s date, such as %-m/%-d/%Y.
+					%X - the locale’s time, such as %-I:%M:%S %p.
+					%y - year without century as a decimal number [00,99].
+					%Y - year with century as a decimal number, such as 1999.
+					%Z - time zone offset, such as -0700, -07:00, -07, or Z.
+					%% - a literal percent sign (%).
+				*/
+				dateFormat = "%b-%d-%H",
+				flex = 0.98,
+				width = svg.attr("width")*flex,
+				height = svg.attr("height")*flex,
+				{ margin } = opts.dims,
+				{ top,left,right,bottom } = margin,
+				{ markers, styles, xMin, xMax, yMin, yMax, xLabel, yLabel } = opts;
+
+			var
+				[xDate,yDate] = [false,false], 
+				xPrev = [xmin,xmax] = [0,0],
+				yPrev = [ymin,ymax] = [0,0],
+				[xGrid,yGrid] = [0,width],
+				xScale, yScale, xAxis, yAxis, 
+				plots = 0;
+
+			// console.log(">>>plot dims", width, height); 
+
+			/*const
+				{min,max,date} = opts,
+				[xMin,yMin] = min,
+				[xMax,yMax] = max,
+				[xDate,yDate] = date,
+				dom = { 
+					x: (xMin == xMax) ? null : xDate ? [ new Date(xMin) , new Date(xMax) ] : [ parseFloat(xMin), parseFloat(xMax) ], 
+					y: (yMin == yMax) ? null : yDate ? [ new Date(yMin) , new Date(yMax) ] : [ parseFloat(yMin), parseFloat(yMax) ] 
+				};  */
+
+			const
+				body = d3.select("body"),
+				color = d3.scaleOrdinal( d3.schemeCategory10 ),
+				cats = {
+					"": styles[0],
+					"+": "green",
+					"-": "red"
+				},
+				xRange = [0, width],
+				yRange = [height, 0];	//largest first as y value of zero is at the top of chart and increases as you go down.
+
+			//console.log(">>>domain", dom, [xDate,yDate], [xMin,xMax] );
+			//console.log(">>>range", [xRange,yRange]);
+
+			color.domain( d3.range(0,10) );					
+
+			styles.forEach( (style,i) => cats[i] = style );
+			//console.log(">>>categories", cats);
+
+			svg.append("g").attr("transform", `translate(${left},${top})` );
+
+			if ( data.forEach )	
+				plotData( data, "" );
+
+			else
+			if ( opts.debug ) 
+				alert("src must return a list");
+
+		});

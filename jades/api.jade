@@ -1,0 +1,1020 @@
+// UNCLASSIFIED 
+
+extends base
+append base_help
+	:markdown
+		# api options:
+			- dock = docking style (!{dock})
+
+append base_body
+	- dock = "top"
+
+	folder#SkinGuide(dock=dock)
+
+		tab.Introduction
+			:markdown
+				***#{nick}*** aprovides a scalable service for evaluating geoint products developed
+				by its industry and academic partners.  Access ***#{nick}***'s endpoints at:
+
+					POST / NODE 
+					GET / NODE 
+					PUT / NODE 
+					DELETE / NODE 
+
+				to access **dataset**, **notebook**, **file** and **command** NODEs:
+
+					DATASET.TYPE & INDEX & ... ? QUERY & ...
+					NOTEBOOK.TYPE & INDEX & ... ? QUERY & ...
+					FILE.TYPE & INDEX & ... ? QUERY & ...
+					COMMAND.TYPE & INDEX & ... ? QUERY & ...
+
+				where TYPE converts a **dataset**:
+
+					db | xml | csv | txt | flat | kml | html | json | tree | schema | nav | stat | delta
+
+				[renders](/skinguide.view) a **notebook**:
+
+					exam | run | brief | browse
+
+				probes, manages, or licenses a **notebook**:
+
+					exe | tou | md | status | suitors | usage | EVENTS
+					import | export | publish | mod
+					js | py | m | me | jade | ...
+
+		tab.Views
+			folder#Views(dock="left")
+
+				tab.Endpoints
+					:markdown
+						Views are customizable [Jade skinning engines](/skinguide.view) that define a client''s view, 
+						and are accessed at the following routes:
+
+							GET	/SKIN.view	Render SKIN from a jade engines or jade file
+							GET	/DATASET.view	Render a skin for this DATASET
+							GET	/NOTEBOOK.view	Render a skin for this NOTEBOOK
+
+				tab.Queries
+					:markdown
+						Views parameters are SKIN dependent. For example, [plot.view?help](/plot.view?help) will 
+						generate help for the *plot.view*.
+
+				tab.Examples
+					:markdown
+						[view plot help](/plot.view?help)  
+						[view the news dataset](/news.view)  
+						[view the jsdemo1 notebooks](/jsdemo1.run)  
+						[view the skinning guide](/skinguide.view)  
+						[view the api](/api.view)  
+						[view a sample application](/swag.view)  
+						[view models](/flow.view)  
+						[view a sample briefing](/home_brief.view)  
+						[view briefing under the ELT1 area](/ELT1.home_brief.view)
+
+		tab.Files
+			folder#Files(dock="left")
+				tab.Endpoints
+					:markdown
+						**File** access is provided at the following endpoints:
+
+							GET	/AREA/.../FILE.TYPE?QUERY	Return FILE from AREA using optional query parameters
+							GET	/AREA/	Index files in this AREA
+
+						where AREA references a **#{nick}** file store:
+
+							uploads	unsupervised file pulled from delete-on-access area
+							stores	supervised file pulled from long-term area
+							shares generic satis files
+							clients skinning technolgies
+							uis	skinning interfaces
+							positives	file pulled from positive-proof area
+							negatives	file pulled from negative-proof area
+							chips	image chipping cache
+							tips	image tipping cache
+							shares 	spot to place skinning content
+							west RLE west file system
+							east RLE east file system
+
+				tab.Queries
+					:markdown
+						File retrieval:
+						> _has	find best file by string containment   
+						> _nlp	find best file by nlp context  
+						> _bin	find best file by binary expression  
+						> _qex	find best file by query expansion  
+						> _score	minimum score required
+
+						File upload body JSON parameters:
+
+							key = val ; key = val ; ...  [cr newline]  
+							:  
+							:  
+							file data [cr newline]
+
+		tab.Readers
+			folder#Readers(dock="left")
+				tab.Intro
+					:markdown
+						Readers are builtin **engines** that automatically index a variety of 
+						document, graphics, presentation, and spreadsheet files when uploaded into ***#{nick}***. 
+						Ingested text is checked for readibility, indexed to the best
+						using [NLP training rules](/admins.view), then reflected into the [file stores](/files.view).
+
+						## Special
+							code.
+								html	- Web site
+								rss	- News feed
+								idop	- NTM imagery
+
+						## Document
+							code.
+								bib      - BibTeX [.bib]
+								doc      - Microsoft Word 97/2000/XP [.doc]
+								doc6     - Microsoft Word 6.0 [.doc]
+								doc95    - Microsoft Word 95 [.doc]
+								docbook  - DocBook [.xml]
+								docx     - Microsoft Office Open XML [.docx]
+								docx7    - Microsoft Office Open XML [.docx]
+								fodt     - OpenDocument Text (Flat XML) [.fodt]
+								html     - HTML Document (OpenOffice.org Writer) [.html]
+								latex    - LaTeX 2e [.ltx]
+								mediawiki - MediaWiki [.txt]
+								odt      - ODF Text Document [.odt]
+								ooxml    - Microsoft Office Open XML [.xml]
+								ott      - Open Document Text [.ott]
+								pdb      - AportisDoc (Palm) [.pdb]
+								pdf      - Portable Document Format [.pdf]
+								psw      - Pocket Word [.psw]
+								rtf      - Rich Text Format [.rtf]
+								sdw      - StarWriter 5.0 [.sdw]
+								sdw4     - StarWriter 4.0 [.sdw]
+								sdw3     - StarWriter 3.0 [.sdw]
+								stw      - Open Office.org 1.0 Text Document Template [.stw]
+								sxw      - Open Office.org 1.0 Text Document [.sxw]
+								text     - Text Encoded [.txt]
+								txt      - Text [.txt]
+								uot      - Unified Office Format text [.uot]
+								vor      - StarWriter 5.0 Template [.vor]
+								vor4     - StarWriter 4.0 Template [.vor]
+								vor3     - StarWriter 3.0 Template [.vor]
+								xhtml    - XHTML Document [.html]
+
+						## Graphics
+							code.
+								bmp      - Windows Bitmap [.bmp]
+								emf      - Enhanced Metafile [.emf]
+								eps      - Encapsulated PostScript [.eps]
+								fodg     - OpenDocument Drawing (Flat XML) [.fodg]
+								gif      - Graphics Interchange Format [.gif]
+								html     - HTML Document (OpenOffice.org Draw) [.html]
+								jpg      - Joint Photographic Experts Group [.jpg]
+								met      - OS/2 Metafile [.met]
+								odd      - OpenDocument Drawing [.odd]
+								otg      - OpenDocument Drawing Template [.otg]
+								pbm      - Portable Bitmap [.pbm]
+								pct      - Mac Pict [.pct]
+								pdf      - Portable Document Format [.pdf]
+								pgm      - Portable Graymap [.pgm]
+								png      - Portable Network Graphic [.png]
+								ppm      - Portable Pixelmap [.ppm]
+								ras      - Sun Raster Image [.ras]
+								std      - OpenOffice.org 1.0 Drawing Template [.std]
+								svg      - Scalable Vector Graphics [.svg]
+								svm      - StarView Metafile [.svm]
+								swf      - Macromedia Flash (SWF) [.swf]
+								sxd      - OpenOffice.org 1.0 Drawing [.sxd]
+								sxd3     - StarDraw 3.0 [.sxd]
+								sxd5     - StarDraw 5.0 [.sxd]
+								sxw      - StarOffice XML (Draw) [.sxw]
+								tiff     - Tagged Image File Format [.tiff]
+								vor      - StarDraw 5.0 Template [.vor]
+								vor3     - StarDraw 3.0 Template [.vor]
+								wmf      - Windows Metafile [.wmf]
+								xhtml    - XHTML [.xhtml]
+								xpm      - X PixMap [.xpm]
+
+						## Presentation
+							code.
+								bmp      - Windows Bitmap [.bmp]
+								emf      - Enhanced Metafile [.emf]
+								eps      - Encapsulated PostScript [.eps]
+								fodp     - OpenDocument Presentation (Flat XML) [.fodp]
+								gif      - Graphics Interchange Format [.gif]
+								html     - HTML Document (OpenOffice.org Impress) [.html]
+								jpg      - Joint Photographic Experts Group [.jpg]
+								met      - OS/2 Metafile [.met]
+								odg      - ODF Drawing (Impress) [.odg]
+								odp      - ODF Presentation [.odp]
+								otp      - ODF Presentation Template [.otp]
+								pbm      - Portable Bitmap [.pbm]
+								pct      - Mac Pict [.pct]
+								pdf      - Portable Document Format [.pdf]
+								pgm      - Portable Graymap [.pgm]
+								png      - Portable Network Graphic [.png]
+								potm     - Microsoft PowerPoint 2007/2010 XML Template [.potm]
+								pot      - Microsoft PowerPoint 97/2000/XP Template [.pot]
+								ppm      - Portable Pixelmap [.ppm]
+								pptx     - Microsoft PowerPoint 2007/2010 XML [.pptx]
+								pps      - Microsoft PowerPoint 97/2000/XP (Autoplay) [.pps]
+								ppt      - Microsoft PowerPoint 97/2000/XP [.ppt]
+								pwp      - PlaceWare [.pwp]
+								ras      - Sun Raster Image [.ras]
+								sda      - StarDraw 5.0 (OpenOffice.org Impress) [.sda]
+								sdd      - StarImpress 5.0 [.sdd]
+								sdd3     - StarDraw 3.0 (OpenOffice.org Impress) [.sdd]
+								sdd4     - StarImpress 4.0 [.sdd]
+								sxd      - OpenOffice.org 1.0 Drawing (OpenOffice.org Impress) [.sxd]
+								sti      - OpenOffice.org 1.0 Presentation Template [.sti]
+								svg      - Scalable Vector Graphics [.svg]
+								svm      - StarView Metafile [.svm]
+								swf      - Macromedia Flash (SWF) [.swf]
+								sxi      - OpenOffice.org 1.0 Presentation [.sxi]
+								tiff     - Tagged Image File Format [.tiff]
+								uop      - Unified Office Format presentation [.uop]
+								vor      - StarImpress 5.0 Template [.vor]
+								vor3     - StarDraw 3.0 Template (OpenOffice.org Impress) [.vor]
+								vor4     - StarImpress 4.0 Template [.vor]
+								vor5     - StarDraw 5.0 Template (OpenOffice.org Impress) [.vor]
+								wmf      - Windows Metafile [.wmf]
+								xhtml    - XHTML [.xml]
+								xpm      - X PixMap [.xpm]
+
+						## Spreadsheet
+							code.
+								csv      - Text CSV [.csv]
+								dbf      - dBASE [.dbf]
+								dif      - Data Interchange Format [.dif]
+								fods     - OpenDocument Spreadsheet (Flat XML) [.fods]
+								html     - HTML Document (OpenOffice.org Calc) [.html]
+								ods      - ODF Spreadsheet [.ods]
+								ooxml    - Microsoft Excel 2003 XML [.xml]
+								ots      - ODF Spreadsheet Template [.ots]
+								pdf      - Portable Document Format [.pdf]
+								pxl      - Pocket Excel [.pxl]
+								sdc      - StarCalc 5.0 [.sdc]
+								sdc4     - StarCalc 4.0 [.sdc]
+								sdc3     - StarCalc 3.0 [.sdc]
+								slk      - SYLK [.slk]
+								stc      - OpenOffice.org 1.0 Spreadsheet Template [.stc]
+								sxc      - OpenOffice.org 1.0 Spreadsheet [.sxc]
+								uos      - Unified Office Format spreadsheet [.uos]
+								vor3     - StarCalc 3.0 Template [.vor]
+								vor4     - StarCalc 4.0 Template [.vor]
+								vor      - StarCalc 5.0 Template [.vor]
+								xhtml    - XHTML [.xhtml]
+								xls      - Microsoft Excel 97/2000/XP [.xls]
+								xls5     - Microsoft Excel 5.0 [.xls]
+								xls95    - Microsoft Excel 95 [.xls]
+								xlt      - Microsoft Excel 97/2000/XP Template [.xlt]
+								xlt5     - Microsoft Excel 5.0 Template [.xlt]
+								xlt95    - Microsoft Excel 95 Template [.xlt]
+
+				tab.Examples
+					:markdown
+						[download a file from the shares area](/shares/welcome.pdf)  
+						[return flare json file from data area](/data/flare.json)
+
+		tab.Datasets
+			folder#Datasets(dock="left")
+				tab.Endpoints
+					:markdown
+						Both real and virtual **datasets** are reached at the following endpoints:
+
+							GET	/DATASET.TYPE		Return data from DATASET
+							PUT	/DATASET.TYPE		Update DATASET with body parameters
+							POST	/DATASET.TYPE	Insert body parameters into DATASET
+							DELETE	/DATASET.TYPE	Delete from DATASET 
+
+				tab.Queries
+					:markdown
+						Relational:
+
+							KEY = VALUE || $KEY || JSON$KEY,...  
+							KEY != VALUE || $KEY || JSON$KEY,...  
+							KEY <= VALUE || $KEY || JSON$KEY,...  
+							KEY >= VALUE || $KEY || JSON$KEY,...  
+							KEY < VALUE || $KEY || JSON$KEY,...  
+							KEY > VALUE || $KEY || JSON$KEY,...  
+							KEY_in = VALUE,VALUE  
+							KEY_out = VALUE,VALUE  
+
+						Pattern matching:
+
+							KEY = PATTERN  
+							KEY != PATTERN   
+							KEY_nlp = PATTERN  
+							KEY_exp = PATTERN  
+							KEY_bin = PATTERN  
+
+						Indexing:
+
+							STORE$KEY
+							ASKEY := KEY
+							is := PATTERN
+							not := PATTERN
+
+						Json STORE extracting:
+
+							ASKEY := STORE$.KEY || STORE$. "KEY"  
+							ASKEY := STORE$[INDEX || *] ...  
+							ASKEY := STORE$.KEY, .KEY, $.KEY, ...  
+
+						Grouping and Sorting:
+
+							_pivot = KEY,KEY,... pivot records on KEYs with NodeID = "ID,ID,..." groups  
+							_browse = KEY,KEY,... browse records on KEYs with NodeID = "name/name/ ..."  
+							_group = KEY,KEY,... group records on KEYs  
+							_sort	= KEY,KEY,... || [{property:KEY,sort:DIRECT}, ...] sort records on KEYs  
+							_nav = open | tree | rename | size ,root/A/B/... folder navigation  
+							_$STORE = MATHJS constructor
+
+						Task regulating:
+
+							_every 	= "NUM sec||min||hr||..."  
+							_start	= DATE  
+							_end	= DATE  
+							_on		= NUM  
+							_off	= NUM  						
+							_util	= NUM  
+							
+						Task monitoring:
+										   
+							_watch	= NUM  
+							_task 	= "job task name"
+							_name	= "job case name"
+							_client = "job owner"
+
+						File reading:
+
+							_batch	= NUM
+							_limit	= NUM
+							_keys	= [...]
+							_comma	= "delim"
+							_newline= "delim"
+							
+						Legacy:
+
+							_lock	= enable record locking  
+							_view = name of view to correlate with daataset  
+							_blog	= KEY blog markdown in record KEY
+							_score = minimum search score required  
+							_filters = [{property:KEY,value:PATTERN}, ...]
+
+				tab.Examples
+					:markdown
+						[return first 20 test records having x=123 and y is null sorted by u and b](/test.db?_start=0&_limit=10&x=123&y=null)   
+						[return test records having x=123 and order by u and v](/test.db?sort=[{"property":"u","direction":"asc"},{"property":"v","direction":"asc"}]&x=123)   
+						[return parms records](/parms.db)  
+						[return parms records having specified parm](/parms.db?Parm=Band)  
+						[return news records within certain age range](/news.db?age=690:693)  					
+						[insert test record x=123,y=null](POST/test.db?x=123&y=null})  
+						[update test record ID=10 with x=123,y=null ](PUT/test.db?x=123&y=null&ID=10)  
+						[delete test record ID=10](DELETE/test.db?ID:10)  
+						[return intake records](/intake.db)  
+						[return intake records pivoted by TRL and Ver](/intake.tree?_group=TRL,VER)
+
+				tab.Virtual
+					//
+						grid#Parms(
+							path="/parms.db",crush,
+							head="Print,Help",
+							cols="ID.a,Parm,Label,Type,Special,By Inspect.c,By Analysis.c,By Demo.c")
+
+							:markdown
+								The [parameter list](/parms.db) **dataset** defines how **dataset** fields are exposed to end 
+								clients in grids, forms, folders, etc used in **#{nick}** skins.  To each field corresponds a label name, verification 
+								methods, and access priviledges.
+
+						grid#Roles(
+							path="/roles.db",crush,
+							head="Print,Help",
+							cols="Table.T,Special.H,INSERT.T,UPDATE.T,DELETE.T,SELECT.T,IMPORT.T,EXPORT.T")
+
+							:markdown
+								The [user roles](/roles.db) **dataset** defines the roles assumed when clients insert, update, delete, and 
+								select records from a specific **dataset**. 
+
+						grid#Intrinsic(
+							path="/TABLES.db",crush,
+							head="Print,Help",
+							cols="Name.h")
+
+							:markdown
+								The [TABLES](/TABLES.db) provides a list of **#{nick}** **datasets**.
+
+						grid#Admin(
+							path="/ADMIN.db",crush,
+							head="Print,Help",
+							cols="TABLE_NAME,TABLE_TYPE,NOTEBOOK,VERSION,ROW_FORMAT,TABLE_ROWS,AVG_ROW_LENGTH,DATA_LENGTH,MAX_DATA_LENGTH,CREATE_TIME,UPDATE_TIME,TABLE_COMMENT")
+
+							:markdown
+								The [ADMIN](/ADMIN.db) provides detailed storage and technical information on all **#{nick}** **datasets**.
+
+						grid#Sys.Config(
+							path="/CONFIG.db",crush,
+							head="Print,Help",
+							cols="classif,extnet,disk,cpu,cpuat,platform,totalmem,freemem,uptime,cpus,host,netif,temp")
+
+							:markdown
+								System configuration information is available at [CONFIG](/CONFIG.db).
+
+					:markdown
+						**#{nick}** supports virtual **satasets** through its CRUDE (`create`, `read`, `update`, `delete`, 
+						and `execute`) interface.  This CRUDE interface governs both *Database Datasets* and *Virtual Datasets*.
+						For example, an [execute](/X.exe) on **dataset** X will typically import/export the data to/from **dataset** 
+						X as controlled by its associated query parameters, a list of which might be returned by supplying a 
+						&help parameter.  Below are several important virtual **datasets**:
+
+						+	[return upload files](/uploads.FILES.db), [stores files](/stores.FILES.db), etc
+						+	[return jade views](/VIEWS.db)  
+						+	[return connected users](/USERS.db)  
+						+	[return engine summary](/ENGINES.db)  
+						+	[return queue summary](/QUEUES.db)  
+						+	[return work cliques](/CLIQUES.db)  
+						+	[return system health](/HEALTH.db)  
+						+	[return database activity](/ACTIVITY.db)  
+						+	[return system configuration](/CONFIG.db)  
+						+	[flatten searchable tables](/CATALOG.execute) for [search catalog](/CATALOG.db)  
+						+	[contengency data](/ROCSUM.db)  
+						+	[update](/events.execute) work predication [events](/events.db) and [stats](/jobstats.db)  
+						+	[reflect git change logs](/issues.execute) to [tracked issues](/issues.db)  
+						+	[broadcast messages](/sockets.execute) to [connected users](/sockets.db)  
+						+	[import milestones](/milestone.execute) from internal spreadsheet
+
+		tab.Notebooks
+			folder#Notebooks(dock="left")
+				tab.Endpoints
+					- links = {}
+					- ds = "NOTEBOOK"
+
+					each val, key in {Export:"bool",Ingest:"bool",Pipe:"doc",Description:"doc",Entry:"json",Exit:"json",Save:"json"}
+						- links[key] = link("+", `/${ds}.mod?${val}=${key}`) + " / " + link("-", `/${ds}.mod?drop=${key}`) + " " + tag(key,"code",{}) + " = "
+
+					:markdown
+						A NOTEBOOK -- a **dataset**-**engine** pair -- is accessed from the following endpoints:
+
+							GET /NOTEBOOK.exe?name=CASE 	Run NOTEBOOK in name-specified CASE context
+							GET /NOTEBOOK.exe?CONTEXT 		Run NOTEBOOK using supplied CONTEXT
+							GET /NOTEBOOK.view				View aNOTEBOOK
+							GET /NOTEBOOK.run				View, run and manage NOTEBOOK
+
+						You may include the following context keys in your NOTEBOOK:  
+						> !{links.Export} SWITCH results into a file  
+						> !{links.Ingest} SWITCH results into the database  
+						> !{links.Pipe} JSON [source data](/pipeapi.view)  
+						> !{links.Description} MARKDOWN [document usecase](/mdapi.view)  
+						> !{links.Entry} JSON prime context on entry  
+						> !{links.Exit} JSON save context on exit  
+						> !{links.Save} JSON store of {at:"AT",...}-events to Save_AT  
+
+						#{nick} will [group keys](/skinguide.view) according to the "_" key-divider.  For example,
+						the g1_a, g1_b, g1_g2_x, g1_g2_y, _X, _Y keys will be displayed in groups as (g1,a,b,g2(x,y)),readonly(X,Y).
+
+				tab.Publishing
+					:markdown
+						A NOTEBOOK is published (documented, licensed and ToU generated) using its NOTEBOOK.pub
+						endpoint.  Publishing a NOTEBOOK runs its **publishing script** (located 
+						at `./notebooks/NOTEBOOK.js`) to define its **context keys**, its **Terms-of-Use** (ToU), 
+						and its **engine**.  **Publishing scripts** follow the pattern:
+
+							module.exports = {	// start notebooks definition
+
+								// delete then recreate all **usecases** 
+								clear || reset : true || false,		
+
+								// modify existing notebooks keys
+								// Note: KEYs of the form GROUP_SUBGROUP_NAME || _READONLY are grouped by the
+								// notebooks skinner ("#" => "_" without grouping).
+
+								mods || modkeys : {  		
+									KEY: "SQLTYPE default VALUE comment 'MARKDOWN' ", 
+									...
+								},
+
+								// add new notebooks keys 
+								adds || addkeys || keys : {  
+									KEY: "SQLTYPE default VALUE comment 'MARKDOWN' ", 
+									...
+								},
+
+								// define initial **usecases**
+								inits || initial || initialize : 
+									() => {
+										return [ { KEY: VALUE, ...  }, ...];
+									}
+
+									||
+
+									[ { KEY: VALUE, ... }, ... ],
+
+								// convert supplied engine to another language
+								// Note: smop poorly translates matlab [ [a,b,...]; [c,d, ...]; ...] matricies to python 
+								// matricies.  Until fixed, manually convert "matlabarray(cat(...))" generated python  
+								// to "matlabarray([ [a,b,...], [c,d,...], ....])".
+								to : "py" || "js" || "m", 
+
+								// js wrapper to coerce engine context
+								wrap: (ctx, res, step) => { 
+											step(ctx, ctx => {
+												res(ctx);
+											});
+										} 
+
+								// alternative way to add key markdown
+								docs || dockeys : {  
+									KEY: "MARKDOWN", 
+									...
+								},
+
+								// Terms-of-Use markdown
+								tou || doc : "MARKDOWN" 
+
+								// extend or revis ToU keys
+								subs || subkeys : { 		
+									NAME: "...",
+									totem: "...",
+									by: "...",
+									advrepo: "...",
+									register: "<!---parms key=value--->",
+									input: tags => `<!---parms EVAL--->`,
+									fetch: (req, opts, input) => `<!---fetch EVAL--->input`,
+									poc: "...",
+									request: (req) => `[TO](EVAL)`,
+									reqts: "...",
+									summary: "...",
+									ver: "...",
+									now: "..."
+								},
+
+								// initialize engine context
+								state || context || ctx : {   
+									key: value, ....
+								},
+
+								// declare js engine
+								js: function NOTEBOOK(ctx,res) { 
+
+									const { a, b, ... } = ctx;		// extract usecase context vars as needed
+
+									$pipe( recs => { 
+										if ( recs ) {					// have data batch so work with it
+											$trace("to notebook log "+recs.length);
+											$log("to console", recs.length); 
+
+											recs.forEach( rec => {		// eumerate records
+												...
+											});
+
+											res({ ... }); 				// respond and supply optional save context
+										}
+
+										else {							// data exhausted so end 
+											$trace("all done");
+
+											res({						// respond and supply optional save context																
+												// update context keys
+
+												a: ...			// update context vars as needed	
+												b: ...
+
+												// dump directives
+
+												_net: [					// dump networks to neo4j database
+													{ name:"...", nodes:{...}, edges:{...} }, 
+													... 
+												],
+
+												_jpg: [					// dump images to export area
+													{ prime:"...", index:[...], values:[...] },
+													...
+												],
+
+												_txt: [					// dump text to export area
+													"...",
+													...
+												],
+
+												_json: {				// dump data to file_KEY.json in export area
+													KEY: ...,
+													...
+												},
+
+												// update context stores as needed
+
+												Save: [ { at: "KEY", ... }, ... ], 	// append events to Save_KEY store
+												Save_KEY: ... ,			// update Save_KEY store
+											});  					
+											ctx.Save = [ a, b, a+b, ... ]; 	// update context Save''s as needed
+											res(ctx);						// respond
+										}								
+									});
+
+								},
+
+								// declare python engine
+								py: ` 
+									Save = [ a, b, a+b, ... ];  # save data to context
+									# pre-imported libs:
+									#		_SQL0		sql cursor
+									#		_SQL1		sql cursor
+									#		_JSON		json parse and stringify
+									#		_NP			numpy
+									#		_SYS		system
+									#		_IMP		gimp image processing
+								`,
+
+								// declare matlab engine
+								m: `
+									function Save = NOTEBOOK(ctx,res)		
+										Save = [ ctx.a, ctx.b, ctx.a+ctx.b, ... ]; % save data to context
+								`,
+
+								// declare opencv engine
+								cv: `
+									void NOTEBOOK( ... ) { 	// opencv engine
+									}
+								`,
+
+								// declare R engine
+								r: `
+									# tbd
+								`
+
+							}
+
+				tab.Examples
+					:markdown
+						See [published **notebooks**](/publist.view) and [associative network maker](/nets.run), 
+						[sepp trigger recovery](/trig.run), [regression classifier](/regress.run), 
+						[random process generator](/genpr.run), [cluster analysis](/cluster.run),
+						[poisson arrival estimate](/rats.run), [coherence estimator](/cints.run),
+						[cost projector](/costs.run), [various demos](/demo.run), [process estimator](/estpr.run)
+						for examples.
+
+		tab.Agents
+			:markdown
+
+		tab.Engines
+			folder#Engines(dock="left")
+
+				tab.Endpoints
+					:markdown
+						Simulation **engines** are available at these endpoints:
+
+							GET /ENGINE.exe 	Compile and step ENGINE in a stateless workflow
+							PUT /ENGINE.exe 	Compile ENGINE in a stateful workflow
+							POST /ENGINE.exe	Step ENGINE  in a stateful workflow
+							DELETE /ENGINE.exe	Free ENGINE from a stateful workflow
+
+						Use the GET-endpoint to run stateless **engines**; use the PUT-, POST-, and DELETE-endpoints 
+						to access stateful **engines**.  Whereas stateless **engines** (being memoryless) are initialized on a GET,
+						stateful **engines** are: initialized when a [workflow](/nodeflow.view) issues a PUT, advanced when a
+						workflow issues a POST, and reset when a workflow issues a DELETE, thus maximizing data 
+						stationarity in a workflow.
+
+						Please know that **#{nick}** does not provide an interactive development environment; **engines** should be 
+						thoroughly debugged before being [published](#**notebooks**) into **#{nick}**.  
+
+				tab.Queries
+					:markdown
+						An **engine**''s inital context is held in its context JSON store:
+
+							{
+								"query": { "KEY": value, ... },
+								"Entry": { "KEY": "select ...", ... } || "select ...",
+								"Exit": { "KEY": "update ...", ... } || "update ...",
+								"KEY": value, 
+								"KEY": value, ...						
+							}
+
+						On entry, its context is primed using its `entry` sql-queries.  On exit, its context keys 
+						can be exported by its `exit` sql-queries.   The "?" in sql-queries references the 
+						context `query` (as overridden by url query parameters).  
+
+				tab.Examples
+					folder#Examples(dock="right")
+						tab.js
+							:markdown
+								This [js-engine](/jsdemo1.run):
+
+									function jsdemo1(ctx, res, {$log} ) {
+										$log("jsdemo1 ctx", ctx);
+										var debug = false;
+
+										if (debug) {
+											$log("A="+ctx.A.length+" by "+ctx.A[0].length);
+											$log("B="+ctx.B.length+" by "+ctx.B[0].length);
+										}
+
+										ctx.Save = [ {u: ctx.M}, {u:ctx.M+1}, {u:ctx.M+2} ];
+										res(ctx);
+
+										if (debug)
+											$( "D=A`A'; E=D+D`3; disp(entry); ", ctx, ctx => {
+												$log( "D=", ctx.D, "E=", ctx.E);
+											});
+
+								with initial context: 
+
+									"M": 3, 
+									"query": {  // default sql-entry query parms if none supplied on url
+										"Name": "DefaultTestName"
+									},
+									"Entry": {
+										"A": "SELECT a2,a3,a6 FROM MATtest WHERE least(?,1)",
+										"B": "SELECT a1,a6 FROM MATtest WHERE least(?,1)"
+									},
+									"Exit": {
+										"A": "INSERT INTO ?? SET ?"
+									}
+
+								will, on entry, prime its `A` and `B` context keys using its `Entry` queries: the "?" therein
+								references its context `query` hash (as overridden by url query parameters).  On
+								exit, its context `B` context variable is exported by its `Exit` queries.   
+
+								The following [js-engine](/jsdemo2.exe?name=test):
+
+									function jsdemo2(ctx,res,{$log}) {
+										$("a = inv(X' * X) * X' * y", ctx, ctx => {
+											$log(ctx);
+
+											var 
+												a = ctx.a,
+												N = ctx.N = a.length,
+												b = $(N, (n,B) => B[n] = a[n]);
+
+											res(ctx);							
+										});
+									}
+
+								with initial context: 
+
+									"M": 3,
+									"Entry": {
+										"X": "SELECT p0,p1,p2 FROM Htest WHERE least(?,1)",
+										"y": "SELECT FPR from Htest WHERE least(?,1)"
+									}
+
+								uses MATHJS -- a js-compatible Matlab emulator -- to do a regression analysis.  Here, 
+								the `Name`, `Used` and `M` parameters -- acquired from the URL and/or context query -- are 
+								used to retrieve data 
+								from the `Htest` **dataset**.  This data is then used to setup a regression companion 
+								matrix `X` and measurement vector `y`.  Regression results `a` are then saved into 
+								a `b` vector (which, for example, may be saved with a Context.entry sql).
+
+								See [TOTEM''s Lab API](/labapi.view) for a list of $-lab methods added to 
+								the engines''s context.  
+
+						tab.R
+							:markdown
+								Although R **engines** are implemented, they have not yet been documented.  
+
+						tab.sh
+							:markdown
+								The flexibility of Bash sh-**engines** comes with 
+								considerable overhead and security implications; for these reasons, sh-**engines**
+								are typically disabled. 
+
+								These **engines** suffer o(1) second of overhead in loading/compiling a python/nodejs/etc module each time
+								the **engine** is called.  This translates into a 6 hour overhead in a 	typical chipping workflow containing 
+								20K chips/footprint.  When, however, workflows can be focused to a small area-of-interest, Bash 
+								overhead can be tolerated.
+
+								Bash **engines** are supported in both the HYDRA and **#{nick}** framework.  In
+								the HYDRA framework, the **engine**'s script is wrapped in a HYDRA proprietary 
+								soapUI (nonrestful XML) interface serviced by HYDRA's web service.  In
+								**#{nick}** framework, the **engine**'s script is wrapped in a JSON (restful) interface
+								serviced by **#{nick}**'s web service.  **#{nick}**'s service supports workflow **engines** (to 
+								bypass the intrinsic overhead in calling sh-**engines**), as well as a mechanisms 
+								to directly interface with clients and other workflow **engines**. And whereas 
+								**#{nick}** is PKI driven, HYDRA is login driven.
+
+								This [sh-shell engine](/demo.db) example (test [here](/demo.db)):
+
+									ls
+									python mypgm.py
+
+								with initial context: 
+
+									{
+										"KEY": value, ...
+									}
+
+								illustates an **engine** that simply list the files in the current directory,
+								the call the mypgm python module.
+
+						tab.jade
+							:markdown
+								Jade **engines** contain [Jade markdown](/skinguide.view) to manage client
+								**views**.  A Jade **engine** is invoked to create a **view** with optional
+								parameters defined by the Jade **engine**.
+
+						tab.sq
+							:markdown
+								This [sql engine](/engine.view?engine=sql&name=demo):
+
+									SQL.select = function (sql,recs,cb) {
+										var q = sql.query("SELECT * FROM ?? WHERE ?",["intake",{TRL:2}])
+										.on("result", function (rec) {
+											rec.Cat = rec.Name + rec.Tech;
+											recs.push(rec);
+										})
+										.on("end", function () {
+											Log("returning recs="+recs.length);
+											cb(recs);
+										});
+										Log("sql command="+q.sql);
+									}
+
+								with initial context:
+
+										{ key: value, ...}
+
+								is a CRUD-select [simply selects)(/demo.sql) all records from the `intake` 
+								**dataset** whose `TRL` is at 2, and adds a `Cat` field to each record.  Note 
+								again that all i/o (here console.log) is sent to the `service` console.  Note 
+								too that when this **engine** is executed (read/GET) for the first time, the **engine** is 
+								simply added to `#{nick}`; subsequent executions return the desired records to 
+								the client.
+
+						tab.m
+							:markdown
+								This [stateless matlab-engine](/mdemo1.run):
+
+									function Save = mdemo1(ctx)
+										Save = ctx.a + ctx.b;
+									end
+
+								returns the sum of its context `a` and `b` keys into its `Save` context key.
+
+						tab.mj
+							:markdown
+								This [stateless emulated matlab engine](/medemo1.run):
+
+									Save = a * (b + a);
+									disp(Save);
+
+								computes its `Save` context key given its `a` and `b` context keys.
+
+								This [example](/engines.view):
+
+									Z = [1,2;3,4];
+									X = A * A';
+									Y = B * B';
+
+								with context:
+
+									"Entry": {
+										"A": "SELECT a2,a3,a6 FROM app.MATtest WHERE least(?,1)",
+										"B": "SELECT a1,a6 FROM app.MATtest WHERE least(?,1)"
+									}
+
+								illustrates how its context variables `A` and `B` are imported with its sql-entry where
+								the sql ?-tokens are sourced from the supplied query parameters.
+								[For example](/demo1.db?name=test) places `X`, `Y`, and `Z` into its context after
+								importing its `A` and `B` context keys.  When an **engine** terminates,
+								it is free to store its context variables into its database with its sql-exit.
+
+								This [emulated matlab example](/engines.view)
+
+									Z = [1,2;3,4];
+									X = A * A';
+									Y = B * B';
+									R = addIt(1,2);
+
+								with context:
+
+									"Entry": {
+										"A": "SELECT a2,a3,a6 FROM app.MATtest WHERE least(?,1)",
+										"B": "SELECT a1,a6 FROM app.MATtest WHERE least(?,1)"
+									}
+
+									"Require": {
+									   "addIt" :  function (a,b) { return a+b; }
+									}
+
+								shows how these **engines** are extended with *Require*.
+
+						tab.mo
+							:markdown
+								[Model engines](/engine.view) are used/defined by workflows when 
+								systems are referenced/saved from within the [workflow editor](/nodeflow.view).  
+								Model **engines** should remain disabled to prevent execution.
+
+						tab.cv
+							:markdown
+								Use cv-**machines** to learn, locate and classify objects.  The [haar engine](/engine.view?engine=cv&name=haar),
+								for example, executes a cv-**machine** using a context:
+
+									size = 50  	// feature size in [m]
+									pixels = 512 	// samples across a chip [pixels]
+									step = 0.01 	// relative seach step size
+									range = 0.1 	// relative search size
+									detects = 8		// hits required to declare a detect
+									limit = 1e99 	// restrict maximum number of schips to ingest
+									test = "test" 	// test case to store results
+									scale = [0:1] || 8  		// scale^2 is max number of features in a chip
+
+								which are related to (must cleanup this doc):
+
+									{ 
+										frame: {
+											job: jpg file to load and examine
+										},
+										detector: {
+											scale: 0:1 ,
+												//specifies how much the image size is reduced at each image scale step, and thus defines a 
+												//scale pyramid during the detection process.  E.g. 0.05 means reduce size by 5% when going to next image 
+												//scale step.  Smaller step sizes will thus increase the chance of detecting the features at diffrent scales. 
+											delta: 0:1 ,
+												//features of dim*(1-delta) : dim*(1+delta) pixels are detected
+											dim: integer ,
+												//defines nominal feature size in pixels
+											hits: integer ,
+												//specifies number is required neighboring detects to declare a single detect.  A higher value
+												//results in less detections of higher quality. 3~6 is a good value.
+											cascade: [ "path to xml file", ... ] ,
+												//list of trained cascades
+											net: string
+												//path to prototxt file used to train caffe cnn	
+										}
+									}
+
+						tab.py
+							:markdown
+								This [python engine](/pydemo1.run):
+
+									def pydemo1(ctx):
+										print "welcome to python you lazy bird"
+
+										SQL0.execute("SELECT * from app.Htest", () )
+										for (rec) in SQL0:
+											print rec
+
+										ctx['Save'] = [ {'x':1, 'y':2, 'z':0}, {'x':3, 'y':4, 'z':10}]
+
+								will log `Htest` data at the service console, then return `Save` to the **notebook**''s context.  Whereas a
+								**notebook** can store data in any CTX key, its `Save` key interfaces directly with the **notebook**
+								workflow.  Python **engines** are also provided SYS, JSON, JIMP and CAFFE (if 
+								on GPU VMs) libs, as well as the SQL0 (read) and SQL1 (write) cursors.					
+
+		tab.Machines
+			:markdown
+				**Engines** rely on a MACHINE = opencv | python | R | ... implemented under
+				`atomic/ifs/MACHINE/MACHINE.cpp` and bound to **#{nick}** using the `maint.sh bind`
+				**machine** binder.  Opencv-**machines**, for example, are implemented as follows:
+
+					class OPORT { 								 	// output port
+						OPORT(str Name, V8OBJECT Parm) { 		// Initiallize 
+						};
+						// Members follow
+					};
+					class IPORT { 								 	// input port
+						IPORT(str Name, V8OBJECT Parm) { 		// Initiallize 
+						};
+						// Members follow						
+					};
+					class FEATURE { 							// Output object
+						FEATURE( ... ) {						// Initialize 
+						};	
+						// Members follow
+					};
+					class CVMACHINE : public MACHINE {  
+						int atch(IPORT &port, V8ARRAY tau) { 	// Latch input context to input port
+							return 0; // if successful
+						}
+						int latch(V8ARRAY tau, OPORT &port) { 	// Latch output port to output context
+							return 0; // if successful
+						}
+						int program (void) { 		// program and step **machine**
+						}
+						int call(const V8STACK& args) {  // nodejs interface
+						}
+						// Members follow
+					}
+
+				When a MACHINE is bound to **#{nick}**, a pool of **machines** is reserved to run 
+				multiple, independent compute threads at
+
+					error = MACHINE.call( [ id string, code string, context hash ] )
+					error = MACHINE.call( [ id string, port string, context hash or event list] )
+
+				which return an interger error code (non-zero if a fault occured).
+
+				The thread = NOTEBOOK.CLIENT.INSTANCE uniquely identifies the compute thread; these 
+				threads can be freely added to the pool until the pool becomes full.  
+
+				When stepping a **machine**, the code string specifies either the name of the **engine** port on 
+				which the arriving context is latched, or the name of the output port on which the departing 
+				context is latched; thus stepping the **machine** in a stateful way (to maximize data restfulness).
+				Given, however, an empty code string , the **machine** is stepped in a stateless way, that is, 
+				by latching context to all input ports, then latching all output ports to the context.
+
+		tab.Commands
+			:markdown
+				**#{nick}** provides various **comamnd** endpoints to distribute jobs, manage the system, 
+				ingest data, validate sessions, shard tasks etc, as cataloged below:
+
+					!{doc}
+
+//- UNCLASSIFIED

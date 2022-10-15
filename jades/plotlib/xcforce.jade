@@ -1,0 +1,163 @@
+//- UNCLASSIFIED
+extends base
+append base_help
+	:markdown
+		Display d3 force graph:
+
+			src = source returning NODES = [ { name: "...", value: N, doc: "...", children: NODES }, ... ]
+			pivots = key,key,...
+			w = drawing width
+			h = drawing height
+			debug = debugging level
+			node,children,value,doc = src keys
+
+		with nodes sized to node.weight + length(node[CHILDREN]).
+
+append base_parms
+	- tech = "d3v3"
+
+append base_head
+	style.
+		.node {
+			cursor: pointer;
+			stroke: #3182bd;
+			stroke-width: 1.5px;
+		}
+
+		.link {
+			fill: none;
+			stroke: #9ecae1;
+			stroke-width: 1.5px;
+		}
+
+	script.
+		var opts = {
+			ds: "!{query.src}" || "/stores/flare.json",
+			
+			url: "#{url}",
+			family: "cluster",
+
+			dims: {
+				margin: {top: 20, right: 90, bottom: 30, left: 90},
+				width: parseInt("#{query.w}") || 1200,
+				height: parseInt("#{query.h}") || 500
+			},
+			debug: parseInt("#{query.debug}"),
+			
+			keys: {
+				NODE: "#{query.node}" || "name",
+				CHILDREN: "#{query.children}" || "children",
+				DOC: "#{query.doc}" || "doc",
+				VALUE : "#{query.size}" || "size"	
+			}
+		};
+
+		const {NODE, CHILDREN, VALUE , DOC} = opts.keys;
+										
+append base_body
+	script.
+		Fetch( opts, (data,svg) => {
+
+			function update() {
+				// Color leaf nodes orange, and packages white or blue.
+				function color(d) {
+					return d._children ? "#3182bd" : d.children ? "#c6dbef" : "#fd8d3c";
+				}	
+
+				// Returns a list of all nodes under the root.
+				function flatten(root) {
+					var nodes = [], i = 0;
+
+					function recurse(node) {
+						if (node.children) node.children.forEach(recurse);
+						if (!node.id) node.id = ++i;
+						nodes.push(node);
+					}
+
+					recurse(root);
+					return nodes;
+				}
+							
+				var 
+					nodes = flatten(root),
+					links = d3.layout.tree().links(nodes);
+
+				// Restart the force layout.
+				force
+					.nodes(nodes)
+					.links(links)
+					.start();
+
+				// Update the links…
+				link = link.data(links, function(d) { return d.target.id; });
+
+				// Exit any old links.
+				link.exit().remove();
+
+				// Enter any new links.
+				link.enter().insert("line", ".node")
+						.attr("class", "link")
+						.attr("x1", function(d) { return d.source.x; })
+						.attr("y1", function(d) { return d.source.y; })
+						.attr("x2", function(d) { return d.target.x; })
+						.attr("y2", function(d) { return d.target.y; });
+
+				// Update the nodes…
+				node = node.data(nodes, function(d) { return d.id; }).style("fill", color);
+
+				// Exit any old nodes.
+				node.exit().remove();
+
+				// Enter any new nodes.
+				node
+					.enter().append("circle")
+						.attr("class", "node")
+						.attr("cx", function(d) { return d.x; })
+						.attr("cy", function(d) { return d.y; })
+						.attr("r", function(d) { return Math.sqrt(d.size) / 10 || 4.5; })
+						.style("fill", color)
+						.on("click", function click(d) {	// Toggle children on click.
+							if (!d3.event.defaultPrevented) {
+								if (d.children) {
+									d._children = d.children;
+									d.children = null;
+								} else {
+									d.children = d._children;
+									d._children = null;
+								}
+								update();
+							}
+						})
+						.call(force.drag);
+			}
+
+			var
+				width = svg.attr("width"),
+				height = svg.attr("height"),
+				root = data[0] || data;
+			
+			var 
+				force = d3.layout.force()
+					.size([width, height])
+					.on("tick", function tick() {
+						link.attr("x1", function(d) { return d.source.x; })
+								.attr("y1", function(d) { return d.source.y; })
+								.attr("x2", function(d) { return d.target.x; })
+								.attr("y2", function(d) { return d.target.y; });
+
+						node.attr("cx", function(d) { return d.x; })
+								.attr("cy", function(d) { return d.y; });
+					});
+
+			/*var svg = d3.select("body").append("svg")
+					.attr("width", width)
+					.attr("height", height); */
+
+			var 
+				link = svg.selectAll(".link"),
+				node = svg.selectAll(".node");
+
+			update();
+		});
+
+//- UNCLASSIFIED

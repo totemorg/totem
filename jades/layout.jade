@@ -1,0 +1,92 @@
+//- UNCLASSIFIED
+
+block layout_parms
+	- prep = true 
+	- cardreader = false
+	- close = "Close".link( `/${name}.view` )
+
+if type == "help"
+	span!= close
+	block layout_help
+	:markdown
+		# layout
+		Provides a skinning framework with options:
+
+			- prep = prepare brower (!{prep}) 
+			- cardreader = use card reader (!{cardreader})
+			- editskin = provide skin editor (!{editskin})
+			- socketio = socketio path (!{socketio})
+			- client = client name (!{client})
+			- table = endpoint name (!{table})
+			- type = render type (!{type})
+			- query = query options (!{JSON.stringify(query)})
+			- flags = flag options (!{JSON.stringify(flags)})
+			- path = source path (!{path})
+
+else
+	html(lang="en")
+		head
+			meta(http-equiv="Content-Type",content="text/html; charset=utf-8;")
+
+			//- Tell IE to use the latest, best version (or Chrome Frame if pre-IE11).
+			
+			meta(http-equiv="X-UA-Compatible", content="IE=Edge,chrome=1")
+
+			//- Make mobile application consume the full browser screen and disable user scaling.
+			
+			meta(name="viewport", content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no")
+			//link(rel="stylesheet", type="text/css", href="/clients/css/w3.w3css.css")
+
+			//-	Check browser compatibility. Requires javascript and JSON. Invalid browsers will crash or ignore startup scripts.
+			
+			if prep
+				title #{nick}-#{table}
+				// Flag javascript-disabled browsers
+				noscript
+					p Please enable Javascript and Cookies to access #{nick}.
+
+				// Add JSON to json-disabled browsers
+				if ! JSON.parse
+					script(type="text/javascript",src="/clients/json/json2.js")
+
+				//- Add global ajax method to navigator.ajax
+				// script(type="text/javascript",src="/uis/ajax.js")
+
+				//- Add global link follower method to navigator.follow
+				// script(type="text/javascript",src="/uis/follow.js")
+
+			//-
+				The socketio interface is established when the server does a require( "socketio") to create a 
+				socketio = "/socketio/socketio-client.js" endpoint from which the client imports its client via a 
+				<script src=socketio> and defines a default ioClient name.
+				
+				When the sever uses the legacy (buggy) socket.io, the server provide a socketio = 
+				"/socket.io/socket.io-client.js" endpoint to the npm-developed socket.io.  This socket.io interface is 
+				likewise established when the server does a require( "socket.io" ) to create its endpoint from which 
+				the client imports its socket.io client via a <script src=socketio> and defines a default ioClient name.
+				
+				When sockets are not being supported, the server provides socketio = "/socketio/nosockets.js". 
+
+			if socketio
+				script(type="text/javascript",src=socketio)
+				script.
+					var 
+						ioClient = "#{client}";
+						// alert("socketio=#{socketio} client=#{client}")
+						
+
+			else
+				function io {}
+
+			//- reserved for cardreader support
+			
+			if cardreader
+				script.
+					navigator.mediaDevices.enumerateDevices().then( devs => console.log("devices", devs) );
+
+			block layout_head
+
+		body
+			block layout_body
+
+//- UNCLASSIFIED

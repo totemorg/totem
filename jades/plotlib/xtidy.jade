@@ -1,0 +1,134 @@
+//- UNCLASSIFIED
+extends base
+append base_help
+	:markdown
+		Display d3 tidy tree chart using parameters:
+
+			src = source returning NODES = [ { name: "...", value: N, doc: "...", children: NODES }, ... ]
+			w = drawing width
+			h = drawing height
+			debug = level of debugging alerts
+			node,children,value,doc = src keys
+
+		//- legacy
+			name = "name" || "name%..." || "" of source record(s)
+			pivots = "key,key,..." || "" source record grouping keys
+
+append base_parms
+	- tech = "d3v5"
+	
+append base_head
+
+	style.
+		node circle {
+		fill: #fff;
+			stroke: steelblue;
+			stroke-width: 3px;
+		}
+
+		.node text {
+			font: 12px sans-serif;
+		}
+
+		.link {
+			fill: none;
+			stroke: #ccc;
+			stroke-width: 2px;
+		}
+
+	script.
+		var opts = {
+			ds: "!{query.src}" || "/stores/flare.json",
+			/*
+			"#{query.pivots}"
+				? "!{query.src}.tree?name=#{query.name}&_sort=#{query.pivots}"
+				: "#{query.name}"
+							? "!{query.src}.schema?name=#{query.name}"
+							: "!{query.src}" || "/stores/flare.json",
+			*/
+			
+			url: "#{url}",
+			family: "cluster",
+
+			dims: {
+				margin: {top: 20, right: 90, bottom: 30, left: 90},
+				width: parseInt("#{query.w}") || 1200,
+				height: parseInt("#{query.h}") || 500
+			},
+			debug: parseInt("#{query.debug}"),
+
+			keys: {
+				NODE: "#{query.node}" || "name",
+				CHILDREN: "#{query.children}" || "children",
+				VALUE: "#{query.value}" || "value",
+				DOC: "#{query.doc}" || "doc"
+			}
+		};
+
+		const {NODE, CHILDREN, VALUE, DOC} = opts.keys;
+										
+append base_body
+	script.
+		Fetch( opts, (data,svg) => {	
+			function tree(data) {
+				const root = d3.hierarchy(data);
+				root.dx = 10;
+				root.dy = width / (root.height + 1);
+				return d3.tree().nodeSize([root.dx, root.dy])(root);
+			}
+			
+			var
+				width = svg.attr("width"),
+				height = svg.attr("height");
+
+			const root = tree(data[0] || data);
+
+			let x0 = Infinity;
+			let x1 = -x0;
+			root.each(d => {
+				if (d.x > x1) x1 = d.x;
+				if (d.x < x0) x0 = d.x;
+			});
+
+			svg 
+				.attr("viewBox", [0, 0, width, x1 - x0 + root.dx * 2]);
+
+			const g = svg.append("g")
+					.attr("font-family", "sans-serif")
+					.attr("font-size", 10)
+					.attr("transform", `translate(${root.dy / 3},${root.dx - x0})`);
+
+			const link = g.append("g")
+				.attr("fill", "none")
+				.attr("stroke", "#555")
+				.attr("stroke-opacity", 0.4)
+				.attr("stroke-width", 1.5)
+			.selectAll("path")
+				.data(root.links())
+				.join("path")
+					.attr("d", d3.linkHorizontal()
+							.x(d => d.y)
+							.y(d => d.x));
+
+			const node = g.append("g")
+					.attr("stroke-linejoin", "round")
+					.attr("stroke-width", 3)
+				.selectAll("g")
+				.data(root.descendants())
+				.join("g")
+					.attr("transform", d => `translate(${d.y},${d.x})`);
+
+			node.append("circle")
+					.attr("fill", d => d.children ? "#555" : "#999")
+					.attr("r", 2.5);
+
+			node.append("text")
+					.attr("dy", "0.31em")
+					.attr("x", d => d.children ? -6 : 6)
+					.attr("text-anchor", d => d.children ? "end" : "start")
+					.text(d => d.data[NODE])
+				.clone(true).lower()
+					.attr("stroke", "white");
+		});
+
+//- UNCLASSIFIED

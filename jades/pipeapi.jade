@@ -1,0 +1,79 @@
+extends base
+append base_parms
+	- tech = "layout"
+append base_body
+	- links = {}
+	- ds = "NOTEBOOK"
+
+	each val, key in {backlog:"int",load:"float",budget:"float",cost:"float",batch:"int",limit:"int",start:"date",end:"date",every:"varchar(8)",on:"int",off:"int",rekey:"doc",watch:"int",propose:"bool",baseline:"varchar(64)",agent:"varchar(16)"}
+		- links[key] = `${key}:${val}`
+
+	:markdown
+		# Notebook Pipes
+		
+		When executed, your **notebook** places your **FILE.TYPE** source into a buffered, 
+		regulated, enumerated, event or named `Pipe`:
+
+			"PROTOCOL://HOST/ENDPOINT ? KEY=VALUE & KEY & KEY:=KEY||STORE$KEY ..."
+			"/FILE.TYPE ? KEY=EVAL & KEY=KEY & KEY ... _OPTION=VALUE"
+			{ "KEY" :  [N, ...] || "MATHJS" , noClobber:N, noRun:N } || { "$" : "MATHJS" }
+			[ EVENT, ... ]
+			".CASE.NOTEBOOK"
+
+		Valid `Pipe` options:
+		> !{links.batch} NUMBER of records in each batch  
+		> !{links.limit} maximum NUMBER of records to feed  
+		> !{links.start} starting DATE  
+		> !{links.end} ending DATE  
+		> !{links.every} batching INTERVAL  
+		> !{links.backlog} NUMBER of records at start of baseline phase  
+		> !{links.budget} NUMBER of $/cycle budgeted during baseline phase  
+		> !{links.cost} NUMBER of $/record valued during baseline phase  
+		> !{links.load} NUMBER of records/cycle loading during baseline phase  					
+		> !{links.on} NUMBER of active-state steps (0=continious)  
+		> !{links.off} NUMBER of rest-state steps  
+		> !{links.rekey} [ FROM || REGEXP || (JS) || !rem ] => [ TO || !test ] || KEY || INDEX , ...   
+		> !{links.watch} NUMBER interval to monitor queue  
+		> !{links.propose} SWITCH make this pipe a proposal  
+		> !{links.baseline} NUMBER,.... baselines/training/validation phases   
+		> !{links.agent} NAME of agent to out-source task
+	
+		A FILE.TYPE may contain both `regular` and `${context key}` expressions:  
+		+ MATHJS is a [mathjs](https://mathjs.org/) script (use ";" for "," when needed)  
+		+ NAMED references a [named pipe](/lookups.view?Ref=pipe)
+		+ TYPE = csv || txt || db streams records
+		+ TYPE = jpg || png || nitf streams [images](https://www.npmjs.com/package/jimp)
+		+ TYPE = jpgx || pngx streams [ocr-ed images](https://www.npmjs.com/package/node-tesseract-ocr)  
+		+ TYPE = xls || xlsx || pdf || odt || odp || ods streams [office documents](https://www.npmjs.com/search?q=openoffice)
+		+ TYPE = html || xml streams [scraped documents](https://www.npmjs.com/package/jsdom)
+		+ TYPE = list streams a file of files
+		+ TYPE = json || export || stream streams json files
+		+ TYPE = aoi streams image-chips and meta datasets
+
+		A FILE.aoi stream extends its context with the following keys:
+		> `File` aoi file information  
+		> `Voxel` aoi voxel information  
+		> `Sensor` aoi sensor information  
+		> `Chip` aoi image chip information  
+		> `Flux` aoi solar flux at earth''s surface under current voxel  
+		> `Events` aoi events linked to current voxel  
+		> `Stats` aoi global notebooks information
+		> `Flow` aoi workflow information  
+		>> `F` where F[k] = frequency of count k  
+		>> `T`  observation time [1/Hz]  
+		>> `J` where J[n] = number of jumps taken by n''th process at time T  
+		>> `N ensemble size  
+		>> `trP`	 where trP[n,m] = estimated state transition (from,to) probs at time T  
+		>> `store` event store at time T
+
+		The following PROTOCOLs on buffered `Pipes` are provided: 
+		> http || https to fetch text from the endpoint  
+		> wget || wgets to fetch images from the endpoint   
+		> curl || curls to fetch text from the endpoint  
+		> mask || masks to fetch data via rotated proxies  
+		> lexis || ... to fetch via the [oauth 2.0](https://oauth.net/2/) authorization-authentication protocol  
+
+		An enumeration `Pipe` will generate and run sub-**usecases** by cross-enumerating the
+		specified context KEYs (or KEY.SUBKEY if KEY is a json store).  Each sub-**usecase** can 
+		adjust its context using a MATHJS script.  Recursive enumeration `Pipes` 
+		are created when a `Pipe.Pipe` is provided.

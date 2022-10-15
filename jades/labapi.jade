@@ -1,0 +1,110 @@
+:markdown
+	## Available to Notebooks
+	[$log](https://www.github.com/totemstan/enums)( ... )  
+	[$trace](https://www.github.com/totemstan/enums)( "MESSAGE" )  
+	[$pipe](https://www.github.com/totemstan/pipe)( BATCH => { if (BATCH) { do whatever } else { stream ended } )  
+	[$ran](https://www.github.com/totemstan/randpr)( {KEY:VALUE, ... } )  
+	[$task](https://www.github.com/totemstan/totem)( {KEY:VALUE, ... }, $ => {...}, msg => {...} )  
+	[$jimp](https://www.npmjs.com/package/jimp)  
+	[$copy](https://www.github.com/totemstan/enums)( SRC, TAR, "DEEP" )  
+	[$each](https://www.github.com/totemstan/enums)( OBJ, (KEY, VAL) => {...} )  
+	[$get](https://www.github.com/totemstan/man)( [...], "KEY=EVAL & ..." || (i,A) => { ... } )  
+	[$get](https://www.github.com/totemstan/man)( "FILE ? _OPTION=VALUE & KEY=VALUE & KEY:=STORE$QUERY ..." , BATCH => { ... } )  
+	[$fetch]()( "url" || "*SITE", txt => {...} )   
+	[$sql](https://www.github.com/totemstan/jsdb)( sql => { ... } )  
+	[$select](https://www.github.com/totemstan/totem)( "DATASET ? KEY=VALUE & ..." , recs => {...})  
+	[$update](https://www.github.com/totemstan/totem)( "DATASET ? KEY=VALUE & ..." , {KEY:VALUE, ...}, info => {...})  
+	[$insert](https://www.github.com/totemstan/totem)( "DATASET ? KEY=VALUE & ..." , {KEY:VALUE, ...}, info => {...})  
+	[$delete](https://www.github.com/totemstan/totem)( "DATASET ? KEY=VALUE & ..." , info => {...})  
+
+	## Notebook execution
+	[$NOTEBOOK](https://www.github.com/totemstan/debe)( "USECASE ? STORE$.KEY" || "USECASE ? KEY" || "USECASE", {SETKEY:NEWVALUE, ... } )  
+	[$NOTEBOOK](https://www.github.com/totemstan/debe)( "USECASE ? STORE$.KEY" || "USECASE ? KEY" || "USECASE" || {...}, CTX => { ... } )  
+	[$NOTEBOOK](https://www.github.com/totemstan/debe)( "USECASE ? STORE$.KEY" || "USECASE ? KEY" || "USECASE" || {...} )  
+	[$NOTEBOOK](https://www.github.com/totemstan/debe)( {keys:[...], cases:[...]} => { ... } )  
+
+	## Notebook UIs
+	[$NOTEBOOK.run](https://www.github.com/totemstan/debe)( {KEY:VALUE, ... } )  
+	[$NOTEBOOK.brief](https://www.github.com/totemstan/debe)( {KEY:VALUE, ... } )  
+	[$NOTEBOOK.plot](https://www.github.com/totemstan/debe)( DATA || "STORE", ... )  
+
+	## Notebook access
+	[$NOTEBOOK.focus](https://www.github.com/totemstan/debe)( "USECASE ? STORE$.KEY" || "USECASE ? KEY" || "USECASE" )  
+	[$NOTEBOOK.edit](https://www.github.com/totemstan/debe)( )  
+	[$NOTEBOOK.blog](https://www.github.com/totemstan/debe)( "PREFIX$KEY*POSTFIX", "UPDATE"  )  
+
+	## Notebook revisors
+	[$NOTEBOOK.insert](https://www.github.com/totemstan/debe)( {KEY: VALUE, ...} || "KEY=VALUE, ..." )  
+	[$NOTEBOOK.delete](https://www.github.com/totemstan/debe)( {KEY: VALUE, ...} || "KEY=VALUE AND ..." )  
+	[$NOTEBOOK.update](https://www.github.com/totemstan/debe)( {KEY: VALUE, ...} || "KEY=VALUE AND ..." )  
+
+	where [notebook artifacts](https://github.com/totemstan/artifacts) provides currently published NOTEBOOKs.
+
+	## Watch Dogs
+
+	[$WATCH_dog](/api.view)()
+	
+	where { #{watchDogs} } are supported WATCH dogs.
+	
+	## Program control
+	
+	See [MATHJS](https://mathjs.org/) with following program control extensions. 
+	
+	If-then-else:
+	
+		if TEST
+			DO
+		elseif TEST
+			DO
+		:
+		else
+			DO
+		end
+
+	Switch-Case:
+	
+		switch TEST
+			case TEST
+				DO
+			:
+			default TEST
+				DO
+		end
+
+	Looping:
+
+		for INDEX
+			DO
+		end
+
+		while TEST
+			DO
+		end
+
+		until TEST
+			DO
+		end
+
+	Events catch:
+
+		try
+			DO
+		catch
+			DO
+		end
+
+		when EVENT
+			DO
+		end
+
+	Functions definition:
+	
+		def f=(x,y,...)
+			DO
+		end
+
+	or in-lined using fat-arrows:
+
+		(x,y,...) => {
+			DO
+		}	

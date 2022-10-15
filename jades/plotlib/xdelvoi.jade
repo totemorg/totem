@@ -1,0 +1,66 @@
+//- UNCLASSIFIED
+
+extends base
+append base_parms
+	- tech = "d3"
+
+append base_help
+	:markdown
+		Display sankey chart:
+
+			src = source url
+			w = drawing width
+			h = drawing height
+			debug = dump derived options
+
+append base_head
+	style.
+		.node rect {
+			cursor: move;
+			fill-opacity: .9;
+			shape-rendering: crispEdges;
+		}
+		.node text {
+			pointer-events: none;
+			text-shadow: 0 1px 0 #fff;
+		}
+		.link {
+			fill: none;
+			stroke: #000;
+			stroke-opacity: .2;
+		}
+		.link:hover {
+			stroke-opacity: .5;
+		}
+
+	script.
+		var opts = {
+			ds: 
+				"!{query.src}"
+					? "!{query.src}?name=#{query.name}&x:=#{query.x}&y:=#{query.y}&case:=name"
+					:  "/stores/graph.json",
+			dims: {
+				margin: {top: 20, right: 90, bottom: 30, left: 90},
+				width: parseInt("#{query.w}") || 1200,
+				height: parseInt("#{query.h}") || 500
+			},
+			debug: parseInt("#{query.debug}" || "0"),
+			
+			keys: {
+				NODE: "#{query.node}" || "name",
+				CHILDREN: "#{query.children}" || "children",
+				VALUE: "#{query.value}" || "value",
+				DOC: "#{query.doc}" || "doc"
+			}			
+		};
+
+		const {NODE, NODES, VALUE, SIZE, PARENT, DOC} = opts.keys;
+		//const {isString,isArray,Fetch,Log} = BASE;
+
+append base_body
+	script.
+		Fetch( opts, (data,svg) => {
+
+		});
+		
+//- UNCLASSIFIED

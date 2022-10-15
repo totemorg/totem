@@ -1,0 +1,40 @@
+:markdown
+	this is a test
+
+//
+	- pocs = "brian.d.james@nga.mil;john.b.gree@nga.mil;tara.a.smith@nga.mil"
+	- download = "download".link(`${host}/${name}.${engine}?endservice=ENDSERVICE`)
+
+	:markdown
+		# Terms of Use
+		[You](/ping) become a `#{Name}` transition partner when [you](/ping) !{download} #{Name}:
+		simply replace `ENDSERVICE` in the !{download}-link with the //DOMAIN/ENDPOINT.exe of your 
+		service returning [you](/ping) in its list of `#{Name}` users.
+
+		By !{download}ing #{Name}</a>, [you](/ping) agree to:
+		+ not distribute `#{Name}` outside your service
+		without the 
+		<a 
+			href="mailto:#{pocs}&subject=Please allow us to redistribute #{Name}">
+			expressed permission of NGA/R
+		</a>.
+		Please note that `#{Name}` contains antitamper watermarks to detect plagiraization per NGA/OGC
+		guidance.
+		+ enable your `ENDSERVICE` endpoint to accept the `#{Name}` interface parameters below.  When no parameters
+		are supplied, your `ENDSERVICE` will return a [json list](http://en.wikipedia.org/wiki/JSON) of `#{Name}` users
+		that must include !{you}.
+		+ [accredit](http://inteldocs/ngaRaccreditations) your `ENDSERVICE` by recovering
+		<a href="#{host}/#{name}.run">#{Name} baseline</a> results. 
+		+ credit NGA/R in your `ENDSERVICE` for `#{Name}`. 
+		+ supply all `#{Name}` dependencies -- !{reqts[engine]} -- into your `ENDSERVICE`.
+
+		NGA/R reserves the right to terminate this agreement at any time.
+
+		# Interface
+		! {interface()}
+
+		# Transitions as of #{now}
+		! {data.status}
+
+		# Baseline results
+		See [/#{name}.run](${host}/#{name}.run) for further baselines.

@@ -1,0 +1,437 @@
+// UNCLASSIFIED
+
+extends base
+append base_help
+	:markdown
+		# skinguide options:
+
+			- render = name of section to render (!{query.render})
+
+append base_body
+	- dock = "top"
+	
+	case render
+		when "embeds"
+			post#Simple.Embed(path=hosts.w3,dims="750,500",head="Refresh,Help",wrap)
+
+				:markdown
+					Here is a sample service embed.  This was embedded with the "refresh" option, so you 
+					need to *refresh* to access the service.  If this was embedded w/o the "refresh" option,
+					the service would be already available.  The "refresh" option is particularly useful 
+					in [large briefings](/tutorial.view) to hold-off posts until they are needed.	
+
+			grid#Complex.Embed(
+				path="/news.db",wrap,
+				head="Edit,Help",
+				cols="Message,To,Category")
+
+				folder#Embeds
+					tab.Deep.Insights
+						:markdown
+							this is a grid whose help button contains embedded widgets as well.
+
+							p.al The Lorenz Equations $x=y$
+							p.
+								\[
+								\begin{align}
+								\dot{x} & = \sigma(y-x) \\
+								\dot{y} & = \rho x - y - xz \\
+								\dot{z} & = -\beta z + xy
+								\end{align}
+								\]
+
+					post#Home.Site(path="/home.view?options=news",dims="600,300",wrap)
+					post#Tech.Pub(path="/expub.view",dims="600,300",wrap)
+					#minielt.Image.Editor(path="/uploads/a1.jpg",dims="600,300",wrap)
+						:markdown
+							this is a test image containing a typeset popup
+					
+
+		when "odbc"
+			grid#Excel(path="/test.db",cols="a,b,c,d")
+			grid#ViaAccess(path="/linktest.db",cols="a,b,c,d,e")
+			grid#WebSite(path="/somesite.db",cols="x1,x2,x3,x4")
+			grid#Proxies(path="/proxies.db",
+				cols="Enabled.c,Name,File(Path,Sheet),Period.n,Special.x,Updates.i,Updated.d,Machine(Vars.x,Classif,Engine,Code.x)")
+
+		when "plugins"
+			post#cv.Plugin(path="/haar.plugin",dims="800,600",wrap)
+			post#py.Plugin(path="/pydemo1.plugin",dims="800,600",wrap)
+			post#js.Plugin(path="/jsdemo1.plugin",dims="800,600",wrap)
+			post#ma.Plugin(path="/mademo1.plugin",dims="800,600",wrap)
+
+		when "immersions"
+			#earth.Cesium(path="HelloWorld",dims="800,600",wrap)
+			#bump.Bump(path="cubeland",dims="800,600",wrap)
+			#bounce.Bounce(path="bogus",dims="800,600",wrap)
+			#anaglyph.Anagylph(path="bogus",dims="800,600",wrap)
+			#paint.Paint(path="bogus",dims="800,600",wrap)
+
+		when "blogs"
+			grid#Ex.Blog(
+				path="news.db?_blog=Message",refresh=300,
+				sorts="Stay,Starts",page=30,calc,head="Search,Print,Refresh",
+				cols="Message.h")
+
+				:markdown
+					The cool thing about blogging grids is that they can be printed.  This one is setup
+					to blog Messages and function as a spreadsheet calculator.
+
+		when "finders"
+			pivot#Find(
+				path="/intake.db",
+				page=50,
+				pivots="App,Name,Tech",kiss,
+				cols="Condition(TRL,Track,Reason),General(Special,HWConfig,SWConfig,Parms),Data Collect Requirements(Reqts(C*),iName,iClassif,iSpec),Host Env Requirements(Reqts(H*),oName,oClassif,oSpec),Dissem Requirements(M*)")
+
+			- fby = {"a":"A","b":"B"}
+			#null.FilterBy(path="#{JSON.stringify(fby)}",cols="Name,opt")
+
+			grid#List(
+				path="/intake.db?Name=${xs('FIND').Name}",
+				page=50,
+				sorts="App,Name",menu="FilterBy,TestBy(a,b,c)",
+				cols="Name,App,Tech,TRL,Track,General(Special,HWConfig,SWConfig,Parms),Data Collect Requirements(Reqts(C*),iName,iClassif,iSpec),Host Env Requirements(Reqts(H*),oName,oClassif,oSpec),Dissem Requirements(M*)")
+
+			#form.Edit(
+				path="/intake.db?ID=${xs('List').ID}",
+				cols="Name,App,Tech,TRL,Track,General(Special,HWConfig,SWConfig,Parms),Data Collect Requirements(Reqts(C*),iName,iClassif,iSpec),Host Env Requirements(Reqts(H*),oName,oClassif,oSpec),Dissem Requirements(M*)")
+
+				:markdown
+					To make a jade skin **hello**, create a **hello**  [jade engine](/engines.view) then
+					render it with **/hello.view**.  You can learn more about how to [skin #{nick}](/skinguide.view) 
+					and the [#{nick} API](/api.view).  
+
+		when "navigators"
+			tab.Ex.Navigator
+				#exnav.Navs(dims="800,600")
+
+		when "tipsheets"
+			tab.Ex.Tipsheet
+				#tipsheet.Tips(
+					path="/tips.db",
+					pivots="cat,tip,name,symbol,lat,lon,nipf,nipf,links")
+
+		when "techpubs"
+			post#Ex.Tech.Pub(path="/expub.view",dims="800,600",wrap)
+
+		when "mobiles"
+			p Pending
+
+		when "briefs"
+			#exbrief.Brief(dims="800,600",wrap)
+
+		when "workflows"
+			accordion#.flows
+				#nodered.Stateless(path="/",dims="1100,600")
+				#nodeflow.Stateful(path="Python2&view=Kiss",dims="1100,600")
+
+		when "ex"
+			//
+				pivot#Browser(
+				path="/intake.db",
+				page=10,
+				pivots="TRL,Name",
+				cols="name")
+		
+			pivot#Browser(
+				path="/intake.db",
+				page=10,
+				pivots="TRL,App",
+				cols="ID,App,TRL,Tech")
+
+		when "visuals"
+			- bpath = "/intake.json&pivots=${ds('Browser').pivots}"
+
+			pivot#Browser(
+				path="/intake.db",kiss,
+				page=25,
+				pivots="TRL,App,Tech",
+				cols="ID,App,TRL,Tech")
+
+			#force.FP(path=bpath)
+			#sankey.SK(path="/data/energy.json")
+			#omg.OG
+			#plot.RC(path="/rocs.json?index=FPR,TPR&_ref=[0,0],[1,1]&marker=dot&legend=ROC&trace=1&_extra=[0,0]")
+			#map.EM(path="/maps.json&fill=Type&index=Name&details=Info&${xs('Browser')}")
+			grid#MapData(path="/maps.json",page=20,cols="Name,Type,Info.x")
+			#treefan.TF(path=bpath)
+			#treemap.TM(path=bpath)
+			#cluster.DC(path=bpath)
+			#cpack.CP(path=bpath)
+			#chords.CH(path="/bank.json")
+
+		default
+			folder#SkinGuide(dock=dock)
+				tab.Introduction
+					:markdown
+						When a SKIN.view request is made, **#{nick}** uses its [coffee-script Jade compiler](http://jade-lang.com/tutorial/)
+						to render the associated [jade file](/jades/SKIN.jade) or [jade engine](/engines.view?type=jade).
+
+						A skin can become a framework for other skins by defining SKIN_help, SKIN_head, SKIN_parms and SKIN_body
+						blocks.  A **#{nick}** skin (e.g. [the home skin](/jades/home.jade)) typically extends [the site framework](/jades/site.jade),
+						this extending [the base framework](/jades/base.jade), this extending [the layout framework](/jades/layout.jade).
+						Other **#{nick}** skins (e.g. the [D3 force skin](/xforce.jade)) simply extend [the layout framework](/jades/layout.jade);
+						simplier skins can bypass frameworks altogether.  **#{nick}** skins (e.g. 
+						[the D3 plot](/plot.jade?help=1) or [the notebook skinner](/plugin.jade)) 
+						can accept and interpret query parameters as well.
+
+						Skins follow the general pattern below:
+
+							extends FRAMEWORK
+							append FRAMEWORK_help
+								:markdown
+									CONTENT
+
+							append FRAMEWORK_head
+								style.
+									CONTENT
+
+							append FRAMEWORK_parms
+								- PARM = VALUE || JS
+								:
+								- PARM = VALUE || JS
+
+							append FRAMEWORK_body
+								:markdown
+									CONTENT
+
+								TAG(...) CONTENT
+
+								TAG(...).
+									CONTENT
+
+								WIDGET#NAME.TITLE(...)
+									CONTENT
+									tab#NAME.TITLE
+									:
+
+						where `TAG` is any html tag and `(...)` defines its attributes.  A 
+						`folder`, `accordion`, `border`, `grid`, `pivot`, `post`, or `blog` 
+						`WIDGET` uses `tab`s to aggregates sub-widgets.  If `CONTENT` is 
+						supplied to a `WIDGET`, this html content is placed into the widget''s `north pane`.
+						A widget can post content to its `north`, `south`, `east`, and `west`  panes 
+						using its `PANE` = "URL" || "URL, URL, ..." attribute.  Tab `NAME`s are 
+						used by the `border` widget to identify its `PANE` areas; the `folder` and 
+						`accordion` widgets use their tab `TITLE` to define components.  
+		
+						The `CONTENT` in a `blog` widget can include:
+
+							$VIEW{ SRC ? w=WIDTH & h=HEIGHT & x=KEY$INDEX & y=KEY$INDEX ... }
+							\${ JS }
+							[ LINK ] ( URL )
+							$$ inline TeX $$ || n$$ break TeX $$ || a$$ AsciiMath $$ || m$$ MathML $$
+							TeX := TeX || #VAR || VAR#KEY#KEY...
+							# SECTION
+							ESCAPE || $with || $for || $if:
+								BLOCK
+
+				tab.Widget.Attributes
+					:markdown
+						Source Widget Attributes:
+
+							path = "/DS.db?QUERY" || "[{key:value,...},...]" dataset source and optional [QUERY](/api.view)
+							cols = "GROUP(KEY.TYPE.TIP.QUAL, GROUP[KEY, ...], ...), ..."
+
+						where:
+
+							GROUP(...) GROUP-prefixes its KEYs
+							GROUP[...] does not prefix its KEYs
+							KEY = file name
+							TYPE = data type
+								int | bigint | tinyint | autonum | auto
+								checkbox | boolean  
+								varchar | text  
+								html | longtext | mediumtext  
+								textarea | xtextarea | json  
+								file | svg | zilch | geometry  
+								select (using Ref-Path options from /lookups.db)
+								number | float | double  
+								date | datetime | mediumdate | defaultdate | iso8601long | iso8601short |shortdate | longdate | fulldatetime | monthday | shorttime | longtime | sortabledatetime | universalsortabledatetime | yearmonth  
+							TIP = key description  
+							QUAL = hide | lock | "option|option|..."
+
+						Display Widget Attributes:
+
+							status = determines hover css
+							refresh = data store refresh rate in seconds
+							sorts = "KEY, ..." add sorters
+							plugins = "crbXCRF0" editor(cell/row), selector(boX/Column/Row), Filter(F), disable(0)
+							refresh	manual data store refresher
+							spash	border nprth initially open
+							crush	allow minimization
+							hide	render but dont show
+							top = "MENU" docked to top
+							left = "MENU" docked to left
+							right = "MENU" docked to right
+							bottom = "MENU" docked to bottom
+							head = "MENU" docked to header
+							menu = "MENU" additional items
+								WIDGET, ... GROUP(SOURCE,WIDGET,SPECIAL,ACTION,LOADER,BREAK ...), ...   
+								Search | Print | Refresh | Help | Capture | Save | Status | Delta | Blog | Datasets | Agents
+								Insert | Update | Delete | Select | Execute  
+								$stores | $uploads | $positives | $negatives  
+
+				tab.Context.Keys
+					:markdown
+						Skinning `KEY`s are inserted using `\\#{KEY}` with or `\\!{KEY}` without html-escaping.  Notebook context keys
+						are inserted using `\\#{key}` ||  `_\\#{key}` 
+						|| `\\#{KEY}` || `\\#{Key}` inserts the url, a url-include directive, a link, or the 
+						full url.
+
+						### session context keys
+							+ table	= dataset requested (#{table})
+							+ ds = resolved dataset requested (#{ds})
+							+ url = full url requested (#{url})
+							+ action	= request action (#{action})
+							+ agent = user agent (#{agent})
+							+ ipAddress = user IP address (#{ipAddress})
+							+ query	= request query (#{json(query)})
+							+ flags	= request flags (#{json(flags)})
+							+ joined = time session started (#{json(joined)})
+							+ client	= client's name (#{client})
+							+ profile	= client's profile (#{json(profile)})
+
+						### site context keys
+							+ domain = hosting domain (#{domain})
+							+ host = full hosting domain (#{host})
+							+ db	= main database (#{db})
+							+ pocs = poc by role hash (#{json(pocs)})
+							+ title	= full site name (#{title})
+							+ nick	= site nick name (#{nick})
+							+ ver	= site version number (#{ver})
+							+ released	= site release date (#{released})
+							+ started = site started date (#{json(started)})
+							+ banner = site classification banner (#{banner})
+							+ cores = number of worker threads (#{cores})
+							+ lock	= session lock (#{json(options)})
+							+ by = by-line (#{by})
+							+ $ras = research acquisition suite (#{$ras})
+							+ $jira = researh project mgt (#{$jira})
+							+ $repo = research s/w repository (#{$repo})
+
+						### notebook context keys
+							+ name (#{name})
+							+ run (#{run})
+							+ view (#{view})
+							+ content (#{content})
+							+ proj (#{JSON.stringify(proj)})
+							+ status (#{status})
+							+ archive (#{archive})
+							+ tou (#{tou})
+							+ download (#{download})
+							+ tou (#{tou})
+							+ brief (#{brief})
+							+ pub (#{pub})
+							+ repo (#{repo})
+							+ ras summary (#{ras})
+							+ jira summary (#{jira})
+
+						### data manipulation methods
+							+ get( object list, { { new: "old",...}} )
+							+ get( object list, { where: { key: value, ... } } )
+							+ get( object list, { KEY_starts: "with", KEY_ends: "with", ...  } )
+							+ get( object list, { start: index, len: count } )
+							+ get( object list, { draw: count, mash: list || null } )
+							+ get( object list, [ index || "key", ... ] )
+							+ get( object list, index || "key" )
+							+ gridify( object list, noheader )
+							+ json( list )
+							+ hover( title, jpgShares, htmlShares )
+							+ tag( text, el, {key:value,...} )
+							+ tag( text, href )  
+							+ link({label:url, ...} || label, url)
+
+				tab.Skinning.Frameworks
+					:markdown
+						The foundational frameworks [layout](/layout.help) => [base](/base.help) => [site](/site.help)
+						are extended by the presentation frameworks [run](/run.help), [exam](/exam.help), 
+						[brief](/brief.help) and [browse](/browse.help).
+
+				tab.Workflows
+
+					folder#WF(dock="left")
+						tab.Introduction
+							:markdown
+								### Models
+								A workflow defines a network of systems.  A system (aka machine, engine or application) can be a 
+								discrete block (triggered or sampled), a state machine, or a petri net.  Each system has a URL identifing 
+								the path to a restful application that sinks and sources event tokens.  The [api](/api.jade) explains
+								the workflow engine interface.  Workflows can be defined using the [workflow editor](/workflow.jade).
+
+								Engine stats (event rates, queueing delay, utilization, drops, etc), machine states, and petri tokens are
+								logged as the client steps/advances a workflow with the specified simulation options (number of steps, 
+								step size, stats snapshot period).
+
+								Workflows are constructed using the system skins, and are compiled, linked and executed at the client
+								using the [workflow editor](/workflow.jade).  A workflow skin will thus look like:
+
+									#system.label(inputs="link,link,...",outputs="link,link,...")  
+									#system.label(inputs="link,link,...",outputs="link,link,...")  
+									#system.label(inputs="link,link,...",outputs="link,link,...")  
+
+								where i/o ports can accept/produce either simple or N-fold threads:
+
+									input link = name|N|system|name  
+									output link = name|N
+
+								### Threaded Models
+								System i/o ports (and their corresponding i/o event tokens) can be either simple or N-fold threaded.
+								Whereas simple ports are sampled, threaded ports are triggered.  In an algorithm chain of, say, 3 systems, 
+								with 5, 10, and 2 threaded output ports, there are 5*10*2=100 total execution threads that can be shared
+								(hyper-threaded) among K processing cores (if the server implements, say, K=4 processing cores, then 
+								no more than 100/4=25 threads are impacted by a single failing thread).
+
+								### Application Interface
+								Each system application supports TAUINIT, TAUSTEP, TAUKILL, and TAUREAD (restful PUT, POST, DELETE, GET) to
+								program, advance, deallocate and read an engine given itau, otau and state parameters: 
+
+									itau = [event1, event2, ...] events being sinked to inputs ports 1,2, ... 
+									otau = [event1, event2, ...] events being sourced from output ports 1,2, ...
+									state = {simulation step count, relative simulation time, depth of queue, drops from queue, 
+											engine index, as well as a port reset, port name, and port index when stepping i/o threads}.
+
+						tab.Attributes
+							:markdown
+								### All systems [default value]
+
+									run [false] autorun simulation with the specified simulation options
+									stats = "name" ["stats"] of simulation options in simoptions.db
+									buffers = N [0] reserved
+
+								### Discrete systems
+
+									inputs = "link, link, ..." [""] input ports
+									outputs = "link, link, ..." [""] output ports
+
+								where link = "name|N|system|name" defines an N-threaded or N=0 simple port.
+
+								### State machines:
+
+									routes = "route, route, ..." [""] are the routes for a state machine
+
+								where route = "fromState | toState | condition | exit | entry" [""] defines from-to machine states, condition code and from state exit-entry code (condition=start to define initial state).
+
+								### Petri nets:
+
+									markers	= "transition, transition, ..." [""] are the transitions for a petri net
+
+								where:
+
+									transition = "fromPlaces || transition || toPlaces" defines from-to places and transition to take-deposit petri net tokens ("n|k|..." initializes each place with n,k,... tokens).
+									places = "place | place | ..." are the places from which to take-deposit petri net tokens.
+									start = "name" ["content"] of widget to open
+
+						tab.Examples
+							:markdown
+								### STEP/POST example
+								A POST to system X with a state hash of {... reset:1,name:"A"} directs system X to load its 
+								input state variable "A" with the contents of the input job stream itau[0].job.  A POST to system X with a state
+								hash of {... reset:0,name:"B"} directs X to advance its output variable "B" into each 
+								output job stream otau[n].job.
+
+								### INIT/PUT example
+
+								### FREE/DELETE example
+
+								### READ/GET example

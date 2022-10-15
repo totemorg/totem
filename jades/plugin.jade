@@ -1,0 +1,213 @@
+// UNCLASSIFIED
+extends site
+
+append site_help
+	block plugin_help
+	:markdown
+		# plugin
+		Provided a skinning framework with options:
+
+			- opts = viewing options (!{JSON.stringify(opts)})
+			- client = client viewing (!{client})
+			- addBrief
+			- addToU
+
+		[sample](/plugin.help)  
+		[example](/plugin.run)
+
+append site_parms
+	block plugin_parm
+		- addBrief = false
+		- addToU = false
+		- mode = opts ? opts.mode : "noopts"
+		- ds = opts ? opts.ds : "noopts"
+		- query = opts ? opts.query : {}
+
+append site_body
+	- query["!not:"] = "Save*"
+	- dsName = ds.charAt(0).toUpperCase()+ds.substr(1)
+	- dsPath = `/${ds}.db`.tag("?",query)
+	- links = {}
+
+	each val, key in {Export:"bool",Ingest:"bool",Pipe:"doc",Description:"doc",Entry:"json",Exit:"json",Save:"json"}
+		- links[key] = link("+", `/${ds}.mod?${val}=${key}`) + " / " + link("-", `/${ds}.mod?drop=${key}`) + " " + tag(key,"code",{}) + " = "
+
+	each val, key in {backlog:"int",load:"float",budget:"float",cost:"float",batch:"int",limit:"int",start:"date",end:"date",every:"varchar(8)",on:"int",off:"int",rekey:"doc",watch:"int",propose:"bool",baseline:"varchar(64)",agent:"varchar(16)"}
+		- links[key] = link("+", `/${ds}.mod?${val}=Pipe_${key}`) + " / " + link("-", `/${ds}.mod?drop=Pipe_${key}`) + " " + tag("&"+key+"||Pipe_"+key,"code",{}) + " = "
+
+	//
+		script.
+		alert("dsPath=#{dsPath}");
+
+	case mode
+		when "noopts"
+			script.
+				alert("options opts undefined");
+
+		when "debug1"
+			border#brder(splash=true)
+				tab#center
+					folder#Fold
+						tab.One
+							p tab1 content
+							// grid#test1(path="/demo.db",cols="ID...hide,Name,Counter.n.careful,Source,Description.x,Start")
+
+						tab.Two
+							p tab2 content
+							grid#dataGrid(
+								path=dsPath,
+								status="started", 
+								cols=opts.cols,menu="Agents",blogs="Description" )
+
+		when "debug2"
+			grid#dataGrid(
+				path=dsPath,
+				status="started", 
+				cols=opts.cols,menu="Agents",blogs="Description" )
+	
+		when "run"
+			tab(class=dsName)
+				grid(
+					id=ds,
+					path=dsPath,
+					status="started", 
+					north=addBrief ? "/brief.view?name=#{ds}" : "",
+					cols=opts.cols,menu="Agents",blogs="Description" )
+
+					:markdown
+						Run your *#{ds}* notebook by selecting the desired usecase context and clicking *Execute*.  
+						
+						Other uses: !{uses}.
+						
+						Notebook [status](/projects.view): 
+						<font color="green">unfunded</font>, 
+						<font color="yellow">policed</font>, <font color="orange">started</font>, 
+						<font color="red">broken</font>, <font color="pink">retired</font>,
+						<font color="yellow">policed</font>.  
+
+						Your notebook may add (+) / remove (-) the following [context keys](/api.view):
+						> !{links.Export} SWITCH results into a file  
+						> !{links.Ingest} SWITCH results into the database  
+						> !{links.Pipe} JSON [source data](/pipeapi.view)  
+						> !{links.Description} MARKDOWN [document usecase](/mdapi.view)  
+						> !{links.Entry} JSON prime context on entry  
+						> !{links.Exit} JSON save context on exit  
+						> !{links.Save} JSON store of {at:"AT",...}-events to Save_AT  
+						
+
+			tab.Jobs
+				grid#Jobs(
+					path="/queues.db?Task=#{ds}",
+					status="policed",
+					cols="ID.n..hide,Name.t,Class.t,Client.t,Run.n,Notes.x,Times[Starts.d,Ends.d,Arrived.d,Departed.d,ECD.d],State[Funded.b,Flagged.b,Finished.b,Billed.b,Kill.b],Metrics[cpuUtil.n,memUtil.n,Age.n,Work.n,Events.n,Batches.n,Snaps.n],Signoffs[Sign0.b,Sign1.b,Sign2.b,Sign3.b]" )
+
+					:markdown
+						*Jobs* created by clients of this notebook are show here.  If the clients exceed their credits,
+						the job is marked "unfunded"; otherwise the job is marked "funded".  Jobs having a Sign0 signoff are 
+						**proposals**: such proposals require the remaining SignX signofs before they begin, and the proposal
+						terminates after the start date shown.  To decide if this is a wise use of your remain #{profile.Credit} 
+						credits, please review your jobs **Research Technology Plan** and its **Program Management Review**
+						links therein.  Earning credits is easy: simply upload your data using the 
+						`Files | Upload` button.  Piped jobs are regulated by your current QoS#{profile.QoS/1e3} level.  *#{nick}* will routinely
+						inspect and clean-up your job queues.
+
+			tab.Logs
+				grid#Logs( 
+					path= "/syslogs.db?Table=#{ds}&Client=#{client}", 
+					status="ready",
+					cols="ID.n..hide,At.d,Node.t,Module.t,Case.t,Message.x,cpuUtil.n,memUtil.n" )
+
+					:markdown
+						The notebook *logs* shown here were traced during pipe exeuction   These logs may originate from 
+						different compute nodes in the cluster.  *#{nick}* will routinely flush old logs.
+
+			tab.Bricks
+				grid#Bricks(
+					path="/bricks.db", 
+					status="policed",
+					cols="ID.n..hide,Name.t,Path.t,Classif.t,PoP(Times[Expires.d,Start.d,End.d],durationDays.n,advanceDays.n)" )
+
+					:markdown
+						*Bricks* allow you to attach a period-of-performance to your data pipes.  Certain 
+						data quality metrics are also accumulated by the pipe''s supervisor, stored within
+						the brick, and credited to your profile.  *#{nick}* will also routinely ingest and
+						transparently archive and restore data bricks.
+
+			tab.Engine
+				grid#Engines(
+					path="/engines.db?Name=#{ds}",
+					north= addToU ? "/#{ds}.tou" : "",
+					cols="ID.n..hide,Name.t,Type.t,Enabled.c,Program[Code.x,State.x.Context,Wrap.x]")
+
+					:markdown
+						Your notebook''s [engine](/api.view) remains protected until it has been associated with 
+						your end-service provider per your Terms-of-Use below.
+
+			tab.Mods
+				grid#Mods(
+					path="/mods.db?Name=#{ds}", 
+					cols="ID.n..hide,Mod.t,Made.d" )
+
+					:markdown
+						Any activity by notebook administrators are shown here.
+
+		when "exam"
+		when "view"
+			tab(class=dsName)
+				grid(
+					id=ds,
+					path=dsPath,
+					status="started", 
+					cols=opts.cols,menu="Agents",blogs="Description" )
+
+					:markdown
+						Run your *#{ds}* notebook by selecting the desired usecase context and clicking *Execute*.  
+						Other uses: !{uses}.  Notebook [status](/projects.view) reflected as: 
+						<font color="green">unfunded</font>, 
+						<font color="yellow">policed</font>, <font color="orange">started</font>, 
+						<font color="red">broken</font>, <font color="pink">retired</font>,
+						<font color="yellow">policed</font>.  
+
+						Your notebook may add/remove the [following context keys](/api.view):
+						> !{links.Export} SWITCH results into a file  
+						> !{links.Ingest} SWITCH results into the database  
+						> !{links.Pipe} "PATH?OPTIONS" usecase in supervised workflow  
+						> !{links.Description} "MARKDOWN" document usecase  
+						> !{links.Entry} JSON prime context on entry  
+						> !{links.Exit} JSON save context on exit  
+						> !{links.Save} {at:"AT",...} events to in Save_AT stores   
+						> !{links.batch} NUMBER of records in each batch  
+						> !{links.limit} maximum NUMBER of records to feed  
+						> !{links.start} starting DATE  
+						> !{links.end} ending DATE  
+						> !{links.every} batching INTERVAL  
+						> !{links.backlog} NUMBER of records at start of baseline phase  
+						> !{links.budget} NUMBER of $/cycle budgeted during baseline phase  
+						> !{links.cost} NUMBER of $/record valued during baseline phase  
+						> !{links.load} NUMBER of records/cycle loading during baseline phase  
+						> !{links.on} NUMBER of active-state steps (0=continious)  
+						> !{links.off} NUMBER of rest-state steps  
+						> !{links.rekey} [ FROM || REGEXP || (JS) || !rem ] => [ TO || !test ] || INDEX , ...   
+						> !{links.watch} NUMBER interval to monitor queue  
+						> !{links.propose} SWITCH make this pipe a proposal  
+						> !{links.baseline} NUMBER,.... baselines/training/validation phases   
+						> !{links.agent} NAME of agent to out-source task
+
+						Place a data source into a buffered, regulated, enumerated or event *Pipe*:
+
+							"PROTOCOL://HOST/ENDPOINT ? QUERY"  
+							"/FILE.TYPE ? OPTION = VALUE & ..."
+							{ "KEY" :  [N, ...] || "MATHJS" , noClobber:N, noRun:N } || {"$" : "MATHJS" } || {"$named" : "NAMED"}  
+							[ EVENT, ... ]
+
+						as described in the [notebook api](/api.view).
+
+			tab.Mods
+				grid#Mods(
+					path="/mods.db?Name=#{ds}", 
+					cols="ID.n..hide,Mod.t,Made.d" )
+
+					:markdown
+						Any activity by notebook administrators are shown here.
+
+// UNCLASSIFIED

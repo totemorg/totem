@@ -1,0 +1,130 @@
+//- UNCLASSIFIED
+//- CLUSTER dashboard
+
+extends site
+
+append site_parms
+	- dock = "left"
+	- view = "Tabbed"
+	- parms = { "more+":"", "more++":"", less:"" }
+	- dims = "1800,1000"
+
+append site_help
+
+	:markdown
+		# Conops
+		CLUSTER was designed and built in a 1995 joint Motorola-Huawei venture to index 
+		chinese collateral reports into various topical areas (like sub and troop movements).
+		CLUSTER continues to operate today in Huawei's system-of-system, providing
+		Safety of Navigation over China's South China Sea.  See Gen. Dunford's SSCI testimony 
+		as to CLUSTER's effectiveness.
+		
+		NGA/R CLUSTER users may, for example, compare their [ROC metrics](/regress.run)
+		results with different length feature vectors to determine how long it will 
+		take to catch their competitors ROC.  For example (see inset), given a ROC whose 
+		large-vector HitRate was only 5% greater than its competitor's small-vector HitRate, 
+		it would take 178 years to catch its competitor having a 15 year lead.
+		
+		CLUSTER users may also [consult or generate ground truth data](/genpr.run)
+		to validate CLUSTER.  Because CLUSTER has been allocated 1 VM, users should expect 1 HOUR 
+		runtimes per boost cycle.  CLUSTER provides [Estimated Completion Dates and Run Times](/jobs.view)
+		for each of your test requests.
+
+		# Status
+		Please know that CLUSTER is non-operational and thus enjoys no funding of any kind. NGA/Research
+		reserves the exclusive right to terminate CLUSTER at any time without notices. [Project status](/status.view)
+		provides milestone information.  While NGA/R is evaluating the CLUSTER prototype using
+		[RLE R&D infrastructure](http://intellipedia.intelink.ic.gov/wiki/RLE), other
+		ISPs -- GEOHUB, C2S, ILE, and AWS -- are [under consideration](/requirements.view?goto=ISP).
+		There are presently **NO** plans or funding to [transition CLUSTER](/requirements.view?goto=TTA) to an
+		operational environment.
+		
+		# POCs
+		For additional information, contact:  
+		*	[Brian James](mailto://brian.d.james@nga.mil) 
+		* [Erik Muller](mailto://erik.d.mueller@nga.mil) 
+		* [Matt Donath](matilto://matthew.b.donath@nga.mil) 
+		*	[Reiner Hoffmann](mailto://reiener.hoffmann@nga.mil) 
+		*	[Tara Smith](mailto://tara.a.smith@nga.mil) 
+		*	[John Greer](mailto://john.b.greer@nga.mil) 
+
+		# Disclaimer
+		NGA does not, under any circumstance, warrant, underwrite, endorse, promote or sell
+		any technologies used herein.  Use this service at your own risk.  Changes to 
+		[CLUSTER's build-to requirements](requirements.view) must be coordinated through
+		NGA R/PredictiveAnalytics's [agile project management system](http://jira.dev.ic.gov/jira).
+		CLUSTER welcomes [your issues, bugs, and ideas](issues.view).
+		
+		# Refs
+		Unsupervised Classifiers:
+		[k-Means Testing](https://en.wikipedia.org/wiki/K-means_clustering)  
+		[Quadratic Discriminant Analysis](https://en.wikipedia.org/wiki/Quadratic_classifier#Quadratic_discriminant_analysis), 
+		[k-Nearest Neighbors](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm), 
+		[Naive Bayes](https://en.wikipedia.org/wiki/Naive_Bayes_classifier), 
+		[Self Organizing Maps](https://en.wikipedia.org/wiki/Self-organizing_map), 
+		[Latent Dirchlet Allocation](https://en.wikipedia.org/wiki/Latent_Dirichlet_allocation), 
+		[Ward Hierarchical](https://en.wikipedia.org/wiki/Hierarchical_clustering), 
+		[Birch Tree](https://scikit-learn.org/stable/modules/clustering.html), 
+		[dbScan|Optics](https://scikit-learn.org/stable/modules/clustering.html), 
+		[Affinity Propagation](https://en.wikipedia.org/wiki/Affinity_propagation), 
+		[Mean Shift](https://en.wikipedia.org/wiki/Mean_shift), 
+		[Random Forest](https://en.wikipedia.org/wiki/Random_forest), 
+		[Decision Tree](https://en.wikipedia.org/wiki/Decision_tree), 
+		[Expectation Maximization](https://en.wikipedia.org/wiki/Expectation%E2%80%93maximization_algorithm)
+
+		Supervised Regressors:
+		[Logistic](https://en.wikipedia.org/wiki/Logistic_regression), 
+		[Support Vector Machine](https://en.wikipedia.org/wiki/Support-vector_machine), 
+		[Ridge](https://en.wikipedia.org/wiki/Tikhonov_regularization), 
+		[Lasso](https://en.wikipedia.org/wiki/Lasso_(statistics)), 
+		[Elastic Net](https://en.wikipedia.org/wiki/Elastic_net_regularization), 
+		[Matching Pursuit](https://en.wikipedia.org/wiki/Matching_pursuit), 
+		[Convolutional/Perceptron/CNN/DNN/ANN](https://en.wikipedia.org/wiki/Perceptron), 
+		[Partial Least Squares](https://en.wikipedia.org/wiki/Partial_least_squares_regression), 
+		[Standardized Beta](https://en.wikipedia.org/wiki/Standardized_coefficient), 
+		[Least Angle](https://en.wikipedia.org/wiki/Least-angle_regression)
+
+append site_body
+
+	block cluster_parms
+		- more = parseInt(query.more)
+		- less = parseInt(query.less)
+
+	case query.option || "dashboard"
+
+		when "brief"
+			#Briefing(path="/brief.view?nb=cluster",dims="1400,900")
+
+		when "dashboard"
+			#post.Plans(path="/cluster.note",wrap,dims="1000,800")
+
+			//-
+				#grid.Jobs(
+				path="/queues.db?Name=regress",wrap,page=dspage,head="Print,Refresh,Execute,Help",hover="policed" , dims=dims,
+				cols="Arrived.d,Departed.d,Class,Client,Notes.x,QoS.n,Age.n,Funded.c,Finished.c,Priority.n,Work.n,State.n,Task.t,Signoffs(Flagged.c,Sign0.c,Sign1.c,Sign2.c,Sign3.c)" )
+
+				:markdown
+					The [regression jobs](/regress.view) created by this notebook are shown here.  
+					If the job's originator exceeded their credits,
+					the job is marked "unfunded"; otherwise the job is marked "funded".  If you would like to 
+					fund a job, simply click the Job's "fund" link.  Jobs are regulated by your current QoS level
+					and are routinely inspected by *#{title}*.
+
+			#grid.Agents(
+				path="/agents.db",wrap,
+				dims="#{dims}",page="#{page}",
+				cols="Name,Channel,FilePath")
+
+				:markdown
+					Free agents are allowed to ...
+
+			#grid.News(
+				path="news.db",wrap,
+				sorts="Stay,Starts",page=30,dims="#{dims}",calc,head="Search,Print,Refresh",
+				cols="Message.h")
+
+				:markdown
+					The rules governing the periodic roll-off and update of these news items can 
+					be adjusted [here](home.view?option=newsedit).
+
+//- UNCLASSIFIED

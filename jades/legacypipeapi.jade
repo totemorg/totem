@@ -1,0 +1,18 @@
+:markdown
+	Legacy notebook pipe keys:
+	> !{links.batch} NUMBER of records in each batch  
+	> !{links.limit} maximum NUMBER of records to feed  
+	> !{links.start} starting DATE  
+	> !{links.end} ending DATE  
+	> !{links.every} batching INTERVAL  
+	> !{links.backlog} NUMBER of records at start of baseline phase  
+	> !{links.budget} NUMBER of $/cycle budgeted during baseline phase  
+	> !{links.cost} NUMBER of $/record valued during baseline phase  
+	> !{links.load} NUMBER of records/cycle loading during baseline phase  					
+	> !{links.on} NUMBER of active-state steps (0=continious)  
+	> !{links.off} NUMBER of rest-state steps  
+	> !{links.rekey} [ FROM || REGEXP || (JS) || !rem ] => [ TO || !test ] || KEY || INDEX , ...   
+	> !{links.watch} NUMBER interval to monitor queue  
+	> !{links.propose} SWITCH make this pipe a proposal  
+	> !{links.baseline} NUMBER,.... baselines/training/validation phases   
+	> !{links.agent} NAME of agent to out-source task
