@@ -70,8 +70,10 @@ where configuration keys follow [ENUMS deep copy conventions](https://github.com
 <dl>
 <dt><a href="#TOTEM.module_String">String</a></dt>
 <dd></dd>
+<dt><a href="#DEBE.module_Array">Array</a></dt>
+<dd></dd>
 <dt><a href="#module_TOTEM">TOTEM</a></dt>
-<dd><p>Provides a <a href="https://github.com/totemstan/totem">barebones web service</a>.  This module documented 
+<dd><p>Provides a <a href="https://github.com/totemorg/totem">barebones web service</a>.  This module documented 
 in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
 <h3 id="env-dependencies">Env Dependencies</h3>
 <pre><code>SERVICE_PASS = passphrase to server pki cert
@@ -88,6 +90,36 @@ SHARD3 = PROTO://DOMAIN:PORT
 <a name="TOTEM.module_String"></a>
 
 ## String
+
+* [String](#TOTEM.module_String)
+    * [~linkify(ref)](#TOTEM.module_String..linkify) ⇐ <code>String</code>
+    * [~mailify(ref)](#TOTEM.module_String..mailify) ⇐ <code>String</code>
+    * [~parseXML(cb)](#TOTEM.module_String..parseXML) ⇐ <code>String</code>
+
+<a name="TOTEM.module_String..linkify"></a>
+
+### String~linkify(ref) ⇐ <code>String</code>
+Returns a ref-joined list of links
+
+**Kind**: inner method of [<code>String</code>](#TOTEM.module_String)  
+**Extends**: <code>String</code>  
+
+| Param | Type |
+| --- | --- |
+| ref | <code>String</code> | 
+
+<a name="TOTEM.module_String..mailify"></a>
+
+### String~mailify(ref) ⇐ <code>String</code>
+Returns a link suitable to ref host email system
+
+**Kind**: inner method of [<code>String</code>](#TOTEM.module_String)  
+**Extends**: <code>String</code>  
+
+| Param | Type |
+| --- | --- |
+| ref | <code>String</code> | 
+
 <a name="TOTEM.module_String..parseXML"></a>
 
 ### String~parseXML(cb) ⇐ <code>String</code>
@@ -100,10 +132,77 @@ Parse XML string into json and callback cb(json)
 | --- | --- | --- |
 | cb | <code>function</code> | callback( json || null if error ) |
 
+<a name="DEBE.module_Array"></a>
+
+## Array
+
+* [Array](#DEBE.module_Array)
+    * [~gridify(noheader)](#DEBE.module_Array..gridify)
+    * [~groupify(dot)](#DEBE.module_Array..groupify)
+    * [~blog(keys, ds, cb)](#DEBE.module_Array..blog)
+    * [~joinify(cb)](#DEBE.module_Array..joinify)
+
+<a name="DEBE.module_Array..gridify"></a>
+
+### Array~gridify(noheader)
+Creates an html table from an array.
+
+**Kind**: inner method of [<code>Array</code>](#DEBE.module_Array)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| noheader | <code>Boolean</code> | switch to enable header processing |
+
+<a name="DEBE.module_Array..groupify"></a>
+
+### Array~groupify(dot)
+Groups each "x.y.z. ...." spec in the list.
+
+**Kind**: inner method of [<code>Array</code>](#DEBE.module_Array)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| dot | <code>string</code> | item seperator |
+
+<a name="DEBE.module_Array..blog"></a>
+
+### Array~blog(keys, ds, cb)
+Blogs each string in the list.
+
+**Kind**: inner method of [<code>Array</code>](#DEBE.module_Array)  
+**See**: totem:blogify  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| keys | <code>List</code> | list of keys to blog |
+| ds | <code>String</code> | Name of dataset being blogged |
+| cb | <code>function</code> | callback(recs) blogified version of records |
+
+<a name="DEBE.module_Array..joinify"></a>
+
+### Array~joinify(cb)
+Joins a list with an optional callback cb(head,list) to join the current list 
+with the current head.
+
+**Kind**: inner method of [<code>Array</code>](#DEBE.module_Array)  
+
+| Param | Type |
+| --- | --- |
+| cb | <code>function</code> | 
+
+**Example**  
+```js
+[	a: null,
+		g1: [ b: null, c: null, g2: [ x: null ] ],
+		g3: [ y: null ] ].joinify()
+
+returning a string
+	"a,g1(b,c,g2(x)),g3(y)"
+```
 <a name="module_TOTEM"></a>
 
 ## TOTEM
-Provides a [barebones web service](https://github.com/totemstan/totem).  This module documented 
+Provides a [barebones web service](https://github.com/totemorg/totem).  This module documented 
 in accordance with [jsdoc](https://jsdoc.app/).
 
 ### Env Dependencies
@@ -116,8 +215,8 @@ in accordance with [jsdoc](https://jsdoc.app/).
 	SHARD2 = PROTO://DOMAIN:PORT
 	SHARD3 = PROTO://DOMAIN:PORT
 
-**Requires**: <code>module:[enums](https://github.com/totemstan/enums)</code>, <code>module:[jsdb](https://github.com/totemstan/jsdb)</code>, <code>module:[securelink](https://github.com/totemstan/securelink)</code>, <code>module:[socketio](https://github.com/totemstan/socketio)</code>, <code>module:[http](https://nodejs.org/docs/latest/api/)</code>, <code>module:[https](https://nodejs.org/docs/latest/api/)</code>, <code>module:[fs](https://nodejs.org/docs/latest/api/)</code>, <code>module:[constants](https://nodejs.org/docs/latest/api/)</code>, <code>module:[cluster](https://nodejs.org/docs/latest/api/)</code>, <code>module:[child\_process](https://nodejs.org/docs/latest/api/)</code>, <code>module:[os](https://nodejs.org/docs/latest/api/)</code>, <code>module:[stream](https://nodejs.org/docs/latest/api/)</code>, <code>module:[vm](https://nodejs.org/docs/latest/api/)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>, <code>module:[mime](https://www.npmjs.com/package/mime)</code>, <code>module:[xml2js](https://www.npmjs.com/package/xml2js)</code>, <code>module:[toobusy-js](https://www.npmjs.com/package/toobusy-js)</code>, <code>module:[json2csv](https://www.npmjs.com/package/json2csv)</code>, <code>module:[js2xmlparser](https://www.npmjs.com/package/js2xmlparser)</code>, <code>module:[cheerio](https://www.npmjs.com/search?q&#x3D;cheerio)</code>  
-**Author**: [ACMESDS](https://totemstan.github.io)  
+**Requires**: <code>module:[enums](https://github.com/totemorg/enums)</code>, <code>module:[jsdb](https://github.com/totemorg/jsdb)</code>, <code>module:[securelink](https://github.com/totemorg/securelink)</code>, <code>module:[socketio](https://github.com/totemorg/socketio)</code>, <code>module:[http](https://nodejs.org/docs/latest/api/)</code>, <code>module:[https](https://nodejs.org/docs/latest/api/)</code>, <code>module:[fs](https://nodejs.org/docs/latest/api/)</code>, <code>module:[constants](https://nodejs.org/docs/latest/api/)</code>, <code>module:[cluster](https://nodejs.org/docs/latest/api/)</code>, <code>module:[child\_process](https://nodejs.org/docs/latest/api/)</code>, <code>module:[os](https://nodejs.org/docs/latest/api/)</code>, <code>module:[stream](https://nodejs.org/docs/latest/api/)</code>, <code>module:[vm](https://nodejs.org/docs/latest/api/)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>, <code>module:[mime](https://www.npmjs.com/package/mime)</code>, <code>module:[xml2js](https://www.npmjs.com/package/xml2js)</code>, <code>module:[toobusy-js](https://www.npmjs.com/package/toobusy-js)</code>, <code>module:[json2csv](https://www.npmjs.com/package/json2csv)</code>, <code>module:[js2xmlparser](https://www.npmjs.com/package/js2xmlparser)</code>, <code>module:[cheerio](https://www.npmjs.com/search?q&#x3D;cheerio)</code>  
+**Author**: [ACMESDS](https://totemorg.github.io)  
 **Example**  
 ```js
 // npm test T1
@@ -443,6 +542,13 @@ neoThread( neo => {
         * [.certPass](#module_TOTEM.certPass)
         * [.site](#module_TOTEM.site)
         * [.filters](#module_TOTEM.filters)
+            * [.txt(recs, req, res)](#module_TOTEM.filters.txt)
+            * [.db(recs, req, res)](#module_TOTEM.filters.db)
+            * [.html(recs, req, res)](#module_TOTEM.filters.html)
+            * [.blog(recs, req, res)](#module_TOTEM.filters.blog)
+            * [.csv(recs, req, res)](#module_TOTEM.filters.csv)
+            * [.json(recs, req, res)](#module_TOTEM.filters.json)
+            * [.xml(recs, req, res)](#module_TOTEM.filters.xml)
         * [.byTable](#module_TOTEM.byTable)
             * [.agent()](#module_TOTEM.byTable.agent)
             * [.ping(req, res)](#module_TOTEM.byTable.ping)
@@ -469,7 +575,7 @@ neoThread( neo => {
         * [.busyTime](#module_TOTEM.busyTime)
         * [.cache](#module_TOTEM.cache)
         * [.attachAgent(server, port, agents, init)](#module_TOTEM.attachAgent)
-        * [.loginClient(req, res)](#module_TOTEM.loginClient)
+        * [.loginClient(req, cb)](#module_TOTEM.loginClient)
         * [.dsThread(req, cb)](#module_TOTEM.dsThread)
         * [.routeAgent(req, res)](#module_TOTEM.routeAgent)
         * [.startDogs()](#module_TOTEM.startDogs)
@@ -525,7 +631,7 @@ Socketio i/f set on SECLINK config
 <a name="module_TOTEM.secureIO.host"></a>
 
 #### secureIO.host
-Name of SECLINK host for determining trusted clinets etc
+Name of SECLINK host for determining trusted clients etc
 
 **Kind**: static property of [<code>secureIO</code>](#module_TOTEM.secureIO)  
 <a name="module_TOTEM.secureIO.challenge"></a>
@@ -675,6 +781,93 @@ Endpoint filters cb(data data as string || error)
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
+
+* [.filters](#module_TOTEM.filters)
+    * [.txt(recs, req, res)](#module_TOTEM.filters.txt)
+    * [.db(recs, req, res)](#module_TOTEM.filters.db)
+    * [.html(recs, req, res)](#module_TOTEM.filters.html)
+    * [.blog(recs, req, res)](#module_TOTEM.filters.blog)
+    * [.csv(recs, req, res)](#module_TOTEM.filters.csv)
+    * [.json(recs, req, res)](#module_TOTEM.filters.json)
+    * [.xml(recs, req, res)](#module_TOTEM.filters.xml)
+
+<a name="module_TOTEM.filters.txt"></a>
+
+#### filters.txt(recs, req, res)
+**Kind**: static method of [<code>filters</code>](#module_TOTEM.filters)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| recs | <code>Array</code> | Records to filter |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.filters.db"></a>
+
+#### filters.db(recs, req, res)
+**Kind**: static method of [<code>filters</code>](#module_TOTEM.filters)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| recs | <code>Array</code> | Records to filter |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.filters.html"></a>
+
+#### filters.html(recs, req, res)
+**Kind**: static method of [<code>filters</code>](#module_TOTEM.filters)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| recs | <code>Array</code> | Records to filter |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.filters.blog"></a>
+
+#### filters.blog(recs, req, res)
+**Kind**: static method of [<code>filters</code>](#module_TOTEM.filters)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| recs | <code>Array</code> | Records to filter |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.filters.csv"></a>
+
+#### filters.csv(recs, req, res)
+**Kind**: static method of [<code>filters</code>](#module_TOTEM.filters)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| recs | <code>Array</code> | Records to filter |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.filters.json"></a>
+
+#### filters.json(recs, req, res)
+**Kind**: static method of [<code>filters</code>](#module_TOTEM.filters)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| recs | <code>Array</code> | Records to filter |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.filters.xml"></a>
+
+#### filters.xml(recs, req, res)
+**Kind**: static method of [<code>filters</code>](#module_TOTEM.filters)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| recs | <code>Array</code> | Records to filter |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
 <a name="module_TOTEM.byTable"></a>
 
 ### TOTEM.byTable
@@ -922,17 +1115,16 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 
 <a name="module_TOTEM.loginClient"></a>
 
-### TOTEM.loginClient(req, res)
-Validate a client's session by attaching a log, profile, group, client, 
-cert and joined info to this request then callback(prof || null) with
-recovered profile or null if the session could not be validated.
+### TOTEM.loginClient(req, cb)
+Callback the session cb with the client profile derived from the request cert (if it exists) or the request cookie 
+(if it exists).  The returned profile is null if the cert/cookie could not be validated.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | totem session request |
-| res | <code>function</code> | totem session responder |
+| cb | <code>function</code> | callback(profile || null) |
 
 **Example**  
 ```js
@@ -1285,7 +1477,7 @@ cert {
 ### TOTEM.dsThread(req, cb)
 Start a dataset thread.  
 
-In phase 1/3 of the session setup, the following is added to this req:
+In phase 1/3 of the session setup, the following is added to this request:
 
 	cookie: "...."		// client cookie string
 	agent: "..."		// client browser info
@@ -1299,7 +1491,7 @@ In phase 1/3 of the session setup, the following is added to this req:
 	resSocket: socket	// socket to accept response
 	cert: {...} 		// full client cert
 
-In phase 2/3 of the session setup, the following is added to this req:
+In phase 2/3 of the session setup, the following is added:
 
 	log: {...}			// info to trap socket stats
 	client: "..."		// name of client from cert or "guest"
@@ -1309,18 +1501,16 @@ In phase 2/3 of the session setup, the following is added to this req:
 	encrypted: bool		// true if request on encrypted server
 	site: {...}			// site info
 
-In phase 3/3 of the the session setup
+In phase 3/3 of the the session setup, the following is added:
 
-	{query,index,flags,where} and {sql,table,area,path,type} 
-
-is appended to the request.
+	{query,index,flags,where} and {sql,table,area,path,type}
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem endpoint request |
-| cb | <code>function</code> | callback(competed req) |
+| cb | <code>function</code> | callback(revised req) |
 
 <a name="module_TOTEM.routeAgent"></a>
 

@@ -6,9 +6,9 @@
 
 HERE=`pwd`
 TOTEM_MODULES=(totem enums jsdb securelink socketio)
-DEBE_MODULES=(${TOTEM_MODULES[@]} debe atomic dockify home geohack ocr reader blog skin man dogs randpr liegroup)
+DEBE_MODULES=(${TOTEM_MODULES[@]} debe atomic dockify home chip ocr reader blog skin man dogs randpr liegroup)
 # MODULES=DEBE_MODULES
-# MODULES=(debe totem atomic geohack dockify ocr home enums reader blog skin jsdb man randpr liegroup securelink socketio dogs)
+# MODULES=(debe totem atomic chip dockify ocr home enums reader blog skin jsdb man randpr liegroup securelink socketio dogs)
 MODULE=`basename $HERE`
 BASE=/local
 INSTALL=/mnt/repo

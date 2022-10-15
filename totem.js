@@ -27,10 +27,12 @@ const
 	JS2CSV = require('json2csv'),				// JSON to CSV parser	
 	  
 	// totem modules
-	SECLINK = require("@totemstan/securelink"),			// secure com and login
-	JSDB = require("@totemstan/jsdb"),					// database agnosticator
-	ENUMS = require("@totemstan/enums"),
-	
+	SECLINK = require("./securelink"),			// secure com and login
+	JSDB = require("./jsdb"),					// database agnosticator
+	ENUMS = require("./enums"),					// enumerators
+	SKIN = require("./skin"),
+	  
+	{ renderSkin } = SKIN,	
 	{ readFile } = FS,
 	{ Copy,Each,Start,Clock,Log,
 	 sqlThread,neoThread,
@@ -43,12 +45,32 @@ const
 @module TOTEM.String
 */
 Copy({ //< String prototypes
-	/**
-	Parse XML string into json and callback cb(json) 
+/**
+Returns a ref-joined list of links
+@extends String
+@param {String} ref
+*/
+	linkify: function (ref) {
+		return ref 
+			? this.link( ref ) 
+			: this.replace( /\[([^\[\]]*)\]\(([^\)]*)\)/g, (str,lab,url) => lab.link(url) );
+	},
+	
+/**
+Returns a link suitable to ref host email system
+@extends String
+@param {String} ref
+*/
+	mailify: function ( label, tags ) {
+		return this ? label.link( "mailto:"+this.tag("?", tags || {}) ) : "missing email list";
+	},
 
-	@extends String
-	@param {Function} cb callback( json || null if error )
-	*/
+/**
+Parse XML string into json and callback cb(json) 
+
+@extends String
+@param {Function} cb callback( json || null if error )
+*/
 	parseXML: function (cb) {
 		XML2JS.parseString(this, function (err,json) {				
 			cb( err ? null : json );
@@ -58,7 +80,248 @@ Copy({ //< String prototypes
 }, String.prototype);
 
 /**
-Provides a [barebones web service]{@link https://github.com/totemstan/totem}.  This module documented 
+@module DEBE.Array
+*/
+Copy({  // array prototypes
+/**
+Creates an html table from an array.
+@param {Boolean} noheader switch to enable header processing
+*/
+	gridify: function (rehead,style) {	//< dump dataset as html table
+		function join(recs,sep) { 
+			switch (recs.constructor) {
+				case Array: 
+					return this.join(sep);
+
+				case Object:
+					var rtn = [];
+					for (var n in this) rtn.push(this[n]);
+					return rtn.join(sep);
+
+				default:
+					return this;
+			}
+		}
+
+		function table(recs) {  // generate an html table from given data or object
+			switch (recs.constructor) {
+				case Array:  // [ {head1:val}, head2:val}, ...]  create table from headers and values
+
+					var rtn = "";
+					const heads = {}, rec0 = recs[0];
+
+					if (rehead && rec0) {
+						if ( rec0.forEach )
+							rec0.forEach( (val,key) => heads[key] = rehead[key] || key );
+
+						else																		
+							Each(rec0, (key,val) => heads[key] = rehead[key] || key );
+
+						var row = "";
+						Each(heads, (key,val) => row += val.tag("th", {}) );
+
+						rtn += row.tag("tr", {});
+					}
+
+					recs.forEach( (rec,idx) => {
+						var row = "", intro = true;
+						Each(heads, (key,val) => {
+							if (val = rec[key])
+								row += val.forEach
+									? table(val)
+									: (val+"").linkify().tag("td", intro ? {class:"intro"} : {});
+							else
+								row += ((val==0) ? "0" : "").tag("td", {});
+
+							intro = false;
+						});
+						rtn += row.tag("tr", {});
+					});
+
+					return rtn.tag("table",style || {border:0,width:"100%"}); //.tag("div",{style:"overflow-x:auto"});
+
+				case Object: // { key:val, ... } create table dump of object hash
+
+					var rtn = "";
+					Each(recs, (key,val) => {
+						if (val)
+							rtn += isArray(val)
+								? table(val)
+								: (key.tag("td", {}) + JSON.stringify(val).tag("td", {})).tag("tr", {});
+					});
+
+					return rtn.tag("table",{});
+
+				default:
+					return recs+"";
+			}
+		}
+
+		function dump(x) {
+			rtn = "";
+			for (var n in x)  {
+				switch ( x[n].constructor ) {
+					case Object:
+						rtn += dump( x[n] ); break;
+					case Array:
+						rtn += n+"[]"; break;
+					case Function:
+						rtn += n+"()"; break;
+					default:
+						rtn += n;
+				}
+				rtn += "; ";
+			}
+			return rtn;
+		}
+
+		return  table( this );
+	},
+	
+/**
+Groups each "x.y.z. ...." spec in the list.
+
+@param {string} dot item seperator
+*/
+	groupify: function (dot) {
+		var src = {};
+		this.forEach( key => src[key] = key.split(dot).pop() ); 
+
+		return [].joinify( Copy(src, {} ,dot) );
+	},
+
+/**
+Blogs each string in the list.
+
+@see totem:blogify
+@param {List} keys list of keys to blog
+@param {String} ds Name of dataset being blogged
+@param {Function} cb callback(recs) blogified version of records
+*/
+	blog: function ( req, key, cb ) {
+		const 
+			{ sql, flags, client, profile, table, type, host } = req,
+			ds = "/"+table,
+			book = ds,
+			product = table+".html",
+			recs = this,
+			ctx = {
+				host: host,
+				table: table,
+				client: client,
+				type: type
+			},
+			fetchBlog = ( rec, cb ) => {
+				const 
+					isEnum = (rec.Pipe||"").startsWith("{"),	// is client doing an enumerated pipe ?
+					src = (ds+".json").tag("?", { 		// define default src key
+						name: isEnum
+							? rec.Name + "-*"	// request all children cases
+							: rec.Name			// request only this case
+					});
+
+				//Trace(">>>>>>>>>>blog", src, ds, key, rec[key]);
+
+				if ( md = rec[key] ) // have valid markdown
+					md.blogify(src, ctx, rec, html => {	// blog it
+						cb( flags.kiss
+								? html 	// keep it simple
+								: [	// add options
+									site.nick.link( "/" ),
+									"schema".link( `xfan.view?src=${ds}.schema?name=${rec.Name}&w=4000&h=600` ),
+									//"run".link( `${book}.exe?Name=${rec.Name}` ),
+									"run".link( `${book}.exe`.tag("?", {name: rec.Name}) ),
+									"goto".link( `${book}.view` ),
+									"publish".link( `${book}.pub` ),
+									"tou".link( `${book}.tou` ),
+									"data".link( `${book}.data`.tag("?", {name:rec.Name}) ),
+									//"open".link( `${book}.blog?key=${key}&name=${rec.Name}&subs=${isEnum}` ),
+									"open".link( `${book}.open`.tag("?", {name:rec.Name}) ),
+									(new Date().toDateString()) + "",
+									( client.match( /(.*)\@(.*)/ ) || ["",client] )[1].link( "email:" + client )
+								].join(" || ") + "<br>" + html
+						);
+
+						/*
+						if ( profile.Track ) 	// client is being tracked
+							if ( licenseCode ) { // code licensor installed
+								licenseCode( sql, html, {  // register this html with this client
+									_Partner: client,
+									_EndService: "",  // leave empty so lincersor wont validate by connecting to service
+									_Published: new Date(),
+									_Product: product,
+									Path: "/tag/"+product
+								}, pub => {
+									if (pub) {
+										//cb( `${rec.topic}=>${req.client}`.link( "/tags.view" ) );
+										sql.query("INSERT INTO openv.tags SET ? ON DUPLICATE KEY UPDATE Views=Views+1", {
+											Viewed: pub._Published,
+											Target: pub._Partner,
+											Topic: table,
+											License: pub._License,
+											Message: "viewed".link( "/decode.html".tag("?", {
+												Target:pub._Partner,
+												License:pub._License,
+												Topic:table
+											}))
+										});
+									}
+								});		
+								Trace(`TRACKING ${client}`);
+							}
+						*/
+					}); 
+
+				else
+					cb( "" );
+			};
+
+		recs.serial( fetchBlog, (rec, blog) => {
+			if (rec) 
+				rec[key] = blog;
+
+			else 
+				cb( recs );
+		});
+	},
+
+/**
+Joins a list with an optional callback cb(head,list) to join the current list 
+with the current head.
+
+@param {Function} cb
+@example
+	[	a: null,
+		g1: [ b: null, c: null, g2: [ x: null ] ],
+		g3: [ y: null ] ].joinify()
+
+returning a string
+	"a,g1(b,c,g2(x)),g3(y)"
+*/
+	joinify: function (src) {
+		var 
+			rtn = [];
+
+		//Trace(">keys=", Object.keys(src));
+
+		Object.keys(src).forEach( key => {
+			var list = src[key];
+
+			if ( isString(list) )
+				rtn.push( list );
+
+			else
+				rtn.push( key + "(" + [].joinify(list) + ")" );
+		});
+
+		//Trace(">>rtn", rtn);
+		return rtn.join(",");
+	}	
+
+}, Array.prototype);
+
+/**
+Provides a [barebones web service]{@link https://github.com/totemorg/totem}.  This module documented 
 in accordance with [jsdoc]{@link https://jsdoc.app/}.
 
 ### Env Dependencies
@@ -72,12 +335,12 @@ in accordance with [jsdoc]{@link https://jsdoc.app/}.
 	SHARD3 = PROTO://DOMAIN:PORT
 
 @module TOTEM
-@author [ACMESDS](https://totemstan.github.io)
+@author [ACMESDS](https://totemorg.github.io)
 
-@requires [enums](https://github.com/totemstan/enums)
-@requires [jsdb](https://github.com/totemstan/jsdb)
-@requires [securelink](https://github.com/totemstan/securelink)
-@requires [socketio](https://github.com/totemstan/socketio)
+@requires [enums](https://github.com/totemorg/enums)
+@requires [jsdb](https://github.com/totemorg/jsdb)
+@requires [securelink](https://github.com/totemorg/securelink)
+@requires [socketio](https://github.com/totemorg/socketio)
 
 @requires [http](https://nodejs.org/docs/latest/api/)
 @requires [https](https://nodejs.org/docs/latest/api/)
@@ -760,26 +1023,26 @@ SecureLink configuration settings.  Null to disable.
 @cfg {Object}
 */
 	secureIO: {
-		/**
-		Socketio i/f set on SECLINK config
-		*/
+/**
+Socketio i/f set on SECLINK config
+*/
 		sio: null,		//< set on configuration
 			
-		/**
-		Name of SECLINK host for determining trusted clinets etc
-		*/
+/**
+Name of SECLINK host for determining trusted clients etc
+*/
 		host: ENV.LINK_HOST || "totem",
 		
-		/**
-		Used to inspect unencrypted messages
-		*/
+/**
+Used to inspect unencrypted messages
+*/
 		inspect: (doc,to,cb) => { 
 			//throw new Error("link inspect never configured"); 
 		},
 		
-		/**
-		Specifiies client challenge options
-		*/
+/**
+Specifiies client challenge options
+*/
 		challenge: {
 			/**
 			Number of antibot riddles to extend 
@@ -818,12 +1081,11 @@ SecureLink configuration settings.  Null to disable.
 	},
 
 /**
-Validate a client's session by attaching a log, profile, group, client, 
-cert and joined info to this request then callback(prof || null) with
-recovered profile or null if the session could not be validated.  
+Callback the session cb with the client profile derived from the request cert (if it exists) or the request cookie 
+(if it exists).  The returned profile is null if the cert/cookie could not be validated.
 
 @param {Object} req totem session request
-@param {Function} res totem session responder
+@param {Function} cb callback(profile || null) 
 
 @example 
 Old certs
@@ -1200,7 +1462,7 @@ cert {
 							return cb( errors.badCert );
 				}
 
-				Login( client, function guestSession(err,prof) { // no-authentication session
+				Login( client, function guestSession(err,prof) { // no-authentication guest session
 					//Log("login", err, prof);
 					cb( err ? null : prof );
 				});
@@ -1228,7 +1490,7 @@ cert {
 /**
 Start a dataset thread.  
 
-In phase 1/3 of the session setup, the following is added to this req:
+In phase 1/3 of the session setup, the following is added to this request:
 
 	cookie: "...."		// client cookie string
 	agent: "..."		// client browser info
@@ -1242,7 +1504,7 @@ In phase 1/3 of the session setup, the following is added to this req:
 	resSocket: socket	// socket to accept response
 	cert: {...} 		// full client cert
 
-In phase 2/3 of the session setup, the following is added to this req:
+In phase 2/3 of the session setup, the following is added:
 
 	log: {...}			// info to trap socket stats
 	client: "..."		// name of client from cert or "guest"
@@ -1252,14 +1514,12 @@ In phase 2/3 of the session setup, the following is added to this req:
 	encrypted: bool		// true if request on encrypted server
 	site: {...}			// site info
 
-In phase 3/3 of the the session setup
+In phase 3/3 of the the session setup, the following is added:
 
 	{query,index,flags,where} and {sql,table,area,path,type} 
 
-is appended to the request.
-
 @param {Object} req Totem endpoint request
-@param {Function} cb callback(competed req)
+@param {Function} cb callback(revised req)
 */
 	dsThread: (req,cb) => {
 		sqlThread( sql => {	// start a sql thread for this dataset
@@ -2326,8 +2586,8 @@ Site context extended by the mysql derived query when service starts
 	site: {  	//< reserved for derived context vars
 		nick: "totem",
 		socketio: 
-			"/socketio/socketio-client.js",		// working
-			//  "/socket.io/socket.io-client.js",	// buggy
+			"/socketio/socketio-client.js",		// good socketio
+			//  "/socket.io/socket.io-client.js",	// buggy socket.io
 
 		started: new Date(),
 		
@@ -2344,7 +2604,148 @@ Site context extended by the mysql derived query when service starts
 			overlord: "overlord@tbd.org",
 			super: "super@tbd.org",
 			user: "user@tbd.org"
-		}		
+		},
+			
+		by: "ACMESDS".link( ENV.BY || "http://BY.undefined" ),
+		
+		//tag: (src,el,tags) => src.tag(el,tags),
+
+		explorer: {
+			Root: "/explore.view?src=/root/", 
+			Earth: "http://${domain}:8083/Apps/totem_index.html", 
+			Graph: "http://${domain}:7474/neo4j", 
+			Streets: "http://${domain}:3000/", 
+			Process: "http://${domain}:1880/", 
+			Totem: "/brief.view?_project=totem",  
+			Notebooks: "/notebooks.html", 
+			API: "/api.view", 
+			SkinGuide: "/skinguide.view", 
+			JIRA: ENV.JIRA || "JIRA.undefined", 
+			RAS: ENV.RAS || "RAS.undefined",
+			Repo: ENV.REPO || "REPO.undefined",
+			Survey: "/survey.view",
+			Calendar: "/test.view"
+		},
+		
+		sitemap: [
+			{a: "[Terms](xxx:/terms.view)" ,	
+			 b: "[Issues](xxx:/issues.view)", 
+			 c: "[Employee Portal](xxx:/portal.view)",
+			 d: "[Facebook](https://facebook.com/?goto=totem)",
+			 e: "[Leaders](xxx:/sponsors?level=leader)",
+			 f: "[Federated Repo](http://github.com/totemstan/dockify)"
+			},
+			{a: "[Privacy](xxx:/privacy.new)",	
+			 b: "[API](xxx:/api.view)",
+			 c: "[Contact Us](xxx:/contact.view)",
+			 d: "[Twitter](https://twitter.com/?goto=totem)",
+			 e: "[Corporate](xxx:/sponsors?level=corporate)",
+			 f: "[DEBE Repo](https://github.com/totemstan/debe)"
+			},
+			{a: "[News](xxx:/news.view)",
+			 b: "[Skinning](xxx:/skinguide.view)",
+			 c: "[Career Opportunities](xxx:/contact.view)",
+			 d: "[Instagram](http://instagram.com?goto=totem)",
+			 e: "[Platinum](http://xxx:/sponsors?level=platinum)",
+			 f: "[TOTEM Repo](https://github.com/totemstan/totem)"
+			},
+			{a: "[Community](http://totemstan.github.io)",
+			 b: "[Status](xxx:/status.view)",
+			 c: "[History](http://intellipedia/swag)",
+			 d: "[Telegram](https://telegram.com?goto=totem)",
+			 e: "[Honorable](xxx:/sponsors?level=member)"
+			},
+			{b: "[Briefing](xxx:/brief.view?name=totem)",
+			 d: "[SubStack](http://substack.com?goto=totem)"
+			},
+			{b: "[Restart](xxx:/restart) ", 
+			 d: "[WeChat](http://wechat.com?goto=totem)"
+			},
+			{b: "[Notices](xxx:/email.view)",
+			 d: "[Parler](http://Parler.com?goto=totem)"
+			}
+		].gridify({
+			a:"Site",
+			b:"Usage",
+			c:"Corporate",
+			d:"Follow Us",
+			e:"[Sponsorships](xxx:/likeus)".linkify(),
+			f:"Fork" }).replace(/xxx:/g, ""),
+		
+/**
+Title ti to fileName fn
+@method hover
+@memberof Skinning
+*/
+		hover: (ti,fn) => {
+			if ( ! fn.startsWith("/") ) fn = "/config/shares/hover/"+fn;
+			return ti.tag("p",{class:"sm"}) 
+				+ (
+						 "".tag("img",{src:fn+".jpg"})
+					+ "".tag("iframe",{src:fn+".html"}).tag("div",{class:"ctr"}).tag("div",{class:"mid"})
+				).tag("div",{class:"container"});
+		},
+		tag: (arg,el,at) => arg.tag(el,at),
+		link: (arg,to) => arg.tag("a",{href:to}),
+		get: (recs,idx,ctx) => recs.get(idx,ctx),
+		gridify: (recs,rehead,style) => recs.gridify(rehead,style),
+		invite: d => "Invite".tag("button",{id:"_invite",onclick:"alert(123)"}) + d.users + " AS " + d.roles,
+		embed: (url,w,h) => {
+			const
+				keys = {},
+				[urlPath] = url.parsePath(keys,{},{},{}),
+				urlName = urlPath,
+				W = w||keys.w||400,
+				H = h||keys.h||400,
+				urlType = "",
+				x = urlPath.replace(/(.*)\.(.*)/, (str,L,R) => {
+					urlName = L;
+					urlType = R;
+					return "#";
+				});
+
+			Trace("link", url, urlPath, keys);
+			switch (urlType) { 
+				case "jpg":  
+				case "png":
+					return "".tag("img", { src:`${url}?killcache=${new Date()}`, width:W, height:H });
+					break;
+
+				case "view": 
+				default:
+					return "".tag("iframe", { src: url, width:W, height:H });
+			}
+		},
+		
+		banner: "",	// disabled
+		
+		info: {
+		},
+		
+		mods: ["totem","enums","jsdb","socketio","securelink"],
+		
+		reqts: {   // defaults
+			js:  ["nodejs-12.14.0", "machine learning library-1.0".tag( "https://sc.appdev.proj.coe.ic.gov://acmesds/man" )].join(", "),
+			py: "anconda2-2019.7 (iPython 5.1.0 debugger), numpy 1.11.3, scipy 0.18.1, utm 0.4.2, Python 2.7.13",
+			m: "matlab R18, odbc, simulink, stateflow",
+			R: "R-3.6.0, MariaDB, MySQL-connector"
+		},
+		
+		/*
+		match: function (recs,where,get) {
+			return recs.match(where,get);
+		},
+		
+		replace: function (recs,subs) {
+			return recs.replace(subs);
+		}, */
+		
+/**
+Jsonize records.
+@memberof Skinning
+@param {Array} recs Record source
+*/
+		json: recs => JSON.stringify(recs)			
 	},
 
 /**
@@ -2352,6 +2753,72 @@ Endpoint filters cb(data data as string || error)
 @cfg {Object} 
 */
 	filters: {  //< record data convertors
+/**
+@param {Array} recs Records to filter
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
+		txt: (recs,req,res) => { //< dataset.txt convert to text
+			var head = recs[0], cols = [], cr = String.fromCharCode(13), txt="", list = ",";
+
+			if (head) {
+				for (var n in head) cols.push(n);
+				txt += cols.join(list) + cr;
+
+				recs.forEach( (rec) => {
+					var cols = [];
+					for (var key in rec) cols.push(rec[key]);
+					txt += cols.join(list) + cr;
+				});
+			}
+
+			res( txt );
+		},
+
+/**
+@param {Array} recs Records to filter
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
+		db: (recs, req, res) => {	
+			res({ 
+				success: true,
+				msg: errors.ok,
+				count: recs.found || recs.length,
+				data: recs
+			});
+		},
+			
+/**
+@param {Array} recs Records to filter
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
+		html: (recs,req,res) => { //< dataset.html converts to html
+			res( recs.gridify ? recs.gridify({},{border: "1"}) : recs );
+		},
+			
+/**
+@param {Array} recs Records to filter
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
+		blog: (recs,req,res) => {  //< renders dataset records
+			recs.blog( req, "Description", recs => {
+				res({ 
+					success: true,
+					msg: errors.ok,
+					count: recs.found || recs.length,
+					data: recs
+				});
+			});
+		},
+			
+/**
+@param {Array} recs Records to filter
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
 		csv: (recs, req, res) => {
 			JS2CSV({ 
 				recs: recs, 
@@ -2361,10 +2828,25 @@ Endpoint filters cb(data data as string || error)
 			});
 		},
 		
+/**
+@param {Array} recs Records to filter
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
 		"": (recs,req,res) => res( recs ),
 			
+/**
+@param {Array} recs Records to filter
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
 		json: (recs,req,res) => res( recs ),
 		
+/**
+@param {Array} recs Records to filter
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
 		xml: (recs, req, res) => {
 			res( JS2XML.parse(req.table, {  
 				count: recs.length,
@@ -2718,6 +3200,7 @@ By-type endpoint routers  {type: method(req,res), ... } for accessing dataset re
 @cfg {Object} 
 */				
 	byType: {  //< by-type routers
+		view: renderSkin		
 	},
 
 /**
