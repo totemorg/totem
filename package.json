@@ -1,6 +1,6 @@
 {
   "name": "@totemorg/totem",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Provides basic, customizable and extensible web service",
   "main": "totem.js",
   "scripts": {
@@ -17,10 +17,10 @@
   "author": "ACME SDS",
   "license": "ISC",
   "dependencies": {
-    "@totemorg/enums": "^1.16.0",
-    "@totemorg/jsdb": "^1.12.0",
-    "@totemorg/securelink": "^1.14.0",
-    "@totemorg/socketio": "^1.7.0",
+    "@totemorg/enums": "^1.21.0",
+    "@totemorg/jsdb": "^1.15.0",
+    "@totemorg/securelink": "^1.18.0",
+    "@totemorg/skin": "^1.17.0",
     "cheerio": "^1.0.0-rc.3",
     "http-proxy-agent": "^4.0.1",
     "js2xmlparser": "^3.0.0",
