@@ -1,4 +1,4 @@
-# [JSDB](https://github.com/totem-man/jsdb)
+# [JSDB](https://www.npmjs.com/package/@totemorg/jsdb)
 
 Provides mysql and neo4j agnosticators, data stashing and ingesting methods.
 
@@ -14,7 +14,7 @@ Acquire and optionally configure **JSDB** as follows:
 		Log( sql ? "sql connected" : "sql connection failed" );
 	});
 	
-where configuration keys follow [ENUMS deep copy conventions](https://github.com/totem-man/enums)
+where configuration keys follow [ENUMS deep copy conventions](https://www.npmjs.com/package/@totemorg/enums).
 	
 ## Manage
 

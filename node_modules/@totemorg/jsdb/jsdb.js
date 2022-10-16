@@ -8,11 +8,12 @@ const
 	FS = require("fs"), 				//< filesystem and uploads
 
 	// totem
-	{ Copy,Each,Start,Log,
+	{ mysqlCon,
+		Copy,Each,Start,Log,
 	 isFunction,isString,isArray,isEmpty,isObject,
 	 streamFile,
 	 sqlThread, neoThread, neo4jCon
-	} = ENUMS = require("@totemstan/enums");
+	} = ENUMS = require("./enums");
 
 Copy({
 /**
@@ -935,7 +936,7 @@ function Select(ds, index, where, opts, cb) {
 		{limit,offset,client,pivot,browse} = opts;
 	
 	var
-		{sort} = opts;
+		{sort,group} = opts;
 	
 	if ( pivot ) {
 		Copy( (nodeID == "root") 
@@ -985,7 +986,7 @@ function Select(ds, index, where, opts, cb) {
 		index[name+":"] = `cast(${name} AS char)`;
 
 		delete where.NodeID;
-		nodes.forEach( node => where[ pivots[n] || "ID" ] = node);
+		nodes.forEach( (node,n) => where[ pivots[n] || "ID" ] = node);
 	}
 	
 	if ( sort )
@@ -1001,6 +1002,19 @@ function Select(ds, index, where, opts, cb) {
 			sort = "";
 		}
 	
+	if ( group )
+		try {
+			if ( group.forEach ) 
+				group = group.map( x => escapeId(x.property || x) + " " + (x.direction||"") );
+
+			else 
+				group = group.split(",").map( x => escapeId(x) ).join(",");
+		}
+		
+		catch (err) {
+			group = "";
+		}
+	
 	sql.Index( ds, index, (selects,jsons) => { 	
 		sql.getConnection( (err, con) => {	// found_rows needs to be on same connection
 			
@@ -1014,6 +1028,7 @@ function Select(ds, index, where, opts, cb) {
 					+ sql.Where(where) 
 					+ ( pivot  ? `GROUP BY ${pivot}` : "" )
 					+ ( browse ? `GROUP BY ${browse}` : "" )
+					+ ( group  ? `GROUP BY ${group}` : "" )
 					+ ( sort   ? `ORDER BY ${sort}` : "" )
 					+ ( limit  ? ` LIMIT ${limit} OFFSET ${offset||0}` : ""), 
 					
@@ -1026,7 +1041,6 @@ function Select(ds, index, where, opts, cb) {
 
 						else 
 							con.query("SELECT found_rows() AS Found", [], (err,info) => {
-								
 								if ( err ) {
 									cb( err );
 									con.release();
@@ -1049,7 +1063,8 @@ function Select(ds, index, where, opts, cb) {
 
 									cb( null, recs );
 								}
-							});						
+							});
+
 				});
 				Trace(query);		
 			}
@@ -1241,21 +1256,31 @@ function Where(query) {
 				LHS = escapeId(lhs),
 				RHS = escape(rhs);
 
-			// Trace(op, [lhs,rhs], [LHS,RHS]);
+			//Trace(op, [lhs,rhs], [LHS,RHS]);
 			
 			switch (op) {
-				case "!bin=":
+				case "_bin=":
 					ex.push( `MATCH(${LHS}) AGAINST( ${RHS} IN BOOLEAN MODE)` );
 					break;
 
-				case "!exp=":
+				case "_exp=":
 					ex.push( `MATCH(${LHS}) AGAINST( ${RHS} IN QUERY EXPANSION)` );
 					break;
 
-				case "!nlp=":
+				case "_nlp=":
 					ex.push( `MATCH(${LHS}) AGAINST( ${RHS} IN NATURAL LANGUAGE MODE)` );
 					break;
 
+				case "_out=":
+					var [min,max] = rhs.split(",");
+					ex.push( `${LHS} NOT BETWEEN '${min}' AND '${max}'` );
+					break;
+					
+				case "_in=":
+					var [min,max] = rhs.split(",");
+					ex.push( `${LHS} BETWEEN '${min}' AND '${max}'` );
+					break;
+					
 				case "!=":
 					ex.push( 
 						( RHS.indexOf("*") >= 0 ) 
@@ -1615,6 +1640,8 @@ the {x, y, ...} are aggregated to stash.rem.
 	
 sqlThread( sql => {
 
+	//console.log(">>>>>>>>>>>>>prime jsdb", sql.constructor);
+	
 	[	// extend the sql connector			
 		// key getters
 
@@ -1667,6 +1694,12 @@ sqlThread( sql => {
 		Update,
 		Insert
 	].Extend(sql.constructor);
+	
+	//mysqlCon.constructor.prototype.getTables = getTables;
+	//mysqlCon.constructor.prototype.getSearchables = getSearchables;
+	//mysqlCon.constructor.prototype.getKeys = getKeys;
+	
+	//console.log(">>>>>>>>>>>>>>>jsdb cons", mysqlCon.prototype);
 	
 	sql.query("select 0", (err,recs) => {	// test connection and load ds attrs
 		if ( err ) 

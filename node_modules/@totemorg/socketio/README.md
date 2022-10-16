@@ -1,4 +1,4 @@
-# [SOCKETIO](https://github.com/totem-man/socketio)
+# [SOCKETIO](https://www.npmjs.com/package/@totemorg/socketio)
 
 Provides a form-fit-functional replacement for the notoriously buggy [socket.io](https://www.npmjs.com/package/socket.io) 
 and its [socket.io-client](https://www.npmjs.com/package/socket.io-client) client counterpart.  Like its socket.io predecessors, 
@@ -8,7 +8,7 @@ specification (less the bugs of course).
 
 ## Manage
 
-	npm install @totemstan/socketio	# install
+	npm install @totemorg/socketio	# install
 	npm run start [ ? | $ | ...]	# Unit test
 	npm run verminor				# Roll minor version
 	npm run vermajor				# Roll major version
@@ -18,7 +18,7 @@ specification (less the bugs of course).
 
 Acquire **SocketIO** as follows:
 
-	const SIO = require("@totemstan/socketio");
+	const SIO = require("@totemorg/socketio");
 	
 See the Program Reference for examples.
 
@@ -36,7 +36,7 @@ Documented in accordance with <a href="https://jsdoc.app/">jsdoc</a>.</p>
 <p>ref: <a href="https://medium.com/hackernoon/implementing-a-websocket-server-with-node-js-d9b78ec5ffa8">https://medium.com/hackernoon/implementing-a-websocket-server-with-node-js-d9b78ec5ffa8</a></p>
 </dd>
 <dt><a href="#module_SOCKETIO-CLIENT">SOCKETIO-CLIENT</a></dt>
-<dd><p>Replaces the buggy socket.io and socket.io-client modules found in the public.</p>
+<dd><p>The client-side of <a href="https://www.npmjs.com/package/@totemorg/socketio">socketio</a>.</p>
 </dd>
 </dl>
 
@@ -48,8 +48,8 @@ Documented in accordance with [jsdoc](https://jsdoc.app/).
 
 ref: https://medium.com/hackernoon/implementing-a-websocket-server-with-node-js-d9b78ec5ffa8
 
-**Requires**: <code>module:[@totemstan/enums](https://www.npmjs.com/package/@totemstan/enums)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>  
-**Author**: [ACMESDS](https://totemstan.github.io)  
+**Requires**: <code>module:[@totemorg/enums](https://www.npmjs.com/package/@totemorg/enums)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>  
+**Author**: [ACMESDS](https://totemorg.github.io)  
 **Example**  
 ```js
 On the server:
@@ -91,6 +91,16 @@ On the client:
 ```
 **Example**  
 ```js
+The socketio interface is established when the server does a 
+
+	require( "socketio") 
+	
+to create a socketio = "/socketio/socketio-client.js" endpoint from which the client imports its client via a 
+
+	<script src=socketio> 
+	
+to define an ioClient name.
+
 On the server:
 
 	const
@@ -106,12 +116,8 @@ On the server:
 		// etc
 	});
 	
-
 On the client:
-	// The socketio interface is established when the server does a require( "socketio" ) to create a 
-	// socketio = "/socketio/socketio-client.js" endpoint from which the client imports its client via a 
-	// <script src=socketio> and defines a default ioClient name.
-
+	
 	const
 		iosocket = io(); 					// connect to socketio 
 		ioClient = "somewhere@org.com";		// default client nmae
@@ -124,9 +130,9 @@ On the client:
 <a name="module_SOCKETIO-CLIENT"></a>
 
 ## SOCKETIO-CLIENT
-Replaces the buggy socket.io and socket.io-client modules found in the public.
+The client-side of [socketio](https://www.npmjs.com/package/@totemorg/socketio).
 
-**Author**: [ACMESDS](https://totemstan.github.io)  
+**Author**: [ACMESDS](https://totemorg.github.io)  
 </details>
 
 ## Contacting, Contributing, Following

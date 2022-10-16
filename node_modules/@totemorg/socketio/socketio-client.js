@@ -1,10 +1,10 @@
 // UNCLASSIFIED
 
 /**
-Replaces the buggy socket.io and socket.io-client modules found in the public.
+The client-side of [socketio]{@link https://www.npmjs.com/package/@totemorg/socketio}.
 
 @module SOCKETIO-CLIENT
-@author [ACMESDS](https://totemstan.github.io)
+@author [ACMESDS](https://totemorg.github.io)
 */
 
 var

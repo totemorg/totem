@@ -29,10 +29,10 @@ const
 	// totem modules
 	SECLINK = require("./securelink"),			// secure com and login
 	JSDB = require("./jsdb"),					// database agnosticator
-	ENUMS = require("./enums"),					// enumerators
-	SKIN = require("./skin"),
+	ENUMS = require("./enums"),					// data enumerators
+	SKIN = require("./skin"),					// site skinning
 	  
-	{ renderSkin } = SKIN,	
+	{ renderSkin, renderJade } = SKIN,	
 	{ readFile } = FS,
 	{ Copy,Each,Start,Clock,Log,
 	 sqlThread,neoThread,
@@ -670,13 +670,23 @@ const
 	{ 	Trace,
 		byArea, byType, byAction, byTable, CORS,
 		defaultType, attachAgent, config,
-	 	createCert, loginClient, crudIF,
+	 	createCert, loginClient, crudIF, busy,
 		getBrick, routeAgent, setContext, readPost,
 		filterFlag, paths, sqls, errors, site, isEncrypted, behindProxy, admitRules,
 		filters,tableRoutes, dsThread, startDogs, cache } = TOTEM = module.exports = {
 	
 	Trace: (msg, ...args) => `totem>>>${msg}`.trace( args ),	
-	
+
+/**
+Service too-busy options
+@cfg {Object} 
+*/
+			
+	busy: {
+		maxlag: 300,		// ms
+		interval: 500		// ms
+	},
+
 /**
 Attach (req,res)-agent(s) to `service` listening on specified `port`.  
 
@@ -845,8 +855,10 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 				}
 				
 				function getSocket( cb ) {
-					if ( false )						// check is under DoS attack
-						Res.end( "Error: busy" );		// end the session
+					if ( BUSY() )	{					// check is under DoS attack
+						Trace("Busy!");
+						Res.end( "Error: server busy" );		// end the session
+					}
 					
 					else
 					if ( reqSocket = Req.socket )
@@ -871,7 +883,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 						});
 					
 					else
-						Res.end( "Error: lost request socket" );
+						Res.end( "Error: lost socket" );
 				}
 				
 				getSocket( req => {
@@ -1784,7 +1796,7 @@ In phase3 of the session setup, the following is added to the req:
 						{area,table,type,path} = req;
 
 					if ( path.endsWith("/") ) 		// requesting folder
-						if ( route = byArea[area] || byArea.all )
+						if ( route = byArea[area] || byArea.default )
 							route(req,res);
 
 						else
@@ -1875,7 +1887,16 @@ Error messages
 */		
 	errors: {
 		ok: "ok",
-		pretty: err => (err+"").replace("Error:",""),
+		pretty: err => {
+			return "".tag("img",{src:"/icons/errors/reject.jpg",width:40,height:60})
+				+ (err+"").replace(/\n/g,"<br>").replace(process.cwd(),"").replace("Error:","")
+				+ ". " + [
+					"Issues".link( "/issues" ),
+					"Browse".link( "/home/" ),
+					"Site".link( "/site" ),
+					"API".link( "/api" )
+				].join(" || ");
+		},
 		noPost: new Error("missing post keys"),
 		badMethod: new Error("unsupported request method"),
 		noRoute: new Error("no route found"),
@@ -2207,6 +2228,9 @@ Configure database, define site context, then protect, connect, start and initia
 
 			Trace( isEncrypted() ? `STARTING ${name} USING CERT ${pfx}` : `STARTING ${name}` );
 
+			BUSY.maxLag(busy.maxlag);
+			BUSY.interval(busy.interval);
+			
 			if ( isEncrypted() )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
 					if (err) // create self-signed cert then connect
@@ -3208,22 +3232,1062 @@ By-area endpoint routers {area: method(req,res), ... } for sending/cacheing/navi
 @cfg {Object} 
 */		
 	byArea: {
+		icons: (req,res) => res( "go away" ),
+		uis: (req,res) => res( "go away" ),
+		clients: (req,res) => res( "go away" ),
+			
 /**
-Default area navigator used for all areas.
+Default area navigator.
 @param {Object} req Totem session request
 @param {Function} res Totem session response
 */
-		all: (req,res) => {
+		default: (req,res) => {
 			const
 				{client,path} = req;
 
 			Fetch( "file:" + path, files => {
 				req.type = "html"; // otherwise default type is json.
-				res(
-					`${client} ${path}<br>` +
-					files.map( file => file.link( file ) ).join("<br>") 
-				);
+				if ( files )
+					res(
+						`${client} ${path}<br>` +
+						files.map( file => file.link( file ) ).join("<br>")
+					);
+						
+				else
+					res( "nothing here" );	
 			});
+		},
+			
+/**
+Navigator for root area.
+@param {Object} req Totem session request
+@param {Function} res Totem session response		
+*/
+		root: (req,res) => {
+			function sendFolder(res,recs) {
+				//console.log(">>>>>>>>>>>>>>>>sending",cmd, recs);
+				const
+					cwd = {
+						mime:"directory",
+						ts:now,
+						read:1,
+						write:1,
+						size:0,
+						hash: btoa(parent), 
+						volumeid:"totem",
+						name: parent, 
+						locked:0,
+						dirs:1,
+						isowner: true
+					};
+
+				switch (0) {
+					case 1: // debug
+						res({  
+						cwd: { 
+							"mime":"directory",
+							"ts":1334071677,
+							"read":1,
+							"write":0,
+							"size":0,
+							"hash": "/root/",
+							"volumeid":"l1_",
+							"name":"Demo",
+							"locked":1,
+							"dirs":1},
+
+						/*"options":{
+							"path":"", //"Demo",
+							"url":"", //"http:\/\/elfinder.org\/files\/demo\/",
+							"tmbUrl":"", //"http:\/\/elfinder.org\/files\/demo\/.tmb\/",
+							"disabled":["extract"],
+							"separator":"\/",
+							"copyOverwrite":1,
+							"archivers": {
+								"create":["application\/x-tar", "application\/x-gzip"],
+								"extract":[] }
+						},*/
+
+						files: [{ 
+							"mime":"directory",
+							"ts":1334071677,
+							"read":1,
+							"write":0,
+							"size":0,
+							"hash": "/root/",
+							"volumeid":"l1_",
+							"name":"Demo",
+							"locked":1,
+							"dirs":1}].concat([
+							/*{  // cwd again
+								"mime":"directory",
+								"ts":1334071677,
+								"read":1,
+								"write":0,
+								"size":0,
+								"hash":"root",
+								"volumeid":"l1_",
+								"name":"Demo",
+								"locked":1,
+								"dirs":1},*/
+
+							/*{
+							"mime":"directory",
+							"ts":1334071677,
+							"read":1,
+							"write":0,
+							"size":0,
+							"hash":"root",
+							"volumeid":"l1_",
+							"name":"Demo",
+							"locked":1,
+							"dirs":1},*/
+
+							{
+								"mime":"directory",
+								"ts":1340114567,
+								"read":0,
+								"write":0,
+								"size":0,
+								"hash":"l1_QmFja3Vw",
+								"name":"Backup",
+								"phash":"/root/",
+								"locked":1},
+
+							{
+								"mime":"directory",
+								"ts":1310252178,
+								"read":1,
+								"write":0,
+								"size":0,
+								"hash":"l1_SW1hZ2Vz",
+								"name":"Images",
+								"phash":"/root/",
+								"locked":1},
+
+							{
+								"mime":"directory",
+								"ts":1310250758,
+								"read":1,
+								"write":0,
+								"size":0,
+								"hash":"l1_TUlNRS10eXBlcw",
+								"name":"MIME-types",
+								"phash":"/root/",
+								"locked":1},
+
+							{
+								"mime":"directory",
+								"ts":1268269762,
+								"read":1,
+								"write":0,
+								"size":0,
+								"hash":"l1_V2VsY29tZQ",
+								"name":"Welcome",
+								"phash":"/root/",
+								"locked":1,
+								"dirs":1},
+
+							{
+								"mime":"directory",
+								"ts":1390785037,
+								"read":1,
+								"write":1,
+								"size":0,
+								"hash":"l2_Lwxxyyzz",
+								"volumeid":"l2_",
+								"name":"Test here",
+								"locked":1},
+
+							{
+								"mime":"application\/x-genesis-rom",
+								"ts":1310347586,"read":1,
+								"write":0,
+								"size":3683,
+								"hash":"l1_UkVBRE1FLm1k",
+								"name":"README.md",
+								"phash":"/root/",
+								"locked":1}
+						]),
+
+						api: "2.0","uplMaxSize":"16M","netDrivers":[],
+
+						debug: {
+							"connector":"php",
+							"phpver":"5.3.26-1~dotdeb.0",
+							"time":0.016080856323242,
+							"memory":"1307Kb \/ 1173Kb \/ 128M",
+							"upload":"",
+							"volumes":[
+								{	"id":"l1_",
+									"name":"localfilesystem",
+									"mimeDetect":"internal",
+									"imgLib":"imagick"},
+
+								{	"id":"l2_",
+									"name":"localfilesystem",
+									"mimeDetect":"internal",
+									"imgLib":"gd"}],
+
+							"mountErrors":[]}
+					});
+						break;
+
+					case 2: // debug
+						res({  
+							cwd: cwd,
+
+							/*"options":{
+								"path":"", //"Demo",
+								"url":"", //"http:\/\/elfinder.org\/files\/demo\/",
+								"tmbUrl":"", //"http:\/\/elfinder.org\/files\/demo\/.tmb\/",
+								"disabled":["extract"],
+								"separator":"\/",
+								"copyOverwrite":1,
+								"archivers": {
+									"create":["application\/x-tar", "application\/x-gzip"],
+									"extract":[] }
+							},*/
+
+							files: [cwd].concat([
+								/*{  // cwd again
+									"mime":"directory",
+									"ts":1334071677,
+									"read":1,
+									"write":0,
+									"size":0,
+									"hash":"root",
+									"volumeid":"l1_",
+									"name":"Demo",
+									"locked":1,
+									"dirs":1},*/
+
+								/*{
+								"mime":"directory",
+								"ts":1334071677,
+								"read":1,
+								"write":0,
+								"size":0,
+								"hash":"root",
+								"volumeid":"l1_",
+								"name":"Demo",
+								"locked":1,
+								"dirs":1},*/
+
+								{
+									"mime":"directory",
+									"ts":1340114567,
+									"read":0,
+									"write":0,
+									"size":0,
+									"hash":"l1_QmFja3Vw",
+									"name":"Backup",
+									"phash":"/root/",
+									"locked":1},
+
+								{
+									"mime":"directory",
+									"ts":1310252178,
+									"read":1,
+									"write":0,
+									"size":0,
+									"hash":"l1_SW1hZ2Vz",
+									"name":"Images",
+									"phash":"/root/",
+									"locked":1},
+
+								{
+									"mime":"directory",
+									"ts":1310250758,
+									"read":1,
+									"write":0,
+									"size":0,
+									"hash":"l1_TUlNRS10eXBlcw",
+									"name":"MIME-types",
+									"phash":"/root/",
+									"locked":1},
+
+								{
+									"mime":"directory",
+									"ts":1268269762,
+									"read":1,
+									"write":0,
+									"size":0,
+									"hash":"l1_V2VsY29tZQ",
+									"name":"Welcome",
+									"phash":"/root/",
+									"locked":1,
+									"dirs":1},
+
+								{
+									"mime":"directory",
+									"ts":1390785037,
+									"read":1,
+									"write":1,
+									"size":0,
+									"hash":"l2_Lwxxyyzz",
+									"volumeid":"l2_",
+									"name":"Test here",
+									"locked":1},
+
+								{
+									"mime":"application\/x-genesis-rom",
+									"ts":1310347586,"read":1,
+									"write":0,
+									"size":3683,
+									"hash":"l1_UkVBRE1FLm1k",
+									"name":"README.md",
+									"phash":"/root/",
+									"locked":1}
+							]),
+
+							api: "2.0","uplMaxSize":"16M","netDrivers":[],
+
+							debug: {
+								"connector":"php",
+								"phpver":"5.3.26-1~dotdeb.0",
+								"time":0.016080856323242,
+								"memory":"1307Kb \/ 1173Kb \/ 128M",
+								"upload":"",
+								"volumes":[
+									{	"id":"l1_",
+										"name":"localfilesystem",
+										"mimeDetect":"internal",
+										"imgLib":"imagick"},
+
+									{	"id":"l2_",
+										"name":"localfilesystem",
+										"mimeDetect":"internal",
+										"imgLib":"gd"}],
+
+								"mountErrors":[]}
+						});
+						break;
+						
+					default:
+						res( ( cmd == "tree" )
+							? {tree:recs}
+							: {
+								cwd: cwd, 
+
+								options: {
+								   "separator"       : "/",                                     // (String) Path separator for the current volume
+								   "disabled"        : [],                                      // (Array)  List of commands not allowed (disabled) on this volume
+								   "copyOverwrite"   : 1,                                       // (Number) Whether or not to overwrite files with the same name on the current volume when copy
+								   "uploadOverwrite" : 1,                                       // (Number) Whether or not to overwrite files with the same name on the current volume when upload
+								   "uploadMaxSize"   : 1073741824,                              // (Number) Upload max file size per file
+								   "uploadMaxConn"   : 3,                                       // (Number) Maximum number of chunked upload connection. `-1` to disable chunked upload
+								   "uploadMime": {                                              // (Object) MIME type checker for upload
+									   "allow": [ "all" ], //[ "image", "text/plain" ],                      // (Array) Allowed MIME type
+									   "deny": [], //[ "all" ],                                       // (Array) Denied MIME type
+									   "firstOrder": "allow", //"deny"                                     // (String) First order to check ("deny" or "allow")
+								   },
+							
+								  "archivers"       : {                                        // (Object) Archive settings
+									 "create"  : [
+									   "application/zip",
+									 ],                                                   // (Array)  List of the mime type of archives which can be created
+									 "extract" : [
+									   "application/zip",
+									 ],                                                   // (Array)  List of the mime types that can be extracted / unpacked
+									 "createext": {
+									   "application/zip": "zip",
+									 }                                                    // (Object)  Map list of { MimeType: FileExtention }
+								  }
+								},
+								/*
+								options: {
+									path:"/", //cwdPath,
+									url:"/", //"/root/",
+									tmbUrl:"/root/.tmb/",
+									disabled:["extract"],
+									separator: "/",
+									copyOverwrite:1,
+									archivers: {
+										create:["application/x-tar", "application/x-gzip"],
+										extract:[] }
+								}, */
+
+								files: [cwd].concat(recs),
+
+								api: 2.1057,
+
+								uplMaxFile: 20,
+								uplMaxSize:"16M",
+								netDrivers:[]
+
+								/*
+								debug: true,   //enable client debugger in about info
+								debug: {
+									connector:"php",
+									phpver:"5.3.26-1~dotdeb.0",
+									time:0.016080856323242,
+									memory:"1307Kb \/ 1173Kb \/ 128M",
+									upload:"",
+									volumes:[
+											{	id:"v1",
+												name:"localfilesystem",
+												mimeDetect:"internal",
+												imgLib:"imagick"},
+											{	id:"v2",
+												name:"localfilesystem",
+												mimeDetect:"internal",
+												imgLib:"gd"}],
+									mountErrors:[]
+								} */
+						} );
+				}
+			}
+
+			function logCommand(cmd, info) {
+				if (isString(cmd)) {
+					Trace( "file logger", cmd );
+					const [op,ds] = cmd.split(" ");
+					sql.query("INSERT INTO openv.dblogs SET ? ON DUPLICATE KEY UPDATE Actions=Actions+1,?", [{
+						Op: op,
+						Dataset: ds,
+						Client: client,
+						Event: now
+					}, {
+						Event: now
+					}]);
+					CP.exec( cmd );
+				}
+				
+				else {
+					Trace( "file logger", cmd.name);
+					cmd(info);
+				}
+
+				return info;
+			}
+			
+			const 
+				{sql,query,path,client,body,action,host,area,profile,referer} = req;
+
+			if ( req.type == "help" )
+			return res("Navigate folder target=NAME/NAME/... per command cmd=open|tree|file|size|...|null" );
+
+			if ( query.target == "null") delete query.target;
+			
+			const
+				oldSchool = false,
+				btoa = b => Buffer.from(b,"utf-8").toString("base64"),
+				atob = a => Buffer.from(a,"base64").toString("utf-8"),
+				trace = true,
+				{cmd,init,tree,src} = body.cmd ? body : query,
+				targets = [query["targets[]"] || query.target || btoa(path)].map( tar => atob(tar) ),
+				[target] = targets,
+				  // parent = target.split("/").slice(0,-1).join("/")+"/",
+				  // target || atob(btoa(path||"/root/")), 
+				[x,pre,node] = target.match( /(.*)\/(.*)/ ) || ["",parent,""],
+				parent = pre + "/",
+				parentHash = btoa(parent),
+				json = parent.substr(1).replace(/\/\[/g,"[").replace(/\//g,"."),
+				now = new Date().getTime();
+			
+			// https://github.com/Studio-42/elFinder/wiki/Client-Server-API-2.1
+			sql.query("SELECT Client,Name FROM openv.engines WHERE ? LIMIT 1", {Name:node}, (err,engs) => {
+				const
+					eng = engs[0] || {
+					  Client: "totem",
+					  Name: node
+					},
+					isOwner = (eng.Client == client) || profile.Overlord || profile.Creator,
+					isRead = true,
+					isWrite = isOwner,
+					isLocked = false;
+					  
+				if ( trace )
+					Trace("nav", {
+						cmd: cmd,
+						query: query,
+						//body: body,
+						uphexsnip: Buffer.from( (body["upload[]"]||"").substr(0,8)).toString("hex"),
+						upesc: escape( (body["upload[]"]||"" ).substr(0,8)),
+						uplen: (body["upload[]"]||"").length,
+						path: path,
+						tar: target,
+						tars: targets,
+						src: src,
+						act: action,
+						json: json,
+						parent: parent,
+						node: node,
+						//prof: profile,
+						owner: isOwner
+					});
+
+				switch (cmd) {		// look for elFinder commands
+					case "tree":	// expanding folder in left paine
+					case "open":	// expanding folder 
+
+						if ( src )	// nav json
+							/*
+							if ( src.endsWith("?") )	// nav folders
+								if ( parent.endsWith("=/") ) {	// this is still experimental
+									const
+										name = parent.split("/").pop(),
+										get = "http:"+src.tag("&",{name: name.substr(0,name.length-1), "json:":path.substr(1,path.length-2)});
+
+									Trace("fetch", get );
+									Fetch( get, txt => {
+
+										if ( files = JSON.parse(txt)[0].json ) {
+											if ( files.forEach ) 
+												sendFolder(res, files.map( (file,idx) => {
+													const 
+														name = "["+idx+"]/",
+														nameHash = btoa(parent+name),
+														type = !(isArray(file) || isObject(file)),
+														info = {
+															ts: now,
+															size: file.length,
+															hash: nameHash, 				// hash name
+															name: name, 					// keys name
+															phash: parentHash, 				// parent hash name
+
+															read: 1,						// read state
+															write: 1,						// write state
+															locked: 0,						// lock state
+															//tmb: "",						// thumbnail for images
+															//alias: "",					// sumbolic link pack
+															//dim: "",						// image dims
+															isowner: true,				//	had ownership
+															//volumeid: "l1_", 				// rec.group,										
+														};
+
+													/ *{
+														mime: type,	// mime type
+														ts:1310252178,		// time stamp format?
+														read: 1,				// read state
+														write: 0,			// write state
+														size: 666,			// size
+														hash: nameHash, // parent+name, 
+														name: name, // keys name
+														phash: parentHash,	// parent
+														locked: 0,		// lock state
+														//volumeid: type ? "v2_" : "v1_", // rec.group,
+														dirs: 1, 			// place inside tree too
+													}* /
+													return Copy(info, type
+														? {
+															mime: "application/txt",	// mime type
+															dirs: 0, 			// place inside tree too
+														}
+														: {
+															mime: "directory",	// mime type
+															dirs: 1, 			// place inside tree too
+														} );	
+												}));
+
+											else
+											if ( isObject(files) ) {
+												/ *{
+													mime: type,	// mime type
+													ts:1310252178,		// time stamp format?
+													read: 1,				// read state
+													write: 0,			// write state
+													size: 666,			// size
+													hash: nameHash, //parent+name,
+													name: name, // keys name
+													phash: parentHash, //parent,
+													locked: 0,		// lock state
+													//volumeid: type ? "v2_" : "v1_", // rec.group,
+													dirs: 1, 			// place inside tree too
+												} * /
+												Each(files, (idx,file) => {
+													const 
+														name = `"${idx}"/`,
+														nameHash = btoa(parent+name),
+														type = !(isArray(file) || isObject(file)),
+														info = {
+															ts: now,
+															size: Object.keys(file).length,
+															hash: nameHash, 				// hash name
+															name: name, 					// keys name
+															phash: parentHash, 				// parent hash name
+
+															read: 1,						// read state
+															write: 1,						// write state
+															locked: 0,						// lock state
+															//tmb: "",						// thumbnail for images
+															//alias: "",					// sumbolic link pack
+															//dim: "",						// image dims
+															//isowner: true,				//	had ownership
+															//volumeid: "l1_", 				// rec.group,										
+														};
+
+													recs.push( Copy(info, type 
+														? {
+															mime: "application/txt",	// mime type
+															dirs: 0, 			// place inside tree too
+														}
+														: {
+															mime: "directory",	// mime type
+															dirs: 1, 			// place inside tree too
+														} ));
+												});
+												sendFolder(res,recs);
+											}
+
+											else 
+												res(files);
+										}
+
+										else
+											res("bad src provided");
+
+									});	
+								}
+
+								else
+									Fetch( "http:"+src+"&name", txt => {
+										sendFolder(res, JSON.parse(txt).map( file => {
+											const
+												name = `${file.name}=/`,
+												nameHash = btoa(parent+name);
+
+											return {
+												mime: "directory",	// mime type
+												dirs: 1, 					// place inside tree too
+												ts: now,
+												size: Object.keys(file).length,
+												hash: nameHash, 				// hash name
+												name: name, 					// keys name
+												phash: parentHash, 				// parent hash name
+
+												read: 1,						// read state
+												write: 1,						// write state
+												locked: 0,						// lock state
+												//tmb: "",						// thumbnail for images
+												//alias: "",					// sumbolic link pack
+												//dim: "",						// image dims
+												//isowner: true,				//	had ownership
+												//volumeid: "l1_", 				// rec.group,										
+											};
+										}) );
+									});
+
+							else	// nav json
+							*/
+							Fetch( "http:"+src.tag("&",{"json:":json}), txt => {
+
+								if ( files = JSON.parse(txt)[0].json ) {
+									if ( files.forEach ) 
+										sendFolder(res, files.map( (file,idx) => {
+											const 
+												name = "["+idx+"]/",
+												type = !(isArray(file) || isObject(file));
+
+											return {
+												ts: now,
+												mime: type ? `application/txt` : "directory",	// mime type
+												dirs: type ? 0 : 1, 			// place inside tree too												
+												size: file.length,
+												hash: btoa(parent+name), 				// hash name
+												name: name, 					// keys name
+												phash: parentHash, 				// parent hash name
+												read: isRead,						// read state
+												write: isWrite,					// write state
+												locked: isLocked,						// lock state
+												isowner: isOwner				// has ownership
+												//tmb: "",						// thumbnail for images
+												//alias: "",					// sumbolic link pack
+												//dim: "",						// image dims
+												//volumeid: "l1_", 				// rec.group,										
+											};
+										}));
+
+									else
+									if ( isObject(files) ) {
+										const recs = [];
+										Each(files, (idx,file) => recs.push( [idx,file] ) );
+										sendFolder(res,recs.map( ([idx,file]) => {
+											const 
+												name = `"${idx}"/`,
+												type = !(isArray(file) || isObject(file));
+
+											return {
+												ts: now,
+												mime: type ? `application/txt` : "directory",	// mime type
+												dirs: type ? 0 : 1, 			// place inside tree too												
+												size: Object.keys(file).length,
+												hash: btoa(parent+name), 				// hash name
+												name: name, 					// keys name
+												phash: parentHash, 				// parent hash name
+												read: isRead,						// read state
+												write: isWrite,						// write state
+												locked: isLocked,						// lock state
+												isowner: isOwner,					// has ownership
+												//tmb: "",						// thumbnail for images
+												//alias: "",					// sumbolic link pack
+												//dim: "",						// image dims
+												//volumeid: "l1_", 				// rec.group,										
+											};
+										}));
+									} 
+
+									else 
+										res(files);
+								}
+
+								else
+									res("bad src provided");
+
+							});
+
+						else 		// nav folder
+							Fetch( "file:"+target , files => {
+								//console.log(">>>>>>>>>>>>>>>>files", files);
+								if (files)
+									sendFolder(res, files.map( file => {
+										const 
+											[x,name,type] = file.match(/(.*)\.(.*)/) || ["",file,""];
+
+										switch (type) {
+											case "url":
+											case "lnk":
+												return null;
+
+											default:
+												try {
+													const 
+														stat = FS.statSync( "."+parent+file );
+
+													return {
+														ts: now,
+														mime: type ? `application/${type}` : "directory",	// mime type
+														dirs: type ? 0 : 1, 			// place inside tree too
+														size: stat.size,
+														hash: btoa(parent+file), //parent+file,	// hash name
+														name: file, 					// keys name
+														phash: parentHash, 				// parent hash name
+														read: isRead,						// read state
+														write: isWrite,						// write state
+														locked: isLocked,						// lock state
+														isowner: isOwner,					// has ownership
+														//tmb: "",						// thumbnail for images
+														//alias: "",					// sumbolic link pack
+														//dim: "",						// image dims
+														//volumeid: "l1_", 				// rec.group,										
+													};
+												}
+												
+												catch (err) {
+													return null;
+												}
+										}
+									}));
+								
+								else
+									sendFolder(res, []);
+							});
+
+						break;
+
+					case "file":	// requesting a single file
+
+						if ( src ) 
+							res( parent );
+
+						else
+							Fetch( "file:"+target, txt => res( txt ) );
+
+						break;
+
+					case "size":
+						res({
+							size: 222
+						});
+						break;
+
+					case "abort":
+						break;
+
+					case "zipdl":
+						res({
+							file: "5abf02cc77050",       // key of temporary archive file 
+							name: "files.zip", // download file name
+							mime: "application/zip"      // MIME type
+						});
+						break;
+
+					case "rename":
+						var 
+							{name} = query,
+							type = name.split(".").pop();
+
+						res({
+							added: targets.map( tar => logCommand( `mv -n .${parent}{${node},${name}}`, {
+								ts: now,
+								mime: `application/${type}`,	// mime type
+								dirs: 0, 						// place inside tree too												
+								size: 666,
+								hash: btoa(parent+name), 				// hash name
+								name: name, 					// keys name
+								phash: parentHash, 				// parent hash name
+								read: isRead,						// read state
+								write: isWrite,						// write state
+								locked: isLocked,						// lock state
+								isowner: isOwner						// has ownership
+							})),
+							removed: [btoa(`${parent}{${node}`)]
+						});
+						break;
+
+					case "resize":
+						var 
+							name = node,
+							type = name.split(".").pop();
+
+						res({
+							changed: targets.map( tar => logCommand( `resize .${tar}`, {
+								ts: now,
+								mime: `application/${type}`,	// mime type
+								dirs: 0, 						// place inside tree too												
+								size: 666,
+								hash: btoa(parent+node), 		// hash name
+								name: name, 					// keys name
+								phash: parentHash, 				// parent hash name
+								read: isRead,						// read state
+								write: isWrite,						// write state
+								locked: isLocked,						// lock state
+								isowner: isOwner						// has ownership
+							}))
+						});
+						break;
+
+					case "rm":
+						res({
+							removed: targets.map( tar => logCommand( `rm .${tar}`, btoa(tar) ))
+						});
+						break;
+
+					case "url":
+						res({
+							url: target
+						});
+						break;
+
+					case "search":
+						res({
+							files: []
+						});
+						break;
+
+					case "ping":
+						res("");
+						break;
+
+					case "ls":
+						res({
+							list: []
+						});
+						break;
+
+					case "upload":
+						var
+							name = body.filename,
+							type = name.split(".").pop(),
+							data = body["upload[]"],
+							tarFile = "."+atob(body["upload_path[]"])+name;
+
+						Trace("upload", {
+							tar: atob(body.target),
+							fnname: body.filename,
+							path: atob(body["upload_path[]"]),
+							tarFile: tarFile,
+							type: body.mimeType
+						});
+						res({
+							added: [tarFile].map( tar => logCommand( function uploadFile(info) {
+								FS.writeFile( tarFile, data, "utf-8", err => Trace("upload", err||"ok") );
+							}, {
+								ts: now,
+								mime: `application/"${type}`,	// mime type
+								dirs: 0, 						// place inside tree too												
+								size: data.length,
+								hash: btoa(parent+name), 		// hash name
+								name: name, 					// file name
+								phash: parentHash, 				// parent hash name
+								read: isRead,					// read state
+								write: isWrite,					// write state
+								locked: isLocked,				// lock state
+								isowner: isOwner				// has ownership
+							}))
+						});
+						break;
+
+					case "paste":
+					case "duplicate":
+						var
+							name = `copy_${node}`,
+							type = name.split(".").pop();
+
+						res({
+							added: targets.map( tar => logCommand( `cp -n .${tar} .${parent}${name}`, {
+								ts: now,
+								mime: `application/${type}`,	// mime type
+								dirs: 0, 						// place inside tree too												
+								size: body["upload[]"].length,
+								hash: btoa(parent+name), 		// hash name
+								name: name, 					// keys name
+								phash: parentHash, 				// parent hash name
+								read: isRead,						// read state
+								write: isWrite,						// write state
+								locked: isLocked,						// lock state
+								isowner: isOwner						// has ownership
+							}))
+						});
+						break;
+
+					case "archive":
+						var 
+							{name} = query,
+							type = name.split(".").pop();
+
+						res({
+							added: targets.map( tar => logCommand( `zip -r .${parent}${name} .${tar}`, {
+								ts: now,
+								mime: `application/${type}`,	// mime type
+								dirs: 0, 						// place inside tree too												
+								size: 666,
+								hash: btoa(parent+name), 		// hash name
+								name: name, 					// keys name
+								phash: parentHash, 				// parent hash name
+								read: isRead,						// read state
+								write: isWrite,						// write state
+								locked: isLocked,						// lock state
+								isowner: isOwner						// has ownership
+							}))
+						});
+						break;
+
+					case "mkdir":
+						break;
+
+					case "mkfile":
+						var 
+							{name} = query,
+							type = name.split(".").pop();
+
+						res({
+							added: targets.map( tar => logCommand( `touch .${tar}${name}`, {
+								ts: now,
+								mime: `application/${type}`,	// mime type
+								dirs: 0, 						// place inside tree too												
+								size: 0,
+								hash: btoa(parent+name), 		// hash name
+								name: name, 					// keys name
+								phash: parentHash, 				// parent hash name
+								read: isRead,						// read state
+								write: isWrite,						// write state
+								locked: isLocked,						// lock state
+								isowner: isOwner						// has ownership
+							}))
+						});
+						break;
+
+					case "parents": // requesting all parents
+					case "tmb":
+					case "put":
+					case "get":
+					case "netmount":
+					case "info":
+					case "editor":
+					case "chmod":
+					case "callback":
+					case "extract":
+					case "abort":
+						res({
+							error: "unsupported command"
+						});
+						break;
+
+					default:	// request made w/o elFinder
+						if ( path.endsWith("/") )	// requesting folder
+							if (oldSchool)
+								Fetch( "file:"+path , files => {	
+									if ( files ) {
+										req.type = "html"; // override default json type
+										res([[ 
+											site.nick.link( "/brief.view?notebook=totem" ),
+											client.link( "/login.html" ),
+											"API".link( "/api.view" ),
+											"Explore".link( "/expore.view" ),
+											"Info".link( "/xfan.view?w=1000&h=600&src=/info" ),
+											path
+										].join(" || ") , files.map( file => {
+											if ( file.endsWith(".url") ) {	// resolve windows link
+												const
+													src = "."+path+file;
+
+												if ( html = cache[src] ) 
+													return html;
+
+												else 
+													try {
+														const
+															[x, url] = FS.readFileSync( src, "utf-8").match( /URL=(.*)/ ) || ["",""],
+															{href} = URL(url,referer);
+
+														return cache[src] = url ? file.substr(0,file.indexOf(".url")).tag( href ) : "?"+file;
+													}
+
+													catch (err) {
+														return "?"+file
+													}
+											}
+
+											else
+												return file.link( file );
+										}).join("<br>")].join("<br>") );
+									}
+
+									else
+										res( "folder not found" );
+								});
+						
+							else
+								renderJade(`
+extends base
+append base_parms
+	- tech = "elFinder"
+	- url = ""
+	- query ={}
+	- flags = {nomenu:1,edit:0}
+	- elFinder_path = "${path}"
+`, {}, res );
+
+						else { // requesting file
+							Fetch( "file:"+path, res );
+
+							if ( area == "refs" && profile.Track ) {		// track client's download
+								//Trace(">>>>>track download", profile );
+								sql.query(
+									"INSERT INTO openv.bricks SET ? ON DUPLICATE KEY UPDATE Samples=Samples+1",
+									{
+										Name: path,
+										Area: area,
+										Client: client
+									});
+							}
+						}
+				}
+			});
+
+			/*
+			areas.forEach( (area,i) => 
+				areas[i] = area
+					? area.tag( "/"+area+"/" )
+					: site.nick.tag( "/xfan.view?src=/info&w=1000&h=600" )
+							+ " protecting the warfighter from bad data"
+			);
+
+			req.type = "html";
+			res( areas.join("<br>") );
+			*/
 		}
 	},
 

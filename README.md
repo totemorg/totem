@@ -5,21 +5,21 @@
 + endpoint routing
 + http/https service
 + denial-of-service protection
-+ secure link providing encrypted inter-client communications with antibot guard
++ secure link for encrypted inter-client communications and antibot protection
 + client profiles 
 + PKI encryption and authentication
 + fault protected run states
 + indexing, uploading, downloading and cacheing static files
-+ crud interface
-+ mysql- and neo4j-database agnosticator
++ crud interface to notebooks, mysql and neo4j databases
 + task queuing and regulation
-+ file polling and services
++ watchdog file polling and services
 + automattic server cert generation
 + task sharding
 + file stream and ingest
-+ data fetching with various protocols
++ data fetching using various protocols
 + smartcard reader
-  
++ site skinning 
+
 **TOTEM** defines CRUD (POST, GET, PUT, DELETE) endpoints (aka *NODE*s) to access *DATASET*s, 
 *FILE*s or *COMMAND*s:
 
@@ -33,7 +33,7 @@ and the `stores | shares` areas for sharing static *FILE*s.
 
 ## Manage
 
-	npm install @totemstan/totem	# Install
+	npm install @totemorg/totem		# Install
 	npm run start [ ? | $ | ...]	# Unit test
 	npm run verminor				# Roll minor version
 	npm run vermajor				# Roll major version
@@ -49,7 +49,7 @@ and the `stores | shares` areas for sharing static *FILE*s.
 
 Acquire, otionally configure and start a **TOTEM** server:
 	
-	const TOTEM = require("@totemstan/totem").config({
+	const TOTEM = require("@totemorg/totem").config({
 		key: value, 						// set key
 		"key.key": value, 					// indexed set
 		"key.key.": value					// indexed append
@@ -518,6 +518,7 @@ neoThread( neo => {
 
 * [TOTEM](#module_TOTEM)
     * _static_
+        * [.busy](#module_TOTEM.busy)
         * [.CORS](#module_TOTEM.CORS)
         * [.defaultType](#module_TOTEM.defaultType)
         * [.secureIO](#module_TOTEM.secureIO)
@@ -562,7 +563,8 @@ neoThread( neo => {
             * [.execute(req, res)](#module_TOTEM.byAction.execute)
         * [.byType](#module_TOTEM.byType)
         * [.byArea](#module_TOTEM.byArea)
-            * [.all(req, res)](#module_TOTEM.byArea.all)
+            * [.default(req, res)](#module_TOTEM.byArea.default)
+            * [.root(req, res)](#module_TOTEM.byArea.root)
         * [.trustStore](#module_TOTEM.trustStore)
         * [.server](#module_TOTEM.server)
         * [.guard](#module_TOTEM.guard)
@@ -593,6 +595,13 @@ neoThread( neo => {
         * [~stopService()](#module_TOTEM..stopService)
         * [~uploadFile(client, source, sinkPath, tags, cb)](#module_TOTEM..uploadFile)
 
+<a name="module_TOTEM.busy"></a>
+
+### TOTEM.busy
+Service too-busy options
+
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
+**Cfg**: <code>Object</code>  
 <a name="module_TOTEM.CORS"></a>
 
 ### TOTEM.CORS
@@ -1016,10 +1025,27 @@ By-area endpoint routers {area: method(req,res), ... } for sending/cacheing/navi
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
-<a name="module_TOTEM.byArea.all"></a>
 
-#### byArea.all(req, res)
-Default area navigator used for all areas.
+* [.byArea](#module_TOTEM.byArea)
+    * [.default(req, res)](#module_TOTEM.byArea.default)
+    * [.root(req, res)](#module_TOTEM.byArea.root)
+
+<a name="module_TOTEM.byArea.default"></a>
+
+#### byArea.default(req, res)
+Default area navigator.
+
+**Kind**: static method of [<code>byArea</code>](#module_TOTEM.byArea)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.byArea.root"></a>
+
+#### byArea.root(req, res)
+Navigator for root area.
 
 **Kind**: static method of [<code>byArea</code>](#module_TOTEM.byArea)  
 

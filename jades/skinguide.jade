@@ -435,3 +435,64 @@ append base_body
 								### FREE/DELETE example
 
 								### READ/GET example
+
+				tab.Markdown
+					:markdown
+						# Notebook Markdown
+
+						A [Notebook](/api.view) `Description` field may contain the following markdown:
+
+							$PLOT{ SRC ? w=WIDTH & h=HEIGHT & x=KEY||STORE$KEY & y=KEY||STORE$KEY ... }
+							$ { KEY }
+							[ LINK ] ( URL )
+							$$ inline TeX $$ || n$$ break TeX $$ || a$$ AsciiMath $$ || m$$ MathML $$
+							TeX := TeX || #VAR || VAR#KEY#KEY...
+							| GRID | ... |
+							# SECTION
+							ESCAPE || $with || $for || $if:
+								BLOCK
+
+						Available PLOTs include: 
+						[line plot](/plot.view?help), 
+						[circle pack](/pack.view?help), 
+						[nodal tree](/tree.view?help), 
+						[c force graph](/cforce.view?help), 
+						[force graph](/force.view?help), 
+						[chordal plot](/chords.view?help), 
+						[bar plot](/barplot.view?help), 
+						[bouncy balls](/bounce.view?help), 
+						[burst chart](/burst.view?help), 
+						[c tree fan](/ctree.view?help), 
+						[tree fan](/tree.view?help), 
+						[delvoi](/delvoi.view?help),
+						[dendro](/dendro?help), 
+						[fan](/fan.view?help), 
+						[gears](/gears.view?help),
+						[sankey diagram](/sankey.view?help),
+						[tidy chart](/tidy.view?help),
+						[us map](/usmap.view?help), 
+						[world map](/worldmap.view?help), 
+						[wordcloud](/wordcloud.view?help), 
+						[anaglyph](/anaglyph.view?help)
+						[tipsheet](/tipsheet.view?help), 
+						[nodal graph](/graph.view?help) and
+						[polygon](/poly.view?help).
+
+						This markdown, for example:
+
+							$plot{regress&name=test1?w=600&h=400&x=Save_train$.x[$chan]&y=Save_train$.y[$chan]}
+							$plot{?w=600&h=400&x=Save_train$.x&y=Save_train$.y}
+							[go home](home.view?w=500&h=100)
+							[go here grasshopper](https://here.gov/test.txt)
+							$force{w=100&h=100&src=/queues?_pivots=class}
+							$$ \alpha = 1 + \beta $$ impressive ''eh
+
+						will produce a:
+						* [d3 plot](/plot.view) of the x,y data from regress **usecase** "test1" using the  
+						* indexing widget,  
+						* [d3 plot](/plot.view) of the x,y data from this **usecase**,  
+						* link to the [home.view](/home.view),  
+						* link to [the url](https://here.gov/test.txt),  
+						* [image](/shares/a1.jpg),  
+						* [d3 force](/force.view) of the queues **dataset** pivoted by class,  
+						* inline TeX equation. 

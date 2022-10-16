@@ -7,9 +7,9 @@ Documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 ref: https://medium.com/hackernoon/implementing-a-websocket-server-with-node-js-d9b78ec5ffa8	
 
 @module SOCKETIO
-@author [ACMESDS](https://totemstan.github.io)
+@author [ACMESDS](https://totemorg.github.io)
 
-@requires [@totemstan/enums](https://www.npmjs.com/package/@totemstan/enums) 
+@requires [@totemorg/enums](https://www.npmjs.com/package/@totemorg/enums) 
 @requires [crypto](https://nodejs.org/docs/latest/api/)
 
 @example
@@ -53,6 +53,16 @@ On the client:
 
 @example
 
+The socketio interface is established when the server does a 
+
+	require( "socketio") 
+	
+to create a socketio = "/socketio/socketio-client.js" endpoint from which the client imports its client via a 
+
+	<script src=socketio> 
+	
+to define an ioClient name.
+
 On the server:
 
 	const
@@ -68,12 +78,8 @@ On the server:
 		// etc
 	});
 	
-
 On the client:
-	// The socketio interface is established when the server does a require( "socketio" ) to create a 
-	// socketio = "/socketio/socketio-client.js" endpoint from which the client imports its client via a 
-	// <script src=socketio> and defines a default ioClient name.
-
+	
 	const
 		iosocket = io(); 					// connect to socketio 
 		ioClient = "somewhere@org.com";		// default client nmae
@@ -87,7 +93,7 @@ On the client:
 
 const
 	CRYPTO = require("crypto"),
-	{Copy, Each, Start, isFunction} = require("@totemstan/enums");
+	{Copy, Each, Start, isFunction} = require("./enums");
 
 const
 	{ Trace } = module.exports = SIO = Copy({
