@@ -75,7 +75,6 @@ function io(url) {	//< make a connect request to the server at url||window.locat
 	});
 
 	ioSocket.addEventListener('message', event => {		//< route socketio broadcast message to correct listener
-		try {
 			const
 				{channel,message,id} = JSON.parse(event.data),
 				cb = ioChannels[channel];
@@ -86,6 +85,7 @@ function io(url) {	//< make a connect request to the server at url||window.locat
 			else
 				ioTrace( `socketio received json on undefined channel ${channel}`, event.data);
 		
+		try {
 		}
 
 		catch (err) {
