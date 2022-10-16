@@ -1,6 +1,6 @@
 {
   "name": "@totemorg/totem",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Provides basic, customizable and extensible web service",
   "main": "totem.js",
   "scripts": {
