@@ -428,7 +428,7 @@ append layout_body
 	span!= nomenu ? "" : menu
 
 	if edit
-		- button = name => "".tag("img",{src:`/clients/icons/actions/${name}.png`,width:15,height:15}).tag("button",{id:name,text:name,value:"on",class:"btn",onclick:`edit_${name}()`})
+		- button = name => "".tag("img",{src:`/icons/actions/${name}.png`,width:15,height:15}).tag("button",{id:name,text:name,value:"on",class:"btn",onclick:`edit_${name}()`})
 		- tools = button("save") + button("find") + button("replace") + button("show") 
 		//-
 		style.

@@ -12,7 +12,7 @@ var
 	ioClient = "TBD";
 
 const
-	ioTrace = (...args) => console.log(">>>socketio",args),
+	ioTrace = (...args) => console.log(">socketio",args),
 	ioChannels = {
 		disconnect: req => Log(res),
 		exit: req => Log(res),
@@ -24,7 +24,7 @@ const
 
 function io(url) {	//< make a connect request to the server at url||window.location
 
-	ioTrace("ws connect", url, ioClient);
+	ioTrace("connect websocket", url, ioClient);
 
 	ioSocket = new WebSocket( url ? url : (window.location+"").replace("https:","wss:").replace("http:","ws:") );
 	ioSocket.on = (channel,cb) => {		// attach on-event catcher
@@ -75,6 +75,7 @@ function io(url) {	//< make a connect request to the server at url||window.locat
 	});
 
 	ioSocket.addEventListener('message', event => {		//< route socketio broadcast message to correct listener
+		try {
 			const
 				{channel,message,id} = JSON.parse(event.data),
 				cb = ioChannels[channel];
@@ -85,7 +86,6 @@ function io(url) {	//< make a connect request to the server at url||window.locat
 			else
 				ioTrace( `socketio received json on undefined channel ${channel}`, event.data);
 		
-		try {
 		}
 
 		catch (err) {

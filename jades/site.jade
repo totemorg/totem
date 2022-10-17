@@ -53,7 +53,7 @@ append base_body
 
 		- users = "".tag("select").tag("span",{id:"users"})
 		//- rooms = "".tag("select").tag("span",{id:"rooms"})
-		- tips = {save:"passphrase",load:"passphrase",login:"account/password"}
+		- tips = {save:"save passphrase",load:"load passphrase",login:"login account/password"}
 		- scroll = "".tag("input",{id:"scroll",type:"number",value:1,min:0,max:0,onclick:"secure_scroll()"})
 		- button = name => "".tag("img",{src:`/icons/actions/${name}.png`,width:15,height:15}).tag("button",{id:name,text:name,value:"on",class:"btn",onclick:`secure_${name}()`})
 		- ctrl = name => (button(name)+tips[name].tag("span",{class:"w3-text"})).tag("span",{class:"w3-tooltip"})

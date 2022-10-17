@@ -442,7 +442,7 @@ append base_body
 
 						A [Notebook](/api.view) `Description` field may contain the following markdown:
 
-							$PLOT{ SRC ? w=WIDTH & h=HEIGHT & x=KEY||STORE$KEY & y=KEY||STORE$KEY ... }
+							$VIEW{ SRC ? w=WIDTH & h=HEIGHT & x=KEY||STORE$KEY & y=KEY||STORE$KEY ... }
 							$ { KEY }
 							[ LINK ] ( URL )
 							$$ inline TeX $$ || n$$ break TeX $$ || a$$ AsciiMath $$ || m$$ MathML $$
@@ -452,7 +452,7 @@ append base_body
 							ESCAPE || $with || $for || $if:
 								BLOCK
 
-						Available PLOTs include: 
+						Available VIEWs include: 
 						[line plot](/plot.view?help), 
 						[circle pack](/pack.view?help), 
 						[nodal tree](/tree.view?help), 
@@ -488,8 +488,8 @@ append base_body
 							$$ \alpha = 1 + \beta $$ impressive ''eh
 
 						will produce a:
-						* [d3 plot](/plot.view) of the x,y data from regress **usecase** "test1" using the  
-						* indexing widget,  
+						* [d3 plot](/plot.view) of the x,y data from regress **usecase** "test1"  
+						* same indexing widget,  
 						* [d3 plot](/plot.view) of the x,y data from this **usecase**,  
 						* link to the [home.view](/home.view),  
 						* link to [the url](https://here.gov/test.txt),  

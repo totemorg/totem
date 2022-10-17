@@ -1142,7 +1142,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 <a name="module_TOTEM.loginClient"></a>
 
 ### TOTEM.loginClient(req, cb)
-Callback the session cb with the client profile derived from the request cert (if it exists) or the request cookie 
+Callback the session cb with the client profile as derived from the request cert (if it exists) or the request cookie 
 (if it exists).  The returned profile is null if the cert/cookie could not be validated.
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  

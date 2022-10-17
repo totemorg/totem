@@ -683,7 +683,7 @@ Service too-busy options
 */
 			
 	busy: {
-		maxlag: 300,		// ms
+		maxlag: 400,		// ms
 		interval: 500		// ms
 	},
 
@@ -1093,7 +1093,7 @@ Specifiies client challenge options
 	},
 
 /**
-Callback the session cb with the client profile derived from the request cert (if it exists) or the request cookie 
+Callback the session cb with the client profile as derived from the request cert (if it exists) or the request cookie 
 (if it exists).  The returned profile is null if the cert/cookie could not be validated.
 
 @param {Object} req totem session request
@@ -1448,7 +1448,8 @@ cert {
 			{ Login, host } = SECLINK,
 			guest = `guest${ipAddress}@${host}`;
 
-		Log("cert", cert);
+		Trace("login", cert || cookie);
+		
 		if ( cert ) {		// client on encrypted socket so has a pki cert
 			const
 				[x,client] = (cert.subjectaltname||"").toLowerCase().split(",")[0].match(/email:(.*)/) || [];
@@ -2074,8 +2075,8 @@ Configure database, define site context, then protect, connect, start and initia
 						"WITH " + (guard?"GUARDED":"UNGUARDED") + " THREADS",
 						"WITH "+ (secureIO ? "SECURE" : "INSECURE") + " LINKS",
 						"WITH " + (site.sessions||"UNLIMITED") + " CONNECTIONS",
-						"USING " + (cores ? cores + " WORKERS" : "NO WORKERS"),
-						"HAVING POCS " + JSON.stringify(site.pocs)
+						"WITH " + (cores ? cores + " WORKERS" : "NO WORKERS"),
+						"WITH " + JSON.stringify(site.pocs) + " POCS"
 					].join("\n- ") );
 
 					sqlThread( sql => {	// initialize file watcher, proxies, watchdog and endpoints
@@ -2635,7 +2636,7 @@ Site context extended by the mysql derived query when service starts
 		//tag: (src,el,tags) => src.tag(el,tags),
 
 		explorer: {
-			Root: "/explore.view?src=/root/", 
+			Root: "/root/", 
 			Earth: "http://${domain}:8083/Apps/totem_index.html", 
 			Graph: "http://${domain}:7474/neo4j", 
 			Streets: "http://${domain}:3000/", 
@@ -3224,7 +3225,9 @@ By-type endpoint routers  {type: method(req,res), ... } for accessing dataset re
 @cfg {Object} 
 */				
 	byType: {  //< by-type routers
-		view: renderSkin		
+		view: renderSkin,
+		help: renderSkin,
+		brief: renderSkin
 	},
 
 /**
@@ -3232,9 +3235,10 @@ By-area endpoint routers {area: method(req,res), ... } for sending/cacheing/navi
 @cfg {Object} 
 */		
 	byArea: {
-		icons: (req,res) => res( "go away" ),
-		uis: (req,res) => res( "go away" ),
-		clients: (req,res) => res( "go away" ),
+		icons: 		(req,res) => res( "closed" ),
+		uis: 		(req,res) => res( "closed" ),
+		clients: 	(req,res) => res( "closed" ),
+		captcha: 	(req,res) => res( "closed" ),
 			
 /**
 Default area navigator.
