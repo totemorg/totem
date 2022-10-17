@@ -683,7 +683,7 @@ Service too-busy options
 */
 			
 	busy: {
-		maxlag: 400,		// ms
+		maxlag: 800,		// ms
 		interval: 500		// ms
 	},
 
@@ -2229,8 +2229,13 @@ Configure database, define site context, then protect, connect, start and initia
 
 			Trace( isEncrypted() ? `STARTING ${name} USING CERT ${pfx}` : `STARTING ${name}` );
 
-			BUSY.maxLag(busy.maxlag);
-			BUSY.interval(busy.interval);
+			if ( busy.maxlag ) {
+				BUSY.maxLag(busy.maxlag);
+				BUSY.interval(busy.interval);
+			}
+			
+			else
+				BUSY = () => false;
 			
 			if ( isEncrypted() )   // get a pfx cert if protecting an encrypted service
 				FS.access( pfx, FS.F_OK, err => {
@@ -3226,8 +3231,7 @@ By-type endpoint routers  {type: method(req,res), ... } for accessing dataset re
 */				
 	byType: {  //< by-type routers
 		view: renderSkin,
-		help: renderSkin,
-		brief: renderSkin
+		help: renderSkin
 	},
 
 /**
