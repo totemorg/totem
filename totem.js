@@ -451,7 +451,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 // no cores but a mysql database and an anti-bot shield
 
 config({
-	"secureIO.challenge.extend": 20
+	"login.challenge.extend": 20
 }, sql => {
 	Log("", {
 		msg:
@@ -1031,10 +1031,10 @@ Default NODE type during a route
 	defaultType: "run",
 
 /**
-SecureLink configuration settings.  Null to disable.
+Login configuration settings for secureLink.  Null to disable.
 @cfg {Object}
 */
-	secureIO: {
+	login: {
 /**
 Socketio i/f set on SECLINK config
 */
@@ -2028,8 +2028,9 @@ Configure database, define site context, then protect, connect, start and initia
 			function createServer() {		//< create and start the server
 				
 				const 
-					{ crudIF,name,cache,trustStore,certs } = TOTEM,
-					{ secureIO, dogs, guard, guards, proxy, proxies, cores, sendMail } = TOTEM,
+					{ 
+						crudIF, name, cache, trustStore, certs,
+						login, dogs, guard, guards, proxy, proxies, cores } = TOTEM,
 					port = (isMaster ? $master.port : $worker.port) || 443;
 
 				//Trace( "create server on", isMaster, port, $master, $worker );
@@ -2052,7 +2053,7 @@ Configure database, define site context, then protect, connect, start and initia
 					// create workers
 					for (var core = 0; core < cores; core++) CLUSTER.fork();
 
-					const { modTimes, onFile, watchFile,secureIO } = TOTEM;
+					const { modTimes, onFile, watchFile,login } = TOTEM;
 
 					Each(onFile, (area, cb) => {  // callback cb(sql,name,area) when file changed
 						FS.readdir( area, (err, files) => {
@@ -2073,7 +2074,7 @@ Configure database, define site context, then protect, connect, start and initia
 						"AT WORKER " + site.worker,
 						"FROM " + process.cwd(),
 						"WITH " + (guard?"GUARDED":"UNGUARDED") + " THREADS",
-						"WITH "+ (secureIO ? "SECURE" : "INSECURE") + " LINKS",
+						"WITH "+ (login ? "SECURE" : "INSECURE") + " LINKS",
 						"WITH " + (site.sessions||"UNLIMITED") + " CONNECTIONS",
 						"WITH " + (cores ? cores + " WORKERS" : "NO WORKERS"),
 						"WITH " + JSON.stringify(site.pocs) + " POCS"
@@ -2146,7 +2147,7 @@ Configure database, define site context, then protect, connect, start and initia
 				// Setup master and workers
 	
 				/*
-				Establishes a secureIO if enabled and process guards to 
+				Establishes a login if enabled and process guards to 
 				trap master/worker process faults.  
 				*/
 				
@@ -2157,22 +2158,21 @@ Configure database, define site context, then protect, connect, start and initia
 					}
 				});
 
-				if ( secureIO )		// setup secure link sessions with a guest profile
+				if ( login )		// setup secure link sessions with a guest profile
 					sqlThread( sql => {
 						sql.query( "SELECT * FROM openv.profiles WHERE Client='Guest' LIMIT 1", [], (err,recs) => {
 							Trace( recs[0] 
 								? "Guest logins enabled"
 								: "Guest logins disabled" );
 
-							SECLINK.config( Copy(secureIO, {
+							SECLINK.config( Copy(login, {
 								server: server,
-								sqlThread: sqlThread,
-								notify: sendMail,
+								// sqlThread: sqlThread,
 								guest: recs[0]
 							}) );
 
-							secureIO.sio = SECLINK.sio;
-							Trace("SecureLink "+(secureIO.sio ? "started" : "failed"));
+							login.sio = SECLINK.sio;
+							Trace("SecureLink "+(login.sio ? "started" : "failed"));
 						});
 					});
 				
@@ -3046,7 +3046,21 @@ _attach(_server,_port,agents);
 
 			else
 				res( errors.noClient );
-		}	
+		},
+			
+		/**
+		Endpoint to validate clients response to an antibot challenge.
+
+		@param {Object} req Totem session request
+		@param {Function} res Totem response callback
+		*/
+		login: (req,res) => {
+			const 
+				{ query } = req,
+				{ validate } = SECLINK;
+			
+			validate( query, err => res( (err ? "validation failed" : "validation completed").tag("a",{href:"/site.view"}) ));					 
+		}
 	},
 		
 /**
@@ -4346,7 +4360,6 @@ Client admission rules
 		// C: "us"
 	},
 
-	sendMail: msg => { throw new Error("sendMail never configured"); },
 /**
 */
 	proxies: null, /* [	// rotating proxy services
@@ -4872,7 +4885,7 @@ associated public NICK.crt and private NICK.key certs it creates.`, {
 		
 	T5: () =>
 		config({
-			"secureIO.challenge.extend": 20
+			"login.challenge.extend": 20
 		}, sql => {
 			Trace(
 `I am Totem client, with no cores but I do have mysql database and I have an anti-bot shield!!  Anti-bot

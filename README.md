@@ -308,7 +308,7 @@ associated public NICK.crt and private NICK.key certs it creates.`,
 // no cores but a mysql database and an anti-bot shield
 
 config({
-	"secureIO.challenge.extend": 20
+	"login.challenge.extend": 20
 }, sql => {
 	Log("", {
 		msg:
@@ -521,12 +521,12 @@ neoThread( neo => {
         * [.busy](#module_TOTEM.busy)
         * [.CORS](#module_TOTEM.CORS)
         * [.defaultType](#module_TOTEM.defaultType)
-        * [.secureIO](#module_TOTEM.secureIO)
-            * [.sio](#module_TOTEM.secureIO.sio)
-            * [.host](#module_TOTEM.secureIO.host)
-            * [.challenge](#module_TOTEM.secureIO.challenge)
-                * [.extend](#module_TOTEM.secureIO.challenge.extend)
-            * [.inspect()](#module_TOTEM.secureIO.inspect)
+        * [.login](#module_TOTEM.login)
+            * [.sio](#module_TOTEM.login.sio)
+            * [.host](#module_TOTEM.login.host)
+            * [.challenge](#module_TOTEM.login.challenge)
+                * [.extend](#module_TOTEM.login.challenge.extend)
+            * [.inspect()](#module_TOTEM.login.inspect)
         * [.tableRoutes](#module_TOTEM.tableRoutes)
         * [.errors](#module_TOTEM.errors)
         * [.tasking](#module_TOTEM.tasking)
@@ -555,6 +555,7 @@ neoThread( neo => {
             * [.ping(req, res)](#module_TOTEM.byTable.ping)
             * [.task(req, res)](#module_TOTEM.byTable.task)
             * [.riddle(req, res)](#module_TOTEM.byTable.riddle)
+            * [.login(req, res)](#module_TOTEM.byTable.login)
         * [.byAction](#module_TOTEM.byAction)
             * [.select(req, res)](#module_TOTEM.byAction.select)
             * [.update(req, res)](#module_TOTEM.byAction.update)
@@ -616,52 +617,52 @@ Default NODE type during a route
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>String</code>  
-<a name="module_TOTEM.secureIO"></a>
+<a name="module_TOTEM.login"></a>
 
-### TOTEM.secureIO
-SecureLink configuration settings.  Null to disable.
+### TOTEM.login
+Login configuration settings for secureLink.  Null to disable.
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
 
-* [.secureIO](#module_TOTEM.secureIO)
-    * [.sio](#module_TOTEM.secureIO.sio)
-    * [.host](#module_TOTEM.secureIO.host)
-    * [.challenge](#module_TOTEM.secureIO.challenge)
-        * [.extend](#module_TOTEM.secureIO.challenge.extend)
-    * [.inspect()](#module_TOTEM.secureIO.inspect)
+* [.login](#module_TOTEM.login)
+    * [.sio](#module_TOTEM.login.sio)
+    * [.host](#module_TOTEM.login.host)
+    * [.challenge](#module_TOTEM.login.challenge)
+        * [.extend](#module_TOTEM.login.challenge.extend)
+    * [.inspect()](#module_TOTEM.login.inspect)
 
-<a name="module_TOTEM.secureIO.sio"></a>
+<a name="module_TOTEM.login.sio"></a>
 
-#### secureIO.sio
+#### login.sio
 Socketio i/f set on SECLINK config
 
-**Kind**: static property of [<code>secureIO</code>](#module_TOTEM.secureIO)  
-<a name="module_TOTEM.secureIO.host"></a>
+**Kind**: static property of [<code>login</code>](#module_TOTEM.login)  
+<a name="module_TOTEM.login.host"></a>
 
-#### secureIO.host
+#### login.host
 Name of SECLINK host for determining trusted clients etc
 
-**Kind**: static property of [<code>secureIO</code>](#module_TOTEM.secureIO)  
-<a name="module_TOTEM.secureIO.challenge"></a>
+**Kind**: static property of [<code>login</code>](#module_TOTEM.login)  
+<a name="module_TOTEM.login.challenge"></a>
 
-#### secureIO.challenge
+#### login.challenge
 Specifiies client challenge options
 
-**Kind**: static property of [<code>secureIO</code>](#module_TOTEM.secureIO)  
-<a name="module_TOTEM.secureIO.challenge.extend"></a>
+**Kind**: static property of [<code>login</code>](#module_TOTEM.login)  
+<a name="module_TOTEM.login.challenge.extend"></a>
 
 ##### challenge.extend
 Number of antibot riddles to extend
 
-**Kind**: static property of [<code>challenge</code>](#module_TOTEM.secureIO.challenge)  
+**Kind**: static property of [<code>challenge</code>](#module_TOTEM.login.challenge)  
 **Cfg**: <code>Number</code> [extend=0]  
-<a name="module_TOTEM.secureIO.inspect"></a>
+<a name="module_TOTEM.login.inspect"></a>
 
-#### secureIO.inspect()
+#### login.inspect()
 Used to inspect unencrypted messages
 
-**Kind**: static method of [<code>secureIO</code>](#module_TOTEM.secureIO)  
+**Kind**: static method of [<code>login</code>](#module_TOTEM.login)  
 <a name="module_TOTEM.tableRoutes"></a>
 
 ### TOTEM.tableRoutes
@@ -890,6 +891,7 @@ By-table endpoint routers {table: method(req,res), ... } for data fetchers, syst
     * [.ping(req, res)](#module_TOTEM.byTable.ping)
     * [.task(req, res)](#module_TOTEM.byTable.task)
     * [.riddle(req, res)](#module_TOTEM.byTable.riddle)
+    * [.login(req, res)](#module_TOTEM.byTable.login)
 
 <a name="module_TOTEM.byTable.agent"></a>
 
@@ -922,6 +924,18 @@ Endpoint to shard a task to the compute nodes.
 <a name="module_TOTEM.byTable.riddle"></a>
 
 #### byTable.riddle(req, res)
+Endpoint to validate clients response to an antibot challenge.
+
+**Kind**: static method of [<code>byTable</code>](#module_TOTEM.byTable)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem response callback |
+
+<a name="module_TOTEM.byTable.login"></a>
+
+#### byTable.login(req, res)
 Endpoint to validate clients response to an antibot challenge.
 
 **Kind**: static method of [<code>byTable</code>](#module_TOTEM.byTable)  
