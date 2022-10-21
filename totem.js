@@ -1475,7 +1475,7 @@ cert {
 							return cb( errors.badCert );
 				}
 
-				Login( client, function guestSession(err,prof) { // no-authentication guest session
+				Login( client, "", function guestSession(err,prof) { // no-authentication guest session
 					//Log("login", err, prof);
 					cb( err ? null : prof );
 				});
@@ -1494,7 +1494,7 @@ cert {
 
 			//Log(">>>>>>>>>>>>>>>>>>cookies", cookie, cookies);
 		
-			Login( cookies.session || guest, function guestSession(err,prof) { // no-authentication session
+			Login( cookies.session || guest, "", function guestSession(err,prof) { // no-authentication session
 				cb( err ? null : prof );
 			});
 		}
@@ -3059,7 +3059,7 @@ _attach(_server,_port,agents);
 				{ query } = req,
 				{ validate } = SECLINK;
 			
-			validate( query, err => res( (err ? "validation failed" : "validation completed").tag("a",{href:"/site.view"}) ));					 
+			validate( query, pass => res( (pass ? `Your password is ${pass}. ` : "Invalid access. " ) + "Totem".tag("a",{href:"/site.view"}) ));	
 		}
 	},
 		

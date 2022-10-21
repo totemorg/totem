@@ -12,8 +12,8 @@
 + indexing, uploading, downloading and cacheing static files
 + crud interface to notebooks, mysql and neo4j databases
 + task queuing and regulation
-+ watchdog file polling and services
-+ automattic server cert generation
++ watchdog periodic file polling and services
++ cert generation
 + task sharding
 + file stream and ingest
 + data fetching using various protocols
