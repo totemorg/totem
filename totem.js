@@ -340,7 +340,6 @@ in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @requires [enums](https://github.com/totemorg/enums)
 @requires [jsdb](https://github.com/totemorg/jsdb)
 @requires [securelink](https://github.com/totemorg/securelink)
-@requires [socketio](https://github.com/totemorg/socketio)
 
 @requires [http](https://nodejs.org/docs/latest/api/)
 @requires [https](https://nodejs.org/docs/latest/api/)
@@ -688,26 +687,55 @@ Service too-busy options
 	},
 
 /**
-Attach (req,res)-agent(s) to `service` listening on specified `port`.  
+Attach a (req,res)-`agent` to thea `server` listening on the given `port`.  Callsback the supplied agent, 
+or the agent (based on the requested `path`, `table`, `type`, `area` node) for the request `req` derived over
+3 phases.  
+
+Phase 1 adds the following to the `req` request:
+
+	cookie: "...."		// client cookie string
+	agent: "..."		// client browser info
+	ipAddress: "..."	// client ip address
+	referer: "http://site"		// url during a cross-site request
+	method: "GET|PUT|..." 			// http request method
+	now: date			// date stamp when requested started
+	post: "..."			// raw body text
+	url	: "/query"		// requested url path
+	reqSocket: socket	// socket to retrieve client cert, post etc
+	resSocket: socket	// method to create socket to accept response
+	cert: {...} 		// full client cert
+
+Phase 2 adds:
+
+	log: {...}			// info to trap socket stats
+	client: "..."		// name of client from cert or "guest"
+	profile: {...},		// client profile after login
+	host: "proto://domain:port"	// requested host 
+	action: "select|update| ..."	// corresponding crude name
+	encrypted: bool		// true if request on encrypted server
+	site: {...}			// site info
+
+Phase 3 adds:
+
+	{query,index,flags,where} params derived from request url 
+	{sql,table,area,path,type} node parms derived from request url
 
 @param {Object} server Server being started
 @param {Numeric} port Port number to listen for agent requests
-@param {Function|Object} agents (req,res)-agent or hash of (req,res)-agents
+@param {Function|Object} agents the (req,res)-agent or a hash of (req,res)-agents
 @param {Function} init Optional callback after server started
 */
 	attachAgent: (server,port,agents,init) => {
 
-		Log("listening on", port);
-
 		server
 		.listen( port, () => {  	// listen on specified port
-			console.log( `Listening on port ${port}` );
+			Log( `Listening on port ${port}` );
 			if ( init ) init();
 		})
 		
-		.on("request", (Req,Res) => {
-			function reqThread( ses ) { 		// start request and callback session cb
-				function getSocket() {  //< returns suitable response socket depending on cross/same domain session
+		.on("request", (Req,Res) => {	// callback (req,res)-agent using this (Req,Res)-handler
+			function reqThread( ses ) { 		//< start session then callback ses(req)
+				function sesSocket() {  		//< return response socket for cross/same domain session
 					if ( Req.headers.origin ) {  // cross domain session is in progress from master (on http) to its workers (on https)
 						Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
 						Res.socket.write(Res._header);
@@ -719,7 +747,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 						return Req.socket;
 				}
 
-				function getPost( cb ) { // Feed raw post to callback
+				function getPost( cb ) { 	//< Feed raw post to callback cb(post)
 					var post = ""; 
 
 					Req
@@ -727,7 +755,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 					.on("end", () => cb( post ) );
 				}
 
-				function parsePost( post, content ) {
+				function parsePost( post, content ) {	//< parse post of given content type
 					const
 						[type,attr] = (content||"").split("; "),
 						body = attr ? {formType: type} : {};
@@ -778,7 +806,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 
 											else
 											if (line) {
-					Log("**data>>>>>", body.name, line.length, "str=", line.substr(0,8), "hex=", Buffer.from(line.substr(0,8)).toString("hex"));
+Log("post form=====>", body.name, line.length, "str=", line.substr(0,8), "hex=", Buffer.from(line.substr(0,8)).toString("hex"));
 												body[ body.name ] = line;	
 											}
 										});
@@ -793,7 +821,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 								case "application/x-www-form-urlencoded":
 									body.name = "url";
 									body.url = unescape(this).replace(/\+/g," ");
-									//Log("app======>", body);
+Log("post app======>", body);
 									break;
 
 								case "text/plain":
@@ -805,7 +833,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 										body[key] = text;
 									}
 
-									//Log("txt======>", body);
+Log("post text======>", body);
 									break;
 
 								default:
@@ -855,19 +883,20 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 					return cert;
 				}
 				
-				function getSocket( cb ) {
+				function getSocket( cb ) {	//< callback cb(req) with request
 					
-					if ( BUSY() )	{					// check is under DoS attack
+					if ( BUSY() )	{	// deny DoS attacks
 						Trace("Busy!");
 						Res.end( "Error: server busy" );		// end the session
 					}
 					
 					else
 					if ( reqSocket = Req.socket )
-						cb({								// start the session
-							cert: reqSocket.getPeerCertificate ? getCert(reqSocket) : null,
-							headers: Req.headers,
-							host: Req.headers["host"],				
+						cb({	// start a session with this request
+							cert: 									// client pki cert
+								reqSocket.getPeerCertificate ? getCert(reqSocket) : null,
+							headers: Req.headers,					// copy of the header
+							host: Req.headers["host"],				// host making request			
 							cookie: Req.headers["cookie"] || "",	// client cookie
 							ipAddress: Req.socket.remoteAddress,	// client ip address
 							referer: Req.headers["referer"] || "", 	// referer proto://domain
@@ -875,21 +904,21 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 							method: Req.method,						// get,put, etc
 							now: new Date(),  						// time client started request
 							reqSocket: reqSocket,   				// use supplied request socket 
-							resSocket: getSocket,					// attach method to return a response socket
+							resSocket: sesSocket,					// attach method to make a response socket
 							/*
 							There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
 							embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
 							unescapes to /\\"ABC\\".  This is ok but can be confusing.
 							*/
-							url: unescape( Req.url || "/" )		// unescaped url
+							url: unescape( Req.url || "/" )			// unescaped url
 						});
 					
 					else
 						Res.end( "Error: lost socket" );
 				}
 				
-				getSocket( req => {
-					getPost( post => {							// prime session request
+				getSocket( req => {		// start request thread using this req handler
+					getPost( post => {	// get request post and process with this handler
 //Log("getpost", post); 
 						switch ( req.method ) {	// get post parms depending on request type being made
 							// CRUD interface
@@ -905,7 +934,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 							// client making cross-domain CORs request, so respond with valid methods - dont start a session
 							case "OPTIONS":  
 								//Req.method = Req.headers["access-control-request-method"];
-								//Trace(">>>>>>opts req", Req.headers);
+//Log("opts req", Req.headers);
 								Res.writeHead(200, {
 									"access-control-allow-origin": "*", 
 									"access-control-allow-methods": "POST, GET, DELETE, PUT, OPTIONS"
@@ -926,8 +955,8 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 				});
 			}
 
-			reqThread( req => { 	// start request thread
-				function resThread( ses ) {  	// start response using this session callback								
+			reqThread( req => { 	// start request thread using appropriate agent
+				function resThread( ses ) {  	//< start response using this session callback								
 					ses( data => {  // Provide session response callback
 						try {  // set headers, handle CORs, then send data
 							if ( false ) {	// support CORS
@@ -1017,7 +1046,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 			});
 		})
 		
-		.on("error", err => console.log("server failed", err) );
+		.on("error", err => Log("Error: server failed tp start", err) );
 	},
 
 /**
@@ -1504,35 +1533,8 @@ cert {
 	},
 		
 /**
-Start a dataset thread.  
-
-In phase 1/3 of the session setup, the following is added to this request:
-
-	cookie: "...."		// client cookie string
-	agent: "..."		// client browser info
-	ipAddress: "..."	// client ip address
-	referer: "http://site"		// url during a cross-site request
-	method: "GET|PUT|..." 			// http request method
-	now: date			// date stamp when requested started
-	post: "..."			// raw body text
-	url	: "/query"		// requested url path
-	reqSocket: socket	// socket to retrieve client cert 
-	resSocket: socket	// socket to accept response
-	cert: {...} 		// full client cert
-
-In phase 2/3 of the session setup, the following is added:
-
-	log: {...}			// info to trap socket stats
-	client: "..."		// name of client from cert or "guest"
-	profile: {...},		// client profile after login
-	host: "proto://domain:port"	// requested host 
-	action: "select|update| ..."	// corresponding crude name
-	encrypted: bool		// true if request on encrypted server
-	site: {...}			// site info
-
-In phase 3/3 of the the session setup, the following is added:
-
-	{query,index,flags,where} and {sql,table,area,path,type} 
+Start a dataset `ds` sql thread and append a `sql` connector and `action` to the `req` request
+with callback cb(req).
 
 @param {Object} req Totem endpoint request
 @param {Function} cb callback(revised req)
@@ -2207,7 +2209,7 @@ Configure database, define site context, then protect, connect, start and initia
 						})	// using encrypted services so use https 			
 						: HTTP.createServer();		  // using unencrpted services so use http 
 
-				attachAgent( server, port, (req,res) => {	// attach this (req,res)-node endpoint
+				attachAgent( server, port, (req,res) => {	// attach this (req,res)-agent to route nodes
 					
 					loginClient(req, prof => {	// get client profile
 						if (prof) {			// client accepted so start session
@@ -4280,7 +4282,7 @@ Navigator for root area.
 										res( "folder not found" );
 								});
 						
-							else
+							else {
 								renderJade(`
 extends base
 append base_parms
@@ -4290,6 +4292,7 @@ append base_parms
 	- flags = {nomenu:1,edit:0}
 	- elFinder_path = "${path}"
 `, {}, res );
+							}
 
 						else { // requesting file
 							Fetch( "file:"+path, res );

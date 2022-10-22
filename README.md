@@ -231,7 +231,7 @@ in accordance with [jsdoc](https://jsdoc.app/).
 	SHARD2 = PROTO://DOMAIN:PORT
 	SHARD3 = PROTO://DOMAIN:PORT
 
-**Requires**: <code>module:[enums](https://github.com/totemorg/enums)</code>, <code>module:[jsdb](https://github.com/totemorg/jsdb)</code>, <code>module:[securelink](https://github.com/totemorg/securelink)</code>, <code>module:[socketio](https://github.com/totemorg/socketio)</code>, <code>module:[http](https://nodejs.org/docs/latest/api/)</code>, <code>module:[https](https://nodejs.org/docs/latest/api/)</code>, <code>module:[fs](https://nodejs.org/docs/latest/api/)</code>, <code>module:[constants](https://nodejs.org/docs/latest/api/)</code>, <code>module:[cluster](https://nodejs.org/docs/latest/api/)</code>, <code>module:[child\_process](https://nodejs.org/docs/latest/api/)</code>, <code>module:[os](https://nodejs.org/docs/latest/api/)</code>, <code>module:[stream](https://nodejs.org/docs/latest/api/)</code>, <code>module:[vm](https://nodejs.org/docs/latest/api/)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>, <code>module:[mime](https://www.npmjs.com/package/mime)</code>, <code>module:[xml2js](https://www.npmjs.com/package/xml2js)</code>, <code>module:[toobusy-js](https://www.npmjs.com/package/toobusy-js)</code>, <code>module:[json2csv](https://www.npmjs.com/package/json2csv)</code>, <code>module:[js2xmlparser](https://www.npmjs.com/package/js2xmlparser)</code>, <code>module:[cheerio](https://www.npmjs.com/search?q&#x3D;cheerio)</code>  
+**Requires**: <code>module:[enums](https://github.com/totemorg/enums)</code>, <code>module:[jsdb](https://github.com/totemorg/jsdb)</code>, <code>module:[securelink](https://github.com/totemorg/securelink)</code>, <code>module:[http](https://nodejs.org/docs/latest/api/)</code>, <code>module:[https](https://nodejs.org/docs/latest/api/)</code>, <code>module:[fs](https://nodejs.org/docs/latest/api/)</code>, <code>module:[constants](https://nodejs.org/docs/latest/api/)</code>, <code>module:[cluster](https://nodejs.org/docs/latest/api/)</code>, <code>module:[child\_process](https://nodejs.org/docs/latest/api/)</code>, <code>module:[os](https://nodejs.org/docs/latest/api/)</code>, <code>module:[stream](https://nodejs.org/docs/latest/api/)</code>, <code>module:[vm](https://nodejs.org/docs/latest/api/)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>, <code>module:[mime](https://www.npmjs.com/package/mime)</code>, <code>module:[xml2js](https://www.npmjs.com/package/xml2js)</code>, <code>module:[toobusy-js](https://www.npmjs.com/package/toobusy-js)</code>, <code>module:[json2csv](https://www.npmjs.com/package/json2csv)</code>, <code>module:[js2xmlparser](https://www.npmjs.com/package/js2xmlparser)</code>, <code>module:[cheerio](https://www.npmjs.com/search?q&#x3D;cheerio)</code>  
 **Author**: [ACMESDS](https://totemorg.github.io)  
 **Example**  
 ```js
@@ -1170,7 +1170,38 @@ File cache
 <a name="module_TOTEM.attachAgent"></a>
 
 ### TOTEM.attachAgent(server, port, agents, init)
-Attach (req,res)-agent(s) to `service` listening on specified `port`.
+Attach a (req,res)-`agent` to thea `server` listening on the given `port`.  Callsback the supplied agent, 
+or the agent (based on the requested `path`, `table`, `type`, `area` node) for the request `req` derived over
+3 phases.  
+
+Phase 1 adds the following to the `req` request:
+
+	cookie: "...."		// client cookie string
+	agent: "..."		// client browser info
+	ipAddress: "..."	// client ip address
+	referer: "http://site"		// url during a cross-site request
+	method: "GET|PUT|..." 			// http request method
+	now: date			// date stamp when requested started
+	post: "..."			// raw body text
+	url	: "/query"		// requested url path
+	reqSocket: socket	// socket to retrieve client cert, post etc
+	resSocket: socket	// method to create socket to accept response
+	cert: {...} 		// full client cert
+
+Phase 2 adds:
+
+	log: {...}			// info to trap socket stats
+	client: "..."		// name of client from cert or "guest"
+	profile: {...},		// client profile after login
+	host: "proto://domain:port"	// requested host 
+	action: "select|update| ..."	// corresponding crude name
+	encrypted: bool		// true if request on encrypted server
+	site: {...}			// site info
+
+Phase 3 adds:
+
+	{query,index,flags,where} params derived from request url 
+	{sql,table,area,path,type} node parms derived from request url
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 
@@ -1178,7 +1209,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 | --- | --- | --- |
 | server | <code>Object</code> | Server being started |
 | port | <code>Numeric</code> | Port number to listen for agent requests |
-| agents | <code>function</code> \| <code>Object</code> | (req,res)-agent or hash of (req,res)-agents |
+| agents | <code>function</code> \| <code>Object</code> | the (req,res)-agent or a hash of (req,res)-agents |
 | init | <code>function</code> | Optional callback after server started |
 
 <a name="module_TOTEM.loginClient"></a>
@@ -1543,35 +1574,8 @@ cert {
 <a name="module_TOTEM.dsThread"></a>
 
 ### TOTEM.dsThread(req, cb)
-Start a dataset thread.  
-
-In phase 1/3 of the session setup, the following is added to this request:
-
-	cookie: "...."		// client cookie string
-	agent: "..."		// client browser info
-	ipAddress: "..."	// client ip address
-	referer: "http://site"		// url during a cross-site request
-	method: "GET|PUT|..." 			// http request method
-	now: date			// date stamp when requested started
-	post: "..."			// raw body text
-	url	: "/query"		// requested url path
-	reqSocket: socket	// socket to retrieve client cert 
-	resSocket: socket	// socket to accept response
-	cert: {...} 		// full client cert
-
-In phase 2/3 of the session setup, the following is added:
-
-	log: {...}			// info to trap socket stats
-	client: "..."		// name of client from cert or "guest"
-	profile: {...},		// client profile after login
-	host: "proto://domain:port"	// requested host 
-	action: "select|update| ..."	// corresponding crude name
-	encrypted: bool		// true if request on encrypted server
-	site: {...}			// site info
-
-In phase 3/3 of the the session setup, the following is added:
-
-	{query,index,flags,where} and {sql,table,area,path,type}
+Start a dataset `ds` sql thread and append a `sql` connector and `action` to the `req` request
+with callback cb(req).
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 
