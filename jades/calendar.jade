@@ -11,7 +11,8 @@ append base_body
 	script.
 		const
 			calData = "http://localhost:8080/events",
-			calFree = "Reserved",
+			calFree = "reserved",
+			calInstructor = "Toby James",
 			calType = "Guitar",
 			calMonths = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'],
 			calDays = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -44,12 +45,13 @@ append base_body
 				day = now.getDay(),
 				startDate = (new Date(yr, mth, date - day)).toISOString(),
 				endDate = (new Date(yr, mth, date - day + 6)).toISOString(),
-				query = { Client: calFree, Type: calType, "Date_in": `${startDate},${endDate}` };
+				query = { Resource: calInstructor, Client: calFree, Type: calType, "Date_in": `${startDate},${endDate}` };
 
 			Ajax( query, "get", calData, res => cb( availHours(JSON.parse(res)) ) );
 		}
 
 		getAvail( hours => {
+			var bookings = ``;
 			$("#content").markyourcalendar({
 				availability: hours,
 				isMultiple: false,
@@ -59,13 +61,20 @@ append base_body
 				//selectedDates: ["12/oct/2022"],
 				onClick: (ev, data) => {
 					//console.log("click", data);
-					var html = ``;
-					data.forEach( datetime => {
-						const [d,t] = datetime.split(' ');
-						html += `${ioClient} reserved ${d} at ${t} for a ${calType} lesson`.tag("span");
-						Ajax( {Client: ioClient}, "put", calData.tag("?",{ Date: datetime, Type: calType}), res => alert("reserved") );
-					});
-					$('#status').html(html);
+					if ( ioClient.startsWith("guest") )
+						alert("Please login to make your reservation");
+						
+					else {
+						data.forEach( datetime => {
+							const 
+								[d,t] = datetime.split(' '),
+								msg = `Thank you ${ioClient}.  See you ${d}-${t} for your ${calType} lesson with ${calInstructor}`;
+								
+							bookings += msg.tag("p");
+							Ajax( {Client: ioClient}, "put", calData.tag("?", { Date: datetime, Type: calType}), res => alert( msg ) );
+						});
+						$('#status').html(bookings);
+					}
 				},
 				onClickNavigator: (ev, instance) => {
 					//console.log(ev);

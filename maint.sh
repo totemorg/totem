@@ -159,6 +159,7 @@ base_config.)
 	export MYSQL=$BASE/mysql
 	export NEO4J=$BASE/neo4j
 	export PATH=$PATH:$MYSQL/bin
+	export DBS=~/service/dbs
 	
 	# Frameworks
 	export RED=$BASE/nodejs/lib/node_modules/node-red
@@ -1000,7 +1001,7 @@ start_mysql.)
 	else
 		#rm /var/lib/mysql/mysql.sock      # in case its hanging around
 		rm /tmp/mysql.sock.lock
-		$MYSQL/bin/mysqld_safe --defaults-file=$MYSQL/my.cnf --sql-mode="" --max_allowed_packet=64000000 &
+		$MYSQL/bin/mysqld_safe --defaults-file=$DBS/my.cnf --sql-mode="" --max_allowed_packet=64000000 &
 	fi
 	;;
 	

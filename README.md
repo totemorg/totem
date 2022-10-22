@@ -1,4 +1,4 @@
-# [TOTEM](https://github.com/totem-man/totem)
+# [TOTEM](https://www.npmjs.com/package/@totemorg/totem)
 
 **TOTEM** provides a web service with the following basic features:
 
@@ -47,7 +47,9 @@ and interface with in-network task agents.
 
 ## Manage
 
-	npm install @totemorg/totem		# Install
+	npm install @totemorg/totem		# install base service
+	npm install @totemorg/dbs		# install database schema
+	
 	npm run start [ ? | $ | ...]	# Unit test
 	npm run verminor				# Roll minor version
 	npm run vermajor				# Roll major version
