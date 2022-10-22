@@ -1130,7 +1130,9 @@ Callback the session cb with the client profile as derived from the request cert
 
 @param {Object} req totem session request
 @param {Function} cb callback(profile || null) 
-
+*/
+			
+/*
 @example 
 Old certs
 
