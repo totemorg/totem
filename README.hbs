@@ -1,6 +1,6 @@
 # [TOTEM](https://github.com/totem-man/totem)
 
-**TOTEM** provides a barebones web service with the following features:
+**TOTEM** provides a web service with the following basic features:
 
 + endpoint routing
 + http/https service
@@ -20,16 +20,30 @@
 + smartcard reader
 + site skinning 
 
-**TOTEM** defines CRUD (POST, GET, PUT, DELETE) endpoints (aka *NODE*s) to access *DATASET*s, 
-*FILE*s or *COMMAND*s:
+**TOTEM** defines POST-GET-PUT-DELETE endpoint *NODE*s:
 
 	DATASET.TYPE ? QUERY
+	NOTEBOOK.TYPE ? QUERY
 	AREA/PATH/FILE.TYPE ? QUERY
-	COMMAND.TYPE ? QUERY
+	HOOK.TYPE ? QUERY
 
-By default, **TOTEM** provides `db | xml | csv | json` *TYPE*s for converting *DATASET*s, 
-`riddle | task | ping` *COMMAND*s for validating a session, sharding tasks,
-and the `stores | shares` areas for sharing static *FILE*s.
+to access *DATASET*s, *NOTEBOOK*s, *FILE*s and *HOOK*s as described in **TOTEM**'s
+[API](http://totem.hopto.org/api.view) and [skinning guide](https://totem.hopto.org/skinguide.view).
+
+A *TYPE* can filter *DATASET*s:
+
+	db | xml | csv | txt | html | json | blog
+
+or render *NOTEBOOK*s:
+
+	view
+
+The following *HOOK*s:
+
+	riddle | task | ping | login | agent
+
+validate sessions, shard tasks, test connections, establish secure link with clients,
+and interface with in-network task agents.
 
 ## Manage
 
@@ -47,7 +61,7 @@ and the `stores | shares` areas for sharing static *FILE*s.
 
 ## Usage
 
-Acquire, otionally configure and start a **TOTEM** server:
+Acquire, optionally configure and start a **TOTEM** server:
 	
 	const TOTEM = require("@totemorg/totem").config({
 		key: value, 						// set key

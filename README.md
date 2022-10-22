@@ -1,6 +1,6 @@
 # [TOTEM](https://github.com/totem-man/totem)
 
-**TOTEM** provides a barebones web service with the following features:
+**TOTEM** provides a web service with the following basic features:
 
 + endpoint routing
 + http/https service
@@ -20,16 +20,30 @@
 + smartcard reader
 + site skinning 
 
-**TOTEM** defines CRUD (POST, GET, PUT, DELETE) endpoints (aka *NODE*s) to access *DATASET*s, 
-*FILE*s or *COMMAND*s:
+**TOTEM** defines POST-GET-PUT-DELETE endpoint *NODE*s:
 
 	DATASET.TYPE ? QUERY
+	NOTEBOOK.TYPE ? QUERY
 	AREA/PATH/FILE.TYPE ? QUERY
-	COMMAND.TYPE ? QUERY
+	HOOK.TYPE ? QUERY
 
-By default, **TOTEM** provides `db | xml | csv | json` *TYPE*s for converting *DATASET*s, 
-`riddle | task | ping` *COMMAND*s for validating a session, sharding tasks,
-and the `stores | shares` areas for sharing static *FILE*s.
+to access *DATASET*s, *NOTEBOOK*s, *FILE*s and *HOOK*s as described in **TOTEM**'s
+[API](http://totem.hopto.org/api.view) and [skinning guide](https://totem.hopto.org/skinguide.view).
+
+A *TYPE* can filter *DATASET*s:
+
+	db | xml | csv | txt | html | json | blog
+
+or render *NOTEBOOK*s:
+
+	view
+
+The following *HOOK*s:
+
+	riddle | task | ping | login | agent
+
+validate sessions, shard tasks, test connections, establish secure link with clients,
+and interface with in-network task agents.
 
 ## Manage
 
@@ -47,7 +61,7 @@ and the `stores | shares` areas for sharing static *FILE*s.
 
 ## Usage
 
-Acquire, otionally configure and start a **TOTEM** server:
+Acquire, optionally configure and start a **TOTEM** server:
 	
 	const TOTEM = require("@totemorg/totem").config({
 		key: value, 						// set key
@@ -223,7 +237,7 @@ in accordance with [jsdoc](https://jsdoc.app/).
 // Create simple service but dont start it.
 Log({
 	msg: "Im simply a Totem interface so Im not even running as a service", 
-	default_fetcher_endpts: TOTEM.byTable,
+	default_fetcher_endpts: TOTEM.byNode,
 	default_protect_mode: TOTEM.guard,
 	default_cores_used: TOTEM.cores
 });
@@ -267,7 +281,7 @@ these files. `
 // Only 1 worker, unprotected, a mysql database, and two endpoints.
 
 config({
-	byTable: {
+	byNode: {
 		dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 			res( "123" );
 
@@ -298,7 +312,7 @@ and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only
 aka core), Im running unprotected, and have a mysql database.  
 [*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
 associated public NICK.crt and private NICK.key certs it creates.`,
-		my_endpoints: T.byTable
+		my_endpoints: T.byNode
 	});
 });
 ```
@@ -327,7 +341,7 @@ config({
 	guard: false,	// ex override default 
 	cores: 3,		// ex override default
 
-	"byTable.": {  // define endpoints
+	"byNode.": {  // define endpoints
 		test: function (req,res) {
 			res(" here we go");  // endpoint must always repond to its client 
 			if (isMaster)  // setup tasking examples on on master
@@ -527,7 +541,7 @@ neoThread( neo => {
             * [.challenge](#module_TOTEM.login.challenge)
                 * [.extend](#module_TOTEM.login.challenge.extend)
             * [.inspect()](#module_TOTEM.login.inspect)
-        * [.tableRoutes](#module_TOTEM.tableRoutes)
+        * [.nodeRouter](#module_TOTEM.nodeRouter)
         * [.errors](#module_TOTEM.errors)
         * [.tasking](#module_TOTEM.tasking)
         * [.dogs](#module_TOTEM.dogs)
@@ -550,12 +564,12 @@ neoThread( neo => {
             * [.csv(recs, req, res)](#module_TOTEM.filters.csv)
             * [.json(recs, req, res)](#module_TOTEM.filters.json)
             * [.xml(recs, req, res)](#module_TOTEM.filters.xml)
-        * [.byTable](#module_TOTEM.byTable)
-            * [.agent()](#module_TOTEM.byTable.agent)
-            * [.ping(req, res)](#module_TOTEM.byTable.ping)
-            * [.task(req, res)](#module_TOTEM.byTable.task)
-            * [.riddle(req, res)](#module_TOTEM.byTable.riddle)
-            * [.login(req, res)](#module_TOTEM.byTable.login)
+        * [.byNode](#module_TOTEM.byNode)
+            * [.agent(req, res)](#module_TOTEM.byNode.agent)
+            * [.ping(req, res)](#module_TOTEM.byNode.ping)
+            * [.task(req, res)](#module_TOTEM.byNode.task)
+            * [.riddle(req, res)](#module_TOTEM.byNode.riddle)
+            * [.login(req, res)](#module_TOTEM.byNode.login)
         * [.byAction](#module_TOTEM.byAction)
             * [.select(req, res)](#module_TOTEM.byAction.select)
             * [.update(req, res)](#module_TOTEM.byAction.update)
@@ -584,7 +598,7 @@ neoThread( neo => {
         * [.startDogs()](#module_TOTEM.startDogs)
         * [.config(opts, cb)](#module_TOTEM.config)
             * [~configService(agent)](#module_TOTEM.config..configService)
-                * [~createServer()](#module_TOTEM.config..configService..createServer)
+                * [~createService()](#module_TOTEM.config..configService..createService)
         * [.initialize()](#module_TOTEM.initialize)
         * [.runTask(opts, task, cb)](#module_TOTEM.runTask)
         * [.watchFile(path, callback)](#module_TOTEM.watchFile)
@@ -663,9 +677,9 @@ Number of antibot riddles to extend
 Used to inspect unencrypted messages
 
 **Kind**: static method of [<code>login</code>](#module_TOTEM.login)  
-<a name="module_TOTEM.tableRoutes"></a>
+<a name="module_TOTEM.nodeRouter"></a>
 
-### TOTEM.tableRoutes
+### TOTEM.nodeRouter
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.errors"></a>
 
@@ -878,67 +892,79 @@ Endpoint filters cb(data data as string || error)
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem session response |
 
-<a name="module_TOTEM.byTable"></a>
+<a name="module_TOTEM.byNode"></a>
 
-### TOTEM.byTable
-By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
+### TOTEM.byNode
+By-node endpoint routers {node: method(req,res), ... } for data fetchers, system and user management
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
 
-* [.byTable](#module_TOTEM.byTable)
-    * [.agent()](#module_TOTEM.byTable.agent)
-    * [.ping(req, res)](#module_TOTEM.byTable.ping)
-    * [.task(req, res)](#module_TOTEM.byTable.task)
-    * [.riddle(req, res)](#module_TOTEM.byTable.riddle)
-    * [.login(req, res)](#module_TOTEM.byTable.login)
+* [.byNode](#module_TOTEM.byNode)
+    * [.agent(req, res)](#module_TOTEM.byNode.agent)
+    * [.ping(req, res)](#module_TOTEM.byNode.ping)
+    * [.task(req, res)](#module_TOTEM.byNode.task)
+    * [.riddle(req, res)](#module_TOTEM.byNode.riddle)
+    * [.login(req, res)](#module_TOTEM.byNode.login)
 
-<a name="module_TOTEM.byTable.agent"></a>
+<a name="module_TOTEM.byNode.agent"></a>
 
-#### byTable.agent()
-**Kind**: static method of [<code>byTable</code>](#module_TOTEM.byTable)  
-<a name="module_TOTEM.byTable.ping"></a>
+#### byNode.agent(req, res)
+Endpoint to interface with in-network agents given request query
 
-#### byTable.ping(req, res)
+	port		Port number to register an agent
+	keys		Query keys to register an agent
+	tasks		List of tasks to be run
+
+**Kind**: static method of [<code>byNode</code>](#module_TOTEM.byNode)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| req | <code>Object</code> | Totem session request |
+| res | <code>function</code> | Totem session response |
+
+<a name="module_TOTEM.byNode.ping"></a>
+
+#### byNode.ping(req, res)
 Endpoint to test connectivity.
 
-**Kind**: static method of [<code>byTable</code>](#module_TOTEM.byTable)  
+**Kind**: static method of [<code>byNode</code>](#module_TOTEM.byNode)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem request |
 | res | <code>function</code> | Totem response |
 
-<a name="module_TOTEM.byTable.task"></a>
+<a name="module_TOTEM.byNode.task"></a>
 
-#### byTable.task(req, res)
+#### byNode.task(req, res)
 Endpoint to shard a task to the compute nodes.
 
-**Kind**: static method of [<code>byTable</code>](#module_TOTEM.byTable)  
+**Kind**: static method of [<code>byNode</code>](#module_TOTEM.byNode)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem request |
 | res | <code>function</code> | Totem response |
 
-<a name="module_TOTEM.byTable.riddle"></a>
+<a name="module_TOTEM.byNode.riddle"></a>
 
-#### byTable.riddle(req, res)
+#### byNode.riddle(req, res)
 Endpoint to validate clients response to an antibot challenge.
 
-**Kind**: static method of [<code>byTable</code>](#module_TOTEM.byTable)  
+**Kind**: static method of [<code>byNode</code>](#module_TOTEM.byNode)  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | req | <code>Object</code> | Totem session request |
 | res | <code>function</code> | Totem response callback |
 
-<a name="module_TOTEM.byTable.login"></a>
+<a name="module_TOTEM.byNode.login"></a>
 
-#### byTable.login(req, res)
+#### byNode.login(req, res)
 Endpoint to validate clients response to an antibot challenge.
 
-**Kind**: static method of [<code>byTable</code>](#module_TOTEM.byTable)  
+**Kind**: static method of [<code>byNode</code>](#module_TOTEM.byNode)  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1150,7 +1176,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 | --- | --- | --- |
 | server | <code>Object</code> | Server being started |
 | port | <code>Numeric</code> | Port number to listen for agent requests |
-| agents | <code>function</code> \| <code>Object</code> | (req,res)-router or (req,res)-hash of agents |
+| agents | <code>function</code> \| <code>Object</code> | (req,res)-agent or hash of (req,res)-agents |
 | init | <code>function</code> | Optional callback after server started |
 
 <a name="module_TOTEM.loginClient"></a>
@@ -1522,7 +1548,7 @@ In phase 1/3 of the session setup, the following is added to this request:
 	cookie: "...."		// client cookie string
 	agent: "..."		// client browser info
 	ipAddress: "..."	// client ip address
-	referer: "proto://domain:port/query"	//  url during a cross-site request
+	referer: "http://site"		// url during a cross-site request
 	method: "GET|PUT|..." 			// http request method
 	now: date			// date stamp when requested started
 	post: "..."			// raw body text
@@ -1555,7 +1581,7 @@ In phase 3/3 of the the session setup, the following is added:
 <a name="module_TOTEM.routeAgent"></a>
 
 ### TOTEM.routeAgent(req, res)
-Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
+Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byNode, 
 byActionTable then byAction routers.	
 
 The provided response method accepts a string, an objects, an array, an error, or 
@@ -1609,7 +1635,7 @@ Configure database, define site context, then protect, connect, start and initia
 
 * [.config(opts, cb)](#module_TOTEM.config)
     * [~configService(agent)](#module_TOTEM.config..configService)
-        * [~createServer()](#module_TOTEM.config..configService..createServer)
+        * [~createService()](#module_TOTEM.config..configService..createService)
 
 <a name="module_TOTEM.config..configService"></a>
 
@@ -1626,9 +1652,9 @@ Configure (create, start then initialize) a service that will handle its request
 | --- | --- | --- |
 | agent | <code>function</code> | callback(req,res) to handle session request-response |
 
-<a name="module_TOTEM.config..configService..createServer"></a>
+<a name="module_TOTEM.config..configService..createService"></a>
 
-##### configService~createServer()
+##### configService~createService()
 Create and start the HTTP/HTTPS server.  If starting a HTTPS server, the truststore
 			is scanned for PKI certs.
 

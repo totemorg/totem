@@ -29,7 +29,7 @@ append base_parms
 		- secureLink = !explore
 		- northedit = false
 		- Explore = {}
-		- ref = {hostname:$referer.hostname,port:$worker.port,domain:$referer.hostname}
+		- ref = {hostname:$refer.hostname,port:$master.port,domain:$refer.hostname}
 		- Object.keys(explorer).forEach( key => Explore[key] = key.linkify( (explorer[key].startsWith("/") ? "" : "http://${hostname}:${port}")+"/site.view".tag("?",{_project:key,_explore: explorer[key]}) ).parse$(ref) )
 
 append base_head
@@ -300,8 +300,6 @@ append base_body
 						!{Explore.Notebooks}  
 						!{Explore.API}  
 						!{Explore.SkinGuide}  
-						!{Explore.JIRA}  
-						!{Explore.RAS}  
 						!{Explore.Root}  
 						!{Explore.Earth}  
 						!{Explore.Streets}  
@@ -349,6 +347,7 @@ append base_body
 						!{Explore.Graph} 
 						!{Explore.Repo}  
 						!{Explore.Survey}  
+		
 		when "basic"
 			folder#xSite(dock=dock)
 				block site_body

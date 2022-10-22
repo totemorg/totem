@@ -69,6 +69,7 @@ start_dbs.)
 	bash ./maint.sh start_mysql
 	bash ./maint.sh start_neo4j
 	;;
+
 start_apps.)
 	bash ./maint.sh start_nodered
 	bash ./maint.sh start_cesium
@@ -76,14 +77,18 @@ start_apps.)
 	#acroread 			# starts adobe reader for indexing pdfs.  
 	#openoffice4 		# starts openoffice server for indexing docs.  
 	;;
-		
-start.)
+
+start_docker.)
+	sudo systemctl start docker.service	
+	;;
+
+start.|start_all.)
 	############################
 	# Starters
 	############################
-	bash maint.sh start_dbs
-	bash maint.sh start_apps
-	#bash maint.sh start_docker
+	bash ./maint.sh start_dbs
+	bash ./maint.sh start_apps
+	#bash ./maint.sh start_docker
 	;;
 
 init.)
@@ -120,10 +125,9 @@ debe_config.)
 
 	export XLATE=$HERE/node_modules/i18n-abide/examples/express3/i18n	# I18N translation folder
 
-	export GITREPO=$GITREPO
-	export JIRA=http://jira.tbd
-	export RAS=http://ras.tbd
-	export BY=https://research.nga.ic.gov
+	//export JIRA=http://jira.tbd
+	//export RAS=http://ras.tbd
+	export BY="<a href=https://totem.hopto.org>ACMESDS>"
 
 	;;
 	
@@ -139,8 +143,8 @@ base_config.)
 	source $SERVICE/pass.sh
 	
 	# GIT repo
-	export GITREPO=https://github.com/$GIT_USER
-	#export GITREPO=https://$GIT_USER@github.com/$GIT_USER
+	export URL_REPO=https://github.com/$GIT_USER
+	#export URL_REPO=https://$GIT_USER@github.com/$GIT_USER
 	
 	# initialize dev/prod paths
 	export PATH=/local/bin:/usr/bin:/local/sbin:/usr/sbin:/local/cmake/bin
@@ -203,7 +207,9 @@ db_config.)
 	# may not need key on the lexnex GETDOC url
 	export URL_LEXNEX_GETDOC=https:$KEY_LEXNEX@services-api.lexisnexis.com/v1/
 	export URL_LEXNEX_TOKEN=https:$KEY_LEXNEX@auth-api.lexisnexis.com/oauth/v2/token
-
+	export URL_OSM=http://localhost:5173
+	export URL_NODERED=http://localhost:1880
+	export URL_CESIUM=http://localhost:8083
 	;;
 
 seclink_config.)
@@ -610,7 +616,7 @@ totem.)
 			mkdir -p $SERVICE; cd $SERVICE
 			for mod in "${TOTEM_MODULES[@]}"; do
 				echo "installing $mod"
-				git clone $GITREPO/$mod
+				git clone $URL_REPO/$mod
 			done
 			;;
 
@@ -649,7 +655,7 @@ debe.)
 			mkdir -p $SERVICE; cd $SERVICE
 			for mod in "${DEBE_MODULES[@]}"; do
 				echo "installing $mod"
-				git clone $GITREPO/$mod
+				git clone $URL_REPO/$mod
 			done
 			;;
 
@@ -734,13 +740,18 @@ pcsc.)
 start_osm.)
 	npm $OSM/start
 	;;
+
 install_osm.)
-	# Create a new empty directory for your project and navigate to it by running mkdir new-project && cd new-project. Initialize your project with
-	# You will need to have git installed. If you receive an error, make sure that Git is installed on your system.
-	# This will install the ol package, set up a development environment with additional dependencies, and give you an index.html and main.js starting point for your application. By default, Vite will be used as a module loader and bundler. See the create-ol-app documentation for details on using another bundler.
+	# Create a new empty directory for your project and navigate to it by running mkdir new-project && cd new-project. 
+	# Initialize your project with
 
 	mkdir -p $OSM; cd $OSM
 	npx create-ol-app
+	
+	# You will need to have git installed. If you receive an error, make sure that Git is installed on your system.
+	# This will install the ol package, set up a development environment with additional dependencies, and give 
+	# you an index.html and main.js starting point for your application. By default, Vite will be used as a module 
+	# loader and bundler. See the create-ol-app documentation for details on using another bundler.
 	;;
 
 osm.)
@@ -768,6 +779,7 @@ install_neo4j.)
 	mkdir -p $NEO4J; cd $BASE
 	tar xvf $INSTALL/neo4j-latest
 	;;
+
 start_neo4j.)
 	$NEO4J/bin/neo4j console &
 	;;
@@ -1030,11 +1042,6 @@ mysql.)
 	esac
 	;;
 
-startdbs.)
-	bash ./maint.sh start_mysql
-	bash ./maint.sh start_neo4j
-	;;
-	
 snap.)
 	############################
 	# Archival
@@ -1084,13 +1091,15 @@ snap.)
 	;;
 
 install_cesium.)
-	cd $BASE
-	unzip $INSTALL/cesium-latest
+	mkdir $CESIUM
+	cd $CESIUM
+	unzip $INSTALL/cesium/Cesium-1.90.zip
+	npm install
 	;;
 
 start_cesium.)
 	if P=$(pgrep cesium); then
-		echo -e "cesium service running: \n$P"
+		echo -e "cesium already running\n$P"
 	else
 		#node $BASE/cesium/geonode/geocesium --port 8083 --public &
 		#node $BASE/cesium/server --port 8083 --public &
@@ -1283,7 +1292,7 @@ git.)
 
 		genkey.) 		# make pub-pri key for git auto-password agent 
 			echo "store keys under .ssh/git_totemstan_rsa and upload git_totemstan_rsa.pub key to git account." 
-			echo "git remote add agent git@github.com:totemstan/GITREPO"
+			echo "git remote add agent git@github.com:totemstan/URL_REPO"
 			#ssh-keygen -t rsa -b 4096 -C "$GIT_EMAIL"
 			ssh-keygen -t ed25519 -C "$GIT_EMAIL"
 			;;

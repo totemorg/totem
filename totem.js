@@ -366,7 +366,7 @@ in accordance with [jsdoc]{@link https://jsdoc.app/}.
 // Create simple service but dont start it.
 Log({
 	msg: "Im simply a Totem interface so Im not even running as a service", 
-	default_fetcher_endpts: TOTEM.byTable,
+	default_fetcher_endpts: TOTEM.byNode,
 	default_protect_mode: TOTEM.guard,
 	default_cores_used: TOTEM.cores
 });
@@ -410,7 +410,7 @@ these files. `
 // Only 1 worker, unprotected, a mysql database, and two endpoints.
 
 config({
-	byTable: {
+	byNode: {
 		dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 			res( "123" );
 
@@ -441,7 +441,7 @@ and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only
 aka core), Im running unprotected, and have a mysql database.  
 [*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
 associated public NICK.crt and private NICK.key certs it creates.`,
-		my_endpoints: T.byTable
+		my_endpoints: T.byNode
 	});
 });
 
@@ -470,7 +470,7 @@ config({
 	guard: false,	// ex override default 
 	cores: 3,		// ex override default
 
-	"byTable.": {  // define endpoints
+	"byNode.": {  // define endpoints
 		test: function (req,res) {
 			res(" here we go");  // endpoint must always repond to its client 
 			if (isMaster)  // setup tasking examples on on master
@@ -668,12 +668,12 @@ const
 	$master = new URL(master),
 	  
 	{ 	Trace,
-		byArea, byType, byAction, byTable, CORS,
-		defaultType, attachAgent, config,
+		byArea, byType, byAction, byNode, CORS,
+		defaultType, attachAgent, config, 
 	 	createCert, loginClient, crudIF, busy,
 		getBrick, routeAgent, setContext, readPost,
 		filterFlag, paths, sqls, errors, site, isEncrypted, behindProxy, admitRules,
-		filters,tableRoutes, dsThread, startDogs, cache } = TOTEM = module.exports = {
+		filters,nodeRouter, dsThread, startDogs, cache } = TOTEM = module.exports = {
 	
 	Trace: (msg, ...args) => `totem>>>${msg}`.trace( args ),	
 
@@ -692,7 +692,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 
 @param {Object} server Server being started
 @param {Numeric} port Port number to listen for agent requests
-@param {Function|Object} agents (req,res)-router or (req,res)-hash of agents
+@param {Function|Object} agents (req,res)-agent or hash of (req,res)-agents
 @param {Function} init Optional callback after server started
 */
 	attachAgent: (server,port,agents,init) => {
@@ -704,6 +704,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 			console.log( `Listening on port ${port}` );
 			if ( init ) init();
 		})
+		
 		.on("request", (Req,Res) => {
 			function reqThread( ses ) { 		// start request and callback session cb
 				function getSocket() {  //< returns suitable response socket depending on cross/same domain session
@@ -855,6 +856,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 				}
 				
 				function getSocket( cb ) {
+					
 					if ( BUSY() )	{					// check is under DoS attack
 						Trace("Busy!");
 						Res.end( "Error: server busy" );		// end the session
@@ -865,15 +867,15 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 						cb({								// start the session
 							cert: reqSocket.getPeerCertificate ? getCert(reqSocket) : null,
 							headers: Req.headers,
-							host: Req.headers["host"],
-							cookie: Req.headers["cookie"] || "",
-							ipAddress: Req.socket.remoteAddress,
-							referer: new URL(Req.headers["referer"] || "http://noreferer"), 	// proto://domain used
-							agent: Req.headers["user-agent"] || "",					// requester info
-							method: Req.method,					// get,put, etc
-							now: new Date(),  					// time client started request
-							reqSocket: reqSocket,   			// use supplied request socket 
-							resSocket: getSocket,				// attach method to return a response socket
+							host: Req.headers["host"],				
+							cookie: Req.headers["cookie"] || "",	// client cookie
+							ipAddress: Req.socket.remoteAddress,	// client ip address
+							referer: Req.headers["referer"] || "", 	// referer proto://domain
+							agent: Req.headers["user-agent"] || "",	// requester info
+							method: Req.method,						// get,put, etc
+							now: new Date(),  						// time client started request
+							reqSocket: reqSocket,   				// use supplied request socket 
+							resSocket: getSocket,					// attach method to return a response socket
 							/*
 							There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
 							embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
@@ -1014,6 +1016,7 @@ Attach (req,res)-agent(s) to `service` listening on specified `port`.
 				});
 			});
 		})
+		
 		.on("error", err => console.log("server failed", err) );
 	},
 
@@ -1508,7 +1511,7 @@ In phase 1/3 of the session setup, the following is added to this request:
 	cookie: "...."		// client cookie string
 	agent: "..."		// client browser info
 	ipAddress: "..."	// client ip address
-	referer: "proto://domain:port/query"	//  url during a cross-site request
+	referer: "http://site"		// url during a cross-site request
 	method: "GET|PUT|..." 			// http request method
 	now: date			// date stamp when requested started
 	post: "..."			// raw body text
@@ -1549,7 +1552,7 @@ In phase 3/3 of the the session setup, the following is added:
 					Client: client
 				}] );
 
-			req.ds = ( tableRoutes[table] || (req => `app.${table}`) ) (req);
+			req.ds = ( nodeRouter[table] || (req => `app.${table}`) ) (req);
 			req.sql = sql;
 			req.action = crudIF[method];			// crud action being requested
 			
@@ -1559,11 +1562,11 @@ In phase 3/3 of the the session setup, the following is added:
 
 /**
 */
-	tableRoutes: {	// setup default DataSet routes
+	nodeRouter: {	// setup default DataSet routes
 	},
 	
 /**
-Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byTable, 
+Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byNode, 
 byActionTable then byAction routers.	
 
 The provided response method accepts a string, an objects, an array, an error, or 
@@ -1824,7 +1827,7 @@ In phase3 of the session setup, the following is added to the req:
 
 			else
 			if ( table ) {
-				if ( route = byTable[table] ) 	// route by endpoint name
+				if ( route = byNode[table] ) 	// route by endpoint name
 					followRoute( route );
 
 				else  
@@ -1929,8 +1932,6 @@ Error messages
 		//noAccess: new Error("no access to master core at this endpoint"),
 	},
 
-	//api: { },
-
 /**
 Configure and start the service with options and optional callback when started.
 Configure database, define site context, then protect, connect, start and initialize this server.
@@ -1953,7 +1954,7 @@ Configure database, define site context, then protect, connect, start and initia
 				delete pts.byType;
 			}
 
-			Copy(pts, byTable);
+			Copy(pts, byNode);
 		}
 
 		function docEndpoints(sql) {
@@ -1964,9 +1965,9 @@ Configure database, define site context, then protect, connect, start and initia
 				docNotebooks = false;
 			
 			if ( docEditpoints ) // document endpoints			
-				//Stream(byTable, {}, (val,skey,cb) => {	// system endpoints
-				Object.keys(byTable).stream( (vkey,skey,cb) => {
-					const val = byTable[vkey];
+				//Stream(byNode, {}, (val,skey,cb) => {	// system endpoints
+				Object.keys(byNode).stream( (vkey,skey,cb) => {
+					const val = byNode[vkey];
 					
 					//Log("docendpt", vkey, val);
 					
@@ -2025,7 +2026,7 @@ Configure database, define site context, then protect, connect, start and initia
 			Create and start the HTTP/HTTPS server.  If starting a HTTPS server, the truststore
 			is scanned for PKI certs.
 			*/
-			function createServer() {		//< create and start the server
+			function createService() {		//< create and start the server
 				
 				const 
 					{ 
@@ -2206,7 +2207,7 @@ Configure database, define site context, then protect, connect, start and initia
 						})	// using encrypted services so use https 			
 						: HTTP.createServer();		  // using unencrpted services so use http 
 
-				attachAgent( server, port, (req,res) => {	// attach this (req,res)-router
+				attachAgent( server, port, (req,res) => {	// attach this (req,res)-node endpoint
 					
 					loginClient(req, prof => {	// get client profile
 						if (prof) {			// client accepted so start session
@@ -2241,15 +2242,15 @@ Configure database, define site context, then protect, connect, start and initia
 				FS.access( pfx, FS.F_OK, err => {
 					if (err) // create self-signed cert then connect
 						createCert(	`${paths.certs}${name}`, TOTEM.certPass, () => {
-							createServer();
+							createService();
 						});	
 
 					else // got the pfx so connect
-						createServer();
+						createService();
 				});
 
 			else 
-				createServer();
+				createService();
 		}
 
 		const
@@ -2257,23 +2258,31 @@ Configure database, define site context, then protect, connect, start and initia
 		
 		Trace(`CONFIGURING ${name} WITH ENDPOINTS`, paths.userEndpts); 
 
+		// configure totem
+		
 		if (opts) Copy(opts, TOTEM, ".");
 
+		// add (req,res)-node endpoints
+		
 		try {
 			addEndpoints( require(paths.userEndpts) );
 		}
 		
 		catch (err) {
-			Trace("ENDPOINTS DEFAULTED");
+			Trace("Bad endpoints specified were defaulted");
 		}
 		
-		Each( paths.mimes, (key,val) => {	// extend or remove mime types
+		// extend or remove mime types
+		
+		Each( paths.mimes, (key,val) => {	
 			if ( val ) 
 				MIME.types[key] = val;
 			else
 				delete MIME.types[key];
 		});
 
+		// configure, create then start the service
+		
 		sqlThread( sql => {
 			setContext(sql, () => configService(cb));
 		});	
@@ -2636,25 +2645,23 @@ Site context extended by the mysql derived query when service starts
 			user: "user@tbd.org"
 		},
 			
-		by: "ACMESDS".link( ENV.BY || "http://BY.undefined" ),
+		by: ENV.BY || "ACMESDS",
 		
-		//tag: (src,el,tags) => src.tag(el,tags),
-
 		explorer: {
 			Root: "/root/", 
-			Earth: "http://${domain}:8083/Apps/totem_index.html", 
-			Graph: "http://${domain}:7474/neo4j", 
-			Streets: "http://${domain}:3000/", 
-			Process: "http://${domain}:1880/", 
+			Earth: `${ENV.URL_CESIUM}/Apps/earth.html`, 
+			Graph: `${ENV.URL_NEO4J}/neo4j`, 
+			Streets: `${ENV.URL_OSM}/`, 
+			Process: `${ENV.URL_NODERED}/`, 
 			Totem: "/brief.view?_project=totem",  
 			Notebooks: "/notebooks.html", 
 			API: "/api.view", 
 			SkinGuide: "/skinguide.view", 
-			JIRA: ENV.JIRA || "JIRA.undefined", 
-			RAS: ENV.RAS || "RAS.undefined",
-			Repo: ENV.REPO || "REPO.undefined",
+			//JIRA: ENV.JIRA || "JIRA.undefined", 
+			//RAS: ENV.RAS || "RAS.undefined",
+			Repo: `${ENV.URL_REPO}/`,
 			Survey: "/survey.view",
-			Calendar: "/test.view"
+			Calendar: "/calendar.view"
 		},
 		
 		sitemap: [
@@ -2746,6 +2753,12 @@ Title ti to fileName fn
 					return "".tag("iframe", { src: url, width:W, height:H });
 			}
 		},
+/**
+Jsonize records.
+@memberof Skinning
+@param {Array} recs Record source
+*/
+		json: recs => JSON.stringify(recs),
 		
 		banner: "",	// disabled
 		
@@ -2759,23 +2772,8 @@ Title ti to fileName fn
 			py: "anconda2-2019.7 (iPython 5.1.0 debugger), numpy 1.11.3, scipy 0.18.1, utm 0.4.2, Python 2.7.13",
 			m: "matlab R18, odbc, simulink, stateflow",
 			R: "R-3.6.0, MariaDB, MySQL-connector"
-		},
+		}
 		
-		/*
-		match: function (recs,where,get) {
-			return recs.match(where,get);
-		},
-		
-		replace: function (recs,subs) {
-			return recs.replace(subs);
-		}, */
-		
-/**
-Jsonize records.
-@memberof Skinning
-@param {Array} recs Record source
-*/
-		json: recs => JSON.stringify(recs)			
 	},
 
 /**
@@ -2788,7 +2786,7 @@ Endpoint filters cb(data data as string || error)
 @param {Object} req Totem session request
 @param {Function} res Totem session response
 */
-		txt: (recs,req,res) => { //< dataset.txt convert to text
+		txt: (recs, req, res) => { //< dataset.txt convert to text
 			var head = recs[0], cols = [], cr = String.fromCharCode(13), txt="", list = ",";
 
 			if (head) {
@@ -2824,7 +2822,7 @@ Endpoint filters cb(data data as string || error)
 @param {Object} req Totem session request
 @param {Function} res Totem session response
 */
-		html: (recs,req,res) => { //< dataset.html converts to html
+		html: (recs, req, res) => { //< dataset.html converts to html
 			res( recs.gridify ? recs.gridify({},{border: "1"}) : recs );
 		},
 			
@@ -2833,7 +2831,7 @@ Endpoint filters cb(data data as string || error)
 @param {Object} req Totem session request
 @param {Function} res Totem session response
 */
-		blog: (recs,req,res) => {  //< renders dataset records
+		blog: (recs, req, res) => {  //< renders dataset records
 			recs.blog( req, "Description", recs => {
 				res({ 
 					success: true,
@@ -2863,14 +2861,14 @@ Endpoint filters cb(data data as string || error)
 @param {Object} req Totem session request
 @param {Function} res Totem session response
 */
-		"": (recs,req,res) => res( recs ),
+		"": (recs, req, res) => res( recs ),
 			
 /**
 @param {Array} recs Records to filter
 @param {Object} req Totem session request
 @param {Function} res Totem session response
 */
-		json: (recs,req,res) => res( recs ),
+		json: (recs, req, res) => res( recs ),
 		
 /**
 @param {Array} recs Records to filter
@@ -2886,17 +2884,29 @@ Endpoint filters cb(data data as string || error)
 	},
 
 /**
-By-table endpoint routers {table: method(req,res), ... } for data fetchers, system and user management
+By-node endpoint routers {node: method(req,res), ... } for data fetchers, system and user management
 @cfg {Object} 
 */	
-	byTable: { 			  //< by-table routers	
-		/**
-		*/
+	byNode: { 			  //< by-table routers	
+/**
+Endpoint to interface with in-network agents given request query
+
+	port		Port number to register an agent
+	keys		Query keys to register an agent
+	tasks		List of tasks to be run
+	
+@param {Object} req Totem session request
+@param {Function} res Totem session response
+*/
 		agent: (req,res) => {
+			
 			const
-				{ query, ipAddress, sql } = req,
+				{ type, query, ipAddress, sql } = req,
 				{ port, keys, tasks } = query,
 				parsePath = "".parsePath+"";
+			
+			if (type == "help")
+			return res("Interface with in-network agents");
 			
 			if (port) {
 				Trace("register agent", `${ipAddress}:${port}` , keys );
@@ -2906,7 +2916,7 @@ String.prototype.parsePath = ${parsePath};
 
 var 
 	_attach = ${attachAgent}, 
-	_server = require("http").createServer(),
+	_server = require("http").createService(),
 	_port = ${port};
 
 _attach(_server,_port,agents);	
@@ -2926,31 +2936,30 @@ _attach(_server,_port,agents);
 
 			else
 			if (tasks) 
-				if (tasks == "all")
-					sql.query(
-						"SELECT Task,Funded,Classif,Priority,Age FROM openv.queues", [], 
-						(err,recs) => res( err ? [] : recs) 
-					);
+				sql.query(
+					(tasks == "all") 
+					? "SELECT Task,Funded,Classif,Priority,Age FROM openv.queues"
+					: "SELECT Task,Funded,Classif,Priority,Age FROM openv.queues WHERE least(?,1) LIMIT ?", 
 
-				else
-					sql.query(
-						"SELECT Task,Funded,Classif,Priority,Age FROM openv.queues WHERE least(?,1) LIMIT ?", [{
-							Finished: 0,
-							Client: ipAddress,
-							Class: 'system'
-						}, tasks], (err,recs) => res( err ? [] : recs) 
-					);
+					[{
+						Finished: 0,
+						Client: ipAddress,
+						Class: 'system'
+					}, tasks], 
+
+					(err,recs) => res( err ? [] : recs) 
+				);
 					
 			else
-				res( "Error: missing port/jobs key" );
+				res( "Error: missing port/tasks key" );
 		},
 		
-		/**
-		Endpoint to test connectivity.
+/**
+Endpoint to test connectivity.
 
-		@param {Object} req Totem request
-		@param {Function} res Totem response
-		*/
+@param {Object} req Totem request
+@param {Function} res Totem response
+*/
 		ping: (req,res) => {
 			const 
 				{ client, site, type } = req,
@@ -2962,12 +2971,12 @@ _attach(_server,_port,agents);
 			res( `Welcome ${client} to ` + nick.link("/site.view") + " on " + "root".link("/root/") );
 		},
 
-		/**
-		Endpoint to shard a task to the compute nodes.
+/**
+Endpoint to shard a task to the compute nodes.
 
-		@param {Object} req Totem request
-		@param {Function} res Totem response
-		*/
+@param {Object} req Totem request
+@param {Function} res Totem response
+*/
 		task: (req,res) => {  //< task sharding
 			const {query,body,sql,type,table,url} = req;
 			const {task,domains,cb,client,credit,name,qos} = body;
@@ -3016,12 +3025,12 @@ _attach(_server,_port,agents);
 				});
 		},
 
-		/**
-		Endpoint to validate clients response to an antibot challenge.
+/**
+Endpoint to validate clients response to an antibot challenge.
 
-		@param {Object} req Totem session request
-		@param {Function} res Totem response callback
-		*/
+@param {Object} req Totem session request
+@param {Function} res Totem response callback
+*/
 		riddle: (req,res) => {
 			const 
 				{ query, sql, type, body, action } = req,
@@ -3048,12 +3057,12 @@ _attach(_server,_port,agents);
 				res( errors.noClient );
 		},
 			
-		/**
-		Endpoint to validate clients response to an antibot challenge.
+/**
+Endpoint to validate clients response to an antibot challenge.
 
-		@param {Object} req Totem session request
-		@param {Function} res Totem response callback
-		*/
+@param {Object} req Totem session request
+@param {Function} res Totem response callback
+*/
 		login: (req,res) => {
 			const 
 				{ query } = req,
@@ -4819,7 +4828,7 @@ Start("totem", {
 	
 	T1: () => 
 		Trace("Im simply a Totem interface so Im not even running as a service", {
-			default_fetcher_endpts: TOTEM.byTable,
+			default_fetcher_endpts: TOTEM.byNode,
 			default_protect_mode: TOTEM.guard,
 			default_cores_used: TOTEM.cores
 		}),
@@ -4849,7 +4858,7 @@ these files. `
 	
 	T4: () =>
 		config({
-			byTable: {
+			byNode: {
 				dothis: function dothis(req,res) {  //< named handlers are shown in trace in console
 					res( "123" );
 
@@ -4879,7 +4888,7 @@ and has https (vs http) endpoints, here /dothis and /dothat endpoints.  Ive only
 aka core), Im running unprotected, and have a mysql database.  
 [*] If my NICK.pfx does not already exists, Totem will create its password protected NICK.pfx cert from the
 associated public NICK.crt and private NICK.key certs it creates.`, {
-				my_endpoints: T.byTable
+				my_endpoints: T.byNode
 			});
 		}),
 		
@@ -4899,7 +4908,7 @@ shields require a Encrypted service, and a UI (like that provided by DEBE) to be
 			guard: false,	// ex override default 
 			cores: 3,		// ex override default
 
-			"byTable.": {  // define endpoints
+			"byNode.": {  // define endpoints
 				test: function (req,res) {
 					res(" here we go");  // endpoint must always repond to its client 
 					if (isMaster)  // setup tasking examples on on master

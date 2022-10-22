@@ -10,12 +10,11 @@ append base_parms
 append base_body
 	script.
 		const
-			calendar = "http://localhost:8080/events",
-			freeslot = "Reserved",
-			caltype = "Guitar";
-
-		var 
-			now = new Date();
+			calData = "http://localhost:8080/events",
+			calFree = "Reserved",
+			calType = "Guitar",
+			calMonths = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'],
+			calDays = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 		function getAvail( cb ) {
 			function availHours(data) {
@@ -38,23 +37,24 @@ append base_body
 			}
 
 			const 
+				now = new Date(),
 				yr = now.getFullYear(),
 				mth = now.getMonth(),
 				date = now.getDate(),
 				day = now.getDay(),
 				startDate = (new Date(yr, mth, date - day)).toISOString(),
 				endDate = (new Date(yr, mth, date - day + 6)).toISOString(),
-				query = { Client: freeslot, Type: caltype, "Date_in": `${startDate},${endDate}` };
+				query = { Client: calFree, Type: calType, "Date_in": `${startDate},${endDate}` };
 
-			Ajax( query, "get", calendar, res => cb( availHours(JSON.parse(res)) ) );
+			Ajax( query, "get", calData, res => cb( availHours(JSON.parse(res)) ) );
 		}
 
 		getAvail( hours => {
 			$("#content").markyourcalendar({
 				availability: hours,
 				isMultiple: false,
-				months: ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'],
-				weekdays: ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
+				months: calMonths,
+				weekdays: calDays,
 				startDate: new Date("09/oct/2022"),
 				//selectedDates: ["12/oct/2022"],
 				onClick: (ev, data) => {
@@ -62,8 +62,8 @@ append base_body
 					var html = ``;
 					data.forEach( datetime => {
 						const [d,t] = datetime.split(' ');
-						html += `${ioClient} reserved ${d} at ${t} for a ${caltype} lesson`.tag("span");
-						Ajax( {Client: ioClient}, "put", calendar.tag("?",{ Date: datetime, Type: caltype}), res => alert("reserved") );
+						html += `${ioClient} reserved ${d} at ${t} for a ${calType} lesson`.tag("span");
+						Ajax( {Client: ioClient}, "put", calData.tag("?",{ Date: datetime, Type: calType}), res => alert("reserved") );
 					});
 					$('#status').html(html);
 				},
