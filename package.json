@@ -1,6 +1,6 @@
 {
   "name": "@totemorg/totem",
-  "version": "2.10.0",
+  "version": "2.11.0",
   "description": "Provides basic, customizable and extensible web service",
   "main": "totem.js",
   "scripts": {
@@ -19,7 +19,7 @@
   "dependencies": {
     "@totemorg/enums": "^1.21.0",
     "@totemorg/jsdb": "^1.15.0",
-    "@totemorg/securelink": "^1.21.0",
+    "@totemorg/securelink": "^1.22.0",
     "@totemorg/skin": "^1.17.0",
     "cheerio": "^1.0.0-rc.3",
     "http-proxy-agent": "^4.0.1",
