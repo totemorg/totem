@@ -27,10 +27,10 @@ const
 	JS2CSV = require('json2csv'),				// JSON to CSV parser	
 	  
 	// totem modules
-	SECLINK = require("./securelink"),			// secure com and login
-	JSDB = require("./jsdb"),					// database agnosticator
-	ENUMS = require("./enums"),					// data enumerators
-	SKIN = require("./skin"),					// site skinning
+	SECLINK = require("@totemorg/securelink"),			// secure com and login
+	JSDB = require("@totemorg/jsdb"),					// database agnosticator
+	ENUMS = require("@totemorg/enums"),					// data enumerators
+	SKIN = require("@totemorg/skin"),					// site skinning
 	  
 	{ renderSkin, renderJade } = SKIN,	
 	{ readFile } = FS,

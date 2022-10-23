@@ -13,7 +13,7 @@ const
 	 isFunction,isString,isArray,isEmpty,isObject,
 	 streamFile,
 	 sqlThread, neoThread, neo4jCon
-	} = ENUMS = require("./enums");
+	} = ENUMS = require("@totemorg/enums");
 
 Copy({
 /**
