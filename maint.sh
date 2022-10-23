@@ -6,7 +6,7 @@
 
 HERE=`pwd`
 TOTEM_MODULES=(totem enums jsdb securelink socketio)
-DEBE_MODULES=(${TOTEM_MODULES[@]} debe atomic dockify home chip ocr reader blog skin man dogs randpr liegroup)
+DEBE_MODULES=(${TOTEM_MODULES[@]} debe atomic dockify home chip ocr reader skin man dogs randpr liegroup)
 # MODULES=DEBE_MODULES
 # MODULES=(debe totem atomic chip dockify ocr home enums reader blog skin jsdb man randpr liegroup securelink socketio dogs)
 MODULE=`basename $HERE`
@@ -1305,15 +1305,16 @@ git.)
 
 		config.)
 			for mod in "${DEBE_MODULES[@]}"; do
-				echo "GIT repo set $mod"
+				echo "GIT config $mod"
 				cd $SERVICE/$mod
 				git remote rm gsmil
-				git remote rm man
-				git remote rm origin
 				git remote rm agent
-				git remote add gsmil git@gitlab.gs.mil:totem/socketio
-				git remote add agent git@github.com:$GIT_USER/$mod
+				git remote rm origin
+				#git remote rm totemorg
+				git remote add gsmil git@gitlab.gs.mil:totem/$mod
+				git remote add agent git@github.com:totemorg/$mod
 				git remote add origin https://github.com/$GIT_USER/$mod
+				#git remote add totemorg git@github.com:totemorg/$mod
 			done
 			cd $SERVICE
 			;;
