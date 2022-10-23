@@ -43,7 +43,7 @@ append base_body
 	- up1 = "upload".tag("label",{for:"uploadInput"})
 	- up2 = "".tag("input", {id:"uploadInput",name:"bodyKey",class:"inputfile",type:"file",size:10})
 	- up3 = button("insert")
-	- upload = (up1+up2+up3) //.tag("form",{enctype:"multipart/form-data",action:"/upload",method:"post"})
+	- upload = (up1+up2+up3) //.tag("form", {enctype:"multipart/form-data",action:"/upload",method:"post"})
 	- toolbar = explore ? "" : `${upload} || ${credit} || ${uses}`.tag("span").tag("form",{enctype:"multipart/form-data",action:"/upload",method:"post"})
 
 	if secureLink

@@ -670,34 +670,33 @@ const
 		byArea, byType, byAction, byNode, CORS,
 		defaultType, attachAgent, config, 
 	 	createCert, loginClient, crudIF, busy,
-		getBrick, routeAgent, setContext, readPost,
+		getBrick, nodeThread, setContext, readPost,
 		filterFlag, paths, sqls, errors, site, isEncrypted, behindProxy, admitRules,
 		filters,nodeRouter, dsThread, startDogs, cache } = TOTEM = module.exports = {
 	
 	Trace: (msg, ...args) => `totem>>>${msg}`.trace( args ),	
 
 /**
-Service too-busy options
+Service too-busy options to deny DoS attacks.
 @cfg {Object} 
-*/
-			
+*/		
 	busy: {
 		maxlag: 800,		// ms
 		interval: 500		// ms
 	},
 
 /**
-Attach a (req,res)-`agent` to thea `server` listening on the given `port`.  Callsback the supplied agent, 
-or the agent (based on the requested `path`, `table`, `type`, `area` node) for the request `req` derived over
-3 phases.  
+Attach a (req,res)-`agent` to thea `server` listening on the given `port`.  Callsback the supplied `agent` (when
+using a node-independent agent) or a `agent` from the supplied `agents` hash (assigned by the url-derived 
+`path`, `table`, `type`, `area`).  The `req` request is built during nested threads.
 
-Phase 1 adds the following to the `req` request:
+The outer-most socThread adds socket data to the `req` request:
 
 	cookie: "...."		// client cookie string
 	agent: "..."		// client browser info
 	ipAddress: "..."	// client ip address
 	referer: "http://site"		// url during a cross-site request
-	method: "GET|PUT|..." 			// http request method
+	method: "GET|PUT|..." 		// http request method
 	now: date			// date stamp when requested started
 	post: "..."			// raw body text
 	url	: "/query"		// requested url path
@@ -705,20 +704,35 @@ Phase 1 adds the following to the `req` request:
 	resSocket: socket	// method to create socket to accept response
 	cert: {...} 		// full client cert
 
-Phase 2 adds:
+The dsThread adds dataset information:
 
-	log: {...}			// info to trap socket stats
-	client: "..."		// name of client from cert or "guest"
-	profile: {...},		// client profile after login
-	host: "proto://domain:port"	// requested host 
+	sql: {...}			// sql connector
+	ds:	"db.name"		// fully qualified sql table
 	action: "select|update| ..."	// corresponding crude name
+
+The nodeThread adds client data:
+
 	encrypted: bool		// true if request on encrypted server
 	site: {...}			// site info
+	mimi: "type"		// mime type of response
+	
+The resThread adds node information and url parameters:
 
-Phase 3 adds:
+	path: "/[area/...]name.type"	// full node path
+	area: "name"		// file area being requested
+	table: "name"		// name of dataset/table being requested
+	type: "type" 		// type descriptor 
 
-	{query,index,flags,where} params derived from request url 
-	{sql,table,area,path,type} node parms derived from request url
+	query: {...} 		// raw keys from url
+	where: {...} 		// sql-ized query keys from url
+	body: {...}			// body keys from request 
+	flags: {...} 		// flag keys from url
+	index: {...}		// sql-ized index keys from url
+
+And the inner-most agentThread adds client information:
+
+	client: "..."		// name of client from cert or "guest"
+	profile: {...},		// client profile after login
 
 @param {Object} server Server being started
 @param {Numeric} port Port number to listen for agent requests
@@ -735,7 +749,7 @@ Phase 3 adds:
 		
 		.on("request", (Req,Res) => {	// callback (req,res)-agent using this (Req,Res)-handler
 			function reqThread( ses ) { 		//< start session then callback ses(req)
-				function sesSocket() {  		//< return response socket for cross/same domain session
+				function getSocket() {  		//< return response socket for cross/same domain session
 					if ( Req.headers.origin ) {  // cross domain session is in progress from master (on http) to its workers (on https)
 						Res.writeHead(200, {"content-type": "text/plain", "access-control-allow-origin": "*"});
 						Res.socket.write(Res._header);
@@ -883,8 +897,7 @@ Log("post text======>", body);
 					return cert;
 				}
 				
-				function getSocket( cb ) {	//< callback cb(req) with request
-					
+				function socThread( cb ) {	//< start socket then callback cb(req) with request
 					if ( BUSY() )	{	// deny DoS attacks
 						Trace("Busy!");
 						Res.end( "Error: server busy" );		// end the session
@@ -904,7 +917,7 @@ Log("post text======>", body);
 							method: Req.method,						// get,put, etc
 							now: new Date(),  						// time client started request
 							reqSocket: reqSocket,   				// use supplied request socket 
-							resSocket: sesSocket,					// attach method to make a response socket
+							resSocket: getSocket,					// attach method to make a response socket
 							/*
 							There exists an edge case wherein an html tag within json content, e.g a <img src="/ABC">
 							embeded in a json string, is reflected back the server as a /%5c%22ABC%5c%22, which 
@@ -917,7 +930,7 @@ Log("post text======>", body);
 						Res.end( "Error: lost socket" );
 				}
 				
-				getSocket( req => {		// start request thread using this req handler
+				socThread( req => {		// start request thread using this req handler
 					getPost( post => {	// get request post and process with this handler
 //Log("getpost", post); 
 						switch ( req.method ) {	// get post parms depending on request type being made
@@ -1017,7 +1030,7 @@ Log("post text======>", body);
 					});	
 				}
 
-				resThread( res => {	// route the request on the provided response callback
+				resThread( res => {	// route the request using the provided response method
 					const
 						{ url } = req,
 						query = req.query = {},
@@ -1053,7 +1066,6 @@ Log("post text======>", body);
 Enable to support cross-origin-scripting
 @cfg {Boolean} 
 */
-			
 	CORS: false,	//< enable to support cross-origin-scripting
 		
 /**
@@ -1063,7 +1075,7 @@ Default NODE type during a route
 	defaultType: "run",
 
 /**
-Login configuration settings for secureLink.  Null to disable.
+Login configuration settings for secureLink.  Null to disable the secureLink.
 @cfg {Object}
 */
 	login: {
@@ -1085,7 +1097,7 @@ Used to inspect unencrypted messages
 		},
 		
 /**
-Specifiies client challenge options
+Specifiies client challenge options for the anti-bot security
 */
 		challenge: {
 			/**
@@ -1125,11 +1137,12 @@ Specifiies client challenge options
 	},
 
 /**
-Callback the session cb with the client profile as derived from the request cert (if it exists) or the request cookie 
+Validate/login a client on this `req` request, then callback the session cb(req) with the client's
+profile `prof` derived from the request cert (if it exists) or the request cookie 
 (if it exists).  The returned profile is null if the cert/cookie could not be validated.
 
 @param {Object} req totem session request
-@param {Function} cb callback(profile || null) 
+@param {Function} cb callback(prof || null) 
 */
 			
 /*
@@ -1565,8 +1578,11 @@ with callback cb(req).
 	},
 
 /**
+Hash of node routers to provide access-control on nodes.  The router accepts a `req` request and
+return a fulling qualified mysql path "db.name" if the access is granted; or returned a "black.name"
+if access is denied.
 */
-	nodeRouter: {	// setup default DataSet routes
+	nodeRouter: {	// setup default dataset routes
 	},
 	
 /**
@@ -1577,27 +1593,11 @@ The provided response method accepts a string, an objects, an array, an error, o
 a file-cache function and terminates the session's sql connection.  The client is 
 validated and their session logged.
 
-In phase3 of the session setup, the following is added to the req:
-
-	files: [...]		// list of files being uploaded
-	//canvas: {...}		// canvas being uploaded
-	query: {...} 		// raw keys from url
-	where: {...} 		// sql-ized query keys from url
-	body: {...}			// body keys from request 
-	flags: {...} 		// flag keys from url
-	index: {...}		// sql-ized index keys from url
-	path: "/[area/...]name.type"			// requested resource
-	area: "name"		// file area being requested
-	table: "name"		// name of sql table being requested
-	ds:	"db.name"		// fully qualified sql table
-	body: {...}			// json parsed post
-	type: "type" 		// type part 
-
 @cfg {Function}
 @param {Object} req session request
 @param {Object} res session response
 */
-	routeAgent: (req,res) => {
+	nodeThread: (req,res) => {
 		/*
 		Log session metrics, trace the current route, then callback route on the supplied 
 		request-response thread.
@@ -1620,9 +1620,7 @@ In phase3 of the session setup, the following is added to the req:
 
 				sock.on('close', () => { 		// cb when connection closed
 					const
-						{ _log } = sock;
-
-					var 
+						{ _log } = sock,
 						started = _log.Event,
 						ended = new Date(),
 						secs = (ended.getTime() - started.getTime()) * 1e-3,
@@ -1784,13 +1782,12 @@ In phase3 of the session setup, the following is added to the req:
 			//Log({f: flags, q:query, b:body, i:index, w:where});
 		}
 		
-		dsThread( req, req => {	// start a dataset thread
+		dsThread( req, req => {	// start a dataset thread using this node threader
 			const 
 				mimes = MIME.types,
 				{area,table,action,path,type,ds} = req;
 
-			//req.host: $master.protocol+"//"+Req.headers["host"];		// domain being requested
-			req.encrypted = isEncrypted();			// on encrypted worker
+			req.encrypted = isEncrypted();				// on encrypted worker
 			req.site = site;							// site info
 			req.mime = mimes[ type ] || mimes.html;
 			
@@ -2015,15 +2012,12 @@ Configure database, define site context, then protect, connect, start and initia
 				Trace("Bypassing endpoint doc/scan");
 		}
 		
-		/**
-		Configure (create, start then initialize) a service that will handle its request-response 
-		sessions.
+/**
+Configure (create, start then initialize) a service that will handle its request-response 
+sessions.
 
-		The session request is constructed in 3 phases: reqThread, resThread, then dsThread.
-		As these phases are performed, the request hash req is extended.
-
-		@param {Function} agent callback(req,res) to handle session request-response 
-		*/
+@param {Function} agent callback(req,res) to handle session request-response 
+*/
 		function configService(init) {  	//< configure, create, then start the server
 
 			/**
@@ -2211,14 +2205,14 @@ Configure database, define site context, then protect, connect, start and initia
 						})	// using encrypted services so use https 			
 						: HTTP.createServer();		  // using unencrpted services so use http 
 
-				attachAgent( server, port, (req,res) => {	// attach this (req,res)-agent to route nodes
+				attachAgent( server, port, function agentThread(req,res) {	// attach (req,res)-agent to route nodes
 					
 					loginClient(req, prof => {	// get client profile
 						if (prof) {			// client accepted so start session
 							req.client = prof.Client;
 							req.profile = prof;
 							
-							routeAgent(req,res);
+							nodeThread(req,res);
 						}
 
 						else
@@ -2295,11 +2289,15 @@ Configure database, define site context, then protect, connect, start and initia
 	},
 
 /**
+Initialize the dervice.
 */
 	initialize: init => {
 		if ( init ) sqlThread( sql => init(sql) );
 	},
 	
+/**
+Job queues provided by JSDB.
+*/
 	queues: JSDB.queues, 	// pass along
 		
 /**
@@ -2311,8 +2309,6 @@ Methods available when Task Sharding
 		log: console.log
 	},
 	
-	onUpdate: null,
-		
 /**
 Shard one or more tasks to workers residing in a compute node cloud.
 
@@ -4375,6 +4371,7 @@ Client admission rules
 	},
 
 /**
+List of rotating proxies when doing masked Fetches.
 */
 	proxies: null, /* [	// rotating proxy services
 		//"https://free-proxy-list.net",
@@ -4450,7 +4447,6 @@ Get (or create if needed) a file with callback cb(fileID, sql) if no errors
 @param {Function} cb callback(file, sql) if no errors
 @cfg {Function}
 */
-
 	getBrick: (client, name, cb) => {  
 		sqlThread( sql => {
 			sql.forFirst( 
@@ -4601,6 +4597,8 @@ Sets the site context parameters.
 		*/
 	},
 
+/**
+*/
 	certs: {}, 		// server and client cert cache (pfx, crt, and key)
 
 /**

@@ -545,6 +545,7 @@ neoThread( neo => {
             * [.inspect()](#module_TOTEM.login.inspect)
         * [.nodeRouter](#module_TOTEM.nodeRouter)
         * [.errors](#module_TOTEM.errors)
+        * [.queues](#module_TOTEM.queues)
         * [.tasking](#module_TOTEM.tasking)
         * [.dogs](#module_TOTEM.dogs)
         * [.stop](#module_TOTEM.stop)
@@ -592,10 +593,11 @@ neoThread( neo => {
         * [.sqls](#module_TOTEM.sqls)
         * [.uploadFile](#module_TOTEM.uploadFile)
         * [.busyTime](#module_TOTEM.busyTime)
+        * [.certs](#module_TOTEM.certs)
         * [.cache](#module_TOTEM.cache)
         * [.attachAgent(server, port, agents, init)](#module_TOTEM.attachAgent)
         * [.dsThread(req, cb)](#module_TOTEM.dsThread)
-        * [.routeAgent(req, res)](#module_TOTEM.routeAgent)
+        * [.nodeThread(req, res)](#module_TOTEM.nodeThread)
         * [.startDogs()](#module_TOTEM.startDogs)
         * [.config(opts, cb)](#module_TOTEM.config)
             * [~configService(agent)](#module_TOTEM.config..configService)
@@ -614,7 +616,7 @@ neoThread( neo => {
 <a name="module_TOTEM.busy"></a>
 
 ### TOTEM.busy
-Service too-busy options
+Service too-busy options to deny DoS attacks.
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
@@ -635,7 +637,7 @@ Default NODE type during a route
 <a name="module_TOTEM.login"></a>
 
 ### TOTEM.login
-Login configuration settings for secureLink.  Null to disable.
+Login configuration settings for secureLink.  Null to disable the secureLink.
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
@@ -662,7 +664,7 @@ Name of SECLINK host for determining trusted clients etc
 <a name="module_TOTEM.login.challenge"></a>
 
 #### login.challenge
-Specifiies client challenge options
+Specifiies client challenge options for the anti-bot security
 
 **Kind**: static property of [<code>login</code>](#module_TOTEM.login)  
 <a name="module_TOTEM.login.challenge.extend"></a>
@@ -681,6 +683,10 @@ Used to inspect unencrypted messages
 <a name="module_TOTEM.nodeRouter"></a>
 
 ### TOTEM.nodeRouter
+Hash of node routers to provide access-control on nodes.  The router accepts a `req` request and
+return a fulling qualified mysql path "db.name" if the access is granted; or returned a "black.name"
+if access is denied.
+
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.errors"></a>
 
@@ -689,6 +695,12 @@ Error messages
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Object</code>  
+<a name="module_TOTEM.queues"></a>
+
+### TOTEM.queues
+Job queues provided by JSDB.
+
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.tasking"></a>
 
 ### TOTEM.tasking
@@ -1133,6 +1145,8 @@ Client admission rules
 <a name="module_TOTEM.proxies"></a>
 
 ### TOTEM.proxies
+List of rotating proxies when doing masked Fetches.
+
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.paths"></a>
 
@@ -1159,6 +1173,10 @@ Server toobusy check period in seconds
 
 **Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Number</code>  
+<a name="module_TOTEM.certs"></a>
+
+### TOTEM.certs
+**Kind**: static property of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.cache"></a>
 
 ### TOTEM.cache
@@ -1169,17 +1187,17 @@ File cache
 <a name="module_TOTEM.attachAgent"></a>
 
 ### TOTEM.attachAgent(server, port, agents, init)
-Attach a (req,res)-`agent` to thea `server` listening on the given `port`.  Callsback the supplied agent, 
-or the agent (based on the requested `path`, `table`, `type`, `area` node) for the request `req` derived over
-3 phases.  
+Attach a (req,res)-`agent` to thea `server` listening on the given `port`.  Callsback the supplied `agent` (when
+using a node-independent agent) or a `agent` from the supplied `agents` hash (assigned by the url-derived 
+`path`, `table`, `type`, `area`).  The `req` request is built during nested threads.
 
-Phase 1 adds the following to the `req` request:
+The outer-most socThread adds socket data to the `req` request:
 
 	cookie: "...."		// client cookie string
 	agent: "..."		// client browser info
 	ipAddress: "..."	// client ip address
 	referer: "http://site"		// url during a cross-site request
-	method: "GET|PUT|..." 			// http request method
+	method: "GET|PUT|..." 		// http request method
 	now: date			// date stamp when requested started
 	post: "..."			// raw body text
 	url	: "/query"		// requested url path
@@ -1187,20 +1205,35 @@ Phase 1 adds the following to the `req` request:
 	resSocket: socket	// method to create socket to accept response
 	cert: {...} 		// full client cert
 
-Phase 2 adds:
+The dsThread adds dataset information:
 
-	log: {...}			// info to trap socket stats
-	client: "..."		// name of client from cert or "guest"
-	profile: {...},		// client profile after login
-	host: "proto://domain:port"	// requested host 
+	sql: {...}			// sql connector
+	ds:	"db.name"		// fully qualified sql table
 	action: "select|update| ..."	// corresponding crude name
+
+The nodeThread adds client data:
+
 	encrypted: bool		// true if request on encrypted server
 	site: {...}			// site info
+	mimi: "type"		// mime type of response
+	
+The resThread adds node information and url parameters:
 
-Phase 3 adds:
+	path: "/[area/...]name.type"	// full node path
+	area: "name"		// file area being requested
+	table: "name"		// name of dataset/table being requested
+	type: "type" 		// type descriptor 
 
-	{query,index,flags,where} params derived from request url 
-	{sql,table,area,path,type} node parms derived from request url
+	query: {...} 		// raw keys from url
+	where: {...} 		// sql-ized query keys from url
+	body: {...}			// body keys from request 
+	flags: {...} 		// flag keys from url
+	index: {...}		// sql-ized index keys from url
+
+And the inner-most agentThread adds client information:
+
+	client: "..."		// name of client from cert or "guest"
+	profile: {...},		// client profile after login
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 
@@ -1224,31 +1257,15 @@ with callback cb(req).
 | req | <code>Object</code> | Totem endpoint request |
 | cb | <code>function</code> | callback(revised req) |
 
-<a name="module_TOTEM.routeAgent"></a>
+<a name="module_TOTEM.nodeThread"></a>
 
-### TOTEM.routeAgent(req, res)
+### TOTEM.nodeThread(req, res)
 Route NODE = /DATASET.TYPE requests using the configured byArea, byType, byNode, 
 byActionTable then byAction routers.	
 
 The provided response method accepts a string, an objects, an array, an error, or 
 a file-cache function and terminates the session's sql connection.  The client is 
 validated and their session logged.
-
-In phase3 of the session setup, the following is added to the req:
-
-	files: [...]		// list of files being uploaded
-	//canvas: {...}		// canvas being uploaded
-	query: {...} 		// raw keys from url
-	where: {...} 		// sql-ized query keys from url
-	body: {...}			// body keys from request 
-	flags: {...} 		// flag keys from url
-	index: {...}		// sql-ized index keys from url
-	path: "/[area/...]name.type"			// requested resource
-	area: "name"		// file area being requested
-	table: "name"		// name of sql table being requested
-	ds:	"db.name"		// fully qualified sql table
-	body: {...}			// json parsed post
-	type: "type" 		// type part
 
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 **Cfg**: <code>Function</code>  
@@ -1287,10 +1304,7 @@ Configure database, define site context, then protect, connect, start and initia
 
 #### config~configService(agent)
 Configure (create, start then initialize) a service that will handle its request-response 
-		sessions.
-
-		The session request is constructed in 3 phases: reqThread, resThread, then dsThread.
-		As these phases are performed, the request hash req is extended.
+sessions.
 
 **Kind**: inner method of [<code>config</code>](#module_TOTEM.config)  
 
@@ -1308,6 +1322,8 @@ Create and start the HTTP/HTTPS server.  If starting a HTTPS server, the trustst
 <a name="module_TOTEM.initialize"></a>
 
 ### TOTEM.initialize()
+Initialize the dervice.
+
 **Kind**: static method of [<code>TOTEM</code>](#module_TOTEM)  
 <a name="module_TOTEM.runTask"></a>
 
